@@ -212,7 +212,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   const handleCheckProgress = async () => {
-    if (!selectedProjectId) return;
+    // Use the task's own projectId, not the selected project
+    // This allows checking progress on tasks from other projects
+    const taskProjectId = task.projectId;
+    if (!taskProjectId) return;
 
     const params = parseTaskParams(task.params);
     const orchestratorDetails = params.orchestrator_details || {};
@@ -243,7 +246,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
       const { data: subtasks, error } = await supabase
         .from('tasks')
         .select('id, status')
-        .eq('project_id', selectedProjectId)
+        .eq('project_id', taskProjectId)
         .neq('id', task.id)
         .or(filters.join(','));
 
