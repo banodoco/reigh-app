@@ -312,6 +312,8 @@
     position: relative;
     min-height: 100vh;
     min-height: 100dvh;
+    /* Prevent horizontal scroll on mobile - scale transforms on cards can extend beyond viewport */
+    overflow-x: hidden;
   }
 
   /* Fix Radix UI scroll lock interfering with Select scroll on mobile */
