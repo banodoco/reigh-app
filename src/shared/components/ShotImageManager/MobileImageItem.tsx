@@ -10,7 +10,6 @@ import { cn, getDisplayUrl } from '@/shared/lib/utils';
 import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
 import { MobileImageItemProps } from './types';
-import { framesToSeconds } from '@/tools/travel-between-images/components/Timeline/utils/time-utils';
 import { VariantBadge } from '@/shared/components/VariantBadge';
 
 export const MobileImageItem: React.FC<MobileImageItemProps> = ({
@@ -120,12 +119,6 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
           loading="lazy"
         />
 
-        {/* Frame number overlay - bottom (matching timeline style) */}
-        {frameNumber !== undefined && (
-          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] leading-none text-center py-0.5 pointer-events-none whitespace-nowrap overflow-hidden">
-            <span className="inline-block">{framesToSeconds(frameNumber)}</span>
-          </div>
-        )}
 
         {/* Variant Count + NEW badge - bottom center, above frame number */}
         <VariantBadge

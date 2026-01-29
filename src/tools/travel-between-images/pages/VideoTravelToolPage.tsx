@@ -108,7 +108,7 @@ const VideoTravelToolPage: React.FC = () => {
   const viaShotClick = location.state?.fromShotClick === true;
   const shotFromState = location.state?.shotData;
   const isNewlyCreatedShot = location.state?.isNewlyCreated === true;
-  const { selectedProjectId, setSelectedProjectId, projects } = useProject();
+  const { selectedProjectId, setSelectedProjectId, projects, isLoadingProjects } = useProject();
   
   // Get current project's aspect ratio
   const currentProject = projects.find(p => p.id === selectedProjectId);
@@ -197,7 +197,8 @@ const VideoTravelToolPage: React.FC = () => {
   const { getShotVideoCount, getFinalVideoCount, logCacheState, isLoading: isLoadingProjectCounts, error: projectCountsError, invalidateOnVideoChanges } = useProjectVideoCountsCache(selectedProjectId);
   
   // Preload all shot generation modes for the project
-  const { getShotGenerationMode, updateShotMode, isLoading: isLoadingProjectModes, error: projectModesError } = useProjectGenerationModesCache(selectedProjectId);
+  // Only fetch after projects are loaded to ensure selectedProjectId is valid
+  const { getShotGenerationMode, updateShotMode, isLoading: isLoadingProjectModes, error: projectModesError } = useProjectGenerationModesCache(selectedProjectId, { enabled: !isLoadingProjects });
   
   // Debug project video counts cache - reduced logging
   const hasLoggedCacheState = useRef(false);

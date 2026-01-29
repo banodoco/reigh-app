@@ -127,8 +127,12 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
 /**
  * Hook to fetch and cache all shot generation modes for a project
  * Provides instant access to any shot's generation mode within the project
+ *
+ * @param projectId - The project ID to fetch modes for
+ * @param options.enabled - Additional condition to enable the query (default: true)
  */
-export function useProjectGenerationModesCache(projectId: string | null) {
+export function useProjectGenerationModesCache(projectId: string | null, options?: { enabled?: boolean }) {
+  const { enabled = true } = options ?? {};
   const cacheRef = useRef(globalProjectGenerationModesCache);
   const queryClient = useQueryClient();
   
@@ -139,7 +143,7 @@ export function useProjectGenerationModesCache(projectId: string | null) {
   const { data: projectModes, isLoading, error, refetch } = useQuery<Map<string, GenerationModeNormalized>>({
     queryKey: ['project-generation-modes', projectId],
     queryFn: () => fetchProjectGenerationModesFromDB(projectId!),
-    enabled: !!projectId,
+    enabled: !!projectId && enabled,
     gcTime: 10 * 60 * 1000, // 10 minutes
     placeholderData: (previousData) => previousData, // Keep showing previous data while refetching
     // 🎯 SMART POLLING: Intelligent polling based on realtime health
