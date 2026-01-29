@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { Scissors, RefreshCw, RotateCcw } from 'lucide-react';
+import { Scissors, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
 
 // Import video editing components
 import {
@@ -23,13 +23,15 @@ import { EditPanelLayout } from './EditPanelLayout';
 import { ModeSelector } from './ModeSelector';
 import { SegmentRegenerateForm } from './SegmentRegenerateForm';
 import type { SegmentRegenerateFormProps } from './SegmentRegenerateForm';
+import { VideoEnhanceForm } from './VideoEnhanceForm';
+import type { VideoEnhanceSettings } from '../hooks/useVideoEnhance';
 
 export interface VideoEditPanelProps {
   /** Layout variant */
   variant: 'desktop' | 'mobile';
 
-  /** Current sub-mode: trim, replace (portion replacement), or regenerate (full segment) */
-  videoEditSubMode: 'trim' | 'replace' | 'regenerate';
+  /** Current sub-mode: trim, replace (portion replacement), regenerate (full segment), or enhance */
+  videoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance';
 
   /** Handler to switch to trim mode */
   onEnterTrimMode: () => void;
@@ -40,11 +42,17 @@ export interface VideoEditPanelProps {
   /** Handler to switch to regenerate mode */
   onEnterRegenerateMode: () => void;
 
+  /** Handler to switch to enhance mode */
+  onEnterEnhanceMode: () => void;
+
   /** Handler to close the lightbox entirely */
   onClose: () => void;
 
   /** Handler to exit video edit mode (switch to info view) */
   onExitVideoEditMode: () => void;
+
+  /** Whether cloud mode is enabled (shows enhance mode) */
+  isCloudMode?: boolean;
 
   // Trim mode props
   trimState: TrimState;
@@ -69,6 +77,17 @@ export interface VideoEditPanelProps {
   // Regenerate mode props - pass props instead of JSX for proper hook pattern
   regenerateFormProps?: SegmentRegenerateFormProps | null;
 
+  // Enhance mode props
+  enhanceSettings?: VideoEnhanceSettings;
+  onUpdateEnhanceSetting?: <K extends keyof VideoEnhanceSettings>(
+    key: K,
+    value: VideoEnhanceSettings[K]
+  ) => void;
+  onEnhanceGenerate?: () => void;
+  isEnhancing?: boolean;
+  enhanceSuccess?: boolean;
+  canEnhance?: boolean;
+
   // Task ID for copy functionality
   taskId?: string | null;
 
@@ -92,8 +111,10 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   onEnterTrimMode,
   onEnterReplaceMode,
   onEnterRegenerateMode,
+  onEnterEnhanceMode,
   onClose,
   onExitVideoEditMode,
+  isCloudMode,
   // Trim props
   trimState,
   onStartTrimChange,
@@ -114,6 +135,13 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   projectId,
   // Regenerate props
   regenerateFormProps,
+  // Enhance props
+  enhanceSettings,
+  onUpdateEnhanceSetting,
+  onEnhanceGenerate,
+  isEnhancing,
+  enhanceSuccess,
+  canEnhance,
   // Task ID
   taskId,
   // Variants props
@@ -144,6 +172,13 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
       label: 'Regenerate',
       icon: <RotateCcw />,
       onClick: onEnterRegenerateMode,
+    }] : []),
+    // Enhance mode - only shown when cloud mode is enabled
+    ...(isCloudMode ? [{
+      id: 'enhance',
+      label: 'Enhance',
+      icon: <Sparkles />,
+      onClick: onEnterEnhanceMode,
     }] : []),
   ];
 
@@ -247,6 +282,18 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
       )}
       {videoEditSubMode === 'regenerate' && regenerateFormProps && (
         <SegmentRegenerateForm {...regenerateFormProps} />
+      )}
+      {videoEditSubMode === 'enhance' && enhanceSettings && onUpdateEnhanceSetting && onEnhanceGenerate && (
+        <VideoEnhanceForm
+          settings={enhanceSettings}
+          onUpdateSetting={onUpdateEnhanceSetting}
+          onGenerate={onEnhanceGenerate}
+          isGenerating={isEnhancing ?? false}
+          generateSuccess={enhanceSuccess ?? false}
+          canSubmit={canEnhance ?? false}
+          variant={variant}
+          videoUrl={videoUrl}
+        />
       )}
     </EditPanelLayout>
   );

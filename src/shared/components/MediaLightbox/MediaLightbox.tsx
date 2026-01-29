@@ -101,6 +101,7 @@ import {
   useTrimSave,
 } from '@/tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor';
 import { useVideoEditing } from './hooks/useVideoEditing';
+import { useVideoEnhance } from './hooks/useVideoEnhance';
 import { readSegmentOverrides } from '@/shared/utils/settingsMigration';
 
 interface ShotOption {
@@ -418,7 +419,7 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
   // Note: The persisted value is read from editSettingsPersistence and used to restore on re-entry
   // The wrapper setVideoEditSubMode is defined after editSettingsPersistence to access the persist setter
   // Initialize from localStorage directly to prevent flash (editSettingsPersistence isn't available yet)
-  const [videoEditSubMode, setVideoEditSubModeLocal] = useState<'trim' | 'replace' | 'regenerate' | null>(() => {
+  const [videoEditSubMode, setVideoEditSubModeLocal] = useState<'trim' | 'replace' | 'regenerate' | 'enhance' | null>(() => {
     if (initialVideoTrimMode) return 'trim';
     // Check if this is a video (isVideo isn't computed yet, so check directly)
     const mediaIsVideo = media.type === 'video' || (media.location?.endsWith('.mp4') || media.location?.endsWith('.webm'));
@@ -700,6 +701,9 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
     // Advanced settings for two-pass generation
     advancedSettings,
     setAdvancedSettings,
+    // Video enhance settings
+    enhanceSettings,
+    setEnhanceSettings,
     // Model selection for cloud mode
     qwenEditModel,
     setQwenEditModel,
@@ -1363,6 +1367,17 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
     },
   });
 
+  // Video enhance hook - handles interpolation and upscaling
+  const videoEnhance = useVideoEnhance({
+    projectId: selectedProjectId,
+    videoUrl: effectiveVideoUrl,
+    shotId,
+    generationId: actualGenerationId || undefined,
+    activeVariantId: activeVariant?.id,
+    settings: enhanceSettings,
+    updateSettings: setEnhanceSettings,
+  });
+
   // Adjusted task details hook - shows variant's source task instead of original generation's task
   const { adjustedTaskDetailsData } = useAdjustedTaskDetails({
     activeVariant,
@@ -1438,6 +1453,7 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
     handleEnterVideoTrimMode,
     handleEnterVideoReplaceMode,
     handleEnterVideoRegenerateMode,
+    handleEnterVideoEnhanceMode,
     handleExitVideoTrimMode,
   } = videoEditModeHandlers;
 
@@ -1730,9 +1746,18 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
     handleEnterVideoTrimMode,
     handleEnterVideoReplaceMode,
     handleEnterVideoRegenerateMode,
+    handleEnterVideoEnhanceMode,
     handleExitVideoEditMode,
     handleEnterVideoEditMode,
     regenerateFormProps,
+    // Video enhance
+    isCloudMode,
+    enhanceSettings: videoEnhance.settings,
+    onUpdateEnhanceSetting: videoEnhance.updateSetting,
+    onEnhanceGenerate: videoEnhance.handleGenerate,
+    isEnhancing: videoEnhance.isGenerating,
+    enhanceSuccess: videoEnhance.generateSuccess,
+    canEnhance: videoEnhance.canSubmit,
 
     // Edit mode
     isInpaintMode,

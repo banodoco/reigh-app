@@ -8,6 +8,7 @@
 
 import { useMemo, RefObject } from 'react';
 import type { GenerationRow } from '@/types/shots';
+import type { VideoEnhanceSettings } from './useVideoEnhance';
 
 // Input types - all the values needed to build layout props
 export interface UseLightboxLayoutPropsInput {
@@ -49,7 +50,7 @@ export interface UseLightboxLayoutPropsInput {
   isVideoTrimModeActive: boolean;
   isVideoEditModeActive: boolean;
   isInVideoEditMode: boolean;
-  videoEditSubMode: 'trim' | 'replace' | 'regenerate' | null;
+  videoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
   trimVideoRef: RefObject<HTMLVideoElement>;
   trimState: any;
   setStartTrim: (value: number) => void;
@@ -69,9 +70,18 @@ export interface UseLightboxLayoutPropsInput {
   handleEnterVideoTrimMode: () => void;
   handleEnterVideoReplaceMode: () => void;
   handleEnterVideoRegenerateMode: () => void;
+  handleEnterVideoEnhanceMode: () => void;
   handleExitVideoEditMode: () => void;
   handleEnterVideoEditMode: () => void;
   regenerateFormProps: any;
+  // Video enhance
+  isCloudMode: boolean;
+  enhanceSettings: VideoEnhanceSettings;
+  onUpdateEnhanceSetting: <K extends keyof VideoEnhanceSettings>(key: K, value: VideoEnhanceSettings[K]) => void;
+  onEnhanceGenerate: () => void;
+  isEnhancing: boolean;
+  enhanceSuccess: boolean;
+  canEnhance: boolean;
 
   // Edit mode
   isInpaintMode: boolean;
@@ -252,7 +262,16 @@ export function useLightboxLayoutProps(
     onEnterTrimMode: input.handleEnterVideoTrimMode,
     onEnterReplaceMode: input.handleEnterVideoReplaceMode,
     onEnterRegenerateMode: input.handleEnterVideoRegenerateMode,
+    onEnterEnhanceMode: input.handleEnterVideoEnhanceMode,
     onExitVideoEditMode: input.handleExitVideoEditMode,
+    isCloudMode: input.isCloudMode,
+    // Video enhance props
+    enhanceSettings: input.enhanceSettings,
+    onUpdateEnhanceSetting: input.onUpdateEnhanceSetting,
+    onEnhanceGenerate: input.onEnhanceGenerate,
+    isEnhancing: input.isEnhancing,
+    enhanceSuccess: input.enhanceSuccess,
+    canEnhance: input.canEnhance,
     trimState: input.trimState,
     onStartTrimChange: input.setStartTrim,
     onEndTrimChange: input.setEndTrim,

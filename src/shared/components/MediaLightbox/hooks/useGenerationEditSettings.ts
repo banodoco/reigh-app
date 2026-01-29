@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
-export type EditMode = 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img';
+export type EditMode = 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img' | 'enhance';
 export type LoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
 export type QwenEditModel = 'qwen-edit' | 'qwen-edit-2509' | 'qwen-edit-2511';
 
@@ -41,6 +41,33 @@ export const DEFAULT_ADVANCED_SETTINGS: EditAdvancedSettings = {
   hires_denoise: 0.5, // Lower than image generation (0.55) for edits
   lightning_lora_strength_phase_1: 0.9,
   lightning_lora_strength_phase_2: 0.5,
+};
+
+/**
+ * Video enhance settings for interpolation and upscaling
+ */
+export interface VideoEnhanceSettings {
+  /** Enable frame interpolation (FILM) */
+  enableInterpolation: boolean;
+  /** Enable video upscaling (FlashVSR) */
+  enableUpscale: boolean;
+  /** Frames to add between each pair (1-4) */
+  numFrames: number;
+  /** Upscale factor (1-4) */
+  upscaleFactor: number;
+  /** Enable color correction for upscaling */
+  colorFix: boolean;
+  /** Output quality for upscaling */
+  outputQuality: 'low' | 'medium' | 'high' | 'maximum';
+}
+
+export const DEFAULT_ENHANCE_SETTINGS: VideoEnhanceSettings = {
+  enableInterpolation: false,
+  enableUpscale: true,
+  numFrames: 1,
+  upscaleFactor: 2,
+  colorFix: true,
+  outputQuality: 'high',
 };
 
 /**
@@ -100,6 +127,8 @@ export interface GenerationEditSettings {
   img2imgEnablePromptExpansion: boolean;
   // Advanced settings for two-pass generation
   advancedSettings: EditAdvancedSettings;
+  // Video enhance settings
+  enhanceSettings: VideoEnhanceSettings;
 }
 
 export const DEFAULT_EDIT_SETTINGS: GenerationEditSettings = {
@@ -117,12 +146,14 @@ export const DEFAULT_EDIT_SETTINGS: GenerationEditSettings = {
   img2imgEnablePromptExpansion: false,
   // Advanced settings defaults
   advancedSettings: DEFAULT_ADVANCED_SETTINGS,
+  // Video enhance defaults
+  enhanceSettings: DEFAULT_ENHANCE_SETTINGS,
 };
 
 export interface UseGenerationEditSettingsReturn {
   // Current settings
   settings: GenerationEditSettings;
-  
+
   // Individual setters (trigger debounced save)
   setEditMode: (mode: EditMode) => void;
   setLoraMode: (mode: LoraMode) => void;
@@ -136,14 +167,16 @@ export interface UseGenerationEditSettingsReturn {
   setImg2imgEnablePromptExpansion: (enabled: boolean) => void;
   // Advanced settings setter
   setAdvancedSettings: (settings: Partial<EditAdvancedSettings>) => void;
-  
+  // Video enhance settings setter
+  setEnhanceSettings: (settings: Partial<VideoEnhanceSettings>) => void;
+
   // Bulk update
   updateSettings: (updates: Partial<GenerationEditSettings>) => void;
-  
+
   // State
   isLoading: boolean;
   hasPersistedSettings: boolean;
-  
+
   // For initialization from "last used"
   initializeFromLastUsed: (lastUsed: Omit<GenerationEditSettings, 'prompt' | 'img2imgPrompt' | 'img2imgPromptHasBeenSet'>) => void;
 }
@@ -462,7 +495,19 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
+  // Video enhance settings setter (merges with existing)
+  const setEnhanceSettings = useCallback((updates: Partial<VideoEnhanceSettings>) => {
+    setSettings(prev => {
+      const updated = {
+        ...prev,
+        enhanceSettings: { ...prev.enhanceSettings, ...updates },
+      };
+      triggerSave(updated);
+      return updated;
+    });
+  }, [triggerSave]);
+
   // Bulk update
   const updateSettings = useCallback((updates: Partial<GenerationEditSettings>) => {
     setSettings(prev => {
@@ -508,6 +553,7 @@ export function useGenerationEditSettings({
     setImg2imgStrength,
     setImg2imgEnablePromptExpansion,
     setAdvancedSettings,
+    setEnhanceSettings,
     updateSettings,
     isLoading,
     hasPersistedSettings,

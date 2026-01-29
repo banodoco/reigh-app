@@ -9,7 +9,7 @@
 
 import { useCallback } from 'react';
 
-export type VideoEditSubMode = 'trim' | 'replace' | 'regenerate' | null;
+export type VideoEditSubMode = 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
 
 export interface UseVideoEditModeHandlersProps {
   /** Setter for video edit sub-mode (combines local state + persistence) */
@@ -41,6 +41,8 @@ export interface UseVideoEditModeHandlersReturn {
   handleEnterVideoReplaceMode: () => void;
   /** Switch to regenerate (full segment) sub-mode */
   handleEnterVideoRegenerateMode: () => void;
+  /** Switch to enhance (interpolation/upscale) sub-mode */
+  handleEnterVideoEnhanceMode: () => void;
   /** Legacy handler for exiting trim mode specifically */
   handleExitVideoTrimMode: () => void;
 }
@@ -98,6 +100,9 @@ export function useVideoEditModeHandlers({
     } else if (restoredMode === 'regenerate') {
       videoEditingSetIsVideoEditMode(false);
       resetTrim();
+    } else if (restoredMode === 'enhance') {
+      videoEditingSetIsVideoEditMode(false);
+      resetTrim();
     }
 
     // Try to capture video duration from already-loaded video element
@@ -151,6 +156,14 @@ export function useVideoEditModeHandlers({
     resetTrim();
   }, [setVideoEditSubMode, videoEditingSetIsVideoEditMode, resetTrim]);
 
+  // Handle switching to enhance (interpolation/upscale) sub-mode
+  const handleEnterVideoEnhanceMode = useCallback(() => {
+    console.log('[EDIT_DEBUG] 🎬 handleEnterVideoEnhanceMode');
+    setVideoEditSubMode('enhance');
+    videoEditingSetIsVideoEditMode(false);
+    resetTrim();
+  }, [setVideoEditSubMode, videoEditingSetIsVideoEditMode, resetTrim]);
+
   // Legacy handler for exiting trim mode specifically
   const handleExitVideoTrimMode = useCallback(() => {
     console.log('[EDIT_DEBUG] 🎬 handleExitVideoTrimMode');
@@ -165,6 +178,7 @@ export function useVideoEditModeHandlers({
     handleEnterVideoTrimMode,
     handleEnterVideoReplaceMode,
     handleEnterVideoRegenerateMode,
+    handleEnterVideoEnhanceMode,
     handleExitVideoTrimMode,
   };
 }

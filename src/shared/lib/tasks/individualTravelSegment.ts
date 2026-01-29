@@ -465,6 +465,9 @@ function buildIndividualTravelSegmentParams(
     // For individual_travel_segment, include parent_generation_id at top level too
     parent_generation_id: params.parent_generation_id,
     child_generation_id: params.child_generation_id,
+    // Track lineage for UI - new variant is based on the child generation being regenerated
+    // (only set when creating a variant on an existing child)
+    ...(params.child_generation_id ? { based_on: params.child_generation_id } : {}),
     
     // Input images at top level for TaskItem image display
     input_image_paths_resolved: [params.start_image_url, params.end_image_url],

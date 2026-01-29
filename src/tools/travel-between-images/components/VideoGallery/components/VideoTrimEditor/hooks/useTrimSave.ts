@@ -183,6 +183,8 @@ export const useTrimSave = ({
         duration_seconds: result.duration,
         format: result.format || 'mp4',
         source_variant_id: sourceVariantId || null,
+        // Track lineage - this variant is based on the original generation
+        based_on: generationId,
       };
       
       const variantParams = sourceVariantParams 

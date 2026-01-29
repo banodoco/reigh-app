@@ -47,7 +47,10 @@ const HARDCODED_TASK_TYPE_CONFIG: Record<string, TaskTypeConfig> = {
   z_image_turbo_i2i: { isVisible: true, displayName: 'Z Image Img2Img', category: 'generation' },
   qwen_image_style: { isVisible: true, displayName: 'Qwen w/ Reference', category: 'generation' },
   qwen_image_edit: { isVisible: true, displayName: 'Qwen Image Edit', category: 'generation' },
-  
+
+  // Visible processing tasks
+  video_enhance: { isVisible: true, displayName: 'Video Enhance', category: 'processing' },
+
   // Hidden processing/utility tasks
   travel_segment: { isVisible: false, category: 'processing' },
   travel_stitch: { isVisible: false, category: 'processing' },

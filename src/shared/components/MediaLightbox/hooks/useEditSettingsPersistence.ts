@@ -6,8 +6,10 @@ import {
   type LoraMode,
   type QwenEditModel,
   type EditAdvancedSettings,
+  type VideoEnhanceSettings,
   DEFAULT_EDIT_SETTINGS,
   DEFAULT_ADVANCED_SETTINGS,
+  DEFAULT_ENHANCE_SETTINGS,
 } from './useGenerationEditSettings';
 import {
   useLastUsedEditSettings,
@@ -36,6 +38,8 @@ export interface UseEditSettingsPersistenceReturn {
   img2imgEnablePromptExpansion: boolean;
   // Advanced settings for two-pass generation
   advancedSettings: EditAdvancedSettings;
+  // Video enhance settings (interpolation/upscaling)
+  enhanceSettings: VideoEnhanceSettings;
   // Model selection for cloud mode
   qwenEditModel: QwenEditModel;
 
@@ -52,6 +56,8 @@ export interface UseEditSettingsPersistenceReturn {
   setImg2imgEnablePromptExpansion: (enabled: boolean) => void;
   // Advanced settings setter
   setAdvancedSettings: (updates: Partial<EditAdvancedSettings>) => void;
+  // Video enhance settings setter
+  setEnhanceSettings: (updates: Partial<VideoEnhanceSettings>) => void;
 
   // Video/Panel mode settings (persisted to "last used" only)
   videoEditSubMode: VideoEditSubMode;
@@ -206,6 +212,7 @@ export function useEditSettingsPersistence({
     setImg2imgStrength: genSetImg2imgStrength,
     setImg2imgEnablePromptExpansion: genSetImg2imgEnablePromptExpansion,
     setAdvancedSettings: genSetAdvancedSettings,
+    setEnhanceSettings: genSetEnhanceSettings,
   } = generationSettings;
 
   // Wrapper setters that also update "last used" (except prompt)
@@ -263,6 +270,11 @@ export function useEditSettingsPersistence({
     updateLastUsed({ advancedSettings: { ...currentAdvanced, ...updates } });
   }, [genSetAdvancedSettings, updateLastUsed, effectiveSettings.advancedSettings]);
 
+  // Video enhance settings setter (per-generation only, not "last used")
+  const setEnhanceSettings = useCallback((updates: Partial<VideoEnhanceSettings>) => {
+    genSetEnhanceSettings(updates);
+  }, [genSetEnhanceSettings]);
+
   // Video/Panel mode setters (only save to "last used", not per-generation)
   const setVideoEditSubMode = useCallback((mode: VideoEditSubMode) => {
     updateLastUsed({ videoEditSubMode: mode });
@@ -311,6 +323,8 @@ export function useEditSettingsPersistence({
     img2imgEnablePromptExpansion: effectiveSettings.img2imgEnablePromptExpansion,
     // Advanced settings (hires fix config)
     advancedSettings: effectiveSettings.advancedSettings ?? DEFAULT_ADVANCED_SETTINGS,
+    // Video enhance settings (interpolation/upscaling)
+    enhanceSettings: effectiveSettings.enhanceSettings ?? DEFAULT_ENHANCE_SETTINGS,
     // Model selection for cloud mode
     qwenEditModel: effectiveSettings.qwenEditModel ?? 'qwen-edit',
 
@@ -327,6 +341,8 @@ export function useEditSettingsPersistence({
     setImg2imgEnablePromptExpansion,
     // Advanced settings setter
     setAdvancedSettings,
+    // Video enhance settings setter
+    setEnhanceSettings,
 
     // Video/Panel mode (from "last used")
     videoEditSubMode: lastUsedSettings.lastUsed.videoEditSubMode,
@@ -349,6 +365,6 @@ export function useEditSettingsPersistence({
 }
 
 // Re-export types for convenience
-export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, GenerationEditSettings, LastUsedEditSettings, VideoEditSubMode, PanelMode };
-export { DEFAULT_EDIT_SETTINGS, DEFAULT_ADVANCED_SETTINGS };
+export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, VideoEnhanceSettings, GenerationEditSettings, LastUsedEditSettings, VideoEditSubMode, PanelMode };
+export { DEFAULT_EDIT_SETTINGS, DEFAULT_ADVANCED_SETTINGS, DEFAULT_ENHANCE_SETTINGS };
 

@@ -19,15 +19,70 @@ function jsonResponse(body: any, status = 200) {
   });
 }
 
+// Pricing constants for video_enhance task (fal.ai rates)
+const VIDEO_ENHANCE_PRICING = {
+  // FILM (interpolation): $0.0013 per compute second
+  FILM_COST_PER_SECOND: 0.0013,
+  // FlashVSR (upscale): $0.0005 per megapixel (width × height × frames / 1,000,000)
+  FLASHVSR_COST_PER_MEGAPIXEL: 0.0005,
+};
+
+// Special cost calculation for video_enhance task
+// Combines FILM (time-based) and FlashVSR (megapixel-based) pricing
+function calculateVideoEnhanceCost(taskParams: any): { cost: number; breakdown: any } {
+  let totalCost = 0;
+  const breakdown: any = {};
+
+  // Get result data from task params (worker should populate this)
+  const result = taskParams?.result || taskParams;
+
+  // FILM interpolation cost: $0.0013 per compute second
+  if (result?.interpolation_compute_seconds && result.interpolation_compute_seconds > 0) {
+    const filmCost = VIDEO_ENHANCE_PRICING.FILM_COST_PER_SECOND * result.interpolation_compute_seconds;
+    totalCost += filmCost;
+    breakdown.interpolation = {
+      compute_seconds: result.interpolation_compute_seconds,
+      cost_per_second: VIDEO_ENHANCE_PRICING.FILM_COST_PER_SECOND,
+      cost: Math.round(filmCost * 1000000) / 1000000,
+    };
+  }
+
+  // FlashVSR upscale cost: $0.0005 per megapixel
+  if (result?.output_width && result?.output_height && result?.output_frames) {
+    const megapixels = (result.output_width * result.output_height * result.output_frames) / 1_000_000;
+    const upscaleCost = VIDEO_ENHANCE_PRICING.FLASHVSR_COST_PER_MEGAPIXEL * megapixels;
+    totalCost += upscaleCost;
+    breakdown.upscale = {
+      output_width: result.output_width,
+      output_height: result.output_height,
+      output_frames: result.output_frames,
+      megapixels: Math.round(megapixels * 100) / 100,
+      cost_per_megapixel: VIDEO_ENHANCE_PRICING.FLASHVSR_COST_PER_MEGAPIXEL,
+      cost: Math.round(upscaleCost * 1000000) / 1000000,
+    };
+  }
+
+  return {
+    cost: Math.round(totalCost * 1000000) / 1000000,
+    breakdown,
+  };
+}
+
 // Calculate cost based on billing type and task configuration
 function calculateTaskCost(
+  taskType: string,
   billingType: string,
   baseCostPerSecond: number,
   unitCost: number,
   durationSeconds: number,
   costFactors: any,
   taskParams: any
-): number {
+): { cost: number; breakdown?: any } {
+  // Special case: video_enhance has compound pricing (FILM + FlashVSR)
+  if (taskType === 'video_enhance') {
+    return calculateVideoEnhanceCost(taskParams);
+  }
+
   let totalCost;
   if (billingType === 'per_unit') {
     totalCost = unitCost || 0;
@@ -54,7 +109,7 @@ function calculateTaskCost(
     }
   }
 
-  return Math.round(totalCost * 1000) / 1000;
+  return { cost: Math.round(totalCost * 1000) / 1000 };
 }
 
 serve(async (req) => {
@@ -302,7 +357,8 @@ serve(async (req) => {
     }
 
     // Calculate cost based on task type configuration
-    const cost = calculateTaskCost(
+    const costResult = calculateTaskCost(
+      task.task_type,
       taskType.billing_type,
       taskType.base_cost_per_second,
       taskType.unit_cost,
@@ -310,6 +366,8 @@ serve(async (req) => {
       taskType.cost_factors,
       task.params
     );
+    const cost = costResult.cost;
+    const costBreakdown = costResult.breakdown;
 
     // Validate cost calculation
     if (isNaN(cost) || cost < 0) {
@@ -318,7 +376,8 @@ serve(async (req) => {
         billing_type: taskType.billing_type,
         base_cost_per_second: taskType.base_cost_per_second,
         unit_cost: taskType.unit_cost,
-        duration: durationSeconds
+        duration: durationSeconds,
+        breakdown: costBreakdown
       });
       await logger.flush();
       return jsonResponse({ error: 'Invalid cost calculation' }, 500);
@@ -355,7 +414,9 @@ serve(async (req) => {
         cost_factors: taskType.cost_factors,
         task_params: task.params,
         calculated_at: new Date().toISOString(),
-        task_type_id: taskType.id
+        task_type_id: taskType.id,
+        // Include breakdown for compound pricing (e.g., video_enhance)
+        ...(costBreakdown ? { cost_breakdown: costBreakdown } : {})
       }
     });
 
@@ -373,7 +434,8 @@ serve(async (req) => {
       cost,
       billing_type: taskType.billing_type,
       duration_seconds: durationSeconds,
-      user_id: (task as any).projects.user_id
+      user_id: (task as any).projects.user_id,
+      ...(costBreakdown ? { breakdown: costBreakdown } : {})
     });
     await logger.flush();
 
@@ -386,7 +448,9 @@ serve(async (req) => {
       unit_cost: taskType.unit_cost,
       cost_factors: taskType.cost_factors,
       task_type: task.task_type,
-      task_id: task.id
+      task_id: task.id,
+      // Include breakdown for compound pricing (e.g., video_enhance)
+      ...(costBreakdown ? { cost_breakdown: costBreakdown } : {})
     });
 
   } catch (error: any) {

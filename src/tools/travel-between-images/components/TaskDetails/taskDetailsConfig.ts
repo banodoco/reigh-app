@@ -149,3 +149,10 @@ export function isImageEditTaskType(taskType: string | undefined): boolean {
   return IMAGE_EDIT_TASK_TYPES.includes(taskType || '');
 }
 
+/**
+ * Video enhancement task type
+ */
+export function isVideoEnhanceTaskType(taskType: string | undefined): boolean {
+  return taskType === 'video_enhance';
+}
+

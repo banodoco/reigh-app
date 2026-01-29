@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { GenerationRow } from '@/types/shots';
-import { 
-  useDerivedItems, 
+import {
+  useDerivedItems,
   useSourceGeneration,
-  DerivedItem 
+  DerivedItem
 } from '@/shared/hooks/useGenerations';
 
 export interface UseGenerationLineageProps {

@@ -17,6 +17,7 @@ import type { VideoEditPanelProps } from './VideoEditPanel';
 import type { EditModePanelProps } from './EditModePanel';
 import type { InfoPanelProps } from './InfoPanel';
 import type { SegmentRegenerateFormProps } from './SegmentRegenerateForm';
+import type { VideoEnhanceSettings } from '../hooks/useVideoEnhance';
 
 // Mode detection props
 interface ModeProps {
@@ -30,12 +31,24 @@ export interface ControlsPanelProps extends ModeProps {
   variant: 'desktop' | 'mobile';
 
   // VideoEditPanel props
-  videoEditSubMode: 'trim' | 'replace' | 'regenerate' | null;
+  videoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
   onEnterTrimMode: () => void;
   onEnterReplaceMode: () => void;
   onEnterRegenerateMode: () => void;
+  onEnterEnhanceMode: () => void;
   onExitVideoEditMode: () => void;
+  isCloudMode?: boolean;
   regenerateFormProps?: SegmentRegenerateFormProps | null;
+  // Enhance mode props
+  enhanceSettings?: VideoEnhanceSettings;
+  onUpdateEnhanceSetting?: <K extends keyof VideoEnhanceSettings>(
+    key: K,
+    value: VideoEnhanceSettings[K]
+  ) => void;
+  onEnhanceGenerate?: () => void;
+  isEnhancing?: boolean;
+  enhanceSuccess?: boolean;
+  canEnhance?: boolean;
   // Trim props
   trimState: VideoEditPanelProps['trimState'];
   onStartTrimChange: VideoEditPanelProps['onStartTrimChange'];
@@ -165,8 +178,17 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
     onEnterTrimMode,
     onEnterReplaceMode,
     onEnterRegenerateMode,
+    onEnterEnhanceMode,
     onExitVideoEditMode,
+    isCloudMode,
     regenerateFormProps,
+    // Enhance props
+    enhanceSettings,
+    onUpdateEnhanceSetting,
+    onEnhanceGenerate,
+    isEnhancing,
+    enhanceSuccess,
+    canEnhance,
     trimState,
     onStartTrimChange,
     onEndTrimChange,
@@ -286,8 +308,10 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
         onEnterTrimMode={onEnterTrimMode}
         onEnterReplaceMode={onEnterReplaceMode}
         onEnterRegenerateMode={onEnterRegenerateMode}
+        onEnterEnhanceMode={onEnterEnhanceMode}
         onClose={onClose}
         onExitVideoEditMode={onExitVideoEditMode}
+        isCloudMode={isCloudMode}
         // Trim props
         trimState={trimState}
         onStartTrimChange={onStartTrimChange}
@@ -308,6 +332,13 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
         projectId={projectId}
         // Regenerate props
         regenerateFormProps={regenerateFormProps}
+        // Enhance props
+        enhanceSettings={enhanceSettings}
+        onUpdateEnhanceSetting={onUpdateEnhanceSetting}
+        onEnhanceGenerate={onEnhanceGenerate}
+        isEnhancing={isEnhancing}
+        enhanceSuccess={enhanceSuccess}
+        canEnhance={canEnhance}
         // Task ID for copy functionality
         taskId={taskId}
         // Variants props
