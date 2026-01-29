@@ -41,6 +41,8 @@ import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidatio
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePendingGenerationTasks } from '@/shared/hooks/usePendingGenerationTasks';
+import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
+import { LightboxVariantProvider } from './contexts/LightboxVariantContext';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 
 // Import extracted hooks
@@ -1397,6 +1399,28 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
     selectedProjectId
   );
 
+  // Count unviewed variants (where viewed_at is null)
+  const unviewedVariantCount = React.useMemo(() => {
+    if (!variants || variants.length === 0) return 0;
+    return variants.filter(v => v.viewed_at === null).length;
+  }, [variants]);
+
+  // Hook to mark all variants as viewed
+  const { markAllViewed: markAllViewedMutation } = useMarkVariantViewed();
+  const handleMarkAllViewed = React.useCallback(() => {
+    if (variantFetchGenerationId) {
+      markAllViewedMutation(variantFetchGenerationId);
+    }
+  }, [markAllViewedMutation, variantFetchGenerationId]);
+
+  // Context value for variant-related state (avoids prop drilling)
+  const lightboxVariantContextValue = React.useMemo(() => ({
+    pendingTaskCount,
+    unviewedVariantCount,
+    onMarkAllViewed: handleMarkAllViewed,
+    variantsSectionRef,
+  }), [pendingTaskCount, unviewedVariantCount, handleMarkAllViewed]);
+
   // Video edit mode handlers hook - provides enter/exit handlers for video edit modes
   const videoEditModeHandlers = useVideoEditModeHandlers({
     setVideoEditSubMode,
@@ -1867,23 +1891,21 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
 
     // Segment slot mode (for constituent image navigation)
     segmentSlotMode: hasSegmentVideo ? segmentSlotMode : undefined,
-
-    // Pending tasks count
-    pendingTaskCount,
   });
 
   return (
-    <TooltipProvider delayDuration={500}>
-      <DialogPrimitive.Root
-        open={true}
-        // Modal mode blocks body scroll and traps focus
-        // On tablet/desktop, disable modal to allow pane controls interaction
-        // On phones only, keep modal=true for proper scroll locking
-        modal={isMobile && !isTabletOrLarger}
-        onOpenChange={() => {
-          // Prevent automatic closing - we handle all closing manually
-        }}
-      >
+    <LightboxVariantProvider value={lightboxVariantContextValue}>
+      <TooltipProvider delayDuration={500}>
+        <DialogPrimitive.Root
+          open={true}
+          // Modal mode blocks body scroll and traps focus
+          // On tablet/desktop, disable modal to allow pane controls interaction
+          // On phones only, keep modal=true for proper scroll locking
+          modal={isMobile && !isTabletOrLarger}
+          onOpenChange={() => {
+            // Prevent automatic closing - we handle all closing manually
+          }}
+        >
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay
             className={cn(
@@ -2516,8 +2538,9 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
           </DialogPrimitive.Content>
 
         </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
-    </TooltipProvider>
+        </DialogPrimitive.Root>
+      </TooltipProvider>
+    </LightboxVariantProvider>
   );
 };
 

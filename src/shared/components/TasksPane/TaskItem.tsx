@@ -7,6 +7,7 @@ import { useCancelTask } from '@/shared/hooks/useTasks';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useToast } from '@/shared/hooks/use-toast';
+import { handleError } from '@/shared/lib/errorHandler';
 import { cn } from '@/shared/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
@@ -259,8 +260,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
       setProgressPercent(percent);
       setTimeout(() => setProgressPercent(null), 5000);
     } catch (error) {
-      console.error('[TaskItem] Error checking progress:', error);
-      toast({ title: "Error", description: "Failed to check progress", variant: "destructive" });
+      handleError(error, { context: 'TaskItem', toastTitle: 'Progress Check Failed' });
     }
   };
 

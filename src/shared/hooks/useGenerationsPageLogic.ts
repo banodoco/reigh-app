@@ -709,7 +709,7 @@ export function useGenerationsPageLogic({
       });
       return false;
     }
-    
+
     // Check if we're trying to add to the same shot that's currently filtered with excludePositioned enabled
     const shouldPositionExisting = selectedShotFilter === targetShotId && excludePositioned;
     
@@ -796,14 +796,14 @@ export function useGenerationsPageLogic({
     // Fast path: minimal validation and direct execution
     // Priority: dropdown selection (lastAffectedShotId) > current viewing shot (currentShotId)
     const targetShotId = lastAffectedShotId || currentShotId;
-    
+
     if (!targetShotId || !selectedProjectId) {
       toast.error("No shot selected", {
         description: "Please select a shot in the gallery or create one first.",
       });
       return false;
     }
-    
+
     try {
       // Always use the add without position function - never position existing items
       await addImageToShotWithoutPositionMutation.mutateAsync({

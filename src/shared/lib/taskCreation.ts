@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ASPECT_RATIO_TO_RESOLUTION } from "./aspectRatios";
 import { nanoid } from "nanoid";
+import { AuthError, NetworkError, ValidationError } from "./errors";
 
 /**
  * Default aspect ratio to use when project aspect ratio is not found
@@ -107,10 +108,11 @@ export function generateRunId(): string {
 
 /**
  * Validation error type for task parameter validation
+ * Extends ValidationError for consistent error handling
  */
-export class TaskValidationError extends Error {
-  constructor(message: string, public field?: string) {
-    super(message);
+export class TaskValidationError extends ValidationError {
+  constructor(message: string, field?: string) {
+    super(message, { field });
     this.name = 'TaskValidationError';
   }
 }
@@ -146,9 +148,9 @@ export interface TaskCreationResult {
 export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreationResult> {
   // Get current session for authentication
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  
+
   if (sessionError || !session) {
-    throw new Error('Authentication required to create task');
+    throw new AuthError('Please log in to create tasks', { needsLogin: true });
   }
 
   const startTime = Date.now();
@@ -218,20 +220,29 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
 
     return data;
   } catch (err: any) {
-    // Normalize abort errors for better UX
-    if (err?.name === 'AbortError') {
-      throw new Error('Task creation timed out. Please try again.');
-    }
-    console.error('[TabResumeDebug] [createTask] Invoke failed', {
+    const context = {
       requestId,
       taskType: taskParams.task_type,
       projectId: taskParams.project_id,
+      durationMs: Date.now() - startTime,
+    };
+
+    // Normalize abort errors for better UX
+    if (err?.name === 'AbortError') {
+      throw new NetworkError('Task creation timed out. Please try again.', {
+        isTimeout: true,
+        context,
+        cause: err,
+      });
+    }
+
+    console.error('[createTask] Invoke failed', {
+      ...context,
       errorMessage: err?.message,
       errorName: err?.name,
       errorStack: err?.stack?.split('\n').slice(0, 3),
       timestamp: Date.now(),
       visibilityState: document.visibilityState,
-      durationMs: Date.now() - startTime
     });
     throw err;
   } finally {

@@ -1,4 +1,4 @@
-import { useToolPageSettings } from '@/shared/hooks/useToolPageSettings';
+import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { JoinClipsSettings } from '../settings';
 import { DEFAULT_JOIN_CLIPS_PHASE_CONFIG, BUILTIN_JOIN_CLIPS_DEFAULT_ID } from '../components/JoinClipsSettingsForm';
 
@@ -39,18 +39,17 @@ const DEFAULT_JOIN_CLIPS_SETTINGS: JoinClipsSettings = {
 
 /**
  * Hook for managing Join Clips tool settings at the project level
- * Uses the generic useToolPageSettings with Join Clips specific defaults
+ * Uses useAutoSaveSettings with Join Clips specific defaults
  */
 export function useJoinClipsSettings(projectId: string | null | undefined) {
-  return useToolPageSettings<JoinClipsSettings>(
-    'join-clips',
-    'project',
+  return useAutoSaveSettings<JoinClipsSettings>({
+    toolId: 'join-clips',
+    scope: 'project',
     projectId,
-    DEFAULT_JOIN_CLIPS_SETTINGS,
-    {
-      debug: false,
-      debugTag: '[JoinClips]'
-    }
-  );
+    defaults: DEFAULT_JOIN_CLIPS_SETTINGS,
+    enabled: !!projectId,
+    debug: false,
+    debugTag: '[JoinClips]',
+  });
 }
 

@@ -3,7 +3,11 @@
 > **Purpose**: Track referral link visits (`?from={username}`) and convert to confirmed referrals on signup.
 > **Source of Truth**: `src/shared/hooks/useReferralTracking.ts`, `src/pages/Home/HomePage.tsx` (conversion on SIGNED_IN)
 >
-> **Note**: The underlying DB tables/functions exist in Supabase, but are not currently defined in this repo’s `supabase/migrations/`. If you need to audit behavior, search the DB for `track_referral_visit`, `create_referral_from_session`, `referral_sessions`, `referrals`.
+> **Note**: The underlying DB tables/functions exist in Supabase, but are not currently defined in this repo's `supabase/migrations/`. If you need to audit behavior, search the DB for `track_referral_visit`, `create_referral_from_session`, `referral_sessions`, `referrals`.
+
+## Referral Reward
+
+**Artists who refer new users receive 33% of lifetime profits** from those referrals.
 
 ---
 

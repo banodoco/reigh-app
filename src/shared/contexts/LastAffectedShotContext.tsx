@@ -35,11 +35,14 @@ export const LastAffectedShotProvider = ({ children }: { children: ReactNode }) 
     enabled: !!selectedProjectId 
   });
 
-  // Reset loaded flag when project changes
+  // Clear stale value and reset loaded flag when project changes
   useEffect(() => {
     if (prevProjectIdRef.current !== selectedProjectId) {
       hasLoadedFromSettings.current = false;
       prevProjectIdRef.current = selectedProjectId;
+      // Clear immediately - prevents using stale shot ID from previous project
+      // The correct value will load async from useToolSettings
+      setLastAffectedShotIdInternal(null);
     }
   }, [selectedProjectId]);
 

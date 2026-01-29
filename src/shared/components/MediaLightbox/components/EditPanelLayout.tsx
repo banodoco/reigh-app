@@ -10,6 +10,8 @@ import { Button } from '@/shared/components/ui/button';
 import { X, Loader2 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
+import { VariantBadge } from '@/shared/components/VariantBadge';
+import { useLightboxVariantContext } from '../contexts/LightboxVariantContext';
 import { VariantSelector } from '@/tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/components/VariantSelector';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 
@@ -52,8 +54,6 @@ export interface EditPanelLayoutProps {
   /** Handler to delete a variant */
   onDeleteVariant?: (variantId: string) => Promise<void>;
 
-  /** Number of pending tasks that will create variants/derived from this generation */
-  pendingTaskCount?: number;
 }
 
 export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
@@ -73,7 +73,6 @@ export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
   isPromoting,
   onLoadVariantSettings,
   onDeleteVariant,
-  pendingTaskCount = 0,
 }) => {
   const isMobile = variant === 'mobile';
   const hasVariants = variants && variants.length >= 1 && onVariantSelect;
@@ -81,6 +80,9 @@ export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
   const spacing = isMobile ? 'space-y-2' : 'space-y-4';
   const [idCopied, setIdCopied] = useState(false);
   const variantsSectionRef = useRef<HTMLDivElement>(null);
+
+  // Get variant state from context (avoids prop drilling)
+  const { pendingTaskCount, unviewedVariantCount, onMarkAllViewed } = useLightboxVariantContext();
 
   // Handle ID copy with simple approach that works on all devices
   const handleCopyId = () => {
@@ -125,12 +127,22 @@ export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
               </svg>
             </button>
           )}
-          {pendingTaskCount > 0 && (
+          {pendingTaskCount > 0 ? (
             <div className="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-primary/10 text-primary">
               <Loader2 className="w-3 h-3 animate-spin" />
               <span>{pendingTaskCount} pending</span>
             </div>
-          )}
+          ) : unviewedVariantCount > 0 ? (
+            <VariantBadge
+              variant="inline"
+              unviewedVariantCount={unviewedVariantCount}
+              hasUnviewedVariants={true}
+              alwaysShowNew={true}
+              tooltipSide="bottom"
+              onMarkAllViewed={onMarkAllViewed}
+              onClick={() => variantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            />
+          ) : null}
         </div>
 
         {/* Right side - toggles and close button */}

@@ -26,6 +26,14 @@ export interface UseAutoSaveSettingsOptions<T> {
   defaults: T;
   /** Whether the hook is enabled (default: true) */
   enabled?: boolean;
+  /** Whether to enable detailed debug logging */
+  debug?: boolean;
+  /** Custom debug tag for logs (default: [useAutoSaveSettings:toolId]) */
+  debugTag?: string;
+  /** Callback when save completes successfully */
+  onSaveSuccess?: () => void;
+  /** Callback when save fails */
+  onSaveError?: (error: Error) => void;
 }
 
 /**
@@ -49,10 +57,14 @@ export interface UseAutoSaveSettingsReturn<T> {
   updateField: <K extends keyof T>(key: K, value: T[K]) => void;
   /** Update multiple fields at once */
   updateFields: (updates: Partial<T>) => void;
+  /** Manual save - flushes debounce immediately */
+  save: () => Promise<void>;
   /** Force an immediate save (bypasses debounce) */
   saveImmediate: () => Promise<void>;
   /** Revert to last saved settings */
   revert: () => void;
+  /** Reset to defaults (or provided settings) */
+  reset: (newDefaults?: T) => void;
 }
 
 /**
@@ -95,6 +107,10 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
     debounceMs = 300,
     defaults,
     enabled = true,
+    debug = false,
+    debugTag = `[useAutoSaveSettings:${toolId}]`,
+    onSaveSuccess,
+    onSaveError,
   } = options;
 
   const queryClient = useQueryClient();
@@ -140,7 +156,9 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
   // Save implementation
   const saveImmediate = useCallback(async (settingsToSave?: T): Promise<void> => {
     if (!entityId) {
-      console.warn('[useAutoSaveSettings] Cannot save - no entity selected');
+      if (debug) {
+        console.warn(`${debugTag} Cannot save - no entity selected`);
+      }
       return;
     }
 
@@ -148,14 +166,18 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
 
     // Don't save if nothing changed
     if (deepEqual(toSave, loadedSettingsRef.current)) {
-      console.log('[useAutoSaveSettings] ⏭️ Skipping save - no changes');
+      if (debug) {
+        console.log(`${debugTag} ⏭️ Skipping save - no changes`);
+      }
       return;
     }
 
-    console.log('[useAutoSaveSettings] 💾 Saving settings:', {
-      toolId,
-      entityId: entityId.substring(0, 8),
-    });
+    if (debug) {
+      console.log(`${debugTag} 💾 Saving settings:`, {
+        toolId,
+        entityId: entityId.substring(0, 8),
+      });
+    }
 
     setStatus('saving');
 
@@ -164,21 +186,26 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
 
       // Update our "clean" reference
       loadedSettingsRef.current = JSON.parse(JSON.stringify(toSave));
-      
+
       // NOTE: Don't clear pendingSettingsRef here - it's now handled in the timeout callback
       // with edit version checking to avoid race conditions when user types fast
-      
+
       setStatus('ready');
       setError(null);
 
-      console.log('[useAutoSaveSettings] ✅ Save successful');
+      if (debug) {
+        console.log(`${debugTag} ✅ Save successful`);
+      }
+
+      onSaveSuccess?.();
     } catch (err) {
-      console.error('[useAutoSaveSettings] ❌ Save failed:', err);
+      console.error(`${debugTag} ❌ Save failed:`, err);
       setStatus('error');
       setError(err as Error);
+      onSaveError?.(err as Error);
       throw err;
     }
-  }, [entityId, settings, updateSettings, scope, toolId]);
+  }, [entityId, settings, updateSettings, scope, toolId, debug, debugTag, onSaveSuccess, onSaveError]);
 
   // Ref to hold latest saveImmediate to avoid effect dependency churn
   const saveImmediateRef = useRef(saveImmediate);
@@ -302,10 +329,12 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
       // During loading, don't schedule saves - just update local state
       // The pending ref will prevent DB load from overwriting user input
       if (status !== 'ready' && status !== 'saving') {
-        console.log('[useAutoSaveSettings] 📝 updateField during loading - UI only (protected):', {
-          key,
-          status,
-        });
+        if (debug) {
+          console.log(`${debugTag} 📝 updateField during loading - UI only (protected):`, {
+            key,
+            status,
+          });
+        }
         return updated;
       }
 
@@ -333,14 +362,14 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
             pendingEntityIdRef.current = null;
           }
         } catch (err) {
-          console.error('[useAutoSaveSettings] Debounced save failed:', err);
+          console.error(`${debugTag} Debounced save failed:`, err);
         }
       }, debounceMs);
       saveTimeoutRef.current = timeoutId;
 
       return updated;
     });
-  }, [status, saveImmediate, debounceMs, entityId]);
+  }, [status, saveImmediate, debounceMs, entityId, debug, debugTag]);
 
   // Update multiple fields at once
   const updateFields = useCallback((updates: Partial<T>) => {
@@ -357,10 +386,12 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
 
       // During loading, don't schedule saves - just update local state
       if (status !== 'ready' && status !== 'saving') {
-        console.log('[useAutoSaveSettings] 📝 updateFields during loading - UI only (protected):', {
-          keys: Object.keys(updates),
-          status,
-        });
+        if (debug) {
+          console.log(`${debugTag} 📝 updateFields during loading - UI only (protected):`, {
+            keys: Object.keys(updates),
+            status,
+          });
+        }
         return updated;
       }
 
@@ -388,26 +419,58 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
             pendingEntityIdRef.current = null;
           }
         } catch (err) {
-          console.error('[useAutoSaveSettings] Debounced save failed:', err);
+          console.error(`${debugTag} Debounced save failed:`, err);
         }
       }, debounceMs);
       saveTimeoutRef.current = timeoutId;
 
       return updated;
     });
-  }, [status, saveImmediate, debounceMs, entityId]);
+  }, [status, saveImmediate, debounceMs, entityId, debug, debugTag]);
 
   // Revert to last saved settings
   const revert = useCallback(() => {
     if (loadedSettingsRef.current) {
+      if (debug) {
+        console.log(`${debugTag} ↩️ Reverting to last saved state`);
+      }
       setSettings(loadedSettingsRef.current);
       pendingSettingsRef.current = null;
+      pendingEntityIdRef.current = null;
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
     }
-  }, []);
+  }, [debug, debugTag]);
+
+  // Manual save - flushes debounce immediately
+  const save = useCallback(async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    await saveImmediate();
+  }, [saveImmediate]);
+
+  // Reset to defaults (or provided settings)
+  const reset = useCallback((newDefaults?: T) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    const resetTo = newDefaults || defaults;
+    if (debug) {
+      console.log(`${debugTag} 🔄 Resetting to defaults`);
+    }
+
+    setSettings(resetTo);
+    loadedSettingsRef.current = JSON.parse(JSON.stringify(resetTo));
+    pendingSettingsRef.current = null;
+    pendingEntityIdRef.current = null;
+    editVersionRef.current = 0;
+  }, [defaults, debug, debugTag]);
 
   // Handle entity changes - flush and reset
   useEffect(() => {
@@ -431,10 +494,12 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
 
     // Entity changed to a different one
     if (previousEntityId && previousEntityId !== entityId) {
-      console.log('[useAutoSaveSettings] 🔄 Entity changed:', {
-        from: previousEntityId.substring(0, 8),
-        to: entityId.substring(0, 8),
-      });
+      if (debug) {
+        console.log(`${debugTag} 🔄 Entity changed:`, {
+          from: previousEntityId.substring(0, 8),
+          to: entityId.substring(0, 8),
+        });
+      }
 
       // Reset for new entity
       setSettings(defaults);
@@ -450,7 +515,7 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
     }
 
     currentEntityIdRef.current = entityId;
-  }, [entityId, defaults]);
+  }, [entityId, defaults, debug, debugTag]);
 
   // Load settings from DB when available
   useEffect(() => {
@@ -470,20 +535,24 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
     }
 
     // Log what we received from useToolSettings
-    console.log('[useAutoSaveSettings] 🔍 dbSettings received:', {
-      toolId,
-      entityId: entityId?.substring(0, 8),
-      dbPrompt: (dbSettings as any)?.prompt?.substring(0, 30) || '(none)',
-      dbLoraCount: (dbSettings as any)?.loras?.length ?? 0,
-      status,
-    });
+    if (debug) {
+      console.log(`${debugTag} 🔍 dbSettings received:`, {
+        toolId,
+        entityId: entityId?.substring(0, 8),
+        dbPrompt: (dbSettings as any)?.prompt?.substring(0, 30) || '(none)',
+        dbLoraCount: (dbSettings as any)?.loras?.length ?? 0,
+        status,
+      });
+    }
 
     // Don't overwrite if user has pending edits for THIS entity (debounce hasn't fired yet)
     // This prevents React Query refetches from "unwriting" user input
     // IMPORTANT: We now protect pending edits even on first load - losing user's typing
     // is worse than the theoretical risk of saving defaults over DB values
     if (pendingSettingsRef.current && pendingEntityIdRef.current === entityId) {
-      console.log('[useAutoSaveSettings] ⏳ Skipping DB load - user has pending edits for this entity');
+      if (debug) {
+        console.log(`${debugTag} ⏳ Skipping DB load - user has pending edits for this entity`);
+      }
       // Still transition to ready and schedule save for pending edits
       if (status !== 'ready') {
         setStatus('ready');
@@ -496,7 +565,7 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
           try {
             await saveImmediateRef.current(toSave);
           } catch (err) {
-            console.error('[useAutoSaveSettings] Pending save failed:', err);
+            console.error(`${debugTag} Pending save failed:`, err);
           }
         }, debounceMs);
       }
@@ -514,12 +583,14 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
 
     // Avoid setState loops when dbSettings identity changes but values don't.
     if (loadedSettingsRef.current && deepEqual(clonedSettings, loadedSettingsRef.current)) {
-      console.log('[useAutoSaveSettings] ⏭️ Skipping DB load - settings unchanged:', {
-        toolId,
-        entityId: entityId.substring(0, 8),
-        promptInLoaded: (loadedSettingsRef.current as any)?.prompt?.substring(0, 30) || '(none)',
-        promptInNew: (clonedSettings as any)?.prompt?.substring(0, 30) || '(none)',
-      });
+      if (debug) {
+        console.log(`${debugTag} ⏭️ Skipping DB load - settings unchanged:`, {
+          toolId,
+          entityId: entityId.substring(0, 8),
+          promptInLoaded: (loadedSettingsRef.current as any)?.prompt?.substring(0, 30) || '(none)',
+          promptInNew: (clonedSettings as any)?.prompt?.substring(0, 30) || '(none)',
+        });
+      }
       if (status !== 'ready') {
         setStatus('ready');
       }
@@ -527,22 +598,24 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
     }
 
     // No pending edits for this entity - safe to apply DB settings
-    console.log('[useAutoSaveSettings] 📥 Loaded from DB:', {
-      toolId,
-      entityId: entityId.substring(0, 8),
-      promptInNew: (clonedSettings as any)?.prompt?.substring(0, 30) || '(none)',
-      loraCountInNew: (clonedSettings as any)?.loras?.length ?? 0,
-    });
+    if (debug) {
+      console.log(`${debugTag} 📥 Loaded from DB:`, {
+        toolId,
+        entityId: entityId.substring(0, 8),
+        promptInNew: (clonedSettings as any)?.prompt?.substring(0, 30) || '(none)',
+        loraCountInNew: (clonedSettings as any)?.loras?.length ?? 0,
+      });
+    }
 
     setSettings(clonedSettings);
     loadedSettingsRef.current = JSON.parse(JSON.stringify(clonedSettings));
     setStatus('ready');
     setError(null);
-  }, [entityId, isLoading, dbSettings, defaults, enabled, status, toolId, debounceMs]);
+  }, [entityId, isLoading, dbSettings, defaults, enabled, status, toolId, debounceMs, debug, debugTag]);
 
   // Memoize return value to prevent object recreation on every render
   // NOTE: entityId uses currentEntityIdRef.current which is a ref value, so it updates
-  // without triggering memo recalculation. Consumers should check status === 'ready' 
+  // without triggering memo recalculation. Consumers should check status === 'ready'
   // alongside entityId to ensure settings are actually loaded for that entity.
   return useMemo(() => ({
     settings,
@@ -553,7 +626,9 @@ export function useAutoSaveSettings<T extends Record<string, any>>(
     hasShotSettings,
     updateField,
     updateFields,
+    save,
     saveImmediate: () => saveImmediate(),
     revert,
-  }), [settings, status, isDirty, error, hasShotSettings, updateField, updateFields, saveImmediate, revert]);
+    reset,
+  }), [settings, status, isDirty, error, hasShotSettings, updateField, updateFields, save, saveImmediate, revert, reset]);
 }

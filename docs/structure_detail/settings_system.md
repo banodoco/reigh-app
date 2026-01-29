@@ -97,6 +97,8 @@ await inheritSettingsForNewShot({
 
 ## Using Settings Hooks
 
+> **Adding a new tool?** See [Adding a New Tool](./adding_new_tool.md) for a step-by-step guide.
+
 ### useToolSettings (Low-Level)
 ```typescript
 const { settings, update, isLoading } = useToolSettings('my-tool', {

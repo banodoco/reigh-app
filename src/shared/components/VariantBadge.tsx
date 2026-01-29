@@ -56,6 +56,8 @@ export interface VariantBadgeProps {
   onMarkAllViewed?: () => void;
   /** Hover delay in ms before showing dismiss button (default: 1500) */
   dismissHoverDelay?: number;
+  /** Optional click handler for the badge (e.g., to scroll to variants section) */
+  onClick?: () => void;
 }
 
 /**
@@ -76,6 +78,7 @@ export const VariantBadge: React.FC<VariantBadgeProps> = ({
   className,
   onMarkAllViewed,
   dismissHoverDelay = 1500,
+  onClick,
 }) => {
   const [showDismiss, setShowDismiss] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -169,11 +172,15 @@ export const VariantBadge: React.FC<VariantBadgeProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div
-                  className="bg-yellow-500 text-black text-[7px] font-bold px-1 py-0.5 rounded cursor-help"
+                <button
+                  onClick={onClick}
+                  className={cn(
+                    "bg-yellow-500 text-black text-[7px] font-bold px-1 py-0.5 rounded",
+                    onClick ? "cursor-pointer hover:bg-yellow-400" : "cursor-help"
+                  )}
                 >
                   {unviewedVariantCount} new
-                </div>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="flex flex-col gap-1">
                 <p>{unviewedVariantCount} unviewed variant{unviewedVariantCount !== 1 ? 's' : ''}</p>
@@ -223,14 +230,14 @@ export const VariantBadge: React.FC<VariantBadgeProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div
+              <button
                 className={cn(
                   'bg-yellow-500 text-black text-[8px] font-bold px-1 py-0.5 rounded flex items-center gap-0.5 transition-all',
-                  canDismiss ? 'cursor-pointer hover:bg-yellow-400' : 'cursor-help'
+                  (canDismiss || onClick) ? 'cursor-pointer hover:bg-yellow-400' : 'cursor-help'
                 )}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
-                onClick={showDismiss ? handleDismissClick : undefined}
+                onClick={showDismiss ? handleDismissClick : onClick}
               >
                 {showDismiss ? (
                   <>
@@ -240,7 +247,7 @@ export const VariantBadge: React.FC<VariantBadgeProps> = ({
                 ) : (
                   <>{unviewedVariantCount} new</>
                 )}
-              </div>
+              </button>
             </TooltipTrigger>
             <TooltipContent side={tooltipSide}>
               <p>

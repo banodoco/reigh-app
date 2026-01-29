@@ -220,6 +220,11 @@ export const useImageGalleryActions = ({
   }, [markOptimisticDeleted, removeOptimisticDeleted, onDelete, activeLightboxMedia, setActiveLightboxMedia, toast, isServerPagination, serverPage, onBackfillRequest, itemsPerPage, setIsBackfillLoading, setBackfillSkeletonCount]);
 
   const handleOpenLightbox = useCallback((image: GeneratedImageWithMetadata, autoEnterEditMode = false) => {
+    console.log('[CrossPageNav] 📸 handleOpenLightbox - opening image:', {
+      imageId: image.id?.substring(0, 8),
+      autoEnterEditMode,
+      timestamp: Date.now(),
+    });
     console.log('[BasedOnDebug] 🎯 handleOpenLightbox called with image:');
     console.log('  imageId:', image.id?.substring(0, 8));
     console.log('  hasBasedOn:', !!image.based_on);
@@ -263,6 +268,10 @@ export const useImageGalleryActions = ({
   }, [setActiveLightboxMedia, setAutoEnterEditMode]);
 
   const handleCloseLightbox = useCallback(() => {
+    console.log('[CrossPageNav] 🚪 handleCloseLightbox called - closing lightbox', {
+      stack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+      timestamp: Date.now(),
+    });
     setActiveLightboxMedia(null);
     setAutoEnterEditMode(false); // Reset edit mode flag when closing lightbox
   }, [setActiveLightboxMedia, setAutoEnterEditMode]);

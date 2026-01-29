@@ -257,5 +257,5 @@ src/shared/components/
 ├── ProjectSettingsModal.tsx                 # Medium edge-buffered modal
 ├── MagicEditModal.tsx                       # Medium edge-buffered modal
 ├── CreateShotModal.tsx                      # Medium edge-buffered modal
-└── LoraSelectorModal.tsx                    # Large fullscreen modal
+└── LoraSelectorModal/                       # Large fullscreen modal (folder-based module)
 ```

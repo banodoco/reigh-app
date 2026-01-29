@@ -9,6 +9,7 @@ import { reactProfilerOnRender } from '@/shared/lib/logger';
 import { createRoot } from 'react-dom/client';
 import { Profiler } from 'react';
 import App from './App.tsx';
+import { AppErrorBoundary } from '@/shared/components/AppErrorBoundary';
 import '@/index.css';
 
 // Initialize autoplay monitoring in development (after console suppression check)
@@ -30,7 +31,9 @@ if (storedDarkMode === null || storedDarkMode === 'true') {
 }
 
 createRoot(document.getElementById('root')!).render(
-  <Profiler id="Root" onRender={reactProfilerOnRender}>
-    <App />
-  </Profiler>
+  <AppErrorBoundary>
+    <Profiler id="Root" onRender={reactProfilerOnRender}>
+      <App />
+    </Profiler>
+  </AppErrorBoundary>
 );

@@ -6,12 +6,13 @@ import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Upload, Film, Play, X } from 'lucide-react';
 import { useToast } from '@/shared/hooks/use-toast';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { storagePaths, getFileExtension, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
-import { CharacterAnimateSettings } from '../settings';
+import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import { CharacterAnimateSettings, characterAnimateSettings } from '../settings';
 import { PageFadeIn } from '@/shared/components/transitions';
 import { createCharacterAnimateTask } from '@/shared/lib/tasks/characterAnimate';
 import { useGenerations, useDeleteGeneration, type GenerationsPaginatedResponse } from '@/shared/hooks/useGenerations';
@@ -76,22 +77,18 @@ const CharacterAnimatePage: React.FC = () => {
   
   // Track success state for button feedback
   const [showSuccessState, setShowSuccessState] = useState(false);
-  
-  // Load settings
-  const { settings, update: updateSettings } = useToolSettings<CharacterAnimateSettings>(
-    'character-animate',
-    { projectId: selectedProjectId || null, enabled: !!selectedProjectId }
-  );
-  
-  // Track whether settings have completed their initial load
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  
-  useEffect(() => {
-    // Mark settings as loaded after initial mount
-    if (settings !== undefined) {
-      setSettingsLoaded(true);
-    }
-  }, [settings]);
+
+  // Load settings with auto-save
+  const { settings, updateField, updateFields, status } = useAutoSaveSettings<CharacterAnimateSettings>({
+    toolId: 'character-animate',
+    projectId: selectedProjectId,
+    scope: 'project',
+    defaults: characterAnimateSettings.defaults,
+    enabled: !!selectedProjectId,
+  });
+
+  // Settings are ready when status is 'ready'
+  const settingsLoaded = status === 'ready';
   
   // Get current project for aspect ratio
   const { projects } = useProject();
@@ -229,8 +226,8 @@ const CharacterAnimatePage: React.FC = () => {
   // Handle mode change with optimistic update
   const handleModeChange = useCallback((newMode: 'animate' | 'replace') => {
     setLocalMode(newMode); // Immediate UI update
-    updateSettings('project', { ...settings, mode: newMode }); // Background persist
-  }, [settings, updateSettings]);
+    updateField('mode', newMode); // Background persist
+  }, [updateField]);
   
   // Handle character image upload
   const handleCharacterImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,20 +254,15 @@ const CharacterAnimatePage: React.FC = () => {
       
       // Save URL to project settings for persistence
       if (selectedProjectId) {
-        updateSettings('project', { ...settings, inputImageUrl: uploadedUrl });
+        updateField('inputImageUrl', uploadedUrl);
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload image',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });
     } finally {
       setIsUploadingImage(false);
     }
   };
-  
+
   // Handle motion video selection
   const handleMotionVideoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -341,24 +333,18 @@ const CharacterAnimatePage: React.FC = () => {
       
       // Save URLs to project settings for persistence
       if (selectedProjectId) {
-        updateSettings('project', { 
-          ...settings, 
+        updateFields({
           inputVideoUrl: videoUrl,
           inputVideoPosterUrl: posterUrl
         });
       }
     } catch (error) {
-      console.error('Error uploading video:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload video',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });
     } finally {
       setIsUploadingVideo(false);
     }
   };
-  
+
   // Generate animation mutation
   const generateAnimationMutation = useMutation({
     mutationFn: async () => {
@@ -488,22 +474,17 @@ const CharacterAnimatePage: React.FC = () => {
       const uploadedUrl = await uploadImageToStorage(file);
       setCharacterImageLoaded(false);
       setCharacterImage({ url: uploadedUrl, file });
-      
+
       if (selectedProjectId) {
-        updateSettings('project', { ...settings, inputImageUrl: uploadedUrl });
+        updateField('inputImageUrl', uploadedUrl);
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload image',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });
     } finally {
       setIsUploadingImage(false);
     }
   };
-  
+
   // Drag and drop handlers for motion video
   const handleVideoDragOver = (e: React.DragEvent) => {
     if (isScrolling) return;
@@ -606,26 +587,20 @@ const CharacterAnimatePage: React.FC = () => {
       setMotionVideoLoaded(false);
       setMotionVideoPlaying(false);
       setMotionVideo({ url: videoUrl, posterUrl, file });
-      
+
       if (selectedProjectId) {
-        updateSettings('project', { 
-          ...settings, 
+        updateFields({
           inputVideoUrl: videoUrl,
           inputVideoPosterUrl: posterUrl
         });
       }
     } catch (error) {
-      console.error('Error uploading video:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload video',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });
     } finally {
       setIsUploadingVideo(false);
     }
   };
-  
+
   if (!selectedProjectId) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -715,10 +690,7 @@ const CharacterAnimatePage: React.FC = () => {
                       setCharacterImage(null);
                       setCharacterImageLoaded(false);
                       if (selectedProjectId) {
-                        updateSettings('project', { 
-                          ...settings, 
-                          inputImageUrl: undefined
-                        });
+                        updateField('inputImageUrl', undefined);
                       }
                     }}
                     disabled={isUploadingImage}
@@ -843,8 +815,7 @@ const CharacterAnimatePage: React.FC = () => {
                       setMotionVideoLoaded(false);
                       setMotionVideoPlaying(false);
                       if (selectedProjectId) {
-                        updateSettings('project', { 
-                          ...settings, 
+                        updateFields({
                           inputVideoUrl: undefined,
                           inputVideoPosterUrl: undefined
                         });

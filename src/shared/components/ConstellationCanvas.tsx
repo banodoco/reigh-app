@@ -24,10 +24,35 @@ interface ShootingStar {
   life: number;
 }
 
+interface WanderingGroup {
+  // Group center
+  cx: number;
+  cy: number;
+  // Wandering velocity (changes smoothly over time)
+  vx: number;
+  vy: number;
+  // Target velocity (for smooth steering)
+  targetVx: number;
+  targetVy: number;
+  // Speed multiplier for this group (persists across direction changes)
+  speed: number;
+  // Particles in this group (offsets from center)
+  particles: { offsetX: number; offsetY: number; size: number; phase: number }[];
+  // Fade state
+  opacity: number;
+  targetOpacity: number;
+  fadeSpeed: number;
+  // Timing
+  nextDirectionChange: number;
+  nextFadeChange: number;
+}
+
 export const ConstellationCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const starsRef = useRef<Star[]>([]);
   const shootingStarsRef = useRef<ShootingStar[]>([]);
+  const wanderingGroupsRef = useRef<WanderingGroup[]>([]);
+  const wanderingFadeInRef = useRef({ startTime: 0, opacity: 0 }); // For delayed fade-in
   const animationFrameRef = useRef<number>();
   const mouseRef = useRef({ x: 0, y: 0 });
   const smoothMouseRef = useRef({ x: 0, y: 0 }); // Smoothed mouse position for lerping
@@ -95,6 +120,55 @@ export const ConstellationCanvas: React.FC = () => {
         vx: 0.01,
         vy: 0.01
       });
+
+      // Initialize wandering groups - clusters of particles that drift together
+      initWanderingGroups();
+    };
+
+    const initWanderingGroups = () => {
+      wanderingGroupsRef.current = [];
+      // Initialize fade-in: start after 5 seconds, fade in over 3 seconds
+      wanderingFadeInRef.current = { startTime: performance.now(), opacity: 0 };
+      const groupCount = 10 + Math.floor(Math.random() * 6); // 10-15 groups
+
+      for (let i = 0; i < groupCount; i++) {
+        // Random group size: 3-15 particles per group (wider range)
+        const particleCount = 3 + Math.floor(Math.random() * 13);
+        const spreadRadius = 20 + Math.random() * 80; // How spread out the group is
+
+        const particles = [];
+        for (let j = 0; j < particleCount; j++) {
+          // Position particles in a loose cluster around center
+          const angle = Math.random() * Math.PI * 2;
+          const dist = Math.random() * spreadRadius;
+          particles.push({
+            offsetX: Math.cos(angle) * dist,
+            offsetY: Math.sin(angle) * dist,
+            size: 0.5 + Math.random() * 2.5, // Wider size range: 0.5-3
+            phase: Math.random() * Math.PI * 2, // For subtle individual twinkle
+          });
+        }
+
+        // Speed varies per group - some slow, some faster
+        const speed = 0.15 + Math.random() * 0.6; // 0.15 to 0.75
+
+        const now = performance.now();
+        wanderingGroupsRef.current.push({
+          cx: Math.random() * canvas.width,
+          cy: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * speed,
+          vy: (Math.random() - 0.5) * speed,
+          targetVx: (Math.random() - 0.5) * speed,
+          targetVy: (Math.random() - 0.5) * speed,
+          speed,
+          particles,
+          opacity: Math.random() * 0.3, // Start with varying opacity
+          targetOpacity: 0.15 + Math.random() * 0.25, // Subtle: 0.15-0.4
+          fadeSpeed: 0.0005 + Math.random() * 0.001, // Very slow fade
+          nextDirectionChange: now + 5000 + Math.random() * 10000, // Change direction every 5-15s
+          nextFadeChange: now + 8000 + Math.random() * 12000, // Change fade every 8-20s
+        });
+      }
     };
 
     const spawnShootingStar = () => {
@@ -179,41 +253,75 @@ export const ConstellationCanvas: React.FC = () => {
         }
       });
 
-      // Spawn and update shooting stars
-      spawnShootingStar();
-      
-      for (let i = shootingStarsRef.current.length - 1; i >= 0; i--) {
-        const s = shootingStarsRef.current[i];
-        
-        // Move
-        s.x += s.vx;
-        s.y += s.vy;
-        s.life -= 0.01;
-        s.opacity = Math.max(0, s.life);
+      // Shooting stars disabled
+      // spawnShootingStar();
 
-        if (s.life <= 0 || s.x < -100 || s.y > canvas.height + 100) {
-          shootingStarsRef.current.splice(i, 1);
-          continue;
+      // Update and draw wandering groups
+      const now = performance.now();
+
+      // Calculate master fade-in opacity (delay 5s, fade over 3s)
+      const fadeDelay = 5000; // 5 seconds delay
+      const fadeDuration = 3000; // 3 seconds to fade in
+      const timeSinceStart = now - wanderingFadeInRef.current.startTime;
+      let masterOpacity = 0;
+      if (timeSinceStart >= fadeDelay) {
+        const fadeProgress = Math.min(1, (timeSinceStart - fadeDelay) / fadeDuration);
+        masterOpacity = fadeProgress;
+      }
+
+      // Only draw wandering groups if they've started fading in
+      if (masterOpacity > 0) {
+      for (const group of wanderingGroupsRef.current) {
+        // Smoothly steer toward target velocity
+        group.vx += (group.targetVx - group.vx) * 0.01;
+        group.vy += (group.targetVy - group.vy) * 0.01;
+
+        // Move group center
+        group.cx += group.vx;
+        group.cy += group.vy;
+
+        // Wrap around screen with padding
+        if (group.cx < -100) group.cx = canvas.width + 100;
+        if (group.cx > canvas.width + 100) group.cx = -100;
+        if (group.cy < -100) group.cy = canvas.height + 100;
+        if (group.cy > canvas.height + 100) group.cy = -100;
+
+        // Change direction periodically (using group's own speed)
+        if (now > group.nextDirectionChange) {
+          group.targetVx = (Math.random() - 0.5) * group.speed;
+          group.targetVy = (Math.random() - 0.5) * group.speed;
+          group.nextDirectionChange = now + 5000 + Math.random() * 10000;
         }
 
-        // Draw trail
-        const gradient = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 10, s.y - s.vy * 10);
-        gradient.addColorStop(0, `rgba(255, 255, 255, ${s.opacity})`);
-        gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+        // Smoothly fade toward target opacity
+        group.opacity += (group.targetOpacity - group.opacity) * group.fadeSpeed * 16;
 
-        ctx.beginPath();
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = 2;
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x - s.vx * (s.length / 5), s.y - s.vy * (s.length / 5));
-        ctx.stroke();
-        
-        // Draw head
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
-        ctx.arc(s.x, s.y, 1.5, 0, Math.PI * 2);
-        ctx.fill();
+        // Change fade target periodically
+        if (now > group.nextFadeChange) {
+          // Sometimes fade out almost completely, sometimes become more visible
+          group.targetOpacity = Math.random() < 0.3 ? 0.05 : (0.15 + Math.random() * 0.25);
+          group.nextFadeChange = now + 8000 + Math.random() * 12000;
+        }
+
+        // Draw particles in this group
+        for (const p of group.particles) {
+          const px = group.cx + p.offsetX;
+          const py = group.cy + p.offsetY;
+
+          // Skip if off screen
+          if (px < -50 || px > canvas.width + 50 || py < -50 || py > canvas.height + 50) continue;
+
+          // Subtle individual twinkle
+          const twinkle = 0.8 + Math.sin(time * 0.001 + p.phase) * 0.2;
+          const particleOpacity = group.opacity * twinkle * masterOpacity;
+
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(255, 255, 255, ${particleOpacity})`;
+          ctx.arc(px, py, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
+      } // end if masterOpacity > 0
 
       animationFrameRef.current = requestAnimationFrame(drawStars);
     };

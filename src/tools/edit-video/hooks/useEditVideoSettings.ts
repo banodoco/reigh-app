@@ -1,4 +1,4 @@
-import { useToolPageSettings } from '@/shared/hooks/useToolPageSettings';
+import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { EditVideoSettings, BUILTIN_VACE_DEFAULT_ID } from '../settings';
 
 const DEFAULT_EDIT_VIDEO_SETTINGS: EditVideoSettings = {
@@ -31,18 +31,17 @@ const DEFAULT_EDIT_VIDEO_SETTINGS: EditVideoSettings = {
 
 /**
  * Hook for managing Edit Video tool settings at the project level
- * Uses the generic useToolPageSettings with Edit Video specific defaults
+ * Uses useAutoSaveSettings with Edit Video specific defaults
  */
 export function useEditVideoSettings(projectId: string | null | undefined) {
-  return useToolPageSettings<EditVideoSettings>(
-    'edit-video',
-    'project',
+  return useAutoSaveSettings<EditVideoSettings>({
+    toolId: 'edit-video',
+    scope: 'project',
     projectId,
-    DEFAULT_EDIT_VIDEO_SETTINGS,
-    {
-      debug: false,
-      debugTag: '[EditVideo]'
-    }
-  );
+    defaults: DEFAULT_EDIT_VIDEO_SETTINGS,
+    enabled: !!projectId,
+    debug: false,
+    debugTag: '[EditVideo]',
+  });
 }
 

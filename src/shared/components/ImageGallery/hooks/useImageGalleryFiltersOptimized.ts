@@ -380,17 +380,28 @@ export const useImageGalleryFiltersOptimized = ({
     // For client pagination, we still apply it here as a fallback
     if (!isServerPagination && filtersState.searchTerm.trim()) {
       currentFiltered = currentFiltered.filter(image => {
-        const prompt = image.prompt || 
-                      image.metadata?.prompt || 
-                      (image.metadata as any)?.originalParams?.orchestrator_details?.prompt || 
+        const prompt = image.prompt ||
+                      image.metadata?.prompt ||
+                      (image.metadata as any)?.originalParams?.orchestrator_details?.prompt ||
                       '';
         return prompt.toLowerCase().includes(filtersState.searchTerm.toLowerCase());
       });
     }
-        
+
+    // Debug logging for cross-page navigation
+    console.log('[CrossPageNav] 📊 filteredImages computed:', {
+      inputImagesLength: images.length,
+      outputLength: currentFiltered.length,
+      isServerPagination,
+      serverPage,
+      firstId: currentFiltered[0]?.id?.substring(0, 8) ?? 'none',
+      lastId: currentFiltered[currentFiltered.length - 1]?.id?.substring(0, 8) ?? 'none',
+      timestamp: Date.now(),
+    });
+
     return currentFiltered;
   }, [
-    images, 
+    images,
     optimisticDeletedIds,
     filtersState.filterByToolType,
     filtersState.toolTypeFilterEnabled,

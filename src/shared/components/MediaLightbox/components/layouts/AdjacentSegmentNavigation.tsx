@@ -57,11 +57,15 @@ export const AdjacentSegmentNavigation: React.FC<AdjacentSegmentNavigationProps>
     label,
     onClick,
     showPlaceholder = false,
+    highlightStart = false,
+    highlightEnd = false,
   }: {
     segment: typeof prev | typeof next;
     label: string;
     onClick: (e: React.MouseEvent) => void;
     showPlaceholder?: boolean;
+    highlightStart?: boolean;
+    highlightEnd?: boolean;
   }) => {
     // Show a subtle placeholder when segment is missing but the other exists
     if (!segment && showPlaceholder) {
@@ -143,9 +147,17 @@ export const AdjacentSegmentNavigation: React.FC<AdjacentSegmentNavigationProps>
                   <img
                     src={segment.startImageUrl}
                     alt="Start"
-                    className="w-24 h-24 object-cover rounded-md"
+                    className={cn(
+                      "w-24 h-24 object-cover rounded-md",
+                      highlightStart && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    )}
                   />
-                  <span className="text-[10px] text-muted-foreground">Start</span>
+                  <span className={cn(
+                    "text-[10px]",
+                    highlightStart ? "text-primary font-medium" : "text-muted-foreground"
+                  )}>
+                    {highlightStart ? "Current" : "Start"}
+                  </span>
                 </div>
               )}
               <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -154,9 +166,17 @@ export const AdjacentSegmentNavigation: React.FC<AdjacentSegmentNavigationProps>
                   <img
                     src={segment.endImageUrl}
                     alt="End"
-                    className="w-24 h-24 object-cover rounded-md"
+                    className={cn(
+                      "w-24 h-24 object-cover rounded-md",
+                      highlightEnd && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    )}
                   />
-                  <span className="text-[10px] text-muted-foreground">End</span>
+                  <span className={cn(
+                    "text-[10px]",
+                    highlightEnd ? "text-primary font-medium" : "text-muted-foreground"
+                  )}>
+                    {highlightEnd ? "Current" : "End"}
+                  </span>
                 </div>
               )}
             </div>
@@ -177,12 +197,14 @@ export const AdjacentSegmentNavigation: React.FC<AdjacentSegmentNavigationProps>
         label="Previous video segment"
         onClick={handlePrevClick}
         showPlaceholder={showPrevPlaceholder}
+        highlightEnd={true}
       />
       <SegmentButton
         segment={next}
         label="Next video segment"
         onClick={handleNextClick}
         showPlaceholder={showNextPlaceholder}
+        highlightStart={true}
       />
     </div>
   );

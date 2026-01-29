@@ -15,7 +15,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
 import { uploadVideoToStorage } from '@/shared/lib/videoUploader';
 import { uploadBlobToStorage } from '@/shared/lib/imageUploader';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { JoinClipsSettings } from '../settings';
 import { PageFadeIn } from '@/shared/components/transitions';
 import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';

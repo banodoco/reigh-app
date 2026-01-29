@@ -715,7 +715,8 @@ const GenerationsPaneComponent: React.FC = () => {
           style={{ WebkitOverflowScrolling: 'touch' }}
           data-tour="gallery-section"
         >
-            {isLoading && (
+            {/* Show skeleton only on initial load when there's no data yet */}
+            {isLoading && paginatedData.items.length === 0 && (
                 <SkeletonGallery
                     count={expectedItemCount ?? paneLayout.itemsPerPage}
                     fixedColumns={paneLayout.columns}
@@ -727,12 +728,14 @@ const GenerationsPaneComponent: React.FC = () => {
                 />
             )}
             {error && <p className="text-red-500 text-center">Error: {error.message}</p>}
-            {!isLoading && paginatedData.items.length > 0 && (
-                <>
+            {/* Keep ImageGallery mounted during page transitions to preserve lightbox state */}
+            {paginatedData.items.length > 0 && (
+                <div className={isLoading ? 'opacity-60 pointer-events-none transition-opacity duration-200' : ''}>
                   {console.log('[GenerationsPane] Rendering ImageGallery with:', {
                     selectedShotFilter,
                     currentShotId,
                     itemsCount: paginatedData.items.length,
+                    isLoading,
                     timestamp: Date.now()
                   })}
                   <ImageGallery
@@ -788,8 +791,9 @@ const GenerationsPaneComponent: React.FC = () => {
                     onPrefetchAdjacentPages={handlePrefetchAdjacentPages}
                     currentViewingShotId={currentShotId || undefined}
                     onCreateShot={handleCreateShot}
+                    isLoading={isLoading}
                 />
-                </>
+                </div>
             )}
             {paginatedData.items.length === 0 && !isLoading && (
                 <div className="flex-1 flex items-center justify-center text-zinc-500">

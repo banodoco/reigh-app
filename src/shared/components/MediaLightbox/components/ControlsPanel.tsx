@@ -153,9 +153,6 @@ export interface ControlsPanelProps extends ModeProps {
 
   /** Handler to load a variant's settings into the regenerate form */
   onLoadVariantSettings?: (variantParams: Record<string, any>) => void;
-
-  /** Number of pending tasks that will create variants/derived from this generation */
-  pendingTaskCount?: number;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
@@ -278,8 +275,6 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
     onDeleteVariant,
     // Load variant settings
     onLoadVariantSettings,
-    // Pending tasks
-    pendingTaskCount,
   } = props;
 
   // Route to VideoEditPanel
@@ -325,7 +320,6 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
         isPromoting={isPromoting}
         onLoadVariantSettings={onLoadVariantSettings}
         onDeleteVariant={onDeleteVariant}
-        pendingTaskCount={pendingTaskCount}
       />
     );
   }
@@ -407,7 +401,6 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
         isLocalGeneration={isLocalGeneration}
         qwenEditModel={qwenEditModel}
         setQwenEditModel={setQwenEditModel}
-        pendingTaskCount={pendingTaskCount}
       />
     );
   }
@@ -454,7 +447,6 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
       onDeleteVariant={onDeleteVariant}
       onLoadVariantSettings={onLoadVariantSettings}
       taskId={taskId}
-      pendingTaskCount={pendingTaskCount}
     />
   );
 };

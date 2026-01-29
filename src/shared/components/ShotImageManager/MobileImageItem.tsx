@@ -120,14 +120,14 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
         />
 
 
-        {/* Variant Count + NEW badge - bottom center, above frame number */}
+        {/* Variant Count + NEW badge - bottom center */}
         <VariantBadge
           derivedCount={(image as any).derivedCount}
           unviewedVariantCount={(image as any).unviewedVariantCount}
           hasUnviewedVariants={(image as any).hasUnviewedVariants}
           variant="overlay"
           size="sm"
-          position="bottom-5 left-1/2 -translate-x-1/2"
+          position="bottom-1 left-1/2 -translate-x-1/2"
           onMarkAllViewed={onMarkAllViewed}
         />
 
@@ -137,63 +137,67 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
             <Button
               size="icon"
               variant="secondary"
-              className="h-12 w-12 rounded-full bg-background/90 hover:bg-background shadow-lg pointer-events-auto"
+              className="h-9 w-9 rounded-full bg-background/90 hover:bg-background shadow-lg pointer-events-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenLightbox();
               }}
               title="Open lightbox"
             >
-              <Maximize2 className="h-5 w-5" />
+              <Maximize2 className="h-4 w-4" />
             </Button>
           </div>
         )}
 
-        {/* Top center - Copy and Delete buttons */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-2 items-center opacity-100 transition-opacity">
-          {/* Duplicate button - hidden when selected */}
-          {!readOnly && onDuplicate && !isSelected && (
-            <Button
-              size="icon"
-              variant="secondary"
-              className="h-8 w-8 bg-card/75 dark:bg-gray-800/75 hover:bg-card/90 dark:hover:bg-gray-800/90"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Use id (shot_generations.id) for duplication
-                onDuplicate(image.id, (image as any).timeline_frame ?? index);
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
-              }}
-              disabled={isDuplicating || image.id?.startsWith('temp-')}
-              title={image.id?.startsWith('temp-') ? "Please wait..." : "Duplicate"}
-            >
-              {showSuccessIcon ? (
-                <Check className="h-3 w-3 text-green-600" />
-              ) : isDuplicating ? (
-                <div className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Copy className="h-3 w-3" />
-              )}
-            </Button>
-          )}
-          {/* Delete button - only shown when selected */}
-          {!readOnly && isSelected && onDelete && (
-            <Button
-              size="icon"
-              variant="destructive"
-              className="h-8 w-8 bg-red-500/75 hover:bg-red-500/90"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              disabled={image.id?.startsWith('temp-')}
-              title={image.id?.startsWith('temp-') ? "Please wait..." : "Delete"}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
+        {/* Copy button - opposite side of video (even index: left, odd index: right) */}
+        {!readOnly && onDuplicate && !isSelected && (
+          <Button
+            size="icon"
+            variant="secondary"
+            className={cn(
+              "absolute top-1 h-8 w-8 bg-card/75 dark:bg-gray-800/75 hover:bg-card/90 dark:hover:bg-gray-800/90",
+              index % 2 === 0 ? "left-1" : "right-1"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Use id (shot_generations.id) for duplication
+              onDuplicate(image.id, (image as any).timeline_frame ?? index);
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+            }}
+            disabled={isDuplicating || image.id?.startsWith('temp-')}
+            title={image.id?.startsWith('temp-') ? "Please wait..." : "Duplicate"}
+          >
+            {showSuccessIcon ? (
+              <Check className="h-3 w-3 text-green-600" />
+            ) : isDuplicating ? (
+              <div className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Copy className="h-3 w-3" />
+            )}
+          </Button>
+        )}
+
+        {/* Delete button - opposite side of video (even index: left, odd index: right) */}
+        {!readOnly && isSelected && onDelete && (
+          <Button
+            size="icon"
+            variant="destructive"
+            className={cn(
+              "absolute top-1 h-8 w-8 bg-red-500/75 hover:bg-red-500/90",
+              index % 2 === 0 ? "left-1" : "right-1"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            disabled={image.id?.startsWith('temp-')}
+            title={image.id?.startsWith('temp-') ? "Please wait..." : "Delete"}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
       </div>
     </>
   );

@@ -67,7 +67,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
         const { data, error } = await supabase
           .from('referral_stats')
           .select('total_visits, successful_referrals')
-          .eq('user_id', session.user.id)
+          .eq('id', session.user.id)
           .single();
 
         if (!error && data) {
@@ -133,7 +133,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
                 However, for those who prefer the convenience of running on the cloud, we charge twice compute costs. Because we run on consumer GPUs, this is still significantly cheaper than other providers.
               </p>
               <p>
-                Of this, after costs, we offer 16% of our <strong>lifetime</strong> profits to those who refer artists via a personalised link:
+                Of this, after costs, <span className="text-wes-vintage-gold">we offer 33% of our lifetime profits to those who refer artists</span> via a personalised link:
               </p>
             </div>
 
@@ -174,7 +174,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
             {/* Profit Sharing Section */}
             <div className="text-sm leading-relaxed text-muted-foreground">
               <p className="mb-3">
-                Additionally, we share another 50% of profits with those who contribute tech, and for initiatives for artists/engineers - our goal is to become a very positively impactful part of the open ecosystem:
+                Additionally, we share another 33% of profits with those who contribute tech - our goal is to become a very positively impactful part of the open ecosystem:
               </p>
 
               {/* Profit split bar illustration */}

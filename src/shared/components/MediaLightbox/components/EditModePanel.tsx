@@ -135,9 +135,6 @@ export interface EditModePanelProps {
   // Model selection for cloud mode
   qwenEditModel?: QwenEditModel;
   setQwenEditModel?: (model: QwenEditModel) => void;
-
-  /** Number of pending tasks that will create variants/derived from this generation */
-  pendingTaskCount?: number;
 }
 
 /**
@@ -223,7 +220,6 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   isLocalGeneration = false,
   qwenEditModel = 'qwen-edit',
   setQwenEditModel,
-  pendingTaskCount = 0,
 }) => {
   const isMobile = variant === 'mobile';
 
@@ -345,7 +341,6 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
         isPromoting={isPromoting}
         onDeleteVariant={onDeleteVariant}
         onLoadVariantSettings={onLoadVariantSettings}
-        pendingTaskCount={pendingTaskCount}
       >
           {/* Prompt Field - Hidden for img2img mode (has its own prompt field) */}
           {editMode !== 'img2img' && (() => {

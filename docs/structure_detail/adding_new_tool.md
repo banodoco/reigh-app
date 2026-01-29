@@ -83,30 +83,50 @@ import { MyNewToolPage } from '@/tools/my-new-tool/pages/MyNewToolPage';
 
 ### 5️⃣ Implement Tool UI
 
-Create your main page component:
+Create your main page component using `useAutoSaveSettings` (recommended for full-featured auto-save):
 
 ```typescript
 // src/tools/my-new-tool/pages/MyNewToolPage.tsx
-import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
-import { myNewToolSettings } from '../settings';
+import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import { useProject } from '@/shared/contexts/ProjectContext';
+import { myNewToolSettings, MyNewToolSettings } from '../settings';
 
 export function MyNewToolPage() {
-  const { state, updateState, isLoading } = usePersistentToolState(
-    myNewToolSettings.id,
-    myNewToolSettings.defaults
-  );
+  const { selectedProjectId } = useProject();
 
-  if (isLoading) {
+  const { settings, updateField, updateFields, status } = useAutoSaveSettings<MyNewToolSettings>({
+    toolId: myNewToolSettings.id,
+    projectId: selectedProjectId,
+    scope: 'project',
+    defaults: myNewToolSettings.defaults,
+    enabled: !!selectedProjectId,
+  });
+
+  if (status !== 'ready') {
     return <div>Loading settings...</div>;
   }
 
   return (
     <div className="container mx-auto p-6">
       <h1>My New Tool</h1>
-      {/* Your tool UI here */}
+      {/* Read settings */}
+      <p>Feature X: {settings.enableFeatureX ? 'enabled' : 'disabled'}</p>
+
+      {/* Update single field */}
+      <button onClick={() => updateField('enableFeatureX', !settings.enableFeatureX)}>
+        Toggle Feature X
+      </button>
+
+      {/* Update multiple fields */}
+      <button onClick={() => updateFields({ maxItems: 20, apiEndpoint: 'new-url' })}>
+        Update Multiple
+      </button>
     </div>
   );
 }
+```
+
+> **See also:** [Settings System](./settings_system.md) for full API docs and alternative hooks (`usePersistentToolState` for binding existing useState, `useToolSettings` for low-level access).
 ```
 
 ### 6️⃣ (Optional) Add Backend Logic
@@ -133,8 +153,8 @@ supabase functions new my-tool-process
 ## ✅ That's It!
 
 Your tool now has:
-- 🔧 Automatic settings persistence via `useToolSettings`
-- 💾 Local state management via `usePersistentToolState`
+- 🔧 Automatic settings persistence via `useAutoSaveSettings`
+- 💾 Debounced auto-save with dirty tracking
 - 🎨 Automatic appearance in Tool Selector
 - 🔄 Cross-device settings sync
 - 📱 Mobile-responsive layout support

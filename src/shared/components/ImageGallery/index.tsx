@@ -442,17 +442,51 @@ const ImageGallery: React.FC<ImageGalleryProps> = React.memo((props) => {
     }
   }, [simplifiedShotOptions, allShots, navigateToShot]);
 
+  // Track filteredImages changes for debugging cross-page navigation
+  const prevFilteredImagesRef = useRef<string>('');
+  const pendingTargetSetTimeRef = useRef<number | null>(null);
+
   // Handle opening lightbox after page navigation
   useEffect(() => {
+    const currentSignature = `${filtersHook.filteredImages.length}-${filtersHook.filteredImages[0]?.id?.substring(0,8) ?? 'none'}-${filtersHook.filteredImages[filtersHook.filteredImages.length-1]?.id?.substring(0,8) ?? 'none'}`;
+    const signatureChanged = currentSignature !== prevFilteredImagesRef.current;
+
+    console.log('[CrossPageNav] 🔄 Effect fired:', {
+      pendingTarget: stateHook.state.pendingLightboxTarget,
+      filteredImagesLength: filtersHook.filteredImages.length,
+      currentSignature,
+      signatureChanged,
+      prevSignature: prevFilteredImagesRef.current,
+      serverPage,
+      timeSincePendingSet: pendingTargetSetTimeRef.current ? Date.now() - pendingTargetSetTimeRef.current : null,
+      activeLightboxId: stateHook.state.activeLightboxMedia?.id?.substring(0,8),
+      timestamp: Date.now()
+    });
+
+    prevFilteredImagesRef.current = currentSignature;
+
     if (stateHook.state.pendingLightboxTarget && filtersHook.filteredImages.length > 0) {
       const targetIndex = stateHook.state.pendingLightboxTarget === 'first' ? 0 : filtersHook.filteredImages.length - 1;
       const targetImage = filtersHook.filteredImages[targetIndex];
+
+      console.log('[CrossPageNav] ✅ Opening target image:', {
+        pendingTarget: stateHook.state.pendingLightboxTarget,
+        targetIndex,
+        targetImageId: targetImage?.id?.substring(0,8),
+        firstImageId: filtersHook.filteredImages[0]?.id?.substring(0,8),
+        lastImageId: filtersHook.filteredImages[filtersHook.filteredImages.length-1]?.id?.substring(0,8),
+        elapsedMs: pendingTargetSetTimeRef.current ? Date.now() - pendingTargetSetTimeRef.current : null,
+      });
+
       if (targetImage) {
         actionsHook.handleOpenLightbox(targetImage);
         stateHook.setPendingLightboxTarget(null);
+        pendingTargetSetTimeRef.current = null;
       }
+    } else if (stateHook.state.pendingLightboxTarget && filtersHook.filteredImages.length === 0) {
+      console.log('[CrossPageNav] ⏳ Waiting for data - filteredImages is empty');
     }
-  }, [filtersHook.filteredImages, stateHook.state.pendingLightboxTarget, actionsHook.handleOpenLightbox, stateHook.setPendingLightboxTarget]);
+  }, [filtersHook.filteredImages, stateHook.state.pendingLightboxTarget, actionsHook.handleOpenLightbox, stateHook.setPendingLightboxTarget, serverPage]);
 
   // Listen for custom event to select a shot for adding images (from VideoShotDisplay)
   useEffect(() => {
@@ -489,14 +523,30 @@ const ImageGallery: React.FC<ImageGalleryProps> = React.memo((props) => {
   // Lightbox navigation handlers with stable dependencies
   const handleNextImage = useCallback(() => {
     const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage, totalPages } = navigationDataRef.current;
-    
+
+    console.log('[CrossPageNav] ➡️ handleNextImage called:', {
+      activeLightboxId: activeLightboxMedia?.id?.substring(0,8),
+      filteredImagesLength: filteredImages.length,
+      isServerPagination,
+      currentServerPage,
+      totalPages,
+      hasOnServerPageChange: !!onServerPageChange,
+    });
+
     if (!activeLightboxMedia) return;
     const currentIndex = filteredImages.findIndex(img => img.id === activeLightboxMedia.id);
-    
+
+    console.log('[CrossPageNav] ➡️ Current position:', {
+      currentIndex,
+      isLastOnPage: currentIndex === filteredImages.length - 1,
+      canGoNextPage: currentServerPage < totalPages,
+    });
+
     if (isServerPagination) {
       // For server pagination, handle page boundaries
       if (currentIndex < filteredImages.length - 1) {
         // Move to next item on current page
+        console.log('[CrossPageNav] ➡️ Moving to next item on same page');
         actionsHook.handleOpenLightbox(filteredImages[currentIndex + 1]);
       } else {
         // At the end of current page, go to next page if available
@@ -504,8 +554,21 @@ const ImageGallery: React.FC<ImageGalleryProps> = React.memo((props) => {
         if (page < totalPages && onServerPageChange) {
           // Keep lightbox open showing current image, set pending target for new page
           // When new page data arrives, the pendingLightboxTarget effect will swap in the new image
+          console.log('[CrossPageNav] ➡️ 🚀 TRIGGERING CROSS-PAGE NAVIGATION:', {
+            fromPage: page,
+            toPage: page + 1,
+            settingPendingTarget: 'first',
+          });
+          pendingTargetSetTimeRef.current = Date.now();
           stateHook.setPendingLightboxTarget('first'); // Open first item of next page
           onServerPageChange(page + 1);
+        } else {
+          console.log('[CrossPageNav] ➡️ ❌ Cannot go to next page:', {
+            page,
+            totalPages,
+            hasOnServerPageChange: !!onServerPageChange,
+            reason: page >= totalPages ? 'already on last page' : 'no onServerPageChange handler',
+          });
         }
       }
     } else {
@@ -517,15 +580,31 @@ const ImageGallery: React.FC<ImageGalleryProps> = React.memo((props) => {
   }, [actionsHook.handleOpenLightbox, stateHook.setActiveLightboxMedia, stateHook.setPendingLightboxTarget, onServerPageChange]);
 
   const handlePreviousImage = useCallback(() => {
-    const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage } = navigationDataRef.current;
-    
+    const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage, totalPages } = navigationDataRef.current;
+
+    console.log('[CrossPageNav] ⬅️ handlePreviousImage called:', {
+      activeLightboxId: activeLightboxMedia?.id?.substring(0,8),
+      filteredImagesLength: filteredImages.length,
+      isServerPagination,
+      currentServerPage,
+      totalPages,
+      hasOnServerPageChange: !!onServerPageChange,
+    });
+
     if (!activeLightboxMedia) return;
     const currentIndex = filteredImages.findIndex(img => img.id === activeLightboxMedia.id);
-    
+
+    console.log('[CrossPageNav] ⬅️ Current position:', {
+      currentIndex,
+      isFirstOnPage: currentIndex === 0,
+      canGoPrevPage: currentServerPage > 1,
+    });
+
     if (isServerPagination) {
       // For server pagination, handle page boundaries
       if (currentIndex > 0) {
         // Move to previous item on current page
+        console.log('[CrossPageNav] ⬅️ Moving to previous item on same page');
         actionsHook.handleOpenLightbox(filteredImages[currentIndex - 1]);
       } else {
         // At the beginning of current page, go to previous page if available
@@ -533,8 +612,20 @@ const ImageGallery: React.FC<ImageGalleryProps> = React.memo((props) => {
         if (page > 1 && onServerPageChange) {
           // Keep lightbox open showing current image, set pending target for new page
           // When new page data arrives, the pendingLightboxTarget effect will swap in the new image
+          console.log('[CrossPageNav] ⬅️ 🚀 TRIGGERING CROSS-PAGE NAVIGATION:', {
+            fromPage: page,
+            toPage: page - 1,
+            settingPendingTarget: 'last',
+          });
+          pendingTargetSetTimeRef.current = Date.now();
           stateHook.setPendingLightboxTarget('last'); // Open last item of previous page
           onServerPageChange(page - 1);
+        } else {
+          console.log('[CrossPageNav] ⬅️ ❌ Cannot go to previous page:', {
+            page,
+            hasOnServerPageChange: !!onServerPageChange,
+            reason: page <= 1 ? 'already on first page' : 'no onServerPageChange handler',
+          });
         }
       }
     } else {

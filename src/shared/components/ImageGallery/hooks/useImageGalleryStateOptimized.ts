@@ -358,16 +358,26 @@ export const useImageGalleryStateOptimized = ({
   
   // Memoized action creators to prevent unnecessary re-renders
   const actions = useMemo(() => ({
-    setActiveLightboxMedia: (media: GenerationRow | null) => 
-      dispatch({ type: 'SET_LIGHTBOX_MEDIA', payload: media }),
-    setAutoEnterEditMode: (value: boolean) => 
+    setActiveLightboxMedia: (media: GenerationRow | null) => {
+      console.log('[CrossPageNav] 🔄 setActiveLightboxMedia:', {
+        newMediaId: media?.id?.substring(0, 8) ?? 'null',
+        timestamp: Date.now(),
+      });
+      dispatch({ type: 'SET_LIGHTBOX_MEDIA', payload: media });
+    },
+    setAutoEnterEditMode: (value: boolean) =>
       dispatch({ type: 'SET_AUTO_ENTER_EDIT_MODE', payload: value }),
-    setSelectedImageForDetails: (image: GenerationRow | null) => 
+    setSelectedImageForDetails: (image: GenerationRow | null) =>
       dispatch({ type: 'SET_SELECTED_IMAGE_FOR_DETAILS', payload: image }),
-    setShowTaskDetailsModal: (show: boolean) => 
+    setShowTaskDetailsModal: (show: boolean) =>
       dispatch({ type: 'SET_SHOW_TASK_DETAILS_MODAL', payload: show }),
-    setPendingLightboxTarget: (target: 'first' | 'last' | null) => 
-      dispatch({ type: 'SET_PENDING_LIGHTBOX_TARGET', payload: target }),
+    setPendingLightboxTarget: (target: 'first' | 'last' | null) => {
+      console.log('[CrossPageNav] 🎯 setPendingLightboxTarget:', {
+        newTarget: target,
+        timestamp: Date.now(),
+      });
+      dispatch({ type: 'SET_PENDING_LIGHTBOX_TARGET', payload: target });
+    },
     markOptimisticUnpositioned: (imageId: string, shotId: string) => 
       dispatch({ type: 'MARK_OPTIMISTIC_UNPOSITIONED', payload: { mediaId: imageId, shotId } }),
     markOptimisticPositioned: (imageId: string, shotId: string) => 

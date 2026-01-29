@@ -15,6 +15,8 @@ import { cn } from '@/shared/lib/utils';
 
 import { TaskDetailsPanelWrapper } from './TaskDetailsPanelWrapper';
 import { VariantSelector } from '@/tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/components/VariantSelector';
+import { VariantBadge } from '@/shared/components/VariantBadge';
+import { useLightboxVariantContext } from '../contexts/LightboxVariantContext';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import type { GenerationRow } from '@/types/shots';
 
@@ -68,9 +70,6 @@ export interface InfoPanelProps {
 
   /** Task ID for copy functionality (fallback when not in taskDetailsData) */
   taskId?: string | null;
-
-  /** Number of pending tasks that will create variants/derived from this generation */
-  pendingTaskCount?: number;
 }
 
 export const InfoPanel: React.FC<InfoPanelProps> = ({
@@ -117,10 +116,13 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   onLoadVariantSettings,
   // Task ID fallback
   taskId: taskIdProp,
-  // Pending tasks
-  pendingTaskCount = 0,
 }) => {
   const isMobile = variant === 'mobile';
+
+  // Get variant state from context (avoids prop drilling)
+  const { pendingTaskCount, unviewedVariantCount, onMarkAllViewed, variantsSectionRef: contextVariantsSectionRef } = useLightboxVariantContext();
+  // Use context ref if prop not provided
+  const effectiveVariantsSectionRef = variantsSectionRef || contextVariantsSectionRef;
   const hasVariants = variants && variants.length >= 1;
   const [idCopied, setIdCopied] = useState(false);
 
@@ -212,7 +214,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
           )}
           {hasVariants && (
             <button
-              onClick={() => variantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              onClick={() => effectiveVariantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
             >
               <span>{variants.length} variants</span>
@@ -221,12 +223,22 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
               </svg>
             </button>
           )}
-          {pendingTaskCount > 0 && (
+          {pendingTaskCount > 0 ? (
             <div className="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-primary/10 text-primary">
               <Loader2 className="w-3 h-3 animate-spin" />
               <span>{pendingTaskCount} pending</span>
             </div>
-          )}
+          ) : unviewedVariantCount > 0 ? (
+            <VariantBadge
+              variant="inline"
+              unviewedVariantCount={unviewedVariantCount}
+              hasUnviewedVariants={true}
+              alwaysShowNew={true}
+              tooltipSide="bottom"
+              onMarkAllViewed={onMarkAllViewed}
+              onClick={() => effectiveVariantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            />
+          ) : null}
         </div>
 
         {/* Right side - toggles and close button */}
@@ -279,7 +291,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
 
     return (
       <div
-        ref={variantsSectionRef}
+        ref={effectiveVariantsSectionRef}
         className={cn("border-t border-border", variantPadding)}
       >
         <VariantSelector
