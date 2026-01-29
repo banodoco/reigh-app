@@ -67,10 +67,15 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData?.session?.user?.id ?? null;
 
+  // Skip queries if user is not authenticated (e.g., on public share pages)
+  // RLS will block these queries anyway, causing 406 errors
+  if (!userId) {
+    console.debug('[ProjectGenerationModesCache] Skipping - no authenticated user');
+    return new Map<string, GenerationModeNormalized>();
+  }
+
   const [userResult, projectResult, shotsResult] = await Promise.all([
-    userId
-      ? supabase.from('users').select('settings').eq('id', userId).maybeSingle()
-      : Promise.resolve({ data: null, error: null } as any),
+    supabase.from('users').select('settings').eq('id', userId).maybeSingle(),
     supabase.from('projects').select('settings').eq('id', projectId).maybeSingle(),
     supabase.from('shots').select('id, settings').eq('project_id', projectId),
   ]);
