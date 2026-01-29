@@ -268,8 +268,14 @@ const TaskItem: React.FC<TaskItemProps> = ({
     e.stopPropagation();
     e.preventDefault();
     if (!shotId) return;
-    
+
     setIsHoveringTaskItem(false);
+
+    // Switch to the task's project if different from current
+    if (task.projectId && task.projectId !== selectedProjectId) {
+      setSelectedProjectId(task.projectId);
+    }
+
     setCurrentShotId(shotId);
     navigate(`/tools/travel-between-images#${shotId}`, { state: { fromShotClick: true } });
   };
@@ -297,6 +303,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
         shotId: shotId.substring(0, 8),
         pairShotGenerationId: pairShotGenerationId?.substring(0, 8),
       });
+
+      // Switch to the task's project if different from current
+      if (task.projectId && task.projectId !== selectedProjectId) {
+        setSelectedProjectId(task.projectId);
+      }
+
       setCurrentShotId(shotId);
       navigate(`/tools/travel-between-images#${shotId}`, {
         state: {
