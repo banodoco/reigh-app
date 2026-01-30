@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { GenerationRow } from '@/types/shots';
 import { toast } from 'sonner';
 import { timelineDebugger } from '../utils/timeline-debug';
-import type { ShotGeneration } from '@/shared/hooks/useEnhancedShotPositions';
+import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { useTimelinePositions } from './useTimelinePositions';
 
 interface PositionManagementProps {

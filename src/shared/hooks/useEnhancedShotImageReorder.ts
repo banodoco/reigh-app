@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { useEnhancedShotPositions } from './useEnhancedShotPositions';
-import { useBatchReorder } from './useBatchReorder';
+import { useTimelineCore } from './useTimelineCore';
 import { toast } from 'sonner';
 import { analyzeReorderOperation, validateReorderAnalysis } from '@/shared/utils/reorderUtils';
 
@@ -22,11 +21,33 @@ export const useEnhancedShotImageReorder = (
   }
 ) => {
   // Use parent hook functions if provided, otherwise create own instance
-  const ownHook = useEnhancedShotPositions(parentHook ? null : shotId);
-  const ownBatchReorder = useBatchReorder({ 
-    shotId: parentHook ? null : shotId,
-    onReload: parentHook ? undefined : (reason) => ownHook.loadPositions({ reason: 'reorder' })
-  });
+  const coreHook = useTimelineCore(parentHook ? null : shotId);
+
+  // Map core hook to expected interface
+  const ownHook = {
+    shotGenerations: coreHook.positionedItems,
+    getImagesForMode: () => coreHook.positionedItems,
+    exchangePositions: async () => {},
+    deleteItem: coreHook.deleteItem,
+    loadPositions: coreHook.refetch,
+    isLoading: coreHook.isLoading,
+  };
+
+  const ownBatchReorder = {
+    batchExchangePositions: coreHook.commitPositions,
+    exchangePositionsNoReload: async (idA: string, idB: string) => {
+      // For no-reload swaps, we need to implement swap logic
+      // This is a simplified version - swap frame values
+      const itemA = coreHook.positionedItems.find(i => i.shotImageEntryId === idA);
+      const itemB = coreHook.positionedItems.find(i => i.shotImageEntryId === idB);
+      if (itemA && itemB) {
+        await coreHook.commitPositions([
+          { shotGenerationId: idA, newFrame: itemB.timeline_frame ?? 0 },
+          { shotGenerationId: idB, newFrame: itemA.timeline_frame ?? 0 },
+        ]);
+      }
+    },
+  };
   
   // 🔧 FIX: Use ref to always access latest parentHook in callbacks
   // This prevents stale closure bugs where handleReorder captured old parentHook

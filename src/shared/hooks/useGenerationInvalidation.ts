@@ -111,6 +111,8 @@ function performInvalidation(
   if (scope === 'all' || scope === 'images') {
     queryClient.invalidateQueries({ queryKey: ['all-shot-generations', shotId] });
     queryClient.invalidateQueries({ queryKey: ['shot-generations', shotId] });
+    // Also invalidate segment-live-timeline so segment video positions update
+    queryClient.invalidateQueries({ queryKey: ['segment-live-timeline', shotId] });
   }
   
   if (scope === 'all' || scope === 'unified') {

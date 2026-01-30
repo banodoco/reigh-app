@@ -5,7 +5,7 @@
  * Used within MediaLightbox when in segment slot mode without a video.
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/shared/components/ui/button';
 import { X } from 'lucide-react';
@@ -64,7 +64,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
   });
 
   // Use the combined hook for form props
-  const { formProps, getSettingsForTaskCreation, saveSettings } = useSegmentSettingsForm({
+  const { formProps, getSettingsForTaskCreation, saveSettings, persistedEnhancePromptEnabled, saveEnhancePromptEnabled } = useSegmentSettingsForm({
     pairShotGenerationId,
     shotId: segmentSlotMode.shotId,
     defaults: {
@@ -101,17 +101,20 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
   const { enhancedPrompt } = formProps;
 
   // Enhance prompt toggle state
-  // Default: false if enhanced prompt exists, true if not
+  // Use persisted preference if available, otherwise default based on enhanced prompt existence
   const defaultEnhanceEnabled = useMemo(() => !enhancedPrompt?.trim(), [enhancedPrompt]);
-  const [enhancePromptEnabled, setEnhancePromptEnabled] = useState<boolean | null>(null);
+  const effectiveEnhanceEnabled = persistedEnhancePromptEnabled ?? defaultEnhanceEnabled;
 
-  // Compute effective enhance state (user choice > default)
-  const effectiveEnhanceEnabled = enhancePromptEnabled ?? defaultEnhanceEnabled;
+  // Ref for submit handler - updated synchronously on toggle, not waiting for cache refetch
+  const effectiveEnhanceEnabledRef = useRef(effectiveEnhanceEnabled);
+  // Keep in sync during normal renders
+  effectiveEnhanceEnabledRef.current = effectiveEnhanceEnabled;
 
-  // Reset enhance state when pair changes
-  useEffect(() => {
-    setEnhancePromptEnabled(null);
-  }, [pairShotGenerationId]);
+  // Handle enhance toggle changes - persist to database AND update ref synchronously
+  const handleEnhancePromptChange = useCallback((enabled: boolean) => {
+    effectiveEnhanceEnabledRef.current = enabled; // Update ref immediately for submit handler
+    saveEnhancePromptEnabled(enabled); // Persist to database
+  }, [saveEnhancePromptEnabled]);
 
   // Handle frame count change
   const handleFrameCountChange = useCallback((frameCount: number) => {
@@ -170,9 +173,13 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
     // Prioritize existing enhanced prompt if available, otherwise use base prompt
     const promptToEnhance = enhancedPrompt?.trim() || effectiveSettings.prompt?.trim() || '';
 
+    // Read current enhance state from ref (avoids stale closure issue when user toggles then immediately submits)
+    const shouldEnhance = effectiveEnhanceEnabledRef.current;
+
     // Log the enhance decision
     console.log('[EnhancedPromptSave] 🔍 Submit handler called:', {
-      effectiveEnhanceEnabled,
+      shouldEnhance,
+      effectiveEnhanceEnabled, // May be stale if user just toggled
       hasPromptToEnhance: !!promptToEnhance,
       promptToEnhancePreview: promptToEnhance?.substring(0, 50) || '(empty)',
       pairShotGenerationId: pairShotGenerationId?.substring(0, 8) || '(none)',
@@ -180,7 +187,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
     });
 
     // If enhance is enabled, use background submission pattern
-    if (effectiveEnhanceEnabled && promptToEnhance) {
+    if (shouldEnhance && promptToEnhance) {
       console.log('[EnhancedPromptSave] 🚀 Starting background submission with prompt enhancement');
 
       // Add placeholder for immediate feedback
@@ -448,7 +455,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
                 isSubmitting={isSubmitting}
                 onFrameCountChange={handleFrameCountChange}
                 enhancePromptEnabled={effectiveEnhanceEnabled}
-                onEnhancePromptChange={setEnhancePromptEnabled}
+                onEnhancePromptChange={handleEnhancePromptChange}
               />
 
               {/* Show warning if missing context */}

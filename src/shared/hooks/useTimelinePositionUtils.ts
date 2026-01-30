@@ -1,18 +1,19 @@
 /**
  * Timeline Position Management Utilities
- * 
+ *
  * Provides utilities for managing timeline frame positions without fetching data.
  * This is the "enrichment layer" that adds position management capabilities
  * to already-fetched generation data from useAllShotGenerations.
- * 
- * Extracted from useEnhancedShotPositions to separate data fetching from utilities.
+ *
+ * Used primarily for the preloaded images path (share views, etc.)
+ * For the main path, use useTimelineCore instead.
  */
 
 import { useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { GenerationRow } from '@/types/shots';
-import type { ShotGeneration, PositionMetadata } from './useEnhancedShotPositions';
+import type { ShotGeneration, PositionMetadata } from './useTimelineCore';
 import { readSegmentOverrides, writeSegmentOverrides } from '@/shared/utils/settingsMigration';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { calculateAverageSpacing, DEFAULT_FRAME_SPACING } from '@/shared/utils/timelinePositionCalculator';
@@ -431,6 +432,8 @@ export function useTimelinePositionUtils({ shotId, generations, projectId }: Use
     console.log('[DataTrace] ✅ All distribution updates complete, refetching in background');
     queryClient.refetchQueries({ queryKey: ['all-shot-generations', shotId] });
     queryClient.refetchQueries({ queryKey: ['shot-generations-meta', shotId] });
+    // CRITICAL: Also refetch segment-live-timeline so segment videos update positions
+    queryClient.refetchQueries({ queryKey: ['segment-live-timeline', shotId] });
     if (projectId) {
       queryClient.refetchQueries({ queryKey: ['shots', projectId] });
     }

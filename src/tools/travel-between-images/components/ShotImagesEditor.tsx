@@ -7,7 +7,7 @@ import ShotImageManager from "@/shared/components/ShotImageManager";
 import Timeline from "./Timeline"; // Main timeline component with drag/drop and image actions
 import { Button } from "@/shared/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
-import { useEnhancedShotPositions } from "@/shared/hooks/useEnhancedShotPositions";
+import { useTimelineCore } from "@/shared/hooks/useTimelineCore";
 import { useEnhancedShotImageReorder } from "@/shared/hooks/useEnhancedShotImageReorder";
 import { useTimelinePositionUtils } from "@/shared/hooks/useTimelinePositionUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -812,21 +812,21 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
 
   // Enhanced position management
   // Centralized position management - shared between Timeline and ShotImageManager
-  // When preloadedImages is provided, use new utility hook; otherwise use legacy hook
-  // CRITICAL: Pass isDragInProgress to suppress realtime/query reloads during drag operations
-  const legacyHookData = useEnhancedShotPositions(preloadedImages ? null : selectedShotId, isDragInProgress);
+  // When preloadedImages is provided, use new utility hook; otherwise use core hook
+  // Note: useTimelineCore doesn't need isDragInProgress - it uses React Query's refetch control
+  const coreHookData = useTimelineCore(preloadedImages ? null : selectedShotId);
   
   // NEW: Use utility hook when preloaded images are provided
   // CRITICAL: Pass the same generations array that we use for display
   // Otherwise clearEnhancedPrompt will look in a different/empty array
   const utilsData = useTimelinePositionUtils({
     shotId: preloadedImages ? selectedShotId : null,
-    generations: preloadedImages || legacyHookData.shotGenerations,  // Use legacyHookData as fallback
+    generations: preloadedImages || coreHookData.positionedItems,  // Use coreHookData as fallback
     projectId: projectId, // Pass projectId to invalidate ShotsPane cache
   });
-  
+
   // Choose data source based on whether we have preloaded images
-  const hookData: typeof legacyHookData = preloadedImages ? {
+  const hookData = preloadedImages ? {
     // Use utility hook data when preloaded
     shotGenerations: utilsData.shotGenerations,
     pairPrompts: utilsData.pairPrompts,
@@ -855,16 +855,42 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     },
     exchangePositions: async () => {},
     exchangePositionsNoReload: async () => {},
-    deleteItem: async () => {},
-    updatePairPromptsByIndex: async () => {},
-    clearAllEnhancedPrompts: async () => {},
+    deleteItem: coreHookData.deleteItem,
+    updatePairPromptsByIndex: coreHookData.updatePairPromptsByIndex,
+    clearAllEnhancedPrompts: coreHookData.clearAllEnhancedPrompts,
     isPersistingPositions: false,
     setIsPersistingPositions: () => {},
     getPositionsForMode: () => new Map(),
-    addItem: async () => {},
+    addItem: coreHookData.addItem,
     applyTimelineFrames: async () => {},
     getPairPrompts: () => utilsData.pairPrompts,
-  } as any : legacyHookData;
+  } : {
+    // Use core hook data (non-preloaded path)
+    shotGenerations: coreHookData.positionedItems,
+    pairPrompts: coreHookData.pairPrompts,
+    isLoading: coreHookData.isLoading,
+    error: coreHookData.error?.message || '',
+    updateTimelineFrame: coreHookData.updatePosition,
+    batchExchangePositions: coreHookData.commitPositions,
+    loadPositions: coreHookData.refetch,
+    updatePairPrompts: coreHookData.updatePairPrompts,
+    clearEnhancedPrompt: coreHookData.clearEnhancedPrompt,
+    initializeTimelineFrames: async () => {},
+    getImagesForMode: (mode: 'batch' | 'timeline') => {
+      return coreHookData.positionedItems;
+    },
+    exchangePositions: async () => {},
+    exchangePositionsNoReload: async () => {},
+    deleteItem: coreHookData.deleteItem,
+    updatePairPromptsByIndex: coreHookData.updatePairPromptsByIndex,
+    clearAllEnhancedPrompts: coreHookData.clearAllEnhancedPrompts,
+    isPersistingPositions: false,
+    setIsPersistingPositions: () => {},
+    getPositionsForMode: () => new Map(),
+    addItem: coreHookData.addItem,
+    applyTimelineFrames: async () => {},
+    getPairPrompts: () => coreHookData.pairPrompts,
+  };
   
   const {
     getImagesForMode,
@@ -890,7 +916,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   console.log('[UnifiedDataFlow] ShotImagesEditor data source:', {
     selectedShotId: selectedShotId?.substring(0, 8) ?? 'none',
     usingPreloadedImages: !!preloadedImages,
-    dataSource: preloadedImages ? 'two-phase (from ShotEditor)' : 'legacy (useEnhancedShotPositions)',
+    dataSource: preloadedImages ? 'two-phase (from ShotEditor)' : 'core (useTimelineCore)',
     imageCount: shotGenerations.length,
     withMetadata: shotGenerations.filter((img: any) => img.metadata).length,
     withId: shotGenerations.filter((img: any) => img.id).length, // id is shot_generations.id

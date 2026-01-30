@@ -25,7 +25,7 @@ import { MotionControl } from '../MotionControl';
 import { useApiKeys } from '@/shared/hooks/useApiKeys';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import ShotImagesEditor from '../ShotImagesEditor';
-import { useEnhancedShotPositions } from "@/shared/hooks/useEnhancedShotPositions";
+import { useTimelineCore } from "@/shared/hooks/useTimelineCore";
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { useAllShotGenerations, useTimelineImages, useUnpositionedImages, useVideoOutputs } from '@/shared/hooks/useShotGenerations';
 import usePersistentState from '@/shared/hooks/usePersistentState';
@@ -626,15 +626,9 @@ const ShotEditor: React.FC<ShotEditorProps> = ({
     enabled: !!selectedProjectId 
   });
   
-  // Timeline positions now come directly from database via useEnhancedShotPositions
-  // No local caching needed
-  
-  // Timeline positions are now managed directly by the database via useEnhancedShotPositions
-  // No local caching or debouncing needed
-  
   // Get pair prompts data for checking if all pairs have prompts
-  // CRITICAL: Pass isDragInProgress to suppress realtime/query reloads during drag operations
-  const { pairPrompts, shotGenerations, clearAllEnhancedPrompts, updatePairPromptsByIndex, loadPositions } = useEnhancedShotPositions(selectedShotId, isDragInProgress);
+  // Uses useTimelineCore for centralized position management
+  const { pairPrompts, positionedItems: shotGenerations, clearAllEnhancedPrompts, updatePairPromptsByIndex, refetch: loadPositions } = useTimelineCore(selectedShotId);
   
   // Wrap onBatchVideoPromptChange to also clear all enhanced prompts when base prompt changes
   const handleBatchVideoPromptChangeWithClear = useCallback(async (newPrompt: string) => {

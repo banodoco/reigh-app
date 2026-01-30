@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo } from "react";
+import React, { useCallback, useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
@@ -120,7 +120,7 @@ const SegmentSettingsModal: React.FC<SegmentSettingsModalProps> = ({
   const endImageUrl = pairData?.endImage?.url || pairData?.endImage?.thumbUrl;
 
   // Use the combined hook for form props
-  const { formProps, getSettingsForTaskCreation, saveSettings, settings, isDirty } = useSegmentSettingsForm({
+  const { formProps, getSettingsForTaskCreation, saveSettings, settings, isDirty, persistedEnhancePromptEnabled, saveEnhancePromptEnabled } = useSegmentSettingsForm({
     pairShotGenerationId,
     shotId,
     defaults: {
@@ -150,16 +150,20 @@ const SegmentSettingsModal: React.FC<SegmentSettingsModalProps> = ({
 
   // Enhance prompt toggle state
   // Default: false if enhanced prompt exists, true if not
+  // Use persisted preference if available, otherwise fall back to default
   const defaultEnhanceEnabled = useMemo(() => !enhancedPrompt?.trim(), [enhancedPrompt]);
-  const [enhancePromptEnabled, setEnhancePromptEnabled] = useState<boolean | null>(null);
+  const effectiveEnhanceEnabled = persistedEnhancePromptEnabled ?? defaultEnhanceEnabled;
 
-  // Compute effective enhance state (user choice > default)
-  const effectiveEnhanceEnabled = enhancePromptEnabled ?? defaultEnhanceEnabled;
+  // Ref for submit handler - updated synchronously on toggle, not waiting for cache refetch
+  const effectiveEnhanceEnabledRef = useRef(effectiveEnhanceEnabled);
+  // Keep in sync during normal renders
+  effectiveEnhanceEnabledRef.current = effectiveEnhanceEnabled;
 
-  // Reset enhance state when modal opens with different pair
-  React.useEffect(() => {
-    setEnhancePromptEnabled(null); // Reset to use default
-  }, [pairShotGenerationId]);
+  // Handle enhance toggle changes - persist to database AND update ref synchronously
+  const handleEnhancePromptChange = useCallback((enabled: boolean) => {
+    effectiveEnhanceEnabledRef.current = enabled; // Update ref immediately for submit handler
+    saveEnhancePromptEnabled(enabled); // Persist to database
+  }, [saveEnhancePromptEnabled]);
 
   // Handle close - optimistic update + background save
   const handleClose = useCallback((open: boolean) => {
@@ -258,9 +262,13 @@ const SegmentSettingsModal: React.FC<SegmentSettingsModalProps> = ({
     // Prioritize existing enhanced prompt if available, otherwise use base prompt
     const promptToEnhance = enhancedPrompt?.trim() || effectiveSettings.prompt?.trim() || '';
 
+    // Read current enhance state from ref (avoids stale closure issue when user toggles then immediately submits)
+    const shouldEnhance = effectiveEnhanceEnabledRef.current;
+
     // Log the enhance decision
     console.log('[EnhancedPromptSave] 🔍 Submit handler called:', {
-      effectiveEnhanceEnabled,
+      shouldEnhance,
+      effectiveEnhanceEnabled, // May be stale if user just toggled
       hasPromptToEnhance: !!promptToEnhance,
       promptToEnhancePreview: promptToEnhance?.substring(0, 50) || '(empty)',
       pairShotGenerationId: pairShotGenerationId?.substring(0, 8) || '(none)',
@@ -268,7 +276,7 @@ const SegmentSettingsModal: React.FC<SegmentSettingsModalProps> = ({
     });
 
     // If enhance is enabled, use background submission pattern
-    if (effectiveEnhanceEnabled && promptToEnhance) {
+    if (shouldEnhance && promptToEnhance) {
       console.log('[EnhancedPromptSave] 🚀 Starting background submission with prompt enhancement');
 
       // Add placeholder for immediate feedback
@@ -535,7 +543,7 @@ const SegmentSettingsModal: React.FC<SegmentSettingsModalProps> = ({
             isSubmitting={isSubmitting}
             onFrameCountChange={onFrameCountChange}
             enhancePromptEnabled={effectiveEnhanceEnabled}
-            onEnhancePromptChange={setEnhancePromptEnabled}
+            onEnhancePromptChange={handleEnhancePromptChange}
           />
           {!generationId && !shotId && (
             <p className="text-xs text-muted-foreground text-center mt-2">

@@ -160,8 +160,9 @@ const VideoTravelToolPage: React.FC = () => {
     // Use the same layout calculation as ImageGallery
     const layout = getLayoutForAspectRatio(projectAspectRatio, isMobile, windowWidth * 0.95);
 
-    // For videos: use ~33% of image columns, minimum 2
-    const videoColumns = Math.max(2, Math.floor(layout.columns / 3));
+    // For videos: use fixed 3 columns (videos are larger than images)
+    // Mobile gets 2 columns
+    const videoColumns = isMobile ? 2 : 3;
 
     // For videos: use 3 rows
     const videoRows = 3;

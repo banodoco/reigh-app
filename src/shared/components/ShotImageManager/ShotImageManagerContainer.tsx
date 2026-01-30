@@ -91,16 +91,23 @@ export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props
   }, [props.generationMode, lightbox.currentImages]);
 
   // Segment video outputs for batch view (only when in batch mode)
-  // Use props.segmentSlots if provided (controlled from parent), otherwise fetch internally
+  // Call hook when:
+  // 1. In batch mode AND no props.segmentSlots (normal case)
+  // 2. In batch mode AND localShotGenPositions exists (optimistic update - overrides props.segmentSlots)
+  const shouldFetchSegments = props.generationMode === 'batch' &&
+    (!props.segmentSlots || (localShotGenPositions && localShotGenPositions.size > 0));
   const hookResult = useSegmentOutputsForShot(
-    // Only call hook if props.segmentSlots not provided
-    props.generationMode === 'batch' && !props.segmentSlots ? props.shotId || null : null,
-    props.generationMode === 'batch' && !props.segmentSlots ? props.projectId || null : null,
-    props.generationMode === 'batch' && !props.segmentSlots ? localShotGenPositions : undefined
+    shouldFetchSegments ? props.shotId || null : null,
+    shouldFetchSegments ? props.projectId || null : null,
+    shouldFetchSegments ? localShotGenPositions : undefined
   );
 
-  // Use prop if provided, otherwise use hook result
-  const segmentSlots = props.segmentSlots ?? hookResult.segmentSlots;
+  // Use hook result when we have local positions (optimistic update in progress),
+  // otherwise use prop if provided. This ensures segment videos move instantly during drag.
+  // Fallback to props.segmentSlots if hook result is empty (prevents flicker during initial fetch)
+  const segmentSlots = (localShotGenPositions && localShotGenPositions.size > 0)
+    ? (hookResult.segmentSlots.length > 0 ? hookResult.segmentSlots : props.segmentSlots ?? [])
+    : (props.segmentSlots ?? hookResult.segmentSlots);
   const selectedParentId = hookResult.selectedParentId;
 
   // Pending segment tasks for showing loading indicator

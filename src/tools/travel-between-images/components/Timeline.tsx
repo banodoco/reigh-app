@@ -63,7 +63,7 @@ import "@/utils/clearTimelineCache";
 import { usePositionManagement } from "./Timeline/hooks/usePositionManagement";
 import { useCoordinateSystem } from "./Timeline/hooks/useCoordinateSystem";
 import { useLightbox } from "./Timeline/hooks/useLightbox";
-import { useEnhancedShotPositions } from "@/shared/hooks/useEnhancedShotPositions";
+import { useTimelineCore } from "@/shared/hooks/useTimelineCore";
 import { useTimelinePositionUtils } from "@/shared/hooks/useTimelinePositionUtils";
 import { timelineDebugger } from "./Timeline/utils/timeline-debug";
 import { calculateMaxGap, validateGaps } from "./Timeline/utils/timeline-utils";
@@ -344,14 +344,14 @@ const Timeline: React.FC<TimelineProps> = ({
   
   // Use shared hook data if provided, otherwise create new instance (for backward compatibility)
   // NEW: When propAllGenerations is provided, use utility hook for position management with ALL data
-  const legacyHookData = useEnhancedShotPositions(!propAllGenerations ? shotId : null, isDragInProgress);
+  const coreHookData = useTimelineCore(!propAllGenerations ? shotId : null);
   const utilsHookData = useTimelinePositionUtils({
     shotId: propAllGenerations ? shotId : null,
     generations: propAllGenerations || [], // Use ALL generations for lookups, not filtered images
     projectId: projectId, // Pass projectId to invalidate ShotsPane cache
   });
   
-  // Choose data source: prefer propHookData, then utility hook if allGenerations provided, else legacy hook
+  // Choose data source: prefer propHookData, then utility hook if allGenerations provided, else core hook
   const hookData = propHookData || (propAllGenerations ? {
     shotGenerations: utilsHookData.shotGenerations,
     updateTimelineFrame: utilsHookData.updateTimelineFrame,
@@ -360,7 +360,16 @@ const Timeline: React.FC<TimelineProps> = ({
     loadPositions: utilsHookData.loadPositions,
     pairPrompts: utilsHookData.pairPrompts,
     isLoading: utilsHookData.isLoading,
-  } as any : legacyHookData);
+  } as any : {
+    // Map useTimelineCore output to expected interface
+    shotGenerations: coreHookData.positionedItems,
+    updateTimelineFrame: coreHookData.updatePosition,
+    batchExchangePositions: coreHookData.commitPositions,
+    initializeTimelineFrames: async () => {}, // Not needed in core hook
+    loadPositions: coreHookData.refetch,
+    pairPrompts: coreHookData.pairPrompts,
+    isLoading: coreHookData.isLoading,
+  });
   
   const shotGenerations = propShotGenerations || hookData.shotGenerations;
   const updateTimelineFrame = propUpdateTimelineFrame || hookData.updateTimelineFrame;
