@@ -200,7 +200,14 @@ export const TASK_COMPLETION_CONFIG: Partial<Record<TaskType, TaskCompletionConf
     toolType: TOOL_TYPES.TRAVEL_BETWEEN_IMAGES,
     childOrderField: 'segment_index',
     checkExistingAtPosition: true,
-    // No singleItemDetection - individual segments don't trigger parent propagation
+    // Single-segment detection: when generating the only segment in a shot,
+    // propagate to parent so the main generation updates automatically
+    singleItemDetection: {
+      countField: 'num_new_segments_to_generate',
+      expectedCount: 1,
+      behavior: 'variant_and_child',
+      extraParams: { is_single_segment: true },
+    },
   },
 };
 
