@@ -2,7 +2,7 @@
  * Centralized logging for selection operations
  */
 export const logSelectionEvent = (event: string, data: any) => {
-  console.log(`[SelectionDebug:ShotImageManager] ${event}`, data);
+  console.log(`[SelectionDebug:Gallery] ${event}`, data);
 };
 
 /**

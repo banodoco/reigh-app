@@ -169,7 +169,7 @@ export const ImageGalleryItem: React.FC<ImageGalleryItemProps> = ({
   // Fetch task data for video tasks to show proper details
   // Try to get task ID from metadata first (more efficient), fallback to cache query
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For ShotImageManager images, id is shot_generations.id but generation_id is the actual generation ID
+  // For Gallery images, id is shot_generations.id but generation_id is the actual generation ID
   const taskIdFromMetadata = (image.metadata as any)?.taskId;
   const actualGenerationId = (image as any).generation_id || image.id;
   const { data: taskIdMapping } = useTaskFromUnifiedCache(actualGenerationId);

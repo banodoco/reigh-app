@@ -31,7 +31,7 @@ Complete inventory of pages, tools, and major UI sections with their component d
 
 #### Components Used
 - **ShotListDisplay** - Shot list with selection
-- **ShotImageManager** - Image management for selected shot
+- **Gallery** - Image management for selected shot
 - **Pattern** - React Query mutations for add/delete/reorder; uses `CurrentShotContext`
 
 ---
@@ -242,12 +242,12 @@ Complete inventory of pages, tools, and major UI sections with their component d
 
 ---
 
-### ShotImageManager
-`src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx` - Manage images within shots
+### Gallery
+`src/shared/components/Gallery/GalleryContainer.tsx` - Manage images within shots
 
 #### Components Used
-- **ShotImageManagerDesktop** - Drag/drop, frame positioning
-- **ShotImageManagerMobileWrapper** - Touch gestures, simplified selection
+- **GalleryDesktop** - Drag/drop, frame positioning
+- **GalleryMobileWrapper** - Touch gestures, simplified selection
 - **Unified hooks** - Selection, lightbox, batch ops, segment videos
 
 ---
@@ -755,13 +755,13 @@ Tool Page → create[Type]Task() → createTask() → create-task edge function
 | Component | Mobile Handling |
 |-----------|-----------------|
 | GlobalHeader | 2-row layout on mobile vs single row desktop |
-| ShotImageManager | `ShotImageManagerMobile` vs `ShotImageManagerDesktop` |
+| Gallery | `GalleryMobile` vs `GalleryDesktop` |
 | HoverScrubVideo | Autoplay prevention, no scrub on mobile |
 | Layout | Split-view wrapper when generations pane locked |
 | ImageGalleryItem | Mobile popover vs desktop hover actions |
 
 **Inconsistencies:**
-- **ShotImageManager** has entirely separate components for mobile/desktop
+- **Gallery** has entirely separate components for mobile/desktop
 - **GlobalHeader** uses conditional JSX within single component
 - **HoverScrubVideo** disables features on mobile rather than alternate UI
 - **ImageGalleryItem** switches interaction pattern (popover vs hover)
@@ -776,7 +776,7 @@ Tool Page → create[Type]Task() → createTask() → create-task edge function
 | Component | Structure |
 |-----------|-----------|
 | MediaLightbox | Full structure: `/components`, `/hooks`, `/contexts` |
-| ShotImageManager | Full structure: Container + Desktop/Mobile variants |
+| Gallery | Full structure: Container + Desktop/Mobile variants |
 | TasksPane | Directory with sub-components |
 | ToolsPane | Directory with sub-components |
 | GenerationsPane | Directory with sub-components |

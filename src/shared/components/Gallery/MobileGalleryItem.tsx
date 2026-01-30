@@ -1,6 +1,6 @@
 /**
- * Mobile-optimized image item component
- * Extracted from ShotImageManager for better organization
+ * Mobile-optimized gallery item component
+ * Extracted from Gallery for better organization
  */
 
 import React, { useState } from 'react';
@@ -9,10 +9,10 @@ import { Trash2, Copy, Check, Maximize2 } from 'lucide-react';
 import { cn, getDisplayUrl } from '@/shared/lib/utils';
 import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
-import { MobileImageItemProps } from './types';
+import { MobileGalleryItemProps } from './types';
 import { VariantBadge } from '@/shared/components/VariantBadge';
 
-export const MobileImageItem: React.FC<MobileImageItemProps> = ({
+export const MobileGalleryItem: React.FC<MobileGalleryItemProps> = ({
   image,
   isSelected,
   index,

@@ -94,7 +94,7 @@ export function useExternalGenerations({
   // Adapter functions for shot management
   const handleExternalGenAddToShot = useCallback(async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
     if (!externalGenLightboxSelectedShot || !selectedProjectId) {
-      console.warn('[ShotImageManager] Cannot add to shot - missing selected shot or project');
+      console.warn('[Gallery] Cannot add to shot - missing selected shot or project');
       return false;
     }
     
@@ -108,7 +108,7 @@ export function useExternalGenerations({
       });
       return true;
     } catch (error) {
-      console.error('[ShotImageManager] Error adding to shot:', error);
+      console.error('[Gallery] Error adding to shot:', error);
       toast.error('Failed to add to shot');
       return false;
     }
@@ -116,7 +116,7 @@ export function useExternalGenerations({
   
   const handleExternalGenAddToShotWithoutPosition = useCallback(async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
     if (!externalGenLightboxSelectedShot || !selectedProjectId) {
-      console.warn('[ShotImageManager] Cannot add to shot without position');
+      console.warn('[Gallery] Cannot add to shot without position');
       return false;
     }
     
@@ -130,7 +130,7 @@ export function useExternalGenerations({
       });
       return true;
     } catch (error) {
-      console.error('[ShotImageManager] Error adding to shot without position:', error);
+      console.error('[Gallery] Error adding to shot without position:', error);
       toast.error('Failed to add to shot');
       return false;
     }
@@ -321,7 +321,7 @@ export function useExternalGenerations({
         }
       }
     } catch (error) {
-      console.error('[ShotImageManager] ❌ Failed to fetch external generation:', error);
+      console.error('[Gallery] ❌ Failed to fetch external generation:', error);
       toast.error('Failed to load generation');
     }
   }, [optimisticOrder, images, externalGenerations, tempDerivedGenerations, derivedNavContext, setLightboxIndexRef]);

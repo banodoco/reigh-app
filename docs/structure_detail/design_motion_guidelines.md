@@ -354,7 +354,7 @@ const handleMobileTap = (item: any) => {
 
 - `ImageGallery` - Double-tap to open image lightbox
 - `VideoOutputsGallery` - Double-tap to open video lightbox  
-- `ShotImageManager` - Double-tap to open image editor
+- `Gallery` - Double-tap to open image editor
 - `Timeline` - Double-tap to open image lightbox
 - `HoverScrubVideo` - Supports both `onDoubleClick` and `onTouchEnd` props
 

@@ -39,7 +39,7 @@ export const useGenerationLineage = ({
   enabled = true,
 }: UseGenerationLineageProps): UseGenerationLineageReturn => {
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
+  // For Gallery/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
   const actualGenerationId = (media as any).generation_id || media.id;
 
   // Fetch derived items (both generations AND variants) - NEW UNIFIED

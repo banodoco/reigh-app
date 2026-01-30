@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { GenerationRow } from "@/types/shots";
 import { Card, CardHeader, CardTitle, CardContent } from "@/shared/components/ui/card";
 import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/segmented-control";
-import ShotImageManager from "@/shared/components/ShotImageManager";
+import Gallery from "@/shared/components/Gallery";
 import Timeline from "./Timeline"; // Main timeline component with drag/drop and image actions
 import { Button } from "@/shared/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
@@ -715,7 +715,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   const [segmentSlotLightboxIndex, setSegmentSlotLightboxIndex] = useState<number | null>(null);
 
   // Pending image to open in lightbox - used for navigation from segment back to constituent image
-  // When set, child components (ShotImageManagerDesktop/Timeline) will open the lightbox for this image
+  // When set, child components (GalleryDesktop/Timeline) will open the lightbox for this image
   const [pendingImageToOpen, setPendingImageToOpen] = useState<string | null>(null);
 
   // Track lightbox transitions to keep overlay visible during navigation between image/segment lightboxes
@@ -755,7 +755,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   }, []);
 
   // Clear transition state when segment slot lightbox opens
-  // (Image lightbox clearing is handled in Timeline/ShotImageManager via their useEffect)
+  // (Image lightbox clearing is handled in Timeline/Gallery via their useEffect)
   useEffect(() => {
     if (segmentSlotLightboxIndex !== null && isLightboxTransitioning) {
       console.log('[LightboxTransition] Segment lightbox opened, clearing transition after 200ms');
@@ -798,7 +798,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       // (Only do this after a brief delay to let any opening lightbox set its own lock)
       const timer = setTimeout(() => {
         // Only restore if no lightbox should be open
-        // The image lightbox state is managed by Timeline/ShotImageManager, we can't check it here
+        // The image lightbox state is managed by Timeline/Gallery, we can't check it here
         // But if segmentSlotLightboxIndex is null and we just finished transitioning,
         // we should be safe to check if overflow needs restoring
         if (document.body.style.overflow === 'hidden' && !document.querySelector('[data-radix-dialog-overlay]')) {
@@ -811,7 +811,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   }, [isLightboxTransitioning, segmentSlotLightboxIndex]);
 
   // Enhanced position management
-  // Centralized position management - shared between Timeline and ShotImageManager
+  // Centralized position management - shared between Timeline and Gallery
   // When preloadedImages is provided, use new utility hook; otherwise use core hook
   // Note: useTimelineCore doesn't need isDragInProgress - it uses React Query's refetch control
   const coreHookData = useTimelineCore(preloadedImages ? null : selectedShotId);
@@ -2198,7 +2198,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     }
   }, [onDefaultPromptChange, clearAllEnhancedPrompts]);
 
-  // Adapter functions to convert between ShotImageManager's signature and ShotEditor's signature
+  // Adapter functions to convert between Gallery's signature and ShotEditor's signature
   // CRITICAL FIX: Now receives targetShotId from the callback, not from props!
   // This ensures the image is added to the shot the user SELECTED in the dropdown, not the shot being viewed
   const handleAddToShotAdapter = React.useCallback(async (
@@ -2603,7 +2603,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                   <SectionHeader title="Input Images" theme="blue" />
                 </div>
                 
-                <ShotImageManager
+                <Gallery
                   images={imagesWithBadges}
                   onImageDelete={handleDelete}
                   onBatchImageDelete={onBatchImageDelete}
@@ -2631,7 +2631,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                   onShotChange={onShotChange}
                   onAddToShot={(() => {
                     const result = onAddToShot ? handleAddToShotAdapter : undefined;
-                    console.log('[ShotSelectorDebug] ShotImagesEditor -> ShotImageManager onAddToShot', {
+                    console.log('[ShotSelectorDebug] ShotImagesEditor -> Gallery onAddToShot', {
                       component: 'ShotImagesEditor',
                       hasOnAddToShot: !!onAddToShot,
                       hasAdapter: !!handleAddToShotAdapter,
@@ -2734,18 +2734,18 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                   // Constituent image navigation support (from segment back to image)
                   pendingImageToOpen={pendingImageToOpen}
                   onClearPendingImageToOpen={() => {
-                    console.log('[LightboxTransition] onClearPendingImageToOpen called (ShotImageManager), clearing in 200ms');
+                    console.log('[LightboxTransition] onClearPendingImageToOpen called (Gallery), clearing in 200ms');
                     setPendingImageToOpen(null);
                     // Also clear transition state when image lightbox opens
                     setTimeout(() => {
-                      console.log('[LightboxTransition] Hiding overlay (image lightbox opened via ShotImageManager)');
+                      console.log('[LightboxTransition] Hiding overlay (image lightbox opened via Gallery)');
                       hideTransitionOverlay();
                       document.body.classList.remove('lightbox-transitioning');
                     }, 200);
                   }}
                   // Lightbox transition support (keeps overlay visible during navigation)
                   onStartLightboxTransition={() => {
-                    console.log('[LightboxTransition] onStartLightboxTransition called (ShotImageManager)');
+                    console.log('[LightboxTransition] onStartLightboxTransition called (Gallery)');
                     showTransitionOverlay();
                     document.body.classList.add('lightbox-transitioning');
                   }}

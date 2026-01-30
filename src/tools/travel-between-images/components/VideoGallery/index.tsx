@@ -14,14 +14,14 @@ import TaskDetailsModal from '../TaskDetailsModal';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUnifiedGenerations, usePrefetchTaskData } from '@/shared/hooks/useUnifiedGenerations';
-import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTaskDetails';
+import { useTaskDetails } from '@/shared/components/Gallery/hooks/useTaskDetails';
 import { useGenerationTaskPreloader, useEnhancedGenerations } from '@/shared/contexts/GenerationTaskContext';
 import { useVideoCountCache } from '@/shared/hooks/useVideoCountCache';
 import { supabase } from '@/integrations/supabase/client';
 
 // Import our extracted hooks and components
 import { useVideoHover } from './hooks';
-import { useExternalGenerations } from '@/shared/components/ShotImageManager/hooks/useExternalGenerations';
+import { useExternalGenerations } from '@/shared/components/Gallery/hooks/useExternalGenerations';
 import { useDerivedNavigation } from '@/shared/hooks/useDerivedNavigation';
 import { useBackgroundThumbnailGenerator } from '@/shared/hooks/useBackgroundThumbnailGenerator';
 import { toast } from 'sonner';
@@ -446,7 +446,7 @@ const VideoOutputsGallery: React.FC<VideoOutputsGalleryProps> = ({
     return videoOutputs; // Already sorted and filtered by server
   }, [videoOutputs, currentPage, showStarredOnly]);
 
-  // External generations hook (same as ShotImageManager and Timeline)
+  // External generations hook (same as Gallery and Timeline)
   const externalGens = useExternalGenerations({
     selectedShotId: shotId,
     optimisticOrder: sortedVideoOutputs,
@@ -1196,5 +1196,5 @@ const VideoOutputsGallery: React.FC<VideoOutputsGalleryProps> = ({
 };
 
 // Memoize to prevent re-renders when parent (ShotEditor) re-renders due to unrelated state changes
-// (e.g., drag state changes in Timeline/ShotImageManager)
+// (e.g., drag state changes in Timeline/Gallery)
 export default React.memo(VideoOutputsGallery);

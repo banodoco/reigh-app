@@ -222,7 +222,7 @@ export interface ShotEditorState {
   duplicateSuccessImageId: string | null;
   pendingFramePositions: Map<string, number>;
   
-  // REMOVED: localOrderedShotImages - redundant with two-phase loading + ShotImageManager's optimisticOrder
+  // REMOVED: localOrderedShotImages - redundant with two-phase loading + Gallery's optimisticOrder
   
   // UI state
   creatingTaskId: string | null;

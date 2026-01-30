@@ -1,5 +1,5 @@
 /**
- * Mobile-optimized ShotImageManager component
+ * Mobile-optimized Gallery component
  * Handles selection-based reordering with arrow buttons
  */
 
@@ -12,13 +12,13 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/shared/components/ui/alert-dialog";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { MobileImageItem } from './MobileImageItem';
-import { BaseShotImageManagerProps } from './types';
+import { MobileGalleryItem } from './MobileGalleryItem';
+import { BaseGalleryProps } from './types';
 import { PairPromptIndicator } from './components/PairPromptIndicator';
 import { InlineSegmentVideo } from '@/tools/travel-between-images/components/Timeline/InlineSegmentVideo';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
 
-export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
+export const GalleryMobile: React.FC<BaseGalleryProps> = ({
   images,
   onImageDelete,
   onBatchImageDelete,
@@ -368,7 +368,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
     );
   }
 
-  console.log('[PairIndicatorDebug] ShotImageManagerMobile render:', {
+  console.log('[PairIndicatorDebug] GalleryMobile render:', {
     imagesCount: currentImages.length,
     hasOnPairClick: !!onPairClick,
     hasPairPrompts: !!pairPrompts,
@@ -486,7 +486,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
                   );
                 })()}
                 
-                <MobileImageItem
+                <MobileGalleryItem
                   image={image}
                   isSelected={isSelected}
                   index={index}
