@@ -91,35 +91,37 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
   // In read-only mode with preloadedParent, skip the hook entirely
   const skipHook = readOnly && preloadedParent !== undefined;
 
-  // Always fetch segment outputs data - needed for realtime updates when tasks complete
-  // Even in controlled mode, we need fresh data; controlled mode only affects selectedParentId state
-  // Skip when preloadedParent is provided (share page scenario)
+  // OPTIMIZATION: If parent provides data, skip the duplicate fetch
+  // Parent (ShotEditor) already calls useSegmentOutputsForShot - no need to fetch again
+  const hasParentData = (parentGenerationsFromProps && parentGenerationsFromProps.length > 0) || isControlled;
+
+  // Only fetch if parent didn't provide data (standalone usage or share page)
   const hookResult = useSegmentOutputsForShot(
-    skipHook ? null : shotId, // Pass null to disable the hook
-    skipHook ? '' : projectId,
+    (skipHook || hasParentData) ? null : shotId, // Skip if parent provides data
+    (skipHook || hasParentData) ? '' : projectId,
     undefined,
     controlledSelectedParentId,
     onSelectedParentChange
   );
 
-  // Use hook result for parentGenerations (always fresh from cache/realtime)
-  // Only use props as fallback if hook hasn't loaded yet
-  // In preloadedParent mode, use the preloaded parent directly
+  // PRIORITY: Use parent-provided data first (instant), then hook data, then preloaded
+  // This eliminates the duplicate fetch waterfall
   const parentGenerations = skipHook && preloadedParent
     ? [preloadedParent]
-    : (hookResult.parentGenerations.length > 0
-        ? hookResult.parentGenerations
-        : (parentGenerationsFromProps || []));
+    : (parentGenerationsFromProps && parentGenerationsFromProps.length > 0
+        ? parentGenerationsFromProps  // Use parent data immediately!
+        : hookResult.parentGenerations);
   const selectedParentId = skipHook && preloadedParent
     ? preloadedParent.id
     : (isControlled ? controlledSelectedParentId : hookResult.selectedParentId);
   const setSelectedParentId = isControlled ? onSelectedParentChange! : hookResult.setSelectedParentId;
   const segmentProgress = skipHook
     ? { completed: 0, total: 0 }
-    : (hookResult.segmentProgress.total > 0
-        ? hookResult.segmentProgress
-        : (segmentProgressFromProps || hookResult.segmentProgress));
-  const isLoading = skipHook ? false : hookResult.isLoading;
+    : (segmentProgressFromProps && segmentProgressFromProps.total > 0
+        ? segmentProgressFromProps  // Use parent data first
+        : hookResult.segmentProgress);
+  // Use parent loading state when parent provides data, otherwise use hook loading state
+  const isLoading = skipHook ? false : (hasParentData ? isParentLoading : hookResult.isLoading);
   
   // Derive selectedParent from parentGenerations (works in both controlled and uncontrolled mode)
   const selectedParent = useMemo(() => {
@@ -165,17 +167,6 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
     onApplySettingsFromTask,
   });
 
-  // [ShareDebug] Log task details state
-  console.log('[ShareDebug] FinalVideoSection task details:', {
-    selectedParentId: selectedParentId?.substring(0, 8),
-    taskMappingTaskId: taskMapping?.taskId?.substring(0, 8),
-    hasTask: !!task,
-    taskType: task?.task_type,
-    taskError: taskError?.message,
-    isLoading: taskDetailsData?.isLoading,
-    timestamp: Date.now(),
-  });
-
   // Share functionality - pass shotId to fetch input images and settings for final video shares
   const {
     handleShare,
@@ -183,18 +174,6 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
     shareCopied,
     shareSlug,
   } = useShareGeneration(selectedParentId ?? undefined, taskMapping?.taskId, shotId);
-
-  // [ShareDebug] Log share-related state
-  console.log('[ShareDebug] FinalVideoSection share state:', {
-    selectedParentId: selectedParentId?.substring(0, 8),
-    taskMappingTaskId: taskMapping?.taskId?.substring(0, 8),
-    shotId: shotId?.substring(0, 8),
-    hasFinalOutput,
-    isCreatingShare,
-    shareCopied,
-    shareSlug: shareSlug?.substring(0, 8),
-    timestamp: Date.now(),
-  });
 
   // Check for active join_clips_orchestrator tasks for this shot
   // Include parentGenerations IDs in query key so we can match by parent_generation_id
@@ -388,14 +367,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={(e) => {
-                          console.log('[ShareDebug] Share button clicked', {
-                            selectedParentId: selectedParentId?.substring(0, 8),
-                            taskMappingTaskId: taskMapping?.taskId?.substring(0, 8),
-                            isCreatingShare,
-                          });
-                          handleShare(e);
-                        }}
+                        onClick={handleShare}
                         disabled={isCreatingShare}
                         className={shareCopied ? 'bg-green-500/10 border-green-500/50' : ''}
                       >
