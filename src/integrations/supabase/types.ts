@@ -1,5 +1,3 @@
-WARN: no SMS provider is enabled. Disabling phone login
-Initialising cli_login_postgres role...
 export type Json =
   | string
   | number
@@ -13,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -109,13 +82,6 @@ export type Database = {
             foreignKeyName: "credits_ledger_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "credits_ledger_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -128,6 +94,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           description: string | null
+          discord_thread_id: string | null
           execution_details: Json | null
           id: string
           notes: string | null
@@ -140,6 +107,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string | null
+          discord_thread_id?: string | null
           execution_details?: Json | null
           id?: string
           notes?: string | null
@@ -152,6 +120,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string | null
+          discord_thread_id?: string | null
           execution_details?: Json | null
           id?: string
           notes?: string | null
@@ -242,6 +211,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "generation_variants_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "shot_final_videos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "generation_variants_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -261,6 +237,7 @@ export type Database = {
           is_child: boolean
           location: string | null
           name: string | null
+          pair_shot_generation_id: string | null
           params: Json | null
           parent_generation_id: string | null
           primary_variant_id: string | null
@@ -282,6 +259,7 @@ export type Database = {
           is_child?: boolean
           location?: string | null
           name?: string | null
+          pair_shot_generation_id?: string | null
           params?: Json | null
           parent_generation_id?: string | null
           primary_variant_id?: string | null
@@ -303,6 +281,7 @@ export type Database = {
           is_child?: boolean
           location?: string | null
           name?: string | null
+          pair_shot_generation_id?: string | null
           params?: Json | null
           parent_generation_id?: string | null
           primary_variant_id?: string | null
@@ -323,10 +302,38 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "generations_based_on_fkey"
+            columns: ["based_on"]
+            isOneToOne: false
+            referencedRelation: "shot_final_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_pair_shot_generation_id_fkey"
+            columns: ["pair_shot_generation_id"]
+            isOneToOne: false
+            referencedRelation: "shot_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_pair_shot_generation_id_fkey"
+            columns: ["pair_shot_generation_id"]
+            isOneToOne: false
+            referencedRelation: "shot_generations_with_computed_position"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "generations_parent_generation_id_fkey"
             columns: ["parent_generation_id"]
             isOneToOne: false
             referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_parent_generation_id_fkey"
+            columns: ["parent_generation_id"]
+            isOneToOne: false
+            referencedRelation: "shot_final_videos"
             referencedColumns: ["id"]
           },
           {
@@ -395,13 +402,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_stats"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "projects_user_id_users_id_fk"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "projects_user_id_users_id_fk"
@@ -488,13 +488,6 @@ export type Database = {
             foreignKeyName: "referral_sessions_converted_user_id_fkey"
             columns: ["converted_user_id"]
             isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "referral_sessions_converted_user_id_fkey"
-            columns: ["converted_user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -504,13 +497,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_stats"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "referral_sessions_referrer_user_id_fkey"
-            columns: ["referrer_user_id"]
-            isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "referral_sessions_referrer_user_id_fkey"
@@ -558,13 +544,6 @@ export type Database = {
             foreignKeyName: "referrals_referred_id_fkey"
             columns: ["referred_id"]
             isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "referrals_referred_id_fkey"
-            columns: ["referred_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -574,13 +553,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_stats"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "referrals_referrer_id_fkey"
-            columns: ["referrer_id"]
-            isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "referrals_referrer_id_fkey"
@@ -635,13 +607,6 @@ export type Database = {
             foreignKeyName: "resources_user_id_users_id_fk"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "resources_user_id_users_id_fk"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -675,6 +640,7 @@ export type Database = {
           id: string
           last_viewed_at: string | null
           share_slug: string
+          shot_id: string | null
           task_id: string
           view_count: number | null
         }
@@ -690,6 +656,7 @@ export type Database = {
           id?: string
           last_viewed_at?: string | null
           share_slug: string
+          shot_id?: string | null
           task_id: string
           view_count?: number | null
         }
@@ -705,6 +672,7 @@ export type Database = {
           id?: string
           last_viewed_at?: string | null
           share_slug?: string
+          shot_id?: string | null
           task_id?: string
           view_count?: number | null
         }
@@ -720,13 +688,6 @@ export type Database = {
             foreignKeyName: "shared_generations_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
-            referencedRelation: "user_credit_balance"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "shared_generations_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -735,6 +696,27 @@ export type Database = {
             columns: ["generation_id"]
             isOneToOne: false
             referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shared_generations_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "shot_final_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shared_generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shot_statistics"
+            referencedColumns: ["shot_id"]
+          },
+          {
+            foreignKeyName: "shared_generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
             referencedColumns: ["id"]
           },
           {
@@ -831,6 +813,13 @@ export type Database = {
             columns: ["generation_id"]
             isOneToOne: false
             referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shot_generations_generation_id_generations_id_fk"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "shot_final_videos"
             referencedColumns: ["id"]
           },
           {
@@ -1278,6 +1267,7 @@ export type Database = {
           id: string
           name: string | null
           onboarding: Json
+          onboarding_completed: boolean
           settings: Json | null
           stripe_customer_id: string | null
           stripe_payment_method_id: string | null
@@ -1297,6 +1287,7 @@ export type Database = {
           id: string
           name?: string | null
           onboarding?: Json
+          onboarding_completed?: boolean
           settings?: Json | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
@@ -1316,6 +1307,7 @@ export type Database = {
           id?: string
           name?: string | null
           onboarding?: Json
+          onboarding_completed?: boolean
           settings?: Json | null
           stripe_customer_id?: string | null
           stripe_payment_method_id?: string | null
@@ -1329,7 +1321,7 @@ export type Database = {
           current_model: string | null
           id: string
           instance_type: string
-          last_heartbeat: string
+          last_heartbeat: string | null
           metadata: Json | null
           status: string
         }
@@ -1338,7 +1330,7 @@ export type Database = {
           current_model?: string | null
           id: string
           instance_type: string
-          last_heartbeat?: string
+          last_heartbeat?: string | null
           metadata?: Json | null
           status?: string
         }
@@ -1347,7 +1339,7 @@ export type Database = {
           current_model?: string | null
           id?: string
           instance_type?: string
-          last_heartbeat?: string
+          last_heartbeat?: string | null
           metadata?: Json | null
           status?: string
         }
@@ -1358,16 +1350,15 @@ export type Database = {
       active_workers_health: {
         Row: {
           created_at: string | null
+          current_task_age_seconds: number | null
           current_task_id: string | null
           current_task_status: string | null
           current_task_type: string | null
-          health_status: string | null
           heartbeat_age_seconds: number | null
           id: string | null
           instance_type: string | null
           last_heartbeat: string | null
           status: string | null
-          task_runtime_seconds: number | null
           vram_total_mb: number | null
           vram_usage_percent: number | null
           vram_used_mb: number | null
@@ -1468,6 +1459,84 @@ export type Database = {
         }
         Relationships: []
       }
+      shot_final_videos: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          location: string | null
+          params: Json | null
+          project_id: string | null
+          shot_id: string | null
+          starred: boolean | null
+          thumbnail_url: string | null
+          type: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generations_project_id_projects_id_fk"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shot_generations_shot_id_shots_id_fk"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shot_statistics"
+            referencedColumns: ["shot_id"]
+          },
+          {
+            foreignKeyName: "shot_generations_shot_id_shots_id_fk"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shot_generations_with_computed_position: {
+        Row: {
+          computed_position: number | null
+          created_at: string | null
+          generation_id: string | null
+          id: string | null
+          metadata: Json | null
+          shot_id: string | null
+          timeline_frame: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shot_generations_generation_id_generations_id_fk"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shot_generations_generation_id_generations_id_fk"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "shot_final_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shot_generations_shot_id_shots_id_fk"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shot_statistics"
+            referencedColumns: ["shot_id"]
+          },
+          {
+            foreignKeyName: "shot_generations_shot_id_shots_id_fk"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shot_statistics: {
         Row: {
           final_video_count: number | null
@@ -1553,13 +1622,25 @@ export type Database = {
       }
       user_credit_balance: {
         Row: {
-          current_balance: number | null
-          total_purchased: number | null
-          total_refunded: number | null
-          total_spent: number | null
+          balance: number | null
           user_id: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "credits_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_stats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credits_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_recent_errors: {
         Row: {
@@ -1712,21 +1793,36 @@ export type Database = {
           message: string
         }[]
       }
-      claim_next_task_service_role: {
-        Args: {
-          p_include_active?: boolean
-          p_run_type?: string
-          p_same_model_only?: boolean
-          p_worker_id: string
-        }
-        Returns: {
-          params: Json
-          project_id: string
-          task_id: string
-          task_type: string
-          user_id: string
-        }[]
-      }
+      claim_next_task_service_role:
+        | {
+            Args: {
+              p_include_active?: boolean
+              p_run_type?: string
+              p_worker_id: string
+            }
+            Returns: {
+              params: Json
+              project_id: string
+              task_id: string
+              task_type: string
+              user_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_include_active?: boolean
+              p_run_type?: string
+              p_same_model_only?: boolean
+              p_worker_id: string
+            }
+            Returns: {
+              params: Json
+              project_id: string
+              task_id: string
+              task_type: string
+              user_id: string
+            }[]
+          }
       claim_next_task_user: {
         Args: {
           p_include_active?: boolean
@@ -1778,6 +1874,10 @@ export type Database = {
         Args: { target_project_id: string; target_shot_id: string }
         Returns: undefined
       }
+      copy_shot_from_share: {
+        Args: { share_slug_param: string; target_project_id: string }
+        Returns: string
+      }
       count_eligible_tasks_service_role: {
         Args: { p_include_active?: boolean; p_run_type?: string }
         Returns: number
@@ -1793,6 +1893,16 @@ export type Database = {
       count_eligible_tasks_user_pat: {
         Args: { p_include_active?: boolean; p_user_id: string }
         Returns: number
+      }
+      count_queued_tasks_breakdown_service_role: {
+        Args: { p_run_type?: string }
+        Returns: {
+          blocked_by_capacity: number
+          blocked_by_deps: number
+          blocked_by_settings: number
+          claimable_now: number
+          total_queued: number
+        }[]
       }
       count_unpositioned_generations: {
         Args: { p_shot_id: string }
@@ -1825,7 +1935,19 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_and_normalize: {
+        Args: { p_shot_generation_id: string; p_shot_id: string }
+        Returns: Json
+      }
       delete_external_api_key: { Args: { p_service: string }; Returns: Json }
+      delete_project_with_extended_timeout: {
+        Args: { p_project_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      demote_orphaned_video_variants: {
+        Args: { p_shot_id: string }
+        Returns: number
+      }
       duplicate_shot: {
         Args: { original_shot_id: string; project_id: string }
         Returns: string
@@ -1841,14 +1963,6 @@ export type Database = {
       ensure_shot_association_from_params: {
         Args: { p_generation_id: string; p_params: Json }
         Returns: boolean
-      }
-      exchange_timeline_frames: {
-        Args: {
-          p_shot_generation_id_a: string
-          p_shot_generation_id_b: string
-          p_shot_id: string
-        }
-        Returns: undefined
       }
       extract_discord_username: {
         Args: { jwt_claims: Json; user_metadata: Json }
@@ -1984,6 +2098,10 @@ export type Database = {
           operation_type: string
           shot_id: string
         }[]
+      }
+      get_shared_shot_data: {
+        Args: { share_slug_param: string }
+        Returns: Json
       }
       get_task_cost: {
         Args: {
@@ -2139,6 +2257,10 @@ export type Database = {
       }
       normalize_image_path: { Args: { image_path: string }; Returns: string }
       normalize_image_paths_in_jsonb: { Args: { data: Json }; Returns: Json }
+      normalize_shot_timeline: {
+        Args: { p_shot_id: string; p_user_id: string }
+        Returns: Json
+      }
       per_user_capacity_stats_service_role: {
         Args: never
         Returns: {
@@ -2149,6 +2271,10 @@ export type Database = {
           queued_tasks: number
           user_id: string
         }[]
+      }
+      reorder_normalized: {
+        Args: { p_new_order: string[]; p_shot_id: string }
+        Returns: Json
       }
       safe_insert_task: {
         Args: {
@@ -2199,6 +2325,10 @@ export type Database = {
           p_visitor_ip?: unknown
         }
         Returns: string
+      }
+      unposition_and_normalize: {
+        Args: { p_shot_generation_id: string; p_shot_id: string }
+        Returns: Json
       }
       update_shot_image_order_disabled: {
         Args: {
@@ -2317,511 +2447,6 @@ export type Database = {
         headers: Database["public"]["CompositeTypes"]["http_header"][] | null
         content: string | null
       }
-    }
-  }
-  storage: {
-    Tables: {
-      buckets: {
-        Row: {
-          allowed_mime_types: string[] | null
-          avif_autodetection: boolean | null
-          created_at: string | null
-          file_size_limit: number | null
-          id: string
-          name: string
-          owner: string | null
-          owner_id: string | null
-          public: boolean | null
-          type: Database["storage"]["Enums"]["buckettype"]
-          updated_at: string | null
-        }
-        Insert: {
-          allowed_mime_types?: string[] | null
-          avif_autodetection?: boolean | null
-          created_at?: string | null
-          file_size_limit?: number | null
-          id: string
-          name: string
-          owner?: string | null
-          owner_id?: string | null
-          public?: boolean | null
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string | null
-        }
-        Update: {
-          allowed_mime_types?: string[] | null
-          avif_autodetection?: boolean | null
-          created_at?: string | null
-          file_size_limit?: number | null
-          id?: string
-          name?: string
-          owner?: string | null
-          owner_id?: string | null
-          public?: boolean | null
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      buckets_analytics: {
-        Row: {
-          created_at: string
-          deleted_at: string | null
-          format: string
-          id: string
-          name: string
-          type: Database["storage"]["Enums"]["buckettype"]
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          deleted_at?: string | null
-          format?: string
-          id?: string
-          name: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          deleted_at?: string | null
-          format?: string
-          id?: string
-          name?: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      buckets_vectors: {
-        Row: {
-          created_at: string
-          id: string
-          type: Database["storage"]["Enums"]["buckettype"]
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      migrations: {
-        Row: {
-          executed_at: string | null
-          hash: string
-          id: number
-          name: string
-        }
-        Insert: {
-          executed_at?: string | null
-          hash: string
-          id: number
-          name: string
-        }
-        Update: {
-          executed_at?: string | null
-          hash?: string
-          id?: number
-          name?: string
-        }
-        Relationships: []
-      }
-      objects: {
-        Row: {
-          bucket_id: string | null
-          created_at: string | null
-          id: string
-          last_accessed_at: string | null
-          level: number | null
-          metadata: Json | null
-          name: string | null
-          owner: string | null
-          owner_id: string | null
-          path_tokens: string[] | null
-          updated_at: string | null
-          user_metadata: Json | null
-          version: string | null
-        }
-        Insert: {
-          bucket_id?: string | null
-          created_at?: string | null
-          id?: string
-          last_accessed_at?: string | null
-          level?: number | null
-          metadata?: Json | null
-          name?: string | null
-          owner?: string | null
-          owner_id?: string | null
-          path_tokens?: string[] | null
-          updated_at?: string | null
-          user_metadata?: Json | null
-          version?: string | null
-        }
-        Update: {
-          bucket_id?: string | null
-          created_at?: string | null
-          id?: string
-          last_accessed_at?: string | null
-          level?: number | null
-          metadata?: Json | null
-          name?: string | null
-          owner?: string | null
-          owner_id?: string | null
-          path_tokens?: string[] | null
-          updated_at?: string | null
-          user_metadata?: Json | null
-          version?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "objects_bucketId_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      prefixes: {
-        Row: {
-          bucket_id: string
-          created_at: string | null
-          level: number
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string | null
-          level?: number
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string | null
-          level?: number
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prefixes_bucketId_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      s3_multipart_uploads: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          id: string
-          in_progress_size: number
-          key: string
-          owner_id: string | null
-          upload_signature: string
-          user_metadata: Json | null
-          version: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          id: string
-          in_progress_size?: number
-          key: string
-          owner_id?: string | null
-          upload_signature: string
-          user_metadata?: Json | null
-          version: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          id?: string
-          in_progress_size?: number
-          key?: string
-          owner_id?: string | null
-          upload_signature?: string
-          user_metadata?: Json | null
-          version?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "s3_multipart_uploads_bucket_id_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      s3_multipart_uploads_parts: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          etag: string
-          id: string
-          key: string
-          owner_id: string | null
-          part_number: number
-          size: number
-          upload_id: string
-          version: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          etag: string
-          id?: string
-          key: string
-          owner_id?: string | null
-          part_number: number
-          size?: number
-          upload_id: string
-          version: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          etag?: string
-          id?: string
-          key?: string
-          owner_id?: string | null
-          part_number?: number
-          size?: number
-          upload_id?: string
-          version?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "s3_multipart_uploads_parts_bucket_id_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "s3_multipart_uploads_parts_upload_id_fkey"
-            columns: ["upload_id"]
-            isOneToOne: false
-            referencedRelation: "s3_multipart_uploads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vector_indexes: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          data_type: string
-          dimension: number
-          distance_metric: string
-          id: string
-          metadata_configuration: Json | null
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          data_type: string
-          dimension: number
-          distance_metric: string
-          id?: string
-          metadata_configuration?: Json | null
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          data_type?: string
-          dimension?: number
-          distance_metric?: string
-          id?: string
-          metadata_configuration?: Json | null
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vector_indexes_bucket_id_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets_vectors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      add_prefixes: {
-        Args: { _bucket_id: string; _name: string }
-        Returns: undefined
-      }
-      can_insert_object: {
-        Args: { bucketid: string; metadata: Json; name: string; owner: string }
-        Returns: undefined
-      }
-      delete_leaf_prefixes: {
-        Args: { bucket_ids: string[]; names: string[] }
-        Returns: undefined
-      }
-      delete_prefix: {
-        Args: { _bucket_id: string; _name: string }
-        Returns: boolean
-      }
-      extension: { Args: { name: string }; Returns: string }
-      filename: { Args: { name: string }; Returns: string }
-      foldername: { Args: { name: string }; Returns: string[] }
-      get_level: { Args: { name: string }; Returns: number }
-      get_prefix: { Args: { name: string }; Returns: string }
-      get_prefixes: { Args: { name: string }; Returns: string[] }
-      get_size_by_bucket: {
-        Args: never
-        Returns: {
-          bucket_id: string
-          size: number
-        }[]
-      }
-      list_multipart_uploads_with_delimiter: {
-        Args: {
-          bucket_id: string
-          delimiter_param: string
-          max_keys?: number
-          next_key_token?: string
-          next_upload_token?: string
-          prefix_param: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          key: string
-        }[]
-      }
-      list_objects_with_delimiter: {
-        Args: {
-          bucket_id: string
-          delimiter_param: string
-          max_keys?: number
-          next_token?: string
-          prefix_param: string
-          start_after?: string
-        }
-        Returns: {
-          id: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      lock_top_prefixes: {
-        Args: { bucket_ids: string[]; names: string[] }
-        Returns: undefined
-      }
-      operation: { Args: never; Returns: string }
-      search: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      search_legacy_v1: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      search_v1_optimised: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      search_v2: {
-        Args: {
-          bucket_name: string
-          levels?: number
-          limits?: number
-          prefix: string
-          sort_column?: string
-          sort_column_after?: string
-          sort_order?: string
-          start_after?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          key: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-    }
-    Enums: {
-      buckettype: "STANDARD" | "ANALYTICS" | "VECTOR"
-    }
-    CompositeTypes: {
-      [_ in never]: never
     }
   }
 }
@@ -2944,20 +2569,10 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       credit_ledger_type: ["stripe", "manual", "spend", "refund", "auto_topup"],
       task_status: ["Queued", "In Progress", "Complete", "Failed", "Cancelled"],
     },
   },
-  storage: {
-    Enums: {
-      buckettype: ["STANDARD", "ANALYTICS", "VECTOR"],
-    },
-  },
 } as const
-A new version of Supabase CLI is available: v2.72.7 (currently installed v2.33.3)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

@@ -2,6 +2,7 @@
 // @ts-nocheck
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import Groq from "npm:groq-sdk@0.26.0";
 
 function jsonResponse(body: any, status = 200) {
@@ -25,6 +26,30 @@ const groq = new Groq({ apiKey });
 serve(async (req) => {
   if (req.method === "OPTIONS") return jsonResponse({ ok: true });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+
+  // Verify user authentication
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceKey) {
+    console.error("[ai-voice-prompt] Missing required environment variables");
+    return jsonResponse({ error: "Server configuration error" }, 500);
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
+  }
+
+  const token = authHeader.slice(7);
+  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+
+  // Verify the user's JWT token
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    console.error("[ai-voice-prompt] Invalid authentication token:", authError?.message);
+    return jsonResponse({ error: "Invalid authentication token" }, 401);
+  }
 
   try {
     // Handle multipart form data for audio upload OR JSON for text instructions

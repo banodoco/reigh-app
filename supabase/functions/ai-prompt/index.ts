@@ -34,22 +34,42 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return jsonResponse({ ok: true });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 
-  // Rate limit by IP (this is an expensive AI endpoint)
+  // Verify user authentication
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (supabaseUrl && serviceKey) {
-    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-    const clientIp = getClientIp(req);
-    const rateLimitResult = await checkRateLimit(
-      supabaseAdmin,
-      'ai-prompt',
-      clientIp,
-      RATE_LIMITS.expensive,
-      '[AI-PROMPT]'
-    );
-    if (!rateLimitResult.allowed) {
-      return rateLimitResponse(rateLimitResult, RATE_LIMITS.expensive);
-    }
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !serviceKey || !anonKey) {
+    console.error("[ai-prompt] Missing required environment variables");
+    return jsonResponse({ error: "Server configuration error" }, 500);
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
+  }
+
+  const token = authHeader.slice(7);
+  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+
+  // Verify the user's JWT token
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    console.error("[ai-prompt] Invalid authentication token:", authError?.message);
+    return jsonResponse({ error: "Invalid authentication token" }, 401);
+  }
+
+  // Rate limit by IP (this is an expensive AI endpoint)
+  const clientIp = getClientIp(req);
+  const rateLimitResult = await checkRateLimit(
+    supabaseAdmin,
+    'ai-prompt',
+    clientIp,
+    RATE_LIMITS.expensive,
+    '[AI-PROMPT]'
+  );
+  if (!rateLimitResult.allowed) {
+    return rateLimitResponse(rateLimitResult, RATE_LIMITS.expensive);
   }
 
   let body: any;

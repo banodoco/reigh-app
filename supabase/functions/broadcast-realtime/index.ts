@@ -13,6 +13,15 @@ serve(async (req) => {
       return new Response("Method not allowed", { status: 405 });
     }
 
+    // Verify service role authentication - this function should only be called internally
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== SUPABASE_SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ error: "Unauthorized - service role required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     // Parse the request body
     const { channel, event, payload } = await req.json();
 

@@ -36,9 +36,19 @@ serve(async (req) => {
   }
 
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { 
-      status: 405, 
-      headers: corsHeaders 
+    return new Response('Method not allowed', {
+      status: 405,
+      headers: corsHeaders
+    })
+  }
+
+  // Verify service role authentication - this function should only be called internally
+  const authHeader = req.headers.get("Authorization")
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== serviceKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized - service role required" }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 

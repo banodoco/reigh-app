@@ -56,9 +56,6 @@ verify_jwt = false
 [functions.broadcast-realtime]
 verify_jwt = false
 
-[functions.broadcast-update]
-verify_jwt = false
-
 [functions.calculate-task-cost]
 verify_jwt = false
 
@@ -93,9 +90,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.process-auto-topup]
-verify_jwt = false
-
-[functions.replicate-upscale]
 verify_jwt = false
 
 [functions.revoke-pat]

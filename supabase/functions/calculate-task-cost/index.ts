@@ -142,6 +142,14 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
+  // Verify service role authentication - this function should only be called internally
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== serviceKey) {
+    logger.warn("Unauthorized - service role required");
+    await logger.flush();
+    return jsonResponse({ error: "Unauthorized - service role required" }, 401);
+  }
+
   try {
     const { task_id } = await req.json();
 
