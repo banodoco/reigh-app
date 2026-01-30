@@ -22,7 +22,7 @@ export const imageLoadingDebugger = {
    * Get current gallery state
    */
   getGalleryState: () => {
-    const galleryElements = document.querySelectorAll('[data-testid="image-gallery"], .image-gallery');
+    const galleryElements = document.querySelectorAll('[data-testid="media-gallery"], .media-gallery');
     const progressiveElements = document.querySelectorAll('[data-progressive-loading]');
     
     return {

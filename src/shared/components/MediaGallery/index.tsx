@@ -194,7 +194,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   // - Tall images (9:16) → smaller target width → more columns
   // - Wider containers → more columns fit
   // - Narrower containers → fewer columns fit
-  // Tweak TARGET_IMAGE_WIDTH.BASE in imageGallery-constants.ts to adjust density
+  // Tweak TARGET_IMAGE_WIDTH.BASE in mediaGallery-constants.ts to adjust density
   const aspectRatioLayout = React.useMemo(() => {
     return getLayoutForAspectRatio(projectAspectRatio, isMobile, containerWidth);
   }, [projectAspectRatio, isMobile, containerWidth]);

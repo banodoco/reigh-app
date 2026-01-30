@@ -54,7 +54,7 @@ const createInitialFiltersState = (
 });
 
 // Optimized reducer with batched updates
-const imageGalleryFiltersReducer = (
+const mediaGalleryFiltersReducer = (
   state: MediaGalleryFiltersState,
   action: MediaGalleryFiltersAction
 ): MediaGalleryFiltersState => {
@@ -198,7 +198,7 @@ export const useMediaGalleryFiltersOptimized = ({
   
   // Initialize state with useReducer instead of multiple useState calls
   const [filtersState, dispatch] = useReducer(
-    imageGalleryFiltersReducer,
+    mediaGalleryFiltersReducer,
     createInitialFiltersState(
       initialFilterState,
       initialMediaTypeFilter,

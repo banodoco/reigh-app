@@ -101,7 +101,7 @@ const createInitialState = (
 });
 
 // Optimized reducer with batched updates
-const imageGalleryStateReducer = (
+const mediaGalleryStateReducer = (
   state: MediaGalleryState,
   action: MediaGalleryStateAction
 ): MediaGalleryState => {
@@ -333,7 +333,7 @@ export const useMediaGalleryStateOptimized = ({
   
   // Initialize state with useReducer instead of multiple useState calls
   const [state, dispatch] = useReducer(
-    imageGalleryStateReducer,
+    mediaGalleryStateReducer,
     createInitialState(currentShotId, lastShotId, simplifiedShotOptions)
   );
   

@@ -80,7 +80,7 @@ export const MediaGalleryFilters: React.FC<MediaGalleryFiltersProps> = ({
             onExcludePositionedChange={onExcludePositionedChange}
             size="sm"
             whiteText={whiteText}
-            checkboxId="exclude-positioned-image-gallery"
+            checkboxId="exclude-positioned-media-gallery"
             triggerWidth="w-[120px] sm:w-[140px]"
             triggerClassName={`h-8 text-xs ${whiteText ? 'bg-zinc-800 border-zinc-600 text-white' : ''}`}
           />
