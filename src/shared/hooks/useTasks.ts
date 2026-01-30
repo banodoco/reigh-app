@@ -35,11 +35,6 @@ interface CreateTaskParams {
   params: any;
 }
 
-interface CancelAllPendingTasksResponse {
-  cancelledCount: number;
-  message: string;
-}
-
 interface PaginatedTasksParams {
   projectId?: string | null;
   status?: TaskStatus[];
@@ -56,74 +51,6 @@ export interface PaginatedTasksResponse {
   hasMore: boolean;
   totalPages: number;
 }
-
-/**
- * Hook to fetch ALL distinct visible task types for a project.
- * This is a SEPARATE query that stays stable regardless of pagination or status filters.
- * The result is cached and only refetches when the project changes.
- */
-export const useDistinctTaskTypes = (projectId?: string | null) => {
-  const effectiveProjectId = projectId ?? (typeof window !== 'undefined' ? (window as any).__PROJECT_CONTEXT__?.selectedProjectId : null);
-  
-  return useQuery({
-    queryKey: [TASKS_QUERY_KEY, 'distinctTaskTypes', effectiveProjectId],
-    queryFn: async () => {
-      if (!effectiveProjectId) {
-        return [];
-      }
-      
-      // Fetch ALL task types from the project (no status/pagination filters)
-      // Include status for debugging to verify we're getting all statuses
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('task_type, status')
-        .eq('project_id', effectiveProjectId);
-      
-      if (error) {
-        console.error('[useDistinctTaskTypes] Query failed:', error);
-        throw error;
-      }
-      
-      // [TaskFilterDropdownDebug] Log status breakdown to verify we're fetching all statuses
-      const statusBreakdown: Record<string, number> = {};
-      const typesByStatus: Record<string, Set<string>> = {};
-      (data || []).forEach((row: any) => {
-        statusBreakdown[row.status] = (statusBreakdown[row.status] || 0) + 1;
-        if (!typesByStatus[row.status]) typesByStatus[row.status] = new Set();
-        typesByStatus[row.status].add(row.task_type);
-      });
-      console.log('[TaskFilterDropdownDebug] Status breakdown of ALL tasks:', statusBreakdown);
-      console.log('[TaskFilterDropdownDebug] Task types by status:');
-      Object.entries(typesByStatus).forEach(([status, types]) => {
-        console.log('[TaskFilterDropdownDebug]   ' + status + ':', [...types]);
-      });
-      
-      // Get unique, visible task types
-      const allTaskTypes = [...new Set((data || []).map((row: any) => row.task_type))];
-      const visibleTaskTypes = allTaskTypes.filter(taskType => isTaskVisible(taskType));
-      
-      // [TaskFilterDropdownDebug] Detailed logging to understand task type filtering
-      console.log('[TaskFilterDropdownDebug] Total rows from DB:', data?.length || 0);
-      console.log('[TaskFilterDropdownDebug] All unique task types from DB:', allTaskTypes);
-      console.log('[TaskFilterDropdownDebug] Visible task types (after isTaskVisible filter):', visibleTaskTypes);
-      const hiddenTypes = allTaskTypes.filter(taskType => !isTaskVisible(taskType));
-      console.log('[TaskFilterDropdownDebug] HIDDEN task types (filtered OUT by isTaskVisible):', hiddenTypes);
-      hiddenTypes.forEach(taskType => {
-        console.log('[TaskFilterDropdownDebug] Why hidden:', taskType, '-> config:', getTaskConfig(taskType));
-      });
-      
-      return visibleTaskTypes
-        .map(taskType => ({
-          value: taskType,
-          label: getTaskDisplayName(taskType),
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-    },
-    enabled: !!effectiveProjectId,
-    // Use static preset - task types rarely change, only on new task creation
-    ...QUERY_PRESETS.static,
-  });
-};
 
 // Helper to convert DB row (snake_case) to Task interface (camelCase)
 // Exported for use in prefetch utilities
@@ -142,77 +69,6 @@ export const mapDbTaskToTask = (row: any): Task => ({
   generationProcessedAt: row.generation_processed_at ?? undefined,
   errorMessage: row.error_message ?? undefined,
 });
-
-/**
- * A generalized hook for creating any type of task via a Supabase Edge Function.
- * It handles loading states, toast notifications, and automatically invalidates
- * the tasks query to refresh the UI upon successful creation.
- */
-export const useCreateTask = (options?: { showToast?: boolean }) => {
-  const queryClient = useQueryClient();
-  const { selectedProjectId } = useProject();
-  // Allow callers to suppress per-task success toasts (useful for bulk operations)
-  const { showToast = true } = options || {};
-
-  return useMutation({
-    mutationKey: ['create-task'],
-    mutationFn: async ({ functionName, payload }: { functionName: string, payload: object }) => {
-      // Guard against indefinitely stuck mutations by enforcing a client-side timeout
-      const timeoutMs = 20000; // 20s hard cap to keep UI responsive
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        const id = setTimeout(() => {
-          clearTimeout(id);
-          reject(new Error(`[useCreateTask] Function ${functionName} timed out after ${timeoutMs}ms`));
-        }, timeoutMs);
-      });
-
-      const invokePromise = (async () => {
-        const { data, error } = await supabase.functions.invoke(functionName, {
-          body: payload,
-        });
-        if (error) {
-          throw new Error(error.message || `An unknown error occurred with function: ${functionName}`);
-        }
-        return data as any;
-      })();
-
-      return await Promise.race([invokePromise, timeoutPromise]);
-    },
-    onSuccess: (data, variables) => {
-      console.log('[useCreateTask] Task created successfully:', {
-        functionName: variables.functionName,
-        data,
-        selectedProjectId,
-      });
-      
-      
-      
-      // Use InvalidationRouter for centralized, canonical invalidations
-      if (selectedProjectId) {
-        console.log('[TasksPaneCountMismatch] [useCreateTask] TASK CREATED - Emitting domain event:', {
-          projectId: selectedProjectId,
-          functionName: variables.functionName,
-          data,
-          timestamp: Date.now()
-        });
-        
-        // Task creation event is now handled by DataFreshnessManager via realtime events
-        
-        console.log('[TasksPaneCountMismatch] [useCreateTask] Domain event emitted - InvalidationRouter will handle all invalidations');
-        
-        // Do NOT invalidate other pages - they'll update via realtime/polling
-      } else {
-        // Fallback: no manual invalidation needed - DataFreshnessManager handles it
-        console.log('[useCreateTask] Task created without project context - DataFreshnessManager will handle updates');
-      }
-    },
-    onError: (error: Error, variables) => {
-      // This will run if the mutationFn throws an error
-      console.error(`[useCreateTask] Error creating task with function '${variables.functionName}':`, error);
-      toast.error(`Failed to create task: ${error.message}`);
-    },
-  });
-};
 
 // Hook to update task status
 export const useUpdateTaskStatus = () => {
@@ -636,6 +492,30 @@ async function cancelTask(taskId: string): Promise<void> {
   }
 }
 
+// Hook to cancel a task using Supabase
+export const useCancelTask = (projectId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: cancelTask,
+    onSuccess: (_, taskId) => {
+      console.log(`[${Date.now()}] [useCancelTask] Task cancelled, invalidating queries for projectId:`, projectId);
+      // Immediately invalidate tasks queries so cancelled task disappears
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'paginated'] });
+      queryClient.invalidateQueries({ queryKey: ['task-status-counts'] });
+    },
+    onError: (error: Error) => {
+      console.error('Error cancelling task:', error);
+      toast.error(`Failed to cancel task: ${error.message}`);
+    },
+  });
+};
+
+interface CancelAllPendingTasksResponse {
+  cancelledCount: number;
+  message: string;
+}
+
 /**
  * Cancel all pending tasks for a project using direct Supabase call
  * For orchestrator tasks (travel_orchestrator, join_clips_orchestrator, etc.), also cancels their subtasks
@@ -654,7 +534,7 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
 
   // Collect all task IDs to cancel (including subtasks)
   const tasksToCancel = new Set<string>();
-  
+
   // Add all pending tasks
   pendingTasks?.forEach(task => tasksToCancel.add(task.id));
 
@@ -675,7 +555,7 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
       allProjectTasks.forEach(task => {
         const params = task.params as any;
         const orchestratorRef = params?.orchestrator_task_id_ref || params?.orchestrator_task_id;
-        
+
         if (orchestratorRef && orchestratorIds.includes(orchestratorRef)) {
           tasksToCancel.add(task.id);
         }
@@ -685,11 +565,11 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
 
   // Cancel all collected tasks
   const taskIdsArray = Array.from(tasksToCancel);
-  
+
   if (taskIdsArray.length > 0) {
     const { error: cancelError } = await supabase
       .from('tasks')
-      .update({ 
+      .update({
         status: 'Cancelled',
         updated_at: new Date().toISOString()
       })
@@ -705,25 +585,6 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
     message: `${taskIdsArray.length} tasks cancelled (including subtasks)`,
   };
 }
-
-// Hook to cancel a task using Supabase
-export const useCancelTask = (projectId: string | null) => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: cancelTask,
-    onSuccess: (_, taskId) => {
-      console.log(`[${Date.now()}] [useCancelTask] Task cancelled, invalidating queries for projectId:`, projectId);
-      // Immediately invalidate tasks queries so cancelled task disappears
-      queryClient.invalidateQueries({ queryKey: ['tasks', 'paginated'] });
-      queryClient.invalidateQueries({ queryKey: ['task-status-counts'] });
-    },
-    onError: (error: Error) => {
-      console.error('Error cancelling task:', error);
-      toast.error(`Failed to cancel task: ${error.message}`);
-    },
-  });
-};
 
 // Hook to cancel pending tasks using Supabase
 export const useCancelPendingTasks = () => {
@@ -745,7 +606,7 @@ export const useCancelPendingTasks = () => {
 };
 
 // Export alias for backward compatibility
-export const useCancelAllPendingTasks = useCancelPendingTasks; 
+export const useCancelAllPendingTasks = useCancelPendingTasks;
 
 // Hook to get status counts for indicators
 export const useTaskStatusCounts = (projectId: string | null) => {

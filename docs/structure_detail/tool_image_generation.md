@@ -25,7 +25,7 @@ src/tools/image-generation/
 
 ### `ImageGenerationToolPage.tsx`
 **Main orchestrator component**
-- Manages Wan task creation via `useCreateTask`
+- Manages Wan task creation via unified batch task creation
 - Displays real-time progress bar during generation
 - Integrates `MediaGallery` with live updates
 - Handles upscaling and deletion operations

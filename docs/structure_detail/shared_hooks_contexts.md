@@ -19,7 +19,6 @@
 
 | Hook | Purpose | Key Methods |
 |------|---------|-------------|
-| **`useFalImageGeneration`** | FAL AI integration | `generate()`, `upscale()`, progress tracking |
 | **`useGenerations`** | Media CRUD operations | `list()`, `delete()`, `upscale()` |
 | **`useUnifiedGenerations`** | Unified gallery data | Project-wide & shot-specific modes, task preloading, eliminates race conditions |
 | **`useTaskFromUnifiedCache`** | Cached task lookup | Efficient task data retrieval from unified cache |
@@ -200,7 +199,7 @@ The `ShotsContext` provides a **single source of truth** for shots data across a
 - **No Data Conflicts**: Shot metadata (ID, name) is consistent; only image completeness varies
 
 **Cache Synchronization (Fixed):**
-All shot mutations (`useRemoveImageFromShot`, `useUpdateShotImageOrder`, `useDuplicateImageInShot`) now properly invalidate both query caches:
+All shot mutations (`useRemoveImageFromShot`, `useUpdateShotImageOrder`) now properly invalidate both query caches:
 - `['shots', projectId]` - for list views (ShotsPane, etc.)
 - `['all-shot-generations', shotId]` - for detail views (ShotEditor)
 

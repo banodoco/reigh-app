@@ -97,29 +97,3 @@ export function useCacheCleanup({
     }
   }, [projectId, currentPage, maxCachedPages, enabled, queryClient]);
 }
-
-/**
- * Clear all generation caches for a project (useful on project switch)
- */
-export function useClearProjectCache(projectId: string | null): () => void {
-  const queryClient = useQueryClient();
-
-  return () => {
-    if (!projectId) return;
-
-    queryClient.removeQueries({
-      predicate: (query) => {
-        const key = query.queryKey as any[];
-        if (!Array.isArray(key)) return false;
-
-        // Match any generation query for this project
-        if (key[0] === 'generations' && key[1] === projectId) return true;
-        if (key[0] === 'unified-generations' && key[2] === projectId) return true;
-
-        return false;
-      },
-    });
-
-    console.log(`[CacheCleanup] Cleared all caches for project: ${projectId}`);
-  };
-}

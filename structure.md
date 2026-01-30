@@ -106,7 +106,6 @@ See [realtime_system.md](docs/structure_detail/realtime_system.md).
 | **debugConfig** | `lib/debugConfig.ts` | Runtime debug logging (`window.debugConfig`) |
 | **toastThrottle** | `lib/toastThrottle.ts` | Prevent notification spam |
 | **taskConfig** | `lib/taskConfig.ts` | Task visibility & display names |
-| **queryKeys** | `lib/queryKeys.ts` | Standardized React Query keys |
 | **performanceUtils** | `lib/performanceUtils.ts` | Frame budget monitoring |
 | **imageLoadingPriority** | `lib/imageLoadingPriority.ts` | Progressive image loading |
 
