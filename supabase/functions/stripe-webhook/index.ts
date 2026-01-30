@@ -153,17 +153,24 @@ serve(async (req) => {
         }
 
         // Idempotency check: Check if this session was already processed
-        const { data: existingEntry } = await supabaseAdmin
-          .from('credits_ledger')
-          .select('id')
-          .eq('type', 'stripe')
-          .filter('metadata->>stripe_session_id', 'eq', session.id)
-          .limit(1)
-          .maybeSingle();
+        // If check fails, proceed anyway - unique index will catch duplicates
+        try {
+          const { data: existingEntry, error: checkError } = await supabaseAdmin
+            .from('credits_ledger')
+            .select('id')
+            .eq('type', 'stripe')
+            .eq('metadata->>stripe_session_id', session.id)
+            .limit(1)
+            .maybeSingle();
 
-        if (existingEntry) {
-          console.log('Webhook already processed (idempotency check):', session.id);
-          return jsonResponse({ received: true, duplicate: true });
+          if (checkError) {
+            console.warn('Idempotency check query failed, proceeding with insert:', checkError.message);
+          } else if (existingEntry) {
+            console.log('Webhook already processed (idempotency check):', session.id);
+            return jsonResponse({ received: true, duplicate: true });
+          }
+        } catch (checkErr) {
+          console.warn('Idempotency check exception, proceeding with insert:', checkErr);
         }
 
         // Insert budget purchase into ledger
@@ -214,16 +221,28 @@ serve(async (req) => {
 
           if (userId && topupAmount) {
             // Idempotency check: Check if this payment intent was already processed
-            const { data: existingAutoTopup } = await supabaseAdmin
-              .from('credits_ledger')
-              .select('id')
-              .eq('type', 'auto_topup')
-              .filter('metadata->>stripe_payment_intent_id', 'eq', paymentIntent.id)
-              .limit(1)
-              .maybeSingle();
+            // If check fails, proceed anyway - unique index will catch duplicates
+            let skipInsert = false;
+            try {
+              const { data: existingAutoTopup, error: checkError } = await supabaseAdmin
+                .from('credits_ledger')
+                .select('id')
+                .eq('type', 'auto_topup')
+                .eq('metadata->>stripe_payment_intent_id', paymentIntent.id)
+                .limit(1)
+                .maybeSingle();
 
-            if (existingAutoTopup) {
-              console.log('Auto-topup webhook already processed (idempotency check):', paymentIntent.id);
+              if (checkError) {
+                console.warn('Auto-topup idempotency check failed, proceeding with insert:', checkError.message);
+              } else if (existingAutoTopup) {
+                console.log('Auto-topup webhook already processed (idempotency check):', paymentIntent.id);
+                skipInsert = true;
+              }
+            } catch (checkErr) {
+              console.warn('Auto-topup idempotency check exception, proceeding with insert:', checkErr);
+            }
+
+            if (skipInsert) {
               break;
             }
 
