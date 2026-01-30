@@ -1103,6 +1103,7 @@ const VideoOutputsGallery: React.FC<VideoOutputsGalleryProps> = ({
           hasPrevious={effectiveHasPrevious}
           starred={(displaySortedVideoOutputs[lightboxIndex] as { starred?: boolean }).starred ?? false}
           shotId={shotId || undefined}
+          readOnly={readOnly}
           showTaskDetails={true}
           onNavigateToGeneration={(generationId: string) => {
             console.log('[VideoGallery:DerivedNav] 📍 Navigate to generation', {

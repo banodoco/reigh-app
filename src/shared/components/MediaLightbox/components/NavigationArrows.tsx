@@ -33,7 +33,7 @@ export const NavigationArrows: React.FC<NavigationArrowsProps> = ({
   hasNext = true,
   variant = 'desktop',
 }) => {
-  if (!showNavigation || readOnly) {
+  if (!showNavigation) {
     return null;
   }
 

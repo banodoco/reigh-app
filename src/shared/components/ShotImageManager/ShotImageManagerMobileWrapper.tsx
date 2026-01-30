@@ -367,6 +367,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
             hasPrevious={hasPrevious}
             starred={(lightbox.currentImages[lightbox.lightboxIndex] as any).starred || false}
             onMagicEdit={props.onMagicEdit}
+            readOnly={props.readOnly}
             showTaskDetails={true}
             taskDetailsData={taskDetailsData}
             adjacentSegments={adjacentSegmentsData}
