@@ -26,7 +26,7 @@ import MediaLightbox from '@/shared/components/MediaLightbox';
 import { GenerationRow } from '@/types/shots';
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useTaskDetails } from '@/shared/components/Gallery/hooks/useTaskDetails';
+import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTaskDetails';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { GalleryProps } from './types';
-import { GalleryMobile } from './GalleryMobile';
+import { ShotImageManagerProps } from './types';
+import { ShotImageManagerMobile } from './ShotImageManagerMobile';
 import MediaLightbox from '../MediaLightbox';
 import type { AdjacentSegmentsData } from '../MediaLightbox/types';
 import { useTaskDetails } from './hooks/useTaskDetails';
@@ -9,7 +9,7 @@ import { SegmentSlot } from '@/tools/travel-between-images/hooks/useSegmentOutpu
 import { usePrefetchTaskData } from '@/shared/hooks/useUnifiedGenerations';
 import { getDisplayUrl } from '@/shared/lib/utils';
 
-interface GalleryMobileWrapperProps extends GalleryProps {
+interface ShotImageManagerMobileWrapperProps extends ShotImageManagerProps {
   selection: any;
   lightbox: any;
   batchOps: any;
@@ -31,7 +31,7 @@ interface GalleryMobileWrapperProps extends GalleryProps {
   onStartLightboxTransition?: () => void;
 }
 
-export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
+export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapperProps> = ({
   selection,
   lightbox,
   batchOps,
@@ -142,7 +142,7 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
       }
     }
 
-    console.log('[SegmentNavDebug] GalleryMobile position-based matching:', {
+    console.log('[SegmentNavDebug] ShotImageManagerMobile position-based matching:', {
       imagePosition,
       totalImages: lightbox.currentImages.length,
       totalSegmentSlots: segmentSlots.length,
@@ -158,7 +158,7 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
       prev,
       next,
       onNavigateToSegment: (pairIndex: number) => {
-        console.log('[LightboxTransition] GalleryMobile onNavigateToSegment: Showing overlay');
+        console.log('[LightboxTransition] ShotImageManagerMobile onNavigateToSegment: Showing overlay');
         // Show overlay via parent callback (handles both ref and body class)
         onStartLightboxTransition?.();
 
@@ -175,8 +175,8 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
   }, [segmentSlots, props.onPairClick, lightbox.lightboxIndex, lightbox.currentImages, lightbox.setLightboxIndex, onStartLightboxTransition]);
 
   // Debug: Log props received
-  console.log('[ShotSelectorDebug] GalleryMobileWrapper received props', {
-    component: 'GalleryMobileWrapper',
+  console.log('[ShotSelectorDebug] ShotImageManagerMobileWrapper received props', {
+    component: 'ShotImageManagerMobileWrapper',
     hasOnAddToShot: !!props.onAddToShot,
     hasOnAddToShotWithoutPosition: !!props.onAddToShotWithoutPosition,
     allShotsLength: props.allShots?.length || 0,
@@ -185,8 +185,8 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
     generationMode: props.generationMode
   });
 
-  console.log('[PairIndicatorDebug] GalleryMobileWrapper received pair props', {
-    component: 'GalleryMobileWrapper',
+  console.log('[PairIndicatorDebug] ShotImageManagerMobileWrapper received pair props', {
+    component: 'ShotImageManagerMobileWrapper',
     hasOnPairClick: !!props.onPairClick,
     hasPairPrompts: !!props.pairPrompts,
     hasEnhancedPrompts: !!props.enhancedPrompts,
@@ -198,7 +198,7 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
 
   // Fetch task details for current lightbox image
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For Gallery, id is shot_generations.id but generation_id is the actual generation ID
+  // For ShotImageManager, id is shot_generations.id but generation_id is the actual generation ID
   const currentLightboxImage = lightbox.lightboxIndex !== null
     ? lightbox.currentImages[lightbox.lightboxIndex]
     : null;
@@ -240,7 +240,7 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
   
   return (
     <>
-      <GalleryMobile
+      <ShotImageManagerMobile
         images={props.images}
         onImageDelete={props.onImageDelete}
         onBatchImageDelete={props.onBatchImageDelete}
@@ -371,17 +371,17 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
             taskDetailsData={taskDetailsData}
             adjacentSegments={adjacentSegmentsData}
             onNavigateToGeneration={(generationId: string) => {
-              console.log('[Gallery:Mobile] 📍 Navigate to generation', {
+              console.log('[ShotImageManager:Mobile] 📍 Navigate to generation', {
                 generationId: generationId.substring(0, 8),
                 currentImagesCount: lightbox.currentImages.length,
                 currentIndex: lightbox.lightboxIndex
               });
               const index = lightbox.currentImages.findIndex((img: any) => img.id === generationId);
               if (index !== -1) {
-                console.log('[Gallery:Mobile] ✅ Found generation at index', index);
+                console.log('[ShotImageManager:Mobile] ✅ Found generation at index', index);
                 lightbox.setLightboxIndex(index);
               } else {
-                console.error('[Gallery:Mobile] ❌ Generation not found in current images', {
+                console.error('[ShotImageManager:Mobile] ❌ Generation not found in current images', {
                   searchedId: generationId.substring(0, 8),
                   availableIds: lightbox.currentImages.map((img: any) => img.id.substring(0, 8))
                 });
@@ -391,17 +391,17 @@ export const GalleryMobileWrapper: React.FC<GalleryMobileWrapperProps> = ({
             allShots={props.allShots}
             selectedShotId={isExternalGen ? externalGens.externalGenLightboxSelectedShot : (lightboxSelectedShotId || props.selectedShotId)}
             onShotChange={isExternalGen ? (shotId) => {
-              console.log('[Gallery:Mobile] External gen shot changed', { shotId: shotId?.substring(0, 8) });
+              console.log('[ShotImageManager:Mobile] External gen shot changed', { shotId: shotId?.substring(0, 8) });
               externalGens.setExternalGenLightboxSelectedShot(shotId);
             } : (shotId) => {
-              console.log('[GalleryMobileWrapper] Shot selector changed to:', shotId);
+              console.log('[ShotImageManagerMobileWrapper] Shot selector changed to:', shotId);
               setLightboxSelectedShotId?.(shotId);
               props.onShotChange?.(shotId);
             }}
             onAddToShot={(() => {
               const result = isExternalGen ? externalGens.handleExternalGenAddToShot : props.onAddToShot;
-              console.log('[ShotSelectorDebug] GalleryMobileWrapper -> MediaLightbox onAddToShot', {
-                component: 'GalleryMobileWrapper',
+              console.log('[ShotSelectorDebug] ShotImageManagerMobileWrapper -> MediaLightbox onAddToShot', {
+                component: 'ShotImageManagerMobileWrapper',
                 isExternalGen,
                 propsOnAddToShot: !!props.onAddToShot,
                 externalGensHandler: !!externalGens.handleExternalGenAddToShot,

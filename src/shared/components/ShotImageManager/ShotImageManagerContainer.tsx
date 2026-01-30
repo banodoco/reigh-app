@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { GalleryProps } from './types';
+import { ShotImageManagerProps } from './types';
 import { useSelection } from './hooks/useSelection';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useOptimisticOrder } from './hooks/useOptimisticOrder';
@@ -11,8 +11,8 @@ import { useMobileGestures } from './hooks/useMobileGestures';
 import { getFramePositionForIndex } from './utils/image-utils';
 import { DEFAULT_BATCH_VIDEO_FRAMES } from './constants';
 import { EmptyState } from './components/EmptyState';
-import { GalleryDesktop } from './GalleryDesktop';
-import { GalleryMobileWrapper } from './GalleryMobileWrapper';
+import { ShotImageManagerDesktop } from './ShotImageManagerDesktop.tsx';
+import { ShotImageManagerMobileWrapper } from './ShotImageManagerMobileWrapper.tsx';
 import { useSegmentOutputsForShot } from '@/tools/travel-between-images/hooks/useSegmentOutputsForShot';
 import { usePendingSegmentTasks } from '@/shared/hooks/usePendingSegmentTasks';
 import MediaLightbox from '../MediaLightbox';
@@ -20,15 +20,15 @@ import { GenerationRow } from '@/types/shots';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 
 /**
- * Main container component for Gallery
- *
+ * Main container component for ShotImageManager
+ * 
  * CRITICAL: All hooks MUST be called before any early returns to satisfy Rules of Hooks.
  * This prevents hook ordering violations that occur when responsive breakpoints change.
  */
-export const GalleryContainer: React.FC<GalleryProps> = (props) => {
+export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props) => {
   const isMobile = useIsMobile();
-
-  console.log('[DataTrace] 🎯 Gallery received props.images:', {
+  
+  console.log('[DataTrace] 🎯 ShotImageManager received props.images:', {
     count: props.images?.length || 0,
     imageIds: props.images?.map(img => ((img as any).shotImageEntryId ?? (img as any).id)?.substring(0, 8)) || [],
   });
@@ -213,7 +213,7 @@ export const GalleryContainer: React.FC<GalleryProps> = (props) => {
   
   console.log(`[DEBUG] Checking images condition - images.length=${props.images?.length} selectedIds.length=${selection.selectedIds.length}`);
   
-  console.log('[DataTrace] 🎨 Gallery about to render:', {
+  console.log('[DataTrace] 🎨 ShotImageManager about to render:', {
     propsImages: props.images?.length || 0,
     optimisticOrder: optimistic.optimisticOrder.length,
     lightboxCurrentImages: lightbox.currentImages.length,
@@ -242,7 +242,7 @@ export const GalleryContainer: React.FC<GalleryProps> = (props) => {
     console.log(`[DEBUG] EARLY RETURN - Using dedicated mobile component`);
     return (
       <>
-        <GalleryMobileWrapper
+        <ShotImageManagerMobileWrapper
           {...props}
           selection={selection}
           lightbox={lightbox}
@@ -292,7 +292,7 @@ export const GalleryContainer: React.FC<GalleryProps> = (props) => {
   // Desktop rendering
   return (
     <>
-      <GalleryDesktop
+      <ShotImageManagerDesktop
         {...props}
         selection={selection}
         dragAndDrop={dragAndDrop}
@@ -340,5 +340,5 @@ export const GalleryContainer: React.FC<GalleryProps> = (props) => {
   );
 };
 
-export default GalleryContainer;
+export default ShotImageManagerContainer;
 

@@ -10,7 +10,7 @@ export type PairOverridesMap = Record<number, {
   motionSettings?: PairMotionSettings;
 }>;
 
-export interface GalleryProps {
+export interface ShotImageManagerProps {
   images: GenerationRow[];
   onImageDelete: (shotImageEntryId: string) => void;
   onBatchImageDelete?: (shotImageEntryIds: string[]) => void;
@@ -90,7 +90,7 @@ export interface ExternalGeneration extends GenerationRow {
 }
 
 // Props used by the mobile variant (existing component)
-export interface BaseGalleryProps {
+export interface BaseShotImageManagerProps {
   images: GenerationRow[];
   onImageDelete: (shotImageEntryId: string) => void;
   onBatchImageDelete?: (shotImageEntryIds: string[]) => void;
@@ -130,7 +130,7 @@ export interface BaseGalleryProps {
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
 }
 
-export interface MobileGalleryItemProps {
+export interface MobileImageItemProps {
   image: GenerationRow;
   isSelected: boolean;
   index: number;

@@ -9,7 +9,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { GalleryProps } from './types';
+import { ShotImageManagerProps } from './types';
 import { GRID_COLS_CLASSES } from './constants';
 import { ImageGrid } from './components/ImageGrid';
 import { SelectionActionBar } from './components/SelectionActionBar';
@@ -28,7 +28,7 @@ import { SegmentSlot } from '@/tools/travel-between-images/hooks/useSegmentOutpu
 import { getDisplayUrl, cn } from '@/shared/lib/utils';
 import { usePrefetchTaskData } from '@/shared/hooks/useUnifiedGenerations';
 
-interface GalleryDesktopProps extends GalleryProps {
+interface ShotImageManagerDesktopProps extends ShotImageManagerProps {
   selection: any;
   dragAndDrop: any;
   lightbox: any;
@@ -55,7 +55,7 @@ interface GalleryDesktopProps extends GalleryProps {
   onStartLightboxTransition?: () => void;
 }
 
-export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
+export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = ({
   selection,
   dragAndDrop,
   lightbox,
@@ -111,8 +111,8 @@ export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
   }, [showTickForSecondaryImageId]);
   
   // Debug: Log props received
-  console.log('[ShotSelectorDebug] GalleryDesktop received props', {
-    component: 'GalleryDesktop',
+  console.log('[ShotSelectorDebug] ShotImageManagerDesktop received props', {
+    component: 'ShotImageManagerDesktop',
     hasOnAddToShot: !!props.onAddToShot,
     hasOnAddToShotWithoutPosition: !!props.onAddToShotWithoutPosition,
     allShotsLength: props.allShots?.length || 0,
@@ -121,8 +121,8 @@ export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
     generationMode: props.generationMode
   });
 
-  console.log('[PairIndicatorDebug] GalleryDesktop received pair props', {
-    component: 'GalleryDesktop',
+  console.log('[PairIndicatorDebug] ShotImageManagerDesktop received pair props', {
+    component: 'ShotImageManagerDesktop',
     hasOnPairClick: !!props.onPairClick,
     hasPairPrompts: !!props.pairPrompts,
     hasEnhancedPrompts: !!props.enhancedPrompts,
@@ -134,7 +134,7 @@ export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
 
   // Fetch task details for current lightbox image
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For Gallery, id is shot_generations.id but generation_id is the actual generation ID
+  // For ShotImageManager, id is shot_generations.id but generation_id is the actual generation ID
   const currentLightboxImage = lightbox.lightboxIndex !== null
     ? lightbox.currentImages[lightbox.lightboxIndex]
     : null;
@@ -246,7 +246,7 @@ export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
     }
 
     // [SegmentNavDebug] Log for debugging
-    console.log('[SegmentNavDebug] Gallery position-based matching:', {
+    console.log('[SegmentNavDebug] ShotImageManager position-based matching:', {
       imagePosition,
       totalImages: lightbox.currentImages.length,
       totalSegmentSlots: segmentSlots.length,
@@ -262,7 +262,7 @@ export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
       prev,
       next,
       onNavigateToSegment: (pairIndex: number) => {
-        console.log('[LightboxTransition] Gallery onNavigateToSegment: Showing overlay');
+        console.log('[LightboxTransition] ShotImageManager onNavigateToSegment: Showing overlay');
         // Show overlay via parent callback (handles both ref and body class)
         onStartLightboxTransition?.();
 
@@ -538,7 +538,7 @@ export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
               : undefined;
 
             // [AddToShotDebug] Detailed logging for position detection
-            console.log('[AddToShotDebug] 📊 GalleryDesktop POSITION CHECK:');
+            console.log('[AddToShotDebug] 📊 ShotImageManagerDesktop POSITION CHECK:');
             console.log('[AddToShotDebug] mediaId:', lightbox.currentImages[lightbox.lightboxIndex]?.id.substring(0, 8));
             console.log('[AddToShotDebug] props.shotId:', props.shotId?.substring(0, 8));
             console.log('[AddToShotDebug] effectiveSelectedShotId:', effectiveSelectedShotId?.substring(0, 8));
@@ -627,14 +627,14 @@ export const GalleryDesktop: React.FC<GalleryDesktopProps> = ({
                 onShotChange={isExternalGen ? (shotId) => {
                   externalGens.setExternalGenLightboxSelectedShot(shotId);
                 } : (shotId) => {
-                  console.log('[GalleryDesktop] Shot selector changed to:', shotId);
+                  console.log('[ShotImageManagerDesktop] Shot selector changed to:', shotId);
                   setLightboxSelectedShotId?.(shotId);
                   props.onShotChange?.(shotId);
                 }}
                 onAddToShot={(() => {
                   const result = isExternalGen ? externalGens.handleExternalGenAddToShot : props.onAddToShot;
-                  console.log('[ShotSelectorDebug] GalleryDesktop -> MediaLightbox onAddToShot', {
-                    component: 'GalleryDesktop',
+                  console.log('[ShotSelectorDebug] ShotImageManagerDesktop -> MediaLightbox onAddToShot', {
+                    component: 'ShotImageManagerDesktop',
                     isExternalGen,
                     propsOnAddToShot: !!props.onAddToShot,
                     externalGensHandler: !!externalGens.handleExternalGenAddToShot,

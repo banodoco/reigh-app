@@ -50,7 +50,7 @@ export function useMobileGestures({
     
     // If this tap is a double-tap, also open the lightbox
     if (timeDiff < DOUBLE_TAP_THRESHOLD && timeDiff > 10 && isSameImage) {
-      console.log('[MobileDebug:Gallery] ✅ Double-tap detected! Opening lightbox.');
+      console.log('[MobileDebug:ShotImageManager] ✅ Double-tap detected! Opening lightbox.');
       const image = currentImages[index];
       if (image?.imageUrl) {
         setLightboxIndex(index);

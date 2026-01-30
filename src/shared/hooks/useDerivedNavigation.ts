@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { GenerationRow } from '@/types/shots';
-import { DerivedNavContext } from '@/shared/components/Gallery/types';
+import { DerivedNavContext } from '@/shared/components/ShotImageManager/types';
 
 interface UseDerivedNavigationProps {
   derivedNavContext: DerivedNavContext | null;

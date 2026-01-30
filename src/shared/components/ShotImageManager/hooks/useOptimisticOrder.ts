@@ -12,7 +12,7 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
   const [reconciliationId, setReconciliationId] = useState(0);
   const reconciliationTimeoutRef = useRef<NodeJS.Timeout>();
   
-  console.log('[DataTrace] 🎭 Gallery OptimisticOrder state:', {
+  console.log('[DataTrace] 🎭 ShotImageManager OptimisticOrder state:', {
     propsImagesCount: images.length,
     optimisticOrderCount: optimisticOrder.length,
     isOptimisticUpdate,
@@ -21,7 +21,7 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
   
   // Enhanced reconciliation with debouncing, tracking IDs, and timeout-based recovery
   useEffect(() => {
-    console.log('[DragDebug:Gallery] Parent images prop changed', {
+    console.log('[DragDebug:ShotImageManager] Parent images prop changed', {
       newLength: images.length,
       isOptimisticUpdate,
       reconciliationId,
@@ -35,7 +35,7 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
     
     // If we're in the middle of an optimistic update, use debounced reconciliation
     if (isOptimisticUpdate) {
-      console.log('[DragDebug:Gallery] Skipping immediate sync - optimistic update in progress');
+      console.log('[DragDebug:ShotImageManager] Skipping immediate sync - optimistic update in progress');
       
       const currentReconciliationId = reconciliationId;
       
@@ -43,7 +43,7 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
       reconciliationTimeoutRef.current = setTimeout(() => {
         // Check if this reconciliation is still current
         if (currentReconciliationId !== reconciliationId) {
-          console.log('[DragDebug:Gallery] Reconciliation cancelled - newer reconciliation in progress');
+          console.log('[DragDebug:ShotImageManager] Reconciliation cancelled - newer reconciliation in progress');
           return;
         }
         
@@ -53,29 +53,29 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
         const parentOrder = images.map(img => img.id).join(',');
         
         if (currentOrder === parentOrder) {
-          console.log('[DragDebug:Gallery] Parent caught up with optimistic order - ending optimistic mode');
+          console.log('[DragDebug:ShotImageManager] Parent caught up with optimistic order - ending optimistic mode');
           setIsOptimisticUpdate(false);
           if (optimisticOrder !== images) {
             setOptimisticOrder(images);
           }
         } else {
-          console.log('[DragDebug:Gallery] Parent still has stale data - keeping optimistic order');
+          console.log('[DragDebug:ShotImageManager] Parent still has stale data - keeping optimistic order');
           
           // Safety check: if optimistic update has been active for more than 5 seconds, force reconciliation
           const optimisticStartTime = Date.now() - OPTIMISTIC_UPDATE_TIMEOUT;
           if (optimisticStartTime > Date.now()) {
-            console.warn('[DragDebug:Gallery] Forcing reconciliation - optimistic update too long');
+            console.warn('[DragDebug:ShotImageManager] Forcing reconciliation - optimistic update too long');
             setIsOptimisticUpdate(false);
             setOptimisticOrder(images);
           }
         }
       }, 100); // 100ms debounce
     } else {
-      console.log('[DragDebug:Gallery] Normal sync from parent props');
+      console.log('[DragDebug:ShotImageManager] Normal sync from parent props');
       if (optimisticOrder !== images) {
         setOptimisticOrder(images);
       } else {
-        console.log('[DragDebug:Gallery] Skipping sync - same reference');
+        console.log('[DragDebug:ShotImageManager] Skipping sync - same reference');
       }
     }
   }, [images, isOptimisticUpdate, reconciliationId, optimisticOrder]);

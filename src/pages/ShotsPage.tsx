@@ -9,7 +9,7 @@ import {
 } from '@/shared/hooks/useShots';
 import { Shot, GenerationRow } from '@/types/shots';
 import ShotListDisplay from '@/tools/travel-between-images/components/ShotListDisplay';
-import Gallery from '@/shared/components/Gallery';
+import ShotImageManager from '@/shared/components/ShotImageManager';
 import { Button } from '@/shared/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -247,7 +247,7 @@ const ShotsPage: React.FC = () => {
         <>
           <Button onPointerUp={handleBackToList} className="mb-4">Back to All Shots</Button>
           <h2 className="text-2xl font-normal mb-4">Images in: <span className="preserve-case">{selectedShot.name}</span></h2>
-          <Gallery
+          <ShotImageManager
             images={managedImages}
             onImageDelete={handleDeleteImage}
             onImageReorder={handleReorderImage}
@@ -260,7 +260,7 @@ const ShotsPage: React.FC = () => {
             onAddToShotWithoutPosition={handleAddToShotWithoutPosition}
           />
           {/* Debug logging */}
-          {console.log('[ShotSelectorDebug] ShotsPage -> Gallery', {
+          {console.log('[ShotSelectorDebug] ShotsPage -> ShotImageManager', {
             component: 'ShotsPage',
             allShotsLength: simplifiedShotOptions.length,
             selectedShotId: currentShotId,

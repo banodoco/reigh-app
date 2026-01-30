@@ -18,7 +18,7 @@ interface ImageUploadActionsProps {
 
 /**
  * Shared component for image upload actions: file upload button + generate button + modal.
- * Used in empty states across Timeline and Gallery.
+ * Used in empty states across Timeline and ShotImageManager.
  */
 export const ImageUploadActions: React.FC<ImageUploadActionsProps> = ({
   onImageUpload,

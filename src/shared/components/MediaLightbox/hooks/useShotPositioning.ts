@@ -68,7 +68,7 @@ export const useShotPositioning = ({
   }, [onOptimisticPositioned, onOptimisticUnpositioned, optimisticPositionedIds]);
   
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For Gallery/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
+  // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
   const actualGenerationId = (media as any).generation_id || media.id;
 
   const isAlreadyPositionedInSelectedShot = useMemo(() => {
@@ -91,7 +91,7 @@ export const useShotPositioning = ({
     // Simple keys mean "added to SOME shot" but we don't know which one, so they're ambiguous.
     // Only use simple keys as a last resort if we can't determine shot-specific state.
     
-    // Trust the override from parent component (GalleryDesktop)
+    // Trust the override from parent component (ShotImageManagerDesktop)
     // The parent already verified the media is in the selected shot using props.shotId comparison
     // Don't re-verify using media.shot_id since the image objects may not have shot_id populated
     if (typeof positionedInSelectedShot === 'boolean') {

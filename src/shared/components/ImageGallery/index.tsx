@@ -5,7 +5,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useToggleGenerationStar } from '@/shared/hooks/useGenerations';
-import { useTaskDetails } from '@/shared/components/Gallery/hooks/useTaskDetails';
+import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTaskDetails';
 import { useBackgroundThumbnailGenerator } from '@/shared/hooks/useBackgroundThumbnailGenerator';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
@@ -327,7 +327,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = React.memo((props) => {
 
   // Task details functionality using shared hook
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For Gallery images, id is shot_generations.id but generation_id is the actual generation ID
+  // For ShotImageManager images, id is shot_generations.id but generation_id is the actual generation ID
   const lightboxImageId = (stateHook.state.activeLightboxMedia as any)?.generation_id
     || stateHook.state.activeLightboxMedia?.id
     || null;

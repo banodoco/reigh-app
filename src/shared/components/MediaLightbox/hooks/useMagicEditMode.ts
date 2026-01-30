@@ -220,7 +220,7 @@ export const useMagicEditMode = ({
         console.log('[VariantRelationship] isEditingFromVariant:', !!activeVariantId);
         
         // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-        // For Gallery/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
+        // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
         const actualGenerationId = (media as any).generation_id || media.id;
         
         const batchParams = {

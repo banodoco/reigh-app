@@ -89,7 +89,7 @@ export function useDragAndDrop({
     const isModifierPressed = activatorEvent?.metaKey || activatorEvent?.ctrlKey;
     
     if (!isModifierPressed && !selectedIds.includes(active.id as string)) {
-      console.log('[DragDebug:Gallery] Clearing selection during drag start');
+      console.log('[DragDebug:ShotImageManager] Clearing selection during drag start');
       console.log('[CLEAR_TRACE] Clearing selection in handleDragStart');
       setSelectedIds([]);
       setLastSelectedIndex(null);
@@ -129,7 +129,7 @@ export function useDragAndDrop({
     }
     
     if (!images || images.length === 0) {
-      console.log('[DragDebug:Gallery] Skipping reorder - invalid state during re-render');
+      console.log('[DragDebug:ShotImageManager] Skipping reorder - invalid state during re-render');
       return;
     }
     
@@ -183,7 +183,7 @@ export function useDragAndDrop({
     }
     
     // Multi-drag logic
-    console.log('[DragDebug:Gallery] Multi-drag reorder', { selectedCount: selectedIds.length });
+    console.log('[DragDebug:ShotImageManager] Multi-drag reorder', { selectedCount: selectedIds.length });
     
     // img.id is shot_generations.id - unique per entry
     const overIndex = images.findIndex((img) => img.id === over.id);
@@ -203,19 +203,19 @@ export function useDragAndDrop({
     const newOrder = newItems.map(img => img.id).join(',');
     
     if (currentOrder === newOrder) {
-      console.log('[DragDebug:Gallery] Multi-drag resulted in no change - skipping update');
+      console.log('[DragDebug:ShotImageManager] Multi-drag resulted in no change - skipping update');
       setSelectedIds([]);
       setLastSelectedIndex(null);
       return;
     }
     
-    console.log('[DragDebug:Gallery] Updating optimistic order for multi-drag');
+    console.log('[DragDebug:ShotImageManager] Updating optimistic order for multi-drag');
     
     setReconciliationId(prev => prev + 1);
     setIsOptimisticUpdate(true);
     setOptimisticOrder(newItems);
     
-    console.log('[DragDebug:Gallery] Calling onImageReorder for multi-drag');
+    console.log('[DragDebug:ShotImageManager] Calling onImageReorder for multi-drag');
     const reorderedIds = newItems.map((img) => img.id);
     // draggedItemId is already defined at function scope (line 97)
     console.log('[DataTrace] 🎯 Multi-drag complete - calling onImageReorder:', {

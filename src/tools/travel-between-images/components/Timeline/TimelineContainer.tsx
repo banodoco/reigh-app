@@ -94,7 +94,7 @@ import { useGlobalEvents } from './hooks/useGlobalEvents';
 import { useTapToMove } from './hooks/useTapToMove';
 import { useTimelineSelection } from './hooks/useTimelineSelection';
 import { applyFluidTimeline, applyFluidTimelineMulti } from './utils/timeline-utils';
-import { SelectionActionBar } from '@/shared/components/Gallery/components/SelectionActionBar';
+import { SelectionActionBar } from '@/shared/components/ShotImageManager/components/SelectionActionBar';
 
 /** Shared pair data structure for SegmentSettingsModal and MediaLightbox */
 export interface PairData {

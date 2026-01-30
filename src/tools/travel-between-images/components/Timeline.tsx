@@ -68,7 +68,7 @@ import { useTimelinePositionUtils } from "@/shared/hooks/useTimelinePositionUtil
 import { timelineDebugger } from "./Timeline/utils/timeline-debug";
 import { calculateMaxGap, validateGaps } from "./Timeline/utils/timeline-utils";
 import { quantizeGap } from "./Timeline/utils/time-utils";
-import { useExternalGenerations } from "@/shared/components/Gallery/hooks/useExternalGenerations";
+import { useExternalGenerations } from "@/shared/components/ShotImageManager/hooks/useExternalGenerations";
 import { useDerivedNavigation } from "@/shared/hooks/useDerivedNavigation";
 import { useRenderCount } from "@/shared/components/debug/RefactorMetricsCollector";
 
@@ -531,7 +531,7 @@ const Timeline: React.FC<TimelineProps> = ({
   // Ref for lightbox index setter (needed for external generations)
   const setLightboxIndexRef = useRef<(index: number) => void>(() => {});
   
-  // External generations hook (same as Gallery)
+  // External generations hook (same as ShotImageManager)
   const externalGens = useExternalGenerations({
     selectedShotId: shotId,
     optimisticOrder: images,
