@@ -57,7 +57,7 @@ ComponentName/
 | Type | Location | Purpose |
 |------|----------|---------|
 | **UI primitives** | `src/shared/components/ui/` | shadcn/ui base components |
-| **Shared components** | `src/shared/components/` | Cross-feature components (MediaLightbox, ImageGallery) |
+| **Shared components** | `src/shared/components/` | Cross-feature components (MediaLightbox, MediaGallery) |
 | **Tool components** | `src/tools/[name]/components/` | Tool-specific UI |
 | **Layout components** | `src/shared/components/layout/` | App shell, panes |
 

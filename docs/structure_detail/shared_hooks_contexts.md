@@ -248,7 +248,7 @@ Both `SharedTaskDetails` and `SharedMetadataDetails` use a variant pattern:
 ```
 
 ### 📸 Media Components
-- **`ImageGallery`** - Grid display with lightbox
+- **`MediaGallery`** - Grid display with lightbox
   - Server-side pagination support
   - Media type filtering (All/Images/Videos)
   - Shot-based filtering with position exclusion

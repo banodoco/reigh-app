@@ -180,12 +180,12 @@ mutation.mutate(data, {
 ## 🔄 Unified Generations System
 
 ### Problem Solved
-Previously, `ImageGallery` and `VideoOutputsGallery` used different data fetching patterns causing race conditions.
+Previously, `MediaGallery` and `VideoOutputsGallery` used different data fetching patterns causing race conditions.
 
 ### Solution: `useUnifiedGenerations`
 
 ```typescript
-// Project-wide mode (ImageGallery)
+// Project-wide mode (MediaGallery)
 const { data } = useUnifiedGenerations({
   projectId,
   mode: 'project-wide',

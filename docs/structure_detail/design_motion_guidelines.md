@@ -352,7 +352,7 @@ const handleMobileTap = (item: any) => {
 
 ### Components Using This Pattern
 
-- `ImageGallery` - Double-tap to open image lightbox
+- `MediaGallery` - Double-tap to open image lightbox
 - `VideoOutputsGallery` - Double-tap to open video lightbox  
 - `ShotImageManager` - Double-tap to open image editor
 - `Timeline` - Double-tap to open image lightbox

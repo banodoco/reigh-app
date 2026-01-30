@@ -28,7 +28,7 @@ Reigh uses a progressive image loading system with device-adaptive batching for 
 ### Data Flow
 
 ```
-ImageGallery
+MediaGallery
 ├── ProgressiveLoadingManager (current page images)
 │   └── useProgressiveImageLoading
 │       ├── Gets timing from imageLoadingPriority
@@ -173,12 +173,12 @@ The progressive loading system creates a deliberate visual effect where images a
 
 ### Integration Flow
 ```
-ImageGallery
+MediaGallery
 ├── ProgressiveLoadingManager
 │   └── useProgressiveImageLoading (current page timing)
 ├── ImagePreloadManager  
 │   └── useAdjacentPagePreloading (background preloading)
-└── ImageGalleryItem (receives shouldLoad from progressive manager)
+└── MediaGalleryItem (receives shouldLoad from progressive manager)
 ```
 
 ## System Benefits

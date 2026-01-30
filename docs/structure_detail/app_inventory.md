@@ -224,7 +224,7 @@ Complete inventory of pages, tools, and major UI sections with their component d
 #### Components Used
 - **Header** - Pagination controls, page selector, media type filter
 - **Filters** - Shot filter, search, star filter, exclude positioned checkbox
-- **ImageGallery + SkeletonGallery** - Grid display
+- **MediaGallery + SkeletonGallery** - Grid display
 - **ImageGenerationModal** - Generation config (CTA)
 
 ---
@@ -252,8 +252,8 @@ Complete inventory of pages, tools, and major UI sections with their component d
 
 ---
 
-### ImageGallery
-`src/shared/components/ImageGallery/index.tsx` - Gallery with pagination
+### MediaGallery
+`src/shared/components/MediaGallery/index.tsx` - Gallery with pagination
 
 #### Components Used
 - **Client/server pagination** - Lazy-loading variants, progressive images
@@ -262,8 +262,8 @@ Complete inventory of pages, tools, and major UI sections with their component d
 
 ---
 
-### ImageGalleryItem
-`src/shared/components/ImageGalleryItem.tsx` - Individual gallery item with actions
+### MediaGalleryItem
+`src/shared/components/MediaGalleryItem.tsx` - Individual gallery item with actions
 
 #### Components Used
 - **Actions** - Delete, info, star, add to shot (with/without position), download, share, edit
@@ -567,8 +567,8 @@ Complete inventory of pages, tools, and major UI sections with their component d
 - **ImageGenerationToolPage** - Shot focus
 - **VideoTravelToolPage** - Shot focus
 - **TasksPane** - Navigation
-- **ImageGalleryItem** - Shot actions
-- **useImageGalleryActions, useVideoTravelAddToShot** - Hooks
+- **MediaGalleryItem** - Shot actions
+- **useMediaGalleryActions, useVideoTravelAddToShot** - Hooks
 
 ---
 
@@ -629,7 +629,7 @@ How each architectural pattern is implemented across the codebase, with inconsis
 | ImageGenerationToolPage | Project, Shots, Panes, LastAffectedShot | Full access for tool orchestration |
 | ShotsPage | CurrentShot | Selection tracking |
 | TasksPane | IncomingTasks, LastAffectedShot | Task display + navigation |
-| ImageGalleryItem | LastAffectedShot | Shot actions |
+| MediaGalleryItem | LastAffectedShot | Shot actions |
 | VideoGallery | GenerationTask | Preloading + enhancement |
 
 **Inconsistencies:**
@@ -737,7 +737,7 @@ Tool Page → create[Type]Task() → createTask() → create-task edge function
 | SharePage | RPC calls (not React Query) |
 | PaymentSuccessPage | React Query polling |
 | Tool pages | `useGenerations`, `useToolSettings`, `useShots` |
-| ImageGallery | Pagination queries, lazy-loading |
+| MediaGallery | Pagination queries, lazy-loading |
 | TasksPane | `usePaginatedTasks`, `useTaskStatusCounts` |
 
 **Inconsistencies:**
@@ -758,13 +758,13 @@ Tool Page → create[Type]Task() → createTask() → create-task edge function
 | ShotImageManager | `ShotImageManagerMobile` vs `ShotImageManagerDesktop` |
 | HoverScrubVideo | Autoplay prevention, no scrub on mobile |
 | Layout | Split-view wrapper when generations pane locked |
-| ImageGalleryItem | Mobile popover vs desktop hover actions |
+| MediaGalleryItem | Mobile popover vs desktop hover actions |
 
 **Inconsistencies:**
 - **ShotImageManager** has entirely separate components for mobile/desktop
 - **GlobalHeader** uses conditional JSX within single component
 - **HoverScrubVideo** disables features on mobile rather than alternate UI
-- **ImageGalleryItem** switches interaction pattern (popover vs hover)
+- **MediaGalleryItem** switches interaction pattern (popover vs hover)
 - No single consistent approach — mix of separate components, conditional rendering, feature disabling
 
 ---
@@ -781,10 +781,10 @@ Tool Page → create[Type]Task() → createTask() → create-task edge function
 | ToolsPane | Directory with sub-components |
 | GenerationsPane | Directory with sub-components |
 | ProductTour | Directory structure |
-| ImageGallery | Directory with index.tsx |
+| MediaGallery | Directory with index.tsx |
 
 **Inconsistencies:**
-- **ImageGalleryItem** is a single 85KB file — no decomposition
+- **MediaGalleryItem** is a single 85KB file — no decomposition
 - **CreditsManagement** is a single 48KB file — no decomposition
 - **PhaseConfigSelectorModal** is 106KB — no decomposition
 - Large single-file components vs well-structured directories inconsistent
@@ -853,7 +853,7 @@ This is correct architecture: appropriate storage for each concern type.
 |-----------|---------|-------|
 | SharePage | Skeleton state | Card with error message |
 | PaymentSuccessPage | Loading → success states | — |
-| ImageGallery | SkeletonGallery | — |
+| MediaGallery | SkeletonGallery | — |
 | TasksPane | — | — |
 | LineageGifModal | State machine with loading state | State machine with error state |
 | **AppErrorBoundary** | — | Full-screen recovery UI |

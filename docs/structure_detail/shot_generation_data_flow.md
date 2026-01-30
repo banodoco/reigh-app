@@ -25,7 +25,7 @@
 - Base type for all generation data throughout the app
 - Includes optional `metadata: GenerationMetadata`
 
-**`GeneratedImageWithMetadata`** (`src/shared/components/ImageGallery/types.ts`)
+**`GeneratedImageWithMetadata`** (`src/shared/components/MediaGallery/types.ts`)
 - UI-layer type with `urlIdentity` and `thumbUrlIdentity` fields (URL paths without query params)
 - Prevents unnecessary re-renders when only Supabase signed URL tokens change
 

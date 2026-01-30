@@ -27,7 +27,7 @@ src/tools/image-generation/
 **Main orchestrator component**
 - Manages Wan task creation via `useCreateTask`
 - Displays real-time progress bar during generation
-- Integrates `ImageGallery` with live updates
+- Integrates `MediaGallery` with live updates
 - Handles upscaling and deletion operations
 - No environment-specific branching (Wan-only)
 - **Gallery Filtering**: Supports media type (All/Images/Videos), shot filtering, position exclusion, and prompt search
