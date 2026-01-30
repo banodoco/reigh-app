@@ -269,6 +269,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
         segmentSlots={segmentSlots}
         onSegmentClick={onSegmentClick}
         hasPendingTask={hasPendingTask}
+        onNewShotFromSelection={props.onNewShotFromSelection}
       />
       
       {lightbox.lightboxIndex !== null && lightbox.currentImages[lightbox.lightboxIndex] && (() => {

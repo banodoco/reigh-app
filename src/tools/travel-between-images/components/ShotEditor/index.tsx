@@ -2291,7 +2291,46 @@ const ShotEditor: React.FC<ShotEditorProps> = ({
     }
     return result.shotId;
   }, []);
-  
+
+  // Handler for creating a new shot from selected images
+  const handleNewShotFromSelection = useCallback(async (selectedIds: string[]) => {
+    console.log('[ShotEditor] Creating new shot from selection', { selectedIds });
+
+    // Look up the selected images from allShotImages
+    const selectedImages = allShotImagesRef.current.filter(img =>
+      selectedIds.includes(img.id)
+    );
+
+    if (selectedImages.length === 0) {
+      toast.error('No images selected');
+      return;
+    }
+
+    // Generate a name for the new shot
+    const newShotName = `From ${selectedShot?.name || 'selection'} (${selectedImages.length})`;
+
+    try {
+      // Create the new shot
+      const result = await createShotRef.current({ name: newShotName });
+      if (!result || !result.shotId) {
+        throw new Error('Failed to create shot');
+      }
+
+      // Add each selected image to the new shot, preserving timeline positions
+      for (const img of selectedImages) {
+        const generationId = (img as any).generation_id || img.id;
+        await addToShotMutationRef.current({
+          shot_id: result.shotId,
+          generation_id: generationId,
+          timelineFrame: img.timeline_frame ?? undefined,
+          project_id: projectIdRef.current
+        });
+      }
+    } catch (error) {
+      console.error('[ShotEditor] Failed to create shot from selection:', error);
+      toast.error('Failed to create shot');
+    }
+  }, [selectedShot?.name]);
 
   // Calculate current settings for MotionControl
   const currentMotionSettings = useMemo(() => {
@@ -2456,6 +2495,7 @@ const ShotEditor: React.FC<ShotEditorProps> = ({
             onAddToShot={handleAddToShot}
             onAddToShotWithoutPosition={handleAddToShotWithoutPosition}
             onCreateShot={handleCreateShot}
+            onNewShotFromSelection={handleNewShotFromSelection}
             onDragStateChange={handleDragStateChange}
             // Single image duration - updates batchVideoFrames when endpoint is dragged
             onSingleImageDurationChange={onBatchVideoFramesChange}

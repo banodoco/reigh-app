@@ -23,7 +23,7 @@ import { useCreateGeneration } from '@/shared/hooks/useGenerations';
 import { useGetTaskIdForGeneration } from '@/shared/lib/generationTaskBridge';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import { Check, X, Copy } from 'lucide-react';
-import { SharedTaskDetails } from './SharedTaskDetails';
+import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 
@@ -212,7 +212,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
             <div className="space-y-6 p-4">
               {/* Generation Summary Section */}
               <div className="space-y-3">
-                <SharedTaskDetails
+                <GenerationDetails
                   task={task}
                   inputImages={inputImages}
                   variant="modal"

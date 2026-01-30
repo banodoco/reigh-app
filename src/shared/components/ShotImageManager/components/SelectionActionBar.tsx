@@ -1,20 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { MOBILE_BOTTOM_OFFSET, DESKTOP_BOTTOM_OFFSET } from '../constants';
+import { FolderPlus, Check, Loader2 } from 'lucide-react';
 
 interface SelectionActionBarProps {
   selectedCount: number;
   onDeselect: () => void;
   onDelete: () => void;
+  onNewShot?: () => Promise<void>;
 }
 
 export const SelectionActionBar: React.FC<SelectionActionBarProps> = ({
   selectedCount,
   onDeselect,
-  onDelete
+  onDelete,
+  onNewShot
 }) => {
+  const [newShotState, setNewShotState] = useState<'idle' | 'loading' | 'success'>('idle');
   const {
     isShotsPaneLocked,
     isTasksPaneLocked,
@@ -22,6 +27,18 @@ export const SelectionActionBar: React.FC<SelectionActionBarProps> = ({
     tasksPaneWidth
   } = usePanes();
   const isMobile = useIsMobile();
+
+  const handleNewShot = async () => {
+    if (!onNewShot || newShotState !== 'idle') return;
+    setNewShotState('loading');
+    try {
+      await onNewShot();
+      setNewShotState('success');
+      setTimeout(() => setNewShotState('idle'), 2000);
+    } catch {
+      setNewShotState('idle');
+    }
+  };
   
   const leftOffset = isShotsPaneLocked ? shotsPaneWidth : 0;
   const rightOffset = isTasksPaneLocked ? tasksPaneWidth : 0;
@@ -59,6 +76,32 @@ export const SelectionActionBar: React.FC<SelectionActionBarProps> = ({
           >
             {selectedCount === 1 ? 'Delete' : 'Delete All'}
           </Button>
+          {onNewShot && (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleNewShot}
+                    disabled={newShotState === 'loading'}
+                    className={`h-8 w-8 ${newShotState === 'success' ? 'text-green-600' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {newShotState === 'loading' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : newShotState === 'success' ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <FolderPlus className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{newShotState === 'success' ? 'Shot created!' : 'Create a new shot with the selected images'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
     </div>

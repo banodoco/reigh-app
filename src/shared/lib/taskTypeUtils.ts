@@ -64,7 +64,7 @@ export const isCharacterAnimateTaskType = (taskType: string | null | undefined):
 
 /**
  * Check if a task type should show video-style details UI
- * This determines whether to render SharedTaskDetails vs SharedMetadataDetails
+ * This determines whether to render GenerationDetails vs SharedMetadataDetails
  */
 export const isVideoTaskType = (taskType: string | null | undefined): boolean => {
   if (!taskType) return false;

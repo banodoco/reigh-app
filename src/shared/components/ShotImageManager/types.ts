@@ -41,6 +41,7 @@ export interface ShotImageManagerProps {
   onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   onCreateShot?: (shotName: string, files: File[]) => Promise<{shotId?: string; shotName?: string} | void>;
+  onNewShotFromSelection?: (selectedIds: string[]) => Promise<void>;
   // Pair prompt props - pass index and optionally pairData (for single-image mode)
   onPairClick?: (pairIndex: number, pairData?: PairData) => void;
   pairPrompts?: Record<number, { prompt: string; negativePrompt: string }>;
@@ -125,6 +126,8 @@ export interface BaseShotImageManagerProps {
   onSegmentDelete?: (generationId: string) => void;
   /** ID of segment currently being deleted */
   deletingSegmentId?: string | null;
+  /** Create a new shot from selected images */
+  onNewShotFromSelection?: (selectedIds: string[]) => Promise<void>;
 }
 
 export interface MobileImageItemProps {

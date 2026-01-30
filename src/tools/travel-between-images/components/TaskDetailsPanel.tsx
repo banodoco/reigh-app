@@ -9,7 +9,7 @@ import { Label } from '@/shared/components/ui/label';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import { Task } from '@/types/tasks';
 import { Check, Copy, CornerDownLeft, ImageIcon } from 'lucide-react';
-import { SharedTaskDetails } from './SharedTaskDetails';
+import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import SharedMetadataDetails from '@/shared/components/SharedMetadataDetails';
 import { useTaskType } from '@/shared/hooks/useTaskType';
 import { usePublicLoras } from '@/shared/hooks/useResources';
@@ -177,7 +177,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
               // Uses centralized isVideoTaskType utility
               const isLegacyVideoTask = isVideoTaskType(task.taskType) || inputImages.length > 0;
               
-              // Image edit tasks should also use SharedTaskDetails
+              // Image edit tasks should also use GenerationDetails
               const isImageEditTask = [
                 'z_image_turbo_i2i',
                 'image_inpaint',
@@ -191,7 +191,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
               
               if (shouldShowVideoDetails) {
                 return (
-                  <SharedTaskDetails
+                  <GenerationDetails
                     task={task}
                     inputImages={inputImages}
                     variant="panel"

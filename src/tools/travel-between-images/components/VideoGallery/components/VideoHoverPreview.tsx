@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { GenerationRow } from '@/types/shots';
-import { SharedTaskDetails } from '../../SharedTaskDetails';
+import { GenerationDetails } from '@/shared/components/GenerationDetails';
 
 interface VideoHoverPreviewProps {
   hoveredVideo: GenerationRow | null;
@@ -83,7 +83,7 @@ export const VideoHoverPreview = React.memo<VideoHoverPreviewProps>(({
               </div>
             ) : hoverTask ? (
               <div className="relative">
-                <SharedTaskDetails
+                <GenerationDetails
                   task={hoverTask}
                   inputImages={hoverInputImages}
                   variant="hover"

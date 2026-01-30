@@ -18,7 +18,7 @@ import { useToast } from "@/shared/hooks/use-toast";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { GeneratedImageWithMetadata, DisplayableMetadata } from "./ImageGallery";
 import SharedMetadataDetails from "./SharedMetadataDetails";
-import { SharedTaskDetails } from "@/tools/travel-between-images/components/SharedTaskDetails";
+import { GenerationDetails } from "@/shared/components/GenerationDetails";
 import { log } from '@/shared/lib/logger';
 import { setGenerationDragData, createDragPreview } from '@/shared/lib/dragDrop';
 import { cn } from "@/shared/lib/utils";
@@ -193,7 +193,7 @@ export const ImageGalleryItem: React.FC<ImageGalleryItemProps> = ({
   const taskType = taskData?.taskType;
   const { data: taskTypeInfo } = useTaskType(taskType || null);
   
-  // Determine if this should show task details (SharedTaskDetails)
+  // Determine if this should show task details (GenerationDetails)
   // Use content_type from task_types table. Fallback to legacy tool_type for video travel.
   const isVideoTask = taskTypeInfo?.content_type === 'video' || 
     (!taskTypeInfo && (image.metadata as any)?.tool_type === 'travel-between-images');
@@ -1506,7 +1506,7 @@ export const ImageGalleryItem: React.FC<ImageGalleryItemProps> = ({
                         {shouldShowMetadata && image.metadata && (
                           <>
                             {shouldShowTaskDetails ? (
-                              <SharedTaskDetails
+                              <GenerationDetails
                                 task={taskData}
                                 inputImages={inputImages}
                                 variant="panel"
@@ -1544,7 +1544,7 @@ export const ImageGalleryItem: React.FC<ImageGalleryItemProps> = ({
                       {shouldShowMetadata && image.metadata && (
                         <>
                           {shouldShowTaskDetails ? (
-                            <SharedTaskDetails
+                            <GenerationDetails
                               task={taskData}
                               inputImages={inputImages}
                               variant="hover"

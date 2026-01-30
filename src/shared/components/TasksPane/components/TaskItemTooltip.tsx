@@ -7,7 +7,7 @@ import {
 import { cn } from '@/shared/lib/utils';
 import { Task } from '@/types/tasks';
 import { GenerationRow } from '@/types/shots';
-import { SharedTaskDetails } from '@/tools/travel-between-images/components/SharedTaskDetails';
+import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import { isImageEditTaskType } from '@/tools/travel-between-images/components/TaskDetails';
 import SharedMetadataDetails from '@/shared/components/SharedMetadataDetails';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
@@ -94,7 +94,7 @@ export const TaskItemTooltip: React.FC<TaskItemTooltipProps> = ({
           onClick={handleTooltipClick}
         >
           {(isVideoTask || isImageEditTaskType(task.taskType)) ? (
-            <SharedTaskDetails
+            <GenerationDetails
               task={task}
               inputImages={isVideoTask ? travelImageUrls : []}
               variant="hover"

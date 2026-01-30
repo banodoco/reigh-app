@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { ArrowDown, Check, Trash2, Loader2 } from 'lucide-react';
+import { ArrowDown, Check, Trash2, Loader2, FolderPlus } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
@@ -45,6 +45,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   segmentSlots,
   onSegmentClick,
   hasPendingTask,
+  onNewShotFromSelection,
 }) => {
   const [mobileSelectedIds, setMobileSelectedIds] = useState<string[]>([]);
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
@@ -52,6 +53,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const currentDialogSkipChoiceRef = useRef(false);
   const [skipConfirmationNextTimeVisual, setSkipConfirmationNextTimeVisual] = useState(false);
+  const [newShotState, setNewShotState] = useState<'idle' | 'loading' | 'success'>('idle');
   
   // State to control when selection bar should be visible (with delay)
   const [showSelectionBar, setShowSelectionBar] = useState(false);
@@ -181,6 +183,19 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       setLastSelectedIndex(index);
     }
   }, [mobileSelectedIds, readOnly, lastSelectedIndex]);
+
+  // Handler for creating a new shot from selected images
+  const handleNewShot = useCallback(async () => {
+    if (!onNewShotFromSelection || newShotState !== 'idle') return;
+    setNewShotState('loading');
+    try {
+      await onNewShotFromSelection(mobileSelectedIds);
+      setNewShotState('success');
+      setTimeout(() => setNewShotState('idle'), 2000);
+    } catch {
+      setNewShotState('idle');
+    }
+  }, [onNewShotFromSelection, mobileSelectedIds, newShotState]);
 
   // Mobile reordering function
   const handleMobileMoveHere = useCallback(async (targetIndex: number) => {
@@ -673,6 +688,23 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
                 >
                   {mobileSelectedIds.length === 1 ? 'Delete' : 'Delete All'}
                 </Button>
+                {onNewShotFromSelection && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleNewShot}
+                    disabled={newShotState === 'loading'}
+                    className={`h-8 w-8 ${newShotState === 'success' ? 'text-green-600' : 'text-muted-foreground'}`}
+                  >
+                    {newShotState === 'loading' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : newShotState === 'success' ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <FolderPlus className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

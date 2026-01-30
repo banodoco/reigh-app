@@ -145,6 +145,7 @@ interface ShotImagesEditorProps {
   onAddToShot?: (shotId: string, generationId: string, position: number) => Promise<void>;
   onAddToShotWithoutPosition?: (shotId: string, generationId: string) => Promise<boolean>;
   onCreateShot?: (name: string) => Promise<string>;
+  onNewShotFromSelection?: (selectedIds: string[]) => Promise<void>;
   /** Callback to notify parent of drag state changes - used to suppress query refetches during drag */
   onDragStateChange?: (isDragging: boolean) => void;
   /** Callback when single-image duration changes (for single-image video generation) */
@@ -225,6 +226,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   onAddToShot,
   onAddToShotWithoutPosition,
   onCreateShot,
+  onNewShotFromSelection,
   onDragStateChange,
   onSingleImageDurationChange,
   maxFrameLimit = 81,
@@ -2616,6 +2618,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                     const shotId = await onCreateShot(shotName);
                     return { shotId, shotName };
                   } : undefined}
+                  onNewShotFromSelection={onNewShotFromSelection}
                   // Pair prompt props - lookup from pairDataByIndex (single source of truth)
                   onPairClick={(pairIndex, passedPairData) => {
                     // Open MediaLightbox in segment slot mode for this pair

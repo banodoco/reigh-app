@@ -18,7 +18,7 @@ import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { usePrefetchTaskData, usePrefetchTaskById } from '@/shared/hooks/useUnifiedGenerations';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { useGetTask } from '@/shared/hooks/useTasks';
-import { SharedTaskDetails } from '@/tools/travel-between-images/components/SharedTaskDetails';
+import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { LineageGifModal } from '@/shared/components/LineageGifModal';
 import { getLineageDepth } from '@/shared/hooks/useLineageChain';
@@ -164,7 +164,7 @@ const VariantHoverDetails: React.FC<VariantHoverDetailsProps> = ({ variant, avai
   // If we have real task data, use it
   if (task && !isLoading) {
     return (
-      <SharedTaskDetails
+      <GenerationDetails
         task={task}
         inputImages={[]}
         variant="hover"
@@ -177,7 +177,7 @@ const VariantHoverDetails: React.FC<VariantHoverDetailsProps> = ({ variant, avai
 
   // Fallback: construct minimal task from variant params while loading or if no source_task_id
   return (
-    <SharedTaskDetails
+    <GenerationDetails
       task={{
         taskType: variantParams?.task_type || variantParams?.created_from || 'video_generation',
         params: variantParams,
