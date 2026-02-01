@@ -1408,15 +1408,23 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 }
                 return;
               }
-              // Use precomputed pair data (same source of truth for modal and lightbox)
+              // Use precomputed pair data for image URLs etc, but override frames
+              // with real-time value from pairInfo (computed from currentPositions)
               const pairData = pairDataByIndex.get(pairIndex);
+              const pairInfoEntry = pairInfo.find(p => p.index === pairIndex);
               console.log('[SegmentClickDebug] Normal mode, pairData:', {
                 pairIndex,
                 foundPairData: !!pairData,
                 pairDataIndex: pairData?.index,
+                pairDataFrames: pairData?.frames,
+                pairInfoFrames: pairInfoEntry?.frames,
               });
               if (pairData) {
-                onPairClick(pairIndex, pairData);
+                // Override frames with real-time value from pairInfo
+                const mergedPairData = pairInfoEntry
+                  ? { ...pairData, frames: pairInfoEntry.frames, startFrame: pairInfoEntry.startFrame, endFrame: pairInfoEntry.endFrame }
+                  : pairData;
+                onPairClick(pairIndex, mergedPairData);
               }
             } : undefined}
             selectedParentId={selectedOutputId}

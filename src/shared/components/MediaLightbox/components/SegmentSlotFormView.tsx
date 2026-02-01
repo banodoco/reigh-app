@@ -394,25 +394,22 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
   ]);
 
   return (
-    <div
-      className="w-full h-full flex items-center justify-center bg-black/90 p-4"
-      onClick={(e) => {
-        // Close if clicking directly on the background (not on children)
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-      onTouchEnd={(e) => {
-        // Close if tapping directly on the background (not on children) - iPad support
-        if (e.target === e.currentTarget) {
+    <div className="w-full h-full relative">
+      {/* Backdrop - click/tap to close */}
+      <div
+        className="absolute inset-0 bg-black/90"
+        onClick={onClose}
+        onTouchEnd={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onClose();
-        }
-      }}
-    >
-      {/* Wrapper to position navigation arrows closer to the form */}
-      <div className="relative max-w-2xl w-full flex items-center justify-center">
+        }}
+      />
+
+      {/* Content container - positioned above backdrop */}
+      <div className="relative w-full h-full flex items-center justify-center p-4 pointer-events-none">
+        {/* Wrapper to position navigation arrows closer to the form */}
+        <div className="relative max-w-2xl w-full flex items-center justify-center pointer-events-auto">
         {/* Floating Navigation Arrows - positioned relative to this wrapper */}
         <NavigationArrows
           showNavigation={true}
@@ -475,6 +472,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
             </>
           )}
         </div>
+      </div>
       </div>
       </div>
     </div>
