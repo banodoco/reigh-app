@@ -2,12 +2,11 @@ import React, { useRef, useState, useCallback } from "react";
 import { GenerationRow } from "@/types/shots";
 import { getDisplayUrl, cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/ui/button";
-import { Trash2, Copy, Check, Pencil } from "lucide-react";
+import { Trash2, Copy, Check, Pencil, Maximize2 } from "lucide-react";
 import { useProgressiveImage } from "@/shared/hooks/useProgressiveImage";
 import { isProgressiveLoadingEnabled } from "@/shared/settings/progressiveLoading";
-import { useDoubleTapWithSelection } from "@/shared/hooks/useDoubleTapWithSelection";
 import { framesToSeconds } from "./utils/time-utils";
-import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_IMAGE_HALF_WIDTH, TIMELINE_PADDING_OFFSET } from "./constants";
+import { TIMELINE_PADDING_OFFSET } from "./constants";
 import { VariantBadge } from "@/shared/components/VariantBadge";
 import { useMarkVariantViewed } from "@/shared/hooks/useMarkVariantViewed";
 
@@ -41,9 +40,6 @@ interface TimelineItemProps {
   projectAspectRatio?: string;
   // Read-only mode - hides all action buttons
   readOnly?: boolean;
-  // Tap-to-move state (for tablets)
-  isSelectedForMove?: boolean;
-  onTapToMove?: () => void;
   // Just-dropped effect - shows temporary hover state
   isJustDropped?: boolean;
   // Prefetch callback for task data (called on hover)
@@ -81,8 +77,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   duplicateSuccessImageId,
   projectAspectRatio = undefined,
   readOnly = false,
-  isSelectedForMove = false,
-  onTapToMove,
   isJustDropped = false,
   onPrefetch,
   isSelected = false,
@@ -127,7 +121,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   }, [isJustDropped]);
   
   // Combined "elevated" state: actual hover OR just-dropped effect (unless actually hovering takes over)
-  const isElevated = isHovered || showDropEffect || isDragging || isSelectedForMove || isSelected;
+  const isElevated = isHovered || showDropEffect || isDragging || isSelected;
   
   // Track if we just clicked a button to prevent drag from starting
   const buttonClickedRef = useRef(false);
@@ -140,53 +134,46 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   const imageKey = image.id;
 
   // ===== MOBILE TAP HANDLING =====
-  // Use generalized double-tap hook for iPad/mobile interaction
-  // Single tap → toggles selection (if multi-select enabled) or tap-to-move, Double tap → opens lightbox
-  const { handleTouchStart, handleTouchEnd } = useDoubleTapWithSelection({
-    onSingleTap: () => {
-      console.log('[DoubleTapFlow] 🎬 SINGLE TAP CALLBACK - TimelineItem:', {
-        itemId: imageKey?.substring(0, 8),
-        hasSelectionClick: !!onSelectionClick,
-        hasTapToMove: !!onTapToMove,
-        hasMobileTap: !!onMobileTap,
-        readOnly
-      });
+  // Simple immediate tap handler (like MobileImageItem pattern)
+  // - Single tap → immediately toggles selection
+  // - When selected → center button appears to open lightbox
+  // - No double-tap detection delays
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const SCROLL_THRESHOLD = 10;
 
-      // If multi-select is enabled, single tap toggles selection
-      // Otherwise fall back to tap-to-move or lightbox
-      if (onSelectionClick) {
-        console.log('[DoubleTapFlow] 🎯 Calling onSelectionClick (multi-select toggle)');
-        // Create a synthetic event for the handler
-        onSelectionClick({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent);
-      } else if (onTapToMove) {
-        console.log('[DoubleTapFlow] 🎯 Calling onTapToMove (tablet selection)');
-        onTapToMove();
-      } else if (onMobileTap) {
-        console.log('[DoubleTapFlow] 📱 Calling onMobileTap (phone lightbox)');
-        // On phones without tap-to-move, single tap opens lightbox
-        onMobileTap();
-      } else {
-        console.log('[DoubleTapFlow] ⚠️ No handlers available for single tap!');
-      }
-    },
-    onDoubleTap: () => {
-      console.log('[DoubleTapFlow] 🎬 DOUBLE TAP CALLBACK - TimelineItem:', {
-        itemId: imageKey?.substring(0, 8),
-        hasMobileTap: !!onMobileTap,
-        readOnly
-      });
-      
-      // Double-tap always opens lightbox if available
-      if (onMobileTap) {
-        console.log('[DoubleTapFlow] 🚀 Calling onMobileTap to open lightbox');
-        onMobileTap();
-      } else {
-        console.log('[DoubleTapFlow] ⚠️ No onMobileTap handler for double-tap!');
-      }
-    },
-    itemId: imageKey,
-    disabled: readOnly,
-  });
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (readOnly) return;
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+  }, [readOnly]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (readOnly || !touchStartPosRef.current) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
+    const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
+    touchStartPosRef.current = null;
+
+    // Ignore if user scrolled
+    if (deltaX > SCROLL_THRESHOLD || deltaY > SCROLL_THRESHOLD) {
+      return;
+    }
+
+    // Check if tapping on a button
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) {
+      return;
+    }
+
+    // Immediate selection toggle (like MobileImageItem)
+    if (onSelectionClick) {
+      onSelectionClick({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent);
+    } else if (onMobileTap) {
+      // Fallback for phones: tap opens lightbox directly
+      onMobileTap();
+    }
+  }, [readOnly, onSelectionClick, onMobileTap]);
 
   // Calculate aspect ratio for consistent sizing
   const getAspectRatioStyle = () => {
@@ -316,11 +303,9 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
         transition: isDragging ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out, box-shadow 0.2s ease-out',
         opacity: isDragging ? 0.8 : 1,
         zIndex: isElevated ? 20 : 1,
-        cursor: isSelectedForMove || isSelected ? 'pointer' : 'move',
+        cursor: isSelected ? 'pointer' : 'move',
         boxShadow: isSelected
           ? '0 0 0 4px rgba(249, 115, 22, 1), 0 0 0 6px rgba(249, 115, 22, 0.3)'
-          : isSelectedForMove
-          ? '0 0 0 3px rgba(249, 115, 22, 0.6), 0 8px 25px rgba(249, 115, 22, 0.3)'
           : (isElevated ? '0 8px 25px rgba(0, 0, 0, 0.15)' : 'none'),
         // Prevent clicks from reaching items underneath when not hovered
         pointerEvents: isElevated ? 'auto' : 'auto',
@@ -458,12 +443,32 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
             loading="lazy"
           />
 
-          {/* Selected for move indicator (tablet tap-to-move) */}
-          {isSelectedForMove && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          {/* Selected state: show "Tap timeline to place" hint and Open button */}
+          {/* This replaces the old double-tap pattern with explicit buttons (like MobileImageItem) */}
+          {isSelected && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none gap-1">
+              {/* "Tap timeline to place" hint */}
               <div className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-md">
                 Tap timeline to place
               </div>
+              {/* Open lightbox button (like MobileImageItem) */}
+              {onMobileTap && (
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-7 w-7 rounded-full bg-background/90 hover:bg-background shadow-lg pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMobileTap();
+                  }}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                  }}
+                  title="Open lightbox"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           )}
 

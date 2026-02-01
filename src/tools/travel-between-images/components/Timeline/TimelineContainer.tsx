@@ -91,7 +91,6 @@ import { useZoom } from './hooks/useZoom';
 import { useUnifiedDrop } from './hooks/useUnifiedDrop';
 import { useTimelineDrag } from './hooks/useTimelineDrag';
 import { useGlobalEvents } from './hooks/useGlobalEvents';
-import { useTapToMove } from './hooks/useTapToMove';
 import { useTimelineSelection } from './hooks/useTimelineSelection';
 import { applyFluidTimeline, applyFluidTimelineMulti } from './utils/timeline-utils';
 import { SelectionActionBar } from '@/shared/components/ShotImageManager/components/SelectionActionBar';
@@ -760,8 +759,11 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     // Update positions via setFramePositions which handles database update
     await setFramePositions(finalPositions);
 
+    // Clear selection after moving (same as multi-item move)
+    clearSelection();
+
     console.log('[TapToMove] Position update completed');
-  }, [framePositions, setFramePositions, fullMin, fullMax]);
+  }, [framePositions, setFramePositions, fullMin, fullMax, clearSelection]);
 
   // Multi-item tap-to-move handler (for tablets with multiple items selected)
   const handleTapToMoveMultiAction = React.useCallback(async (imageIds: string[], targetFrame: number) => {
@@ -790,16 +792,33 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     console.log('[TapToMoveMulti] Multi-item move completed');
   }, [framePositions, setFramePositions, clearSelection]);
 
-  const tapToMove = useTapToMove({
-    isEnabled: enableTapToMove,
-    onMove: handleTapToMoveAction,
-    onMoveMultiple: handleTapToMoveMultiAction,
-    framePositions,
-    fullMin,
-    fullRange,
-    timelineWidth: containerWidth,
-    selectedIds,
-  });
+  // Handle timeline tap to move selected items (simplified - no separate hook needed)
+  const handleTimelineTapToMove = React.useCallback((clientX: number) => {
+    if (!enableTapToMove || !containerRef.current || selectedIds.length === 0) return;
+
+    // Calculate target frame from tap position
+    const rect = containerRef.current.getBoundingClientRect();
+    const relativeX = clientX - rect.left;
+
+    // Account for padding (same logic as useTimelineDrag)
+    const effectiveWidth = containerWidth - (TIMELINE_PADDING_OFFSET * 2);
+    const adjustedX = relativeX - TIMELINE_PADDING_OFFSET;
+    const normalizedX = Math.max(0, Math.min(1, adjustedX / effectiveWidth));
+    const targetFrame = Math.round(fullMin + (normalizedX * fullRange));
+
+    console.log('[TapToMove] Timeline tapped - placing item(s):', {
+      selectedCount: selectedIds.length,
+      selectedIds: selectedIds.map(id => id.substring(0, 8)),
+      targetFrame,
+    });
+
+    // Move the item(s)
+    if (selectedIds.length > 1) {
+      handleTapToMoveMultiAction(selectedIds, targetFrame);
+    } else {
+      handleTapToMoveAction(selectedIds[0], targetFrame);
+    }
+  }, [enableTapToMove, containerWidth, fullMin, fullRange, selectedIds, handleTapToMoveAction, handleTapToMoveMultiAction]);
 
   // Global events hook
   useGlobalEvents({
@@ -1543,15 +1562,15 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
             const isClickingButton = target.closest('button');
 
             if (!isClickingItem && !isClickingButton) {
-              // On tablets, handle tap-to-place for selected items
-              if (enableTapToMove && (tapToMove.selectedItemId || selectedIds.length > 0)) {
+              // On tablets with selected items, tap-to-place moves them
+              if (enableTapToMove && selectedIds.length > 0) {
                 e.preventDefault();
                 e.stopPropagation();
-                tapToMove.handleTimelineTap(e.clientX, containerRef);
+                handleTimelineTapToMove(e.clientX);
                 return;
               }
 
-              // Clear multi-selection when clicking on empty timeline background
+              // Clear selection when clicking on empty timeline background (desktop)
               if (selectedIds.length > 0) {
                 console.log('[TimelineSelection] Clearing selection on background click');
                 clearSelection();
@@ -1564,7 +1583,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
             userSelect: 'none',
             paddingLeft: `${TIMELINE_HORIZONTAL_PADDING}px`,
             paddingRight: `${TIMELINE_HORIZONTAL_PADDING + 60}px`,
-            cursor: tapToMove.selectedItemId ? 'crosshair' : 'default',
+            cursor: enableTapToMove && selectedIds.length > 0 ? 'crosshair' : 'default',
           }}
         >
           {/* Drop position indicator - positioned in timeline area only */}
@@ -1723,7 +1742,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 defaultNegativePrompt={defaultNegativePrompt}
                 showLabel={showPairLabels}
                 hidePairLabel={
-                  !!tapToMove.selectedItemId ||
+                  (enableTapToMove && selectedIds.length > 0) ||
                   (isFileOver && dropTargetFrame !== null && dropTargetFrame > actualStartFrame && dropTargetFrame < actualEndFrame) ||
                   (dragState.isDragging && currentDragFrame !== null && currentDragFrame > actualStartFrame && currentDragFrame < actualEndFrame)
                 }
@@ -1979,8 +1998,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 duplicateSuccessImageId={duplicateSuccessImageId}
                 projectAspectRatio={projectAspectRatio}
                 readOnly={readOnly}
-                isSelectedForMove={tapToMove.isItemSelected(imageKey)}
-                onTapToMove={enableTapToMove ? () => tapToMove.handleItemTap(imageKey) : undefined}
                 onPrefetch={!isMobile ? () => {
                   const generationId = (image as any).generation_id || image.id;
                   if (generationId) prefetchTaskData(generationId);
