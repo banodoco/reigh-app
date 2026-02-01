@@ -1320,7 +1320,15 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
               variant="destructive"
               size="sm"
               className="absolute top-1 right-1 z-30 h-6 w-6 p-0 opacity-90 hover:opacity-100 shadow-lg rounded-full"
-              onClick={onRemove}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onRemove();
+              }}
               title="Remove guidance video"
             >
               <X className="h-4 w-4" />

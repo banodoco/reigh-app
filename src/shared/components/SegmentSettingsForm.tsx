@@ -1264,7 +1264,15 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onRemoveSegmentStructureVideo}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveSegmentStructureVideo();
+                        }}
+                        onTouchEnd={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          onRemoveSegmentStructureVideo();
+                        }}
                         disabled={isUploadingVideo}
                         className="absolute -top-1 -right-1 z-10 h-6 w-6 p-0 rounded-full bg-background/80 hover:bg-destructive/20 text-destructive hover:text-destructive"
                         title="Remove video"
