@@ -1480,59 +1480,8 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
           )}>
               {/* Info Button + Variant Count + NEW badge Row (for non-video content) */}
               <div className="flex flex-row items-center gap-1.5">
-                {/* Info tooltip (shown on hover) */}
-              {image.metadata && (
-                isMobile ? (
-                  <PopoverPrimitive.Root open={mobilePopoverOpenImageId === image.id} onOpenChange={(open) => {
-                    if (!open) {
-                      setMobilePopoverOpenImageId(null);
-                    }
-                  }}>
-                    <PopoverPrimitive.Trigger asChild>
-                      <div
-                        className={cn(
-                          "transition-opacity cursor-pointer",
-                          mobileActiveImageId === image.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                        )}
-                        onClick={() => {
-                          setMobilePopoverOpenImageId(image.id);
-                        }}
-                      >
-                        <div className="h-7 w-7 rounded-full bg-black/30 flex items-center justify-center">
-                          <Info className="h-3.5 w-3.5 text-white" />
-                        </div>
-                      </div>
-                    </PopoverPrimitive.Trigger>
-                    <PopoverPrimitive.Portal>
-                      <PopoverPrimitive.Content
-                        side="right"
-                        align="start"
-                        sideOffset={4}
-                        className="z-[10010] max-w-lg p-0 border bg-background shadow-lg rounded-md max-h-96 overflow-y-auto"
-                      >
-                        {shouldShowMetadata && image.metadata && (
-                          <>
-                            {shouldShowTaskDetails ? (
-                              <GenerationDetails
-                                task={taskData}
-                                inputImages={inputImages}
-                                variant="panel"
-                                isMobile={true}
-                              />
-                            ) : (
-                              <SharedMetadataDetails
-                                metadata={image.metadata}
-                                variant="panel"
-                                isMobile={true}
-                                showUserImage={true}
-                              />
-                            )}
-                          </>
-                        )}
-                      </PopoverPrimitive.Content>
-                    </PopoverPrimitive.Portal>
-                  </PopoverPrimitive.Root>
-                ) : (
+                {/* Info tooltip (desktop only, hidden when NEW badge is showing) */}
+              {image.metadata && !isMobile && !image.hasUnviewedVariants && (
                   <Tooltip onOpenChange={setIsInfoOpen}>
                     <TooltipTrigger asChild>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
@@ -1569,7 +1518,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                       )}
                     </TooltipContent>
                   </Tooltip>
-                )
               )}
 
                 {/* "X new" badge + Variant Count - positioned to the right of Info button */}
