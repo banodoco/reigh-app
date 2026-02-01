@@ -850,17 +850,21 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
 
     const touch = e.changedTouches[0];
     const rect = outerContainerRef.current.getBoundingClientRect();
-
-    // Check if tap is outside current strip bounds - if so, snap to timeline edge
     const tapX = touch.clientX;
-    const stripLeft = rect.left;
-    const stripRight = rect.right;
 
     const MIN_DURATION_FRAMES = 10;
+    const EDGE_SNAP_THRESHOLD = 5; // frames - only snap to edge if within this many frames
 
-    // Find sibling boundaries
-    let leftLimit = 0;
-    let rightLimit = fullMax;
+    // Safety check: if strip width is too small, bail out to avoid division issues
+    if (stripWidthPercent < 1) {
+      console.warn('[GuidanceVideoStrip] Strip width too small, ignoring tap-to-place');
+      setSelectedEndpoint(null);
+      return;
+    }
+
+    // Find sibling boundaries (clamped to timeline bounds)
+    let leftLimit = Math.max(0, fullMin);
+    let rightLimit = Math.min(fullMax, fullMax); // Start with fullMax
     for (const sibling of siblingRanges) {
       if (sibling.end <= effectiveOutputStart && sibling.end > leftLimit) {
         leftLimit = sibling.end;
@@ -870,36 +874,61 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
       }
     }
 
+    // Calculate target frame using full timeline coordinate system
+    // The strip is positioned at stripLeftPercent% with stripWidthPercent% width
+    // Work backwards to find the full timeline dimensions
+    const fullTimelineWidth = rect.width / (stripWidthPercent / 100);
+    const timelineLeft = rect.left - (stripLeftPercent / 100) * fullTimelineWidth;
+    const normalizedX = Math.max(0, Math.min(1, (tapX - timelineLeft) / fullTimelineWidth));
+    const targetFrame = Math.round(fullMin + normalizedX * fullRange);
+
+    console.log('[GuidanceVideoStrip] Tap-to-place calculation:', {
+      selectedEndpoint,
+      tapX,
+      timelineLeft,
+      fullTimelineWidth,
+      normalizedX,
+      targetFrame,
+      leftLimit,
+      rightLimit,
+      fullMin,
+      fullMax,
+    });
+
     if (selectedEndpoint === 'left') {
-      if (tapX < stripLeft) {
-        // Tapped to the LEFT of strip - extend to start (or sibling boundary)
-        console.log('[GuidanceVideoStrip] Tap outside left edge - extending to start');
-        onRangeChange(leftLimit, effectiveOutputEnd);
+      // Only snap to leftLimit if tap is very close to the edge
+      let newStart: number;
+      if (targetFrame <= leftLimit + EDGE_SNAP_THRESHOLD) {
+        // Tap is at or near the left edge - snap to limit
+        console.log('[GuidanceVideoStrip] Snapping to left edge (within threshold)');
+        newStart = leftLimit;
       } else {
-        // Tapped within strip - calculate precise position
-        const relativeX = tapX - stripLeft;
-        const normalizedX = Math.max(0, Math.min(1, relativeX / rect.width));
-        const targetFrame = Math.round(effectiveOutputStart + (normalizedX * (effectiveOutputEnd - effectiveOutputStart)));
-        let newStart = Math.max(leftLimit, targetFrame);
-        newStart = Math.min(newStart, effectiveOutputEnd - MIN_DURATION_FRAMES);
-        console.log('[GuidanceVideoStrip] Tap-to-place left endpoint:', { targetFrame, newStart });
-        onRangeChange(newStart, effectiveOutputEnd);
+        // Tap is not near edge - use precise position
+        newStart = Math.max(leftLimit, targetFrame);
       }
+      newStart = Math.min(newStart, effectiveOutputEnd - MIN_DURATION_FRAMES);
+      // Final safety clamp to timeline bounds
+      newStart = Math.max(fullMin, Math.min(newStart, fullMax - MIN_DURATION_FRAMES));
+      const finalEnd = Math.min(effectiveOutputEnd, fullMax);
+      console.log('[GuidanceVideoStrip] Tap-to-place left endpoint:', { targetFrame, newStart, finalEnd });
+      onRangeChange(newStart, finalEnd);
     } else {
-      if (tapX > stripRight) {
-        // Tapped to the RIGHT of strip - extend to end (or sibling boundary)
-        console.log('[GuidanceVideoStrip] Tap outside right edge - extending to end');
-        onRangeChange(effectiveOutputStart, rightLimit);
+      // Only snap to rightLimit if tap is very close to the edge
+      let newEnd: number;
+      if (targetFrame >= rightLimit - EDGE_SNAP_THRESHOLD) {
+        // Tap is at or near the right edge - snap to limit
+        console.log('[GuidanceVideoStrip] Snapping to right edge (within threshold)');
+        newEnd = rightLimit;
       } else {
-        // Tapped within strip - calculate precise position
-        const relativeX = tapX - stripLeft;
-        const normalizedX = Math.max(0, Math.min(1, relativeX / rect.width));
-        const targetFrame = Math.round(effectiveOutputStart + (normalizedX * (effectiveOutputEnd - effectiveOutputStart)));
-        let newEnd = Math.min(rightLimit, targetFrame);
-        newEnd = Math.max(newEnd, effectiveOutputStart + MIN_DURATION_FRAMES);
-        console.log('[GuidanceVideoStrip] Tap-to-place right endpoint:', { targetFrame, newEnd });
-        onRangeChange(effectiveOutputStart, newEnd);
+        // Tap is not near edge - use precise position
+        newEnd = Math.min(rightLimit, targetFrame);
       }
+      newEnd = Math.max(newEnd, effectiveOutputStart + MIN_DURATION_FRAMES);
+      // Final safety clamp to timeline bounds
+      newEnd = Math.min(fullMax, Math.max(newEnd, fullMin + MIN_DURATION_FRAMES));
+      const finalStart = Math.max(effectiveOutputStart, fullMin);
+      console.log('[GuidanceVideoStrip] Tap-to-place right endpoint:', { targetFrame, newEnd, finalStart });
+      onRangeChange(finalStart, newEnd);
     }
 
     // Clear selection after placing
@@ -1080,8 +1109,8 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
       if (newEnd > fullMax) {
         newEnd = fullMax;
       }
-      if (newStart < 0) {
-        newStart = 0;
+      if (newStart < fullMin) {
+        newStart = fullMin;
       }
       
       // Ensure minimum duration
