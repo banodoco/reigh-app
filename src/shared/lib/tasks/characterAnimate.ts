@@ -1,10 +1,11 @@
-import { 
-  generateTaskId, 
-  generateRunId, 
-  createTask, 
-  validateRequiredFields, 
-  TaskValidationError 
+import {
+  generateTaskId,
+  generateRunId,
+  createTask,
+  validateRequiredFields,
+  TaskValidationError
 } from "../taskCreation";
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Interface for character animate (Wan2.2-Animate) task parameters
@@ -137,7 +138,7 @@ export async function createCharacterAnimateTask(params: CharacterAnimateTaskPar
     return result;
 
   } catch (error) {
-    console.error("[createCharacterAnimateTask] Error creating task:", error);
+    handleError(error, { context: 'CharacterAnimate', showToast: false });
     throw error;
   }
 }

@@ -384,12 +384,7 @@ const CharacterAnimatePage: React.FC = () => {
       });
     },
     onError: (error) => {
-      console.error('[CharacterAnimate] Task creation failed:', error);
-      toast({
-        title: 'Failed to create task',
-        description: error instanceof Error ? error.message : 'Failed to create animation task',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'CharacterAnimate', toastTitle: 'Failed to create task' });
     },
   });
   

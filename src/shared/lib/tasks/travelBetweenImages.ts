@@ -10,6 +10,7 @@ import {
 } from "../taskCreation";
 import { supabase } from '@/integrations/supabase/client';
 import { PhaseConfig } from '@/tools/travel-between-images/settings';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // ============================================================================
 // Video Generation API Param Interfaces (Single Source of Truth)
@@ -1038,7 +1039,7 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
     };
 
   } catch (error) {
-    console.error("[createTravelBetweenImagesTask] Error creating task:", error);
+    handleError(error, { context: 'TravelBetweenImages', showToast: false });
     throw error;
   }
 }

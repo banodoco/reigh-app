@@ -42,6 +42,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Sparkles, Settings2 } from 'luc
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useStableObject } from '@/shared/hooks/useStableObject';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Remove unnecessary environment detection - tool should work in all environments
 
@@ -432,8 +433,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
       setGeneratedImages(prev => [upscaledImage, ...prev]);
     } catch (error) {
-      console.error("Error upscaling image:", error);
-      toast.error(`Failed to upscale image: ${error instanceof Error ? error.message : 'Unknown error'}`, { id: toastId });
+      handleError(error, { context: 'ImageGenerationToolPage.handleUpscaleImage', toastTitle: `Failed to upscale image: ${error instanceof Error ? error.message : 'Unknown error'}` });
     } finally {
       setIsUpscalingImageId(null);
     }
@@ -498,8 +498,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
       return createdTaskIds;
     } catch (error) {
-      console.error('[ImageGeneration] Error creating tasks:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create tasks.');
+      handleError(error, { context: 'ImageGenerationToolPage.handleNewGenerate', toastTitle: error instanceof Error ? error.message : 'Failed to create tasks.' });
       return [];
     } finally {
       setLocalIsGenerating(false);
@@ -577,8 +576,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
       return true;
     } catch (error) {
-      console.error("Error adding image to target shot:", error);
-      toast.error("Failed to add image to shot.");
+      handleError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShot', toastTitle: 'Failed to add image to shot.' });
       return false;
     }
   }, [targetShotInfo.targetShotIdForButton, selectedProjectId, addImageToShotMutation, positionExistingGenerationMutation, setLastAffectedShotId, selectedShotFilter, excludePositioned]);
@@ -615,8 +613,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
       return true;
     } catch (error) {
-      console.error("Error adding image to target shot without position:", error);
-      toast.error("Failed to add image to shot without position.");
+      handleError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShotWithoutPosition', toastTitle: 'Failed to add image to shot without position.' });
       return false;
     }
   }, [targetShotInfo.targetShotIdForButton, selectedProjectId, addImageToShotWithoutPositionMutation, setLastAffectedShotId, queryClient]);
@@ -698,7 +695,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
       console.log('[BackfillV2] Refetch completed');
     } catch (error) {
-      console.error('[BackfillV2] Failed to refetch data:', error);
+      handleError(error, { context: 'ImageGenerationToolPage.refetchGenerationsAfterChange', showToast: false });
       throw error; // Re-throw so the caller can handle it
     }
   }, [selectedProjectId, effectiveProjectId, currentPage, itemsPerPage, queryClient, generationsFilters]);

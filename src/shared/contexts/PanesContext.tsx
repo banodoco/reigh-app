@@ -4,6 +4,7 @@ import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { PANE_CONFIG } from '@/shared/config/panes';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface PanesContextType {
   isGenerationsPaneLocked: boolean;
@@ -210,7 +211,7 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         console.log('[PanesContext] All pane locks reset in database');
       }
     } catch (error) {
-      console.error('[PanesContext] Error resetting pane locks in database:', error);
+      handleError(error, { context: 'PanesContext', showToast: false });
     }
   }, [savePaneLocks]);
 

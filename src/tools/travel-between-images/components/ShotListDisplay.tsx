@@ -25,6 +25,7 @@ import { useCurrentProject } from '@/shared/hooks/useCurrentProject';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
+import { handleError } from '@/shared/lib/errorHandler';
 import { Plus, Upload, Loader2 } from 'lucide-react';
 import { getDragType, getGenerationDropData, isFileDrag, type GenerationDropData, type DragType } from '@/shared/lib/dragDrop';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
@@ -554,8 +555,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       try {
         await onGenerationDropForNewShot(generationData);
       } catch (error) {
-        console.error('[ShotDrop] Error creating new shot from generation:', error);
-        toast.error(`Failed to create shot: ${(error as Error).message}`);
+        handleError(error, { context: 'ShotDrop', toastTitle: 'Failed to create shot' });
         clearPendingNewShot();
       }
       return;
@@ -583,8 +583,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       try {
         await onFilesDropForNewShot(validFiles);
       } catch (error) {
-        console.error('[ShotDrop] Error creating new shot from files:', error);
-        toast.error(`Failed to create shot: ${(error as Error).message}`);
+        handleError(error, { context: 'ShotDrop', toastTitle: 'Failed to create shot' });
         clearPendingNewShot();
       }
     }

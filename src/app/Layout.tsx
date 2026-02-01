@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
 import { Outlet, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { handleError } from '@/shared/lib/errorHandler';
 import { GlobalHeader } from '@/shared/components/GlobalHeader';
 import TasksPane from '@/shared/components/TasksPane/TasksPane';
 import ToolsPane from '@/shared/components/ToolsPane/ToolsPane';
@@ -245,7 +246,7 @@ const Layout: React.FC = () => {
           }, 1000);
         }
       } catch (err) {
-        console.error('[Onboarding] Failed to find Getting Started shot:', err);
+        handleError(err, { context: 'Layout', showToast: false });
       }
     }
   }, [closeOnboardingModal, selectedProjectId, navigate, startTour]);

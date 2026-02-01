@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/shared/components/ui/slider';
 import { Video, X, Images } from 'lucide-react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { uploadVideoToStorage, extractVideoMetadata, VideoMetadata } from '@/shared/lib/videoUploader';
 import { DatasetBrowserModal } from '@/shared/components/DatasetBrowserModal';
 import { useCreateResource, Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
@@ -251,8 +252,7 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
       // Notify parent with resource ID
       onVideoUploaded(uploadedVideoUrl, metadata, resource.id);
     } catch (error) {
-      console.error('[BatchGuidanceVideo] Upload failed:', error);
-      toast.error(`Failed to upload video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      handleError(error, { context: 'BatchGuidanceVideo', toastTitle: 'Failed to upload video' });
     } finally {
       setIsUploading(false);
       setUploadProgress(0);

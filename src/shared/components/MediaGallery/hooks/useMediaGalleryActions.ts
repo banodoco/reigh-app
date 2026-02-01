@@ -1,9 +1,9 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { GenerationRow } from '@/types/shots';
-import { useToast } from '@/shared/hooks/use-toast';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { getDisplayUrl } from '@/shared/lib/utils';
 import { GeneratedImageWithMetadata, DisplayableMetadata } from '../index';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface UseMediaGalleryActionsProps {
   onDelete?: (id: string) => void;
@@ -164,7 +164,7 @@ export const useMediaGalleryActions = ({
       }
 
     } catch (error) {
-      console.error('[BackfillV2] Delete failed, reverting:', error);
+      handleError(error, { context: 'useMediaGalleryActions', toastTitle: 'Delete Failed' });
 
       // Revert optimistic state
       removeOptimisticDeleted(imageId);
@@ -174,12 +174,6 @@ export const useMediaGalleryActions = ({
       if (pendingDeletesRef.current.size === 0) {
         setIsBackfillLoading(false);
       }
-
-      toast({
-        title: "Delete Failed",
-        description: "Could not delete the image. Please try again.",
-        variant: "destructive"
-      });
     }
   }, [
     markOptimisticDeleted,
@@ -280,13 +274,7 @@ export const useMediaGalleryActions = ({
 
       xhr.send();
     } catch (error) {
-      console.error("Error downloading image:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      toast({
-        title: "Download Failed",
-        description: `Could not download ${filename}. ${errorMessage}`,
-        variant: "destructive"
-      });
+      handleError(error, { context: 'useMediaGalleryActions', toastTitle: 'Download Failed' });
     } finally {
       setDownloadingImageId(null);
     }
@@ -397,12 +385,7 @@ export const useMediaGalleryActions = ({
             });
           }
         } catch (error) {
-          console.error(`Error processing image ${i + 1}:`, error);
-          toast({
-            title: "Image processing error",
-            description: `Failed to process image ${i + 1}, continuing with others...`,
-            variant: "destructive"
-          });
+          handleError(error, { context: 'useMediaGalleryActions', toastTitle: `Image processing error` });
         }
       }
 
@@ -433,13 +416,7 @@ export const useMediaGalleryActions = ({
       });
 
     } catch (error) {
-      console.error("Error downloading starred images:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      toast({
-        title: "Download failed",
-        description: `Could not create zip file. ${errorMessage}`,
-        variant: "destructive"
-      });
+      handleError(error, { context: 'useMediaGalleryActions', toastTitle: 'Download failed' });
     } finally {
       setIsDownloadingStarred(false);
     }

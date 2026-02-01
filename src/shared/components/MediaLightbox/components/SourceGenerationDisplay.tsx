@@ -3,6 +3,7 @@ import { GenerationRow } from '@/types/shots';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Star, Loader2 } from 'lucide-react';
+import { handleError } from '@/shared/lib/errorHandler';
 import type { SourceVariantData } from '../hooks/useSourceGeneration';
 
 interface SourceGenerationDisplayProps {
@@ -130,7 +131,7 @@ export const SourceGenerationDisplay: React.FC<SourceGenerationDisplayProps> = (
       await onMakeMainVariant();
       console.log('[VariantClickDebug] handleMakeMainVariant completed successfully');
     } catch (error) {
-      console.error('[VariantClickDebug] handleMakeMainVariant failed:', error);
+      handleError(error, { context: 'SourceGenerationDisplay', showToast: false });
     } finally {
       setIsMakingMainVariant(false);
     }

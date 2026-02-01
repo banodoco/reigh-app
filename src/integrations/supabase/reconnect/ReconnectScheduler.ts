@@ -1,5 +1,7 @@
 // Network status integration can be added later if needed
 
+import { handleError } from '@/shared/lib/errorHandler';
+
 /**
  * ReconnectScheduler - Centralized manager for realtime reconnection intents
  * 
@@ -153,19 +155,7 @@ export class ReconnectScheduler {
       
       console.log('[ReconnectScheduler] ✅ Event dispatched successfully');
     } catch (error) {
-      console.error('[ReconnectScheduler] ❌ FAILED TO DISPATCH RECONNECT:', {
-        error,
-        errorMessage: error?.message,
-        errorStack: error?.stack,
-        eventDetails: {
-          source: primaryIntent.source,
-          reason: primaryIntent.reason,
-          priority: primaryIntent.priority,
-          coalescedSources: allSources,
-          coalescedReasons: allReasons,
-          timestamp: now
-        }
-      });
+      handleError(error, { context: 'ReconnectScheduler', showToast: false });
     } finally {
       this.isProcessing = false;
       console.log('[ReconnectScheduler] Processing complete, isProcessing set to false');

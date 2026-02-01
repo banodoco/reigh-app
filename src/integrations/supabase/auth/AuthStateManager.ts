@@ -1,3 +1,5 @@
+import { handleError } from '@/shared/lib/errorHandler';
+
 export class AuthStateManager {
   private listeners: Array<{id: string, callback: (event: string, session: any) => void}> = [];
   private isInitialized = false;
@@ -17,7 +19,7 @@ export class AuthStateManager {
       try {
         callback(event, session);
       } catch (error) {
-        console.error(`[AuthManager] ❌ LISTENER ERROR: ${id}`, { event, error });
+        handleError(error, { context: 'AuthStateManager', showToast: false });
       }
     });
   }
@@ -44,16 +46,16 @@ export class AuthStateManager {
                   priority: 'high'
                 });
               } catch (importError) {
-                console.error('[AuthManager] ❌ Failed to import ReconnectScheduler:', importError);
+                handleError(importError, { context: 'AuthStateManager', showToast: false });
               }
             }
           } catch (healError) {
-            console.error('[AuthManager] ❌ RECONNECT REQUEST FAILED:', healError);
+            handleError(healError, { context: 'AuthStateManager', showToast: false });
           }
         }, 1000);
       }
     } catch (setAuthError) {
-      console.error('[AuthManager] ❌ REALTIME.SETAUTH ERROR:', setAuthError);
+      handleError(setAuthError, { context: 'AuthStateManager', showToast: false });
     }
   }
 
@@ -69,7 +71,7 @@ export class AuthStateManager {
       });
       this.isInitialized = true;
     } catch (authError) {
-      console.error('[AuthManager] ❌ INITIALIZATION FAILED:', authError);
+      handleError(authError, { context: 'AuthStateManager', showToast: false });
     }
   }
 }

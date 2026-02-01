@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { usePromoteVariantToGeneration } from '@/shared/hooks/usePromoteVariantToGeneration';
 import { useAddImageToShot } from '@/shared/hooks/useShots';
@@ -63,7 +64,7 @@ export function useVariantPromotion({
       setTimeout(() => setPromoteSuccess(false), 2000);
       // Stay on current item - don't navigate away
     } catch (error) {
-      console.error('[PromoteVariant] Error promoting variant:', error);
+      handleError(error, { context: 'useVariantPromotion', showToast: false });
       // Error toast is handled in the hook
     }
   }, [promoteVariantMutation, selectedProjectId, actualGenerationId]);
@@ -162,7 +163,7 @@ export function useVariantPromotion({
       console.log('[VariantToShot] Added to shot at frame:', targetTimelineFrame);
       return true;
     } catch (error) {
-      console.error('[VariantToShot] Error:', error);
+      handleError(error, { context: 'useVariantPromotion', showToast: false });
       return false;
     }
   }, [promoteVariantMutation, addImageToShotMutation, selectedProjectId, actualGenerationId]);

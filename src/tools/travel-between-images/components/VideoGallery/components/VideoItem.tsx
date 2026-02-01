@@ -40,6 +40,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Slider } from '@/shared/components/ui/slider';
 import { Switch } from '@/shared/components/ui/switch';
 import { VariantBadge } from '@/shared/components/VariantBadge';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface VideoItemProps {
   video: GenerationRow;
@@ -153,7 +154,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
           if (cancelled) return;
 
           if (error) {
-            console.error('[JoinClips] Error fetching child generations:', error);
+            handleError(error, { context: 'JoinClips', showToast: false });
             return;
           }
 
@@ -346,12 +347,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
       });
       
     } catch (error) {
-      console.error('[JoinClips] Error creating join task:', error);
-      toast({
-        title: 'Failed to create join task',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'JoinClips', toastTitle: 'Failed to create join task' });
     } finally {
       setIsJoiningClips(false);
     }
@@ -632,12 +628,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
           setShareCopied(false);
         }, 2000);
       } catch (error) {
-        console.error('[Share] Failed to copy to clipboard:', error);
-        toast({
-          title: "Copy failed",
-          description: "Please try again",
-          variant: "destructive"
-        });
+        handleError(error, { context: 'Share', toastTitle: 'Copy failed' });
       }
       return;
     }
@@ -667,12 +658,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
         .maybeSingle();
 
       if (existingError && existingError.code !== 'PGRST116') { // PGRST116 = no rows
-        console.error('[Share] Failed to check existing share:', existingError);
-        toast({
-          title: "Share failed",
-          description: "Please try again",
-          variant: "destructive"
-        });
+        handleError(existingError, { context: 'Share', toastTitle: 'Share failed' });
         setIsCreatingShare(false);
         return;
       }
@@ -712,14 +698,10 @@ export const VideoItem = React.memo<VideoItemProps>(({
       ]);
 
       if (generationResult.error || taskResult.error) {
-        console.error('[Share] Failed to fetch data:', {
-          generationError: generationResult.error,
-          taskError: taskResult.error
-        });
-        toast({
-          title: "Share failed",
-          description: "Failed to load generation data",
-          variant: "destructive"
+        handleError(generationResult.error || taskResult.error, {
+          context: 'Share',
+          toastTitle: 'Share failed',
+          logData: { generationError: generationResult.error, taskError: taskResult.error }
         });
         setIsCreatingShare(false);
         return;
@@ -770,12 +752,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
 
         // Other error - fail
         if (insertError) {
-          console.error('[Share] Failed to create share:', insertError);
-          toast({
-            title: "Share failed",
-            description: insertError.message || "Please try again",
-            variant: "destructive"
-          });
+          handleError(insertError, { context: 'Share', toastTitle: 'Share failed' });
           setIsCreatingShare(false);
           return;
         }
@@ -813,12 +790,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
         });
       }
     } catch (error) {
-      console.error('[Share] Unexpected error:', error);
-      toast({
-        title: "Something went wrong",
-        description: "Please try again",
-        variant: "destructive"
-      });
+      handleError(error, { context: 'Share', toastTitle: 'Something went wrong' });
     } finally {
       setIsCreatingShare(false);
     }

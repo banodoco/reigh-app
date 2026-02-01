@@ -7,6 +7,7 @@ import {
   Settings,
 } from 'lucide-react';
 import ShotSelectorWithAdd from '@/shared/components/ShotSelectorWithAdd';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface ShotOption {
   id: string;
@@ -112,7 +113,7 @@ export const WorkflowControls: React.FC<WorkflowControlsProps> = ({
         onOptimisticUnpositioned?.(mediaId, selectedShotId);
       }
     } catch (error) {
-      console.error('[WorkflowControls] Error adding without position:', error);
+      handleError(error, { context: 'WorkflowControls', showToast: false });
     }
   };
 

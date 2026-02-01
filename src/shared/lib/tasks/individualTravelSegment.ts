@@ -6,6 +6,7 @@ import {
 import type { TaskCreationResult } from "../taskCreation";
 import { supabase } from '@/integrations/supabase/client';
 import { PhaseConfig, buildBasicModePhaseConfig } from '@/tools/travel-between-images/settings';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Interface for individual travel segment regeneration task parameters
@@ -752,7 +753,7 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
     return result;
 
   } catch (error) {
-    console.error("[IndividualTravelSegment] Error creating task:", error);
+    handleError(error, { context: 'IndividualTravelSegment', showToast: false });
     throw error;
   }
 }

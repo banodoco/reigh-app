@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Detect if running as iOS/iPadOS PWA (standalone mode)
@@ -125,7 +126,7 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
         }
       }
     } catch (shareError) {
-      console.log('[Download] Web Share failed, falling back to window.open:', shareError);
+      handleError(shareError, { context: 'downloadMedia', showToast: false });
     }
     
     // Fallback: Open URL in new window - iOS will show its native preview
@@ -136,8 +137,7 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
       console.log('[Download] iOS PWA: Opened in new window');
       return;
     } catch (openError) {
-      console.error('[Download] iOS PWA fallback failed:', openError);
-      toast.error('Unable to download. Try opening in Safari.');
+      handleError(openError, { context: 'downloadMedia', toastTitle: 'Unable to download. Try opening in Safari.' });
       return;
     }
   }
@@ -204,23 +204,12 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
     });
     
   } catch (error: any) {
-    const errorDuration = Date.now() - downloadStartTime;
-    console.error('[PollingBreakageIssue] [MediaLightbox] Download failed', {
-      mediaId,
-      error: error.message,
-      errorName: error.name,
-      isAbortError: error.name === 'AbortError',
-      durationMs: errorDuration,
-      timestamp: Date.now()
-    });
-
     if (error.name === 'AbortError') {
-      toast.error('Download timed out. Please try again.');
+      handleError(error, { context: 'downloadMedia', toastTitle: 'Download timed out. Please try again.' });
       return; // Don't try fallback for timeout
     }
 
-    // Minimal error logging for fallback
-    console.error('Download failed, falling back to direct link:', error);
+    handleError(error, { context: 'downloadMedia', showToast: false });
     
     // Fallback 1: direct link with download attribute
     try {

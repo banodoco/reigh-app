@@ -33,6 +33,7 @@
 | **Modal System** | [modal_styling_system.md](docs/structure_detail/modal_styling_system.md) | Responsive modals, positioning |
 | **Debugging** | [debugging.md](docs/structure_detail/debugging.md) | CLI, `system_logs`, frontend logging |
 | **Error Handling** | [error_handling.md](docs/structure_detail/error_handling.md) | Typed errors, `handleError()`, error boundary |
+| **Refactoring** | [refactoring_patterns.md](docs/structure_detail/refactoring_patterns.md) | Splitting hooks/components, checklists |
 | **Tool: Image Gen** | [tool_image_generation.md](docs/structure_detail/tool_image_generation.md) | Multi-model generation, LoRA, style references |
 | **Tool: Video Travel** | [tool_video_travel.md](docs/structure_detail/tool_video_travel.md) | Timeline workflow, batch processing |
 | **Payments** | [auto_topup_system.md](docs/structure_detail/auto_topup_system.md) | Credits, auto-top-up, Stripe |

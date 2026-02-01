@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/compo
 import { useSegmentOutputsForShot } from '../hooks/useSegmentOutputsForShot';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from "sonner";
+import { handleError } from '@/shared/lib/errorHandler';
 import { getDisplayUrl } from '@/shared/lib/utils';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
 import { BatchGuidanceVideo } from './BatchGuidanceVideo';
@@ -381,8 +382,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
 
       console.log('[SegmentDelete] Delete complete');
     } catch (error) {
-      console.error('[SegmentDelete] ❌ FAILED:', error);
-      toast.error(`Failed to delete segment: ${(error as Error).message}`);
+      handleError(error, { context: 'SegmentDelete', toastTitle: 'Failed to delete segment' });
     } finally {
       setDeletingSegmentId(null);
     }
@@ -2120,7 +2120,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       ).then(() => {
         console.log('[SmoothContinuations] Timeline gaps compacted successfully');
       }).catch((err) => {
-        console.error('[SmoothContinuations] Error compacting timeline gaps:', err);
+        handleError(err, { context: 'SmoothContinuations', showToast: false });
       });
     }
   }, [smoothContinuations, images, maxFrameLimit, updateTimelineFrame, readOnly]);
@@ -2186,9 +2186,8 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
           // Add to zip
           zip.file(filename, blob);
         } catch (error) {
-          console.error(`Error processing image ${i + 1}:`, error);
+          handleError(error, { context: 'ImageDownload', toastTitle: `Failed to process image ${i + 1}` });
           // Continue with other images, don't fail the entire operation
-          toast.error(`Failed to process image ${i + 1}, continuing with others...`);
         }
       }
       
@@ -2213,9 +2212,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       document.body.removeChild(a);
       
     } catch (error) {
-      console.error("Error downloading shot images:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      toast.error(`Could not create zip file. ${errorMessage}`);
+      handleError(error, { context: 'ImageDownload', toastTitle: 'Could not create zip file' });
     } finally {
       setIsDownloadingImages(false);
     }
@@ -2239,7 +2236,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       await clearAllEnhancedPrompts();
       console.log('[ShotImagesEditor] 🧹 Cleared all enhanced prompts after base prompt change');
     } catch (error) {
-      console.error('[ShotImagesEditor] Error clearing enhanced prompts:', error);
+      handleError(error, { context: 'ShotImagesEditor', showToast: false });
     }
   }, [onDefaultPromptChange, clearAllEnhancedPrompts]);
 
@@ -2272,7 +2269,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       await onAddToShot(targetShotId, generationId, undefined as any);
       return true;
     } catch (error) {
-      console.error('[ShotImagesEditor] Error adding to shot:', error);
+      handleError(error, { context: 'ShotImagesEditor', showToast: false });
       return false;
     }
   }, [onAddToShot, selectedShotId]);
@@ -2293,7 +2290,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       await onAddToShotWithoutPosition(targetShotId, generationId);
       return true;
     } catch (error) {
-      console.error('[ShotImagesEditor] Error adding to shot without position:', error);
+      handleError(error, { context: 'ShotImagesEditor', showToast: false });
       return false;
     }
   }, [onAddToShotWithoutPosition]);
@@ -2373,7 +2370,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       // Get the first item of the pair
       const firstItem = sortedGenerations[pairIndex];
       if (!firstItem) {
-        console.error('[ClearEnhancedPrompt-Timeline] ❌ No generation found for pair index:', pairIndex);
+        handleError(new Error('No generation found for pair index: ' + pairIndex), { context: 'ClearEnhancedPrompt-Timeline', showToast: false });
         return;
       }
 
@@ -2381,7 +2378,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       console.log('[ClearEnhancedPrompt-Timeline] 📞 Calling clearEnhancedPrompt with id:', idToUse);
       await clearEnhancedPrompt(idToUse);
     } catch (error) {
-      console.error('[ClearEnhancedPrompt-Timeline] ❌ Error clearing enhanced prompt:', error);
+      handleError(error, { context: 'ClearEnhancedPrompt-Timeline', showToast: false });
     }
   }, []);
 
@@ -2749,7 +2746,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                       // Get the first item of the pair
                       const firstItem = sortedGenerations[pairIndex];
                       if (!firstItem) {
-                        console.error('[ClearEnhancedPrompt-Batch] ❌ No generation found for pair index:', pairIndex);
+                        handleError(new Error('No generation found for pair index: ' + pairIndex), { context: 'ClearEnhancedPrompt-Batch', showToast: false });
                         return;
                       }
 
@@ -2772,7 +2769,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                       await clearEnhancedPrompt(shotGenerationId);
                       console.log('[ClearEnhancedPrompt-Batch] ✅ clearEnhancedPrompt completed');
                     } catch (error) {
-                      console.error('[ClearEnhancedPrompt-Batch] ❌ Error:', error);
+                      handleError(error, { context: 'ClearEnhancedPrompt-Batch', showToast: false });
                     }
                   }}
                   onDragStateChange={handleDragStateChange}

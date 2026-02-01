@@ -3,6 +3,7 @@ import { uploadImageToStorage } from './imageUploader';
 import { dataURLtoFile } from './utils';
 import { generateClientThumbnail, uploadImageWithThumbnail } from './clientThumbnailGenerator';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Import the ReferenceImage type from the image generation form
 export interface ReferenceImage {
@@ -148,7 +149,7 @@ export async function recropAllReferences(
       onProgress?.(i + 1, references.length);
       
     } catch (error) {
-      console.error(`[RecropReferences] ❌ Failed to reprocess reference ${ref.id} (${ref.name}):`, error);
+      handleError(error, { context: 'RecropReferences', showToast: false });
       errorCount++;
       // Keep the old reference unchanged on error
       reprocessed.push(ref);

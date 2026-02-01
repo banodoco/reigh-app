@@ -6,6 +6,7 @@ import { Skeleton } from '@/shared/components/ui/skeleton';
 import { GenerationRow } from '@/types/shots';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { storagePaths, getFileExtension, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
 import { InlineEditVideoView } from '../components/InlineEditVideoView';
@@ -293,8 +294,7 @@ export default function EditVideoPage() {
       setSelectedMedia(generation as any);
 
     } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload video: " + error.message);
+      handleError(error, { context: 'EditVideoPage', toastTitle: 'Failed to upload video' });
     } finally {
       setIsUploading(false);
     }
@@ -431,8 +431,7 @@ export default function EditVideoPage() {
       setSelectedMedia(generation as any);
 
     } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload video: " + error.message);
+      handleError(error, { context: 'EditVideoPage', toastTitle: 'Failed to upload video' });
     } finally {
       setIsUploading(false);
     }
@@ -680,7 +679,7 @@ export default function EditVideoPage() {
                       setSavedSegments(undefined); // Clear saved segments when navigating to new generation
                     }
                   } catch (e) {
-                    console.error("Failed to navigate to generation", e);
+                    handleError(e, { context: 'EditVideoPage', showToast: false });
                   }
                 }}
                 initialSegments={savedSegments}

@@ -20,15 +20,16 @@ import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
-import { 
-  useCreateShot, 
-  useCreateShotWithImage, 
-  useHandleExternalImageDrop 
+import {
+  useCreateShot,
+  useCreateShotWithImage,
+  useHandleExternalImageDrop
 } from '@/shared/hooks/useShots';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { inheritSettingsForNewShot } from '@/shared/lib/shotSettingsInheritance';
 import { GenerationRow, Shot } from '@/types/shots';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // ============================================================================
 // TYPES
@@ -421,14 +422,15 @@ export function useShotCreation(): UseShotCreationReturn {
       return result;
       
     } catch (error) {
-      console.error('[useShotCreation] Shot creation failed:', error);
-      
       // Clear skeleton on error
       if (dispatchSkeletonEvents) {
         clearSkeletonEvent();
       }
-      
-      toast.error(`Failed to create shot: ${(error as Error).message}`);
+
+      handleError(error, {
+        context: 'useShotCreation',
+        toastTitle: 'Failed to create shot'
+      });
       return null;
       
     } finally {

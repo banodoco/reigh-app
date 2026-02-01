@@ -1,9 +1,9 @@
 /**
  * VisibilityManager - Centralized page visibility and lifecycle management
- * 
+ *
  * Consolidates all visibility/page lifecycle listeners into a single manager
  * to prevent duplicated reactions, inconsistent timestamps, and multi-trigger invalidations.
- * 
+ *
  * Features:
  * - Single source of truth for visibility state
  * - Derived signals: justBecameVisible, justHidden
@@ -11,6 +11,8 @@
  * - Subscription-based pattern to replace direct listeners
  * - Comprehensive debug logging with unique identifiers
  */
+
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface VisibilityState {
   /** Current visibility state */
@@ -202,7 +204,7 @@ class VisibilityManagerImpl {
         subscription.callback(signals, eventType, event);
         notifiedCount++;
       } catch (error) {
-        console.error(`[VisibilityManager] Error in subscription ${id}:`, error);
+        handleError(error, { context: 'VisibilityManager', showToast: false });
       }
     }
 

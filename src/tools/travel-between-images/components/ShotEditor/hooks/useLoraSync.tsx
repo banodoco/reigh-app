@@ -3,6 +3,7 @@ import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { ShotLora } from '@/tools/travel-between-images/settings';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { handleError } from '@/shared/lib/errorHandler';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/components/ui/tooltip';
 import { Button } from '@/shared/components/ui/button';
 import React from 'react';
@@ -190,7 +191,7 @@ export const useLoraSync = ({
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (error) {
-      console.error('Error saving LoRAs:', error);
+      handleError(error, { context: 'LoraSync', showToast: false });
       setSaveFlash(false);
     } finally {
       setIsSaving(false);
@@ -224,7 +225,7 @@ export const useLoraSync = ({
       
       onSelectedLorasChange(lorasToLoad);
     } catch (error) {
-      console.error('Error loading LoRAs:', error);
+      handleError(error, { context: 'LoraSync', showToast: false });
     }
   }, [projectLoraSettings?.loras, availableLoras, onSelectedLorasChange]);
   

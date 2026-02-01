@@ -1,6 +1,6 @@
 /**
  * Video Thumbnail Generator
- * 
+ *
  * Extracts thumbnails from videos on the client side and uploads them to storage.
  * This is used to generate missing thumbnails for videos that don't have them.
  */
@@ -8,6 +8,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getDisplayUrl } from '@/shared/lib/utils';
 import { storagePaths, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface ThumbnailGenerationResult {
   success: boolean;
@@ -205,11 +206,7 @@ export async function generateAndUploadThumbnail(
       thumbnailUrl,
     };
   } catch (error) {
-    console.error('[ThumbnailGenerator] Generation failed:', {
-      generationId: generationId.substring(0, 8),
-      error: error instanceof Error ? error.message : String(error),
-      timestamp: Date.now()
-    });
+    handleError(error, { context: 'VideoThumbnailGenerator', showToast: false });
 
     return {
       success: false,
@@ -249,10 +246,7 @@ export async function extractAndUploadThumbnailOnly(
       thumbnailUrl,
     };
   } catch (error) {
-    console.error('[ThumbnailGenerator] Extraction failed:', {
-      uniqueId: uniqueId.substring(0, 8),
-      error: error instanceof Error ? error.message : String(error),
-    });
+    handleError(error, { context: 'VideoThumbnailGenerator', showToast: false });
 
     return {
       success: false,

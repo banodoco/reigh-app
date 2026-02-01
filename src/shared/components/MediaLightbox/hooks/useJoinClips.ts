@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { handleError } from '@/shared/lib/errorHandler';
 import { GenerationRow } from '@/types/shots';
 
 export interface UseJoinClipsProps {
@@ -88,7 +89,7 @@ export function useJoinClips({
       setAddToJoinSuccess(true);
       setTimeout(() => setAddToJoinSuccess(false), 2000);
     } catch (error) {
-      console.error('[JoinClipsDebug] Failed to add to join:', error);
+      handleError(error, { context: 'useJoinClips', showToast: false });
     } finally {
       setIsAddingToJoin(false);
     }

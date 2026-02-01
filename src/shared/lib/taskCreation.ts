@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ASPECT_RATIO_TO_RESOLUTION } from "./aspectRatios";
 import { nanoid } from "nanoid";
 import { AuthError, NetworkError, ValidationError } from "./errors";
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Default aspect ratio to use when project aspect ratio is not found
@@ -56,7 +57,7 @@ export async function resolveProjectResolution(
       aspectRatio: aspectRatioKey
     };
   } catch (error) {
-    console.error("[resolveProjectResolution] Error fetching project:", error);
+    handleError(error, { context: 'TaskCreation', showToast: false });
     // Fallback to default resolution
     return {
       resolution: ASPECT_RATIO_TO_RESOLUTION[DEFAULT_ASPECT_RATIO],
@@ -236,14 +237,7 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
       });
     }
 
-    console.error('[createTask] Invoke failed', {
-      ...context,
-      errorMessage: err?.message,
-      errorName: err?.name,
-      errorStack: err?.stack?.split('\n').slice(0, 3),
-      timestamp: Date.now(),
-      visibilityState: document.visibilityState,
-    });
+    handleError(err, { context: 'TaskCreation', showToast: false });
     throw err;
   } finally {
     clearTimeout(timeout);

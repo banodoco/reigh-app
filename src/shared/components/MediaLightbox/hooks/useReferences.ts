@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { nanoid } from 'nanoid';
 import { GenerationRow } from '@/types/shots';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
@@ -124,7 +125,7 @@ export const useReferences = ({
           console.log('[AddToReferences] Thumbnail uploaded successfully:', thumbnailUrl);
         }
       } catch (thumbnailError) {
-        console.error('[AddToReferences] Error generating thumbnail:', thumbnailError);
+        handleError(thumbnailError, { context: 'useReferences', showToast: false });
         // Use original as fallback
         thumbnailUrl = originalUploadedUrl;
       }
@@ -285,12 +286,7 @@ export const useReferences = ({
       console.log('[AddToRefDebug] 🎉 Add to reference flow completed successfully');
       
     } catch (error) {
-      console.error('[AddToRefDebug] ❌ Error adding to references:', {
-        error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      toast.error('Failed to add to references');
+      handleError(error, { context: 'useReferences', toastTitle: 'Failed to add to references' });
     } finally {
       setIsAddingToReferences(false);
       console.log('[AddToRefDebug] 🏁 Add to reference flow ended (finally block)');

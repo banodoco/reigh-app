@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useTimelineCore } from './useTimelineCore';
 import { toast } from 'sonner';
 import { analyzeReorderOperation, validateReorderAnalysis } from '@/shared/utils/reorderUtils';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Enhanced hook for handling shot image reordering with position exchange support
@@ -408,8 +409,7 @@ export const useEnhancedShotImageReorder = (
       // Reordering completed successfully - no toast needed for smooth UX
 
     } catch (error) {
-      console.error('[useEnhancedShotImageReorder] Reorder error:', error);
-      toast.error('Failed to reorder items');
+      handleError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to reorder items' });
       throw error;
     }
   }, [shotId, getImagesForMode, shotGenerations, exchangePositionsNoReload, loadPositions]);
@@ -438,8 +438,7 @@ export const useEnhancedShotImageReorder = (
       await deleteItem(id);
       
     } catch (error) {
-      console.error('[useEnhancedShotImageReorder] Delete error:', error);
-      toast.error('Failed to delete item');
+      handleError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to delete item' });
       throw error;
     }
   }, [shotId, shotGenerations, deleteItem]);

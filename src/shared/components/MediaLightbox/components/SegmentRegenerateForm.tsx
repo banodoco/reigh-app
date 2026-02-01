@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/shared/hooks/use-toast';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useSegmentSettingsForm } from '@/shared/hooks/useSegmentSettingsForm';
 import { SegmentSettingsForm } from '@/shared/components/SegmentSettingsForm';
 import { buildTaskParams, extractSettingsFromParams } from '@/shared/components/segmentSettingsUtils';
@@ -452,12 +453,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
 
           console.log('[SegmentRegenerateForm] ✅ Task created successfully:', result.task_id);
         } catch (error) {
-          console.error('[SegmentRegenerateForm] Error in background submission:', error);
-          toast({
-            title: "Error",
-            description: (error as Error).message || "Failed to create task",
-            variant: "destructive",
-          });
+          handleError(error, { context: 'SegmentRegenerateForm', toastTitle: 'Failed to create task' });
         } finally {
           await queryClient.refetchQueries({ queryKey: ['tasks', 'paginated'] });
           await queryClient.refetchQueries({ queryKey: ['task-status-counts'] });
@@ -505,12 +501,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
         throw new Error(result.error || 'Failed to create task');
       }
     } catch (error) {
-      console.error('[SegmentRegenerateForm] Error creating task:', error);
-      toast({
-        title: "Error",
-        description: (error as Error).message || "Failed to create task",
-        variant: "destructive",
-      });
+      handleError(error, { context: 'SegmentRegenerateForm', toastTitle: 'Failed to create task' });
     } finally {
       setIsSubmitting(false);
     }

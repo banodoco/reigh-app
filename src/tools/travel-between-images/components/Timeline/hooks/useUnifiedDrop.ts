@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
+import { handleError } from "@/shared/lib/errorHandler";
 import { pixelToFrame } from "../utils/timeline-utils";
 import { TIMELINE_PADDING_OFFSET } from "../constants";
 import { 
@@ -201,8 +202,7 @@ export const useUnifiedDrop = ({
         await onImageDrop(validFiles, targetFrame ?? undefined);
         console.log('[BatchDropPositionIssue] ✅ FILE DROP - onImageDrop completed');
       } catch (error) {
-        console.error('[BatchDropPositionIssue] ❌ FILE DROP - Error:', error);
-        toast.error(`Failed to add images: ${(error as Error).message}`);
+        handleError(error, { context: 'UnifiedDrop', toastTitle: 'Failed to add images' });
       }
     }
     
@@ -219,7 +219,7 @@ export const useUnifiedDrop = ({
       });
       
       if (!data) {
-        console.error('[BatchDropPositionIssue] ❌ GENERATION DROP - No valid data found');
+        handleError(new Error('No valid data found'), { context: 'UnifiedDrop', showToast: false });
         return;
       }
       
@@ -234,8 +234,7 @@ export const useUnifiedDrop = ({
         await onGenerationDrop(data.generationId, data.imageUrl, data.thumbUrl, targetFrame ?? undefined);
         console.log('[BatchDropPositionIssue] ✅ GENERATION DROP - onGenerationDrop completed');
       } catch (error) {
-        console.error('[BatchDropPositionIssue] ❌ GENERATION DROP - Error:', error);
-        toast.error(`Failed to add generation: ${(error as Error).message}`);
+        handleError(error, { context: 'UnifiedDrop', toastTitle: 'Failed to add generation' });
       }
     } else {
       console.log('[BatchDropPositionIssue] ⚠️ DROP - No handler matched dragType:', dragType);

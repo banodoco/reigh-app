@@ -21,6 +21,7 @@ import {
   downloadBlob,
   type CreateGifProgress,
 } from '@/shared/utils/createLineageGif';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface LineageGifModalProps {
   open: boolean;
@@ -61,7 +62,7 @@ export const LineageGifModal: React.FC<LineageGifModalProps> = ({
       downloadBlob(blob, `lineage-${timestamp}.gif`);
       setDownloadState({ status: 'idle' });
     } catch (err) {
-      console.error('[LineageGifModal] Error generating GIF:', err);
+      handleError(err, { context: 'LineageGifModal', showToast: false });
       setDownloadState({
         status: 'error',
         message: err instanceof Error ? err.message : 'Failed to generate GIF',

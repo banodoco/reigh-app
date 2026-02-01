@@ -21,6 +21,7 @@ import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useMediumModal } from '@/shared/hooks/useModal';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { recropAllReferences, ReferenceImage } from '@/shared/lib/recropReferences';
+import { handleError } from '@/shared/lib/errorHandler';
 
 
 interface ProjectImageSettings {
@@ -159,8 +160,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
       
       console.log('[ProjectSettings] ✅ Successfully updated', references.length, 'reference images');
     } catch (error) {
-      console.error('[ProjectSettings] Failed to recrop references:', error);
-      toast.error("Failed to update some reference images. You may need to re-upload them.");
+      handleError(error, { context: 'ProjectSettingsModal', toastTitle: 'Failed to update some reference images. You may need to re-upload them.' });
     }
   };
 

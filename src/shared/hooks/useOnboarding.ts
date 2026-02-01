@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Hook to check if user has completed onboarding and show modal if not
@@ -51,7 +52,7 @@ export function useOnboarding() {
         }
 
       } catch (error) {
-        console.error('[Onboarding] Unexpected error:', error);
+        handleError(error, { context: 'useOnboarding', showToast: false });
       } finally {
         setIsChecking(false);
       }
@@ -74,7 +75,7 @@ export function useOnboarding() {
         .update({ onboarding_completed: true })
         .eq('id', user.id);
     } catch (error) {
-      console.error('[Onboarding] Error marking complete:', error);
+      handleError(error, { context: 'useOnboarding', showToast: false });
     }
   };
 

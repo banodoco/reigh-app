@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
+import { handleError } from '@/shared/lib/errorHandler';
 import {
   AIPromptItem,
   GeneratePromptsParams,
@@ -70,7 +71,7 @@ export const useAIInteractionService = ({
         }
         return newPrompts;
       } catch (err) {
-        console.error('AI Service: Unexpected error calling generate-prompts:', err);
+        handleError(err, { context: 'useAIInteractionService', showToast: false });
         return [];
       } finally {
         setIsGenerating(false);
@@ -94,7 +95,7 @@ export const useAIInteractionService = ({
 
         return (data as any)?.summary || null;
       } catch (error) {
-        console.error('AI Service: Error generating summary:', error);
+        handleError(error, { context: 'useAIInteractionService', showToast: false });
         return null;
       } finally {
         setIsSummarizing(false);
@@ -122,7 +123,7 @@ export const useAIInteractionService = ({
          
         return { success: true, newText: newText || params.originalPromptText };
       } catch (error) {
-        console.error('AI Service: Error editing prompt:', error);
+        handleError(error, { context: 'useAIInteractionService', showToast: false });
         return { success: false, newText: params.originalPromptText };
       } finally {
         setIsEditing(false);

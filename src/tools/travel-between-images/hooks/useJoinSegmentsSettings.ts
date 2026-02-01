@@ -1,4 +1,5 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { JoinClipsSettings } from '@/tools/join-clips/settings';
@@ -146,7 +147,7 @@ export function useJoinSegmentsSettings(
           ...defaults,
         } as JoinSegmentsSettings;
       } catch (e) {
-        console.error('[useJoinSegmentsSettings] Failed to parse inherited settings:', e);
+        handleError(e, { context: 'useJoinSegmentsSettings', showToast: false });
         sessionStorage.removeItem(storageKey);
       }
     }
@@ -198,7 +199,7 @@ export function useJoinSegmentsSettings(
         const globalSettings = { ...autoSave.settings, prompt: '', negativePrompt: '' };
         localStorage.setItem(STORAGE_KEYS.GLOBAL_LAST_ACTIVE_JOIN_SEGMENTS_SETTINGS, JSON.stringify(globalSettings));
       } catch (e) {
-        console.error('[useJoinSegmentsSettings] Failed to save to localStorage:', e);
+        handleError(e, { context: 'useJoinSegmentsSettings', showToast: false });
       }
     }
   }, [autoSave.settings, shotId, projectId, autoSave.status]);

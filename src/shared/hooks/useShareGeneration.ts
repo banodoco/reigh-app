@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/shared/hooks/use-toast';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UseShareGenerationResult {
   handleShare: (e: React.MouseEvent | React.TouchEvent) => Promise<void>;
@@ -393,11 +394,10 @@ export function useShareGeneration(
         });
       }
     } catch (error) {
-      console.error('[Share] Unexpected error:', error);
-      toast({
-        title: "Something went wrong",
-        description: "Please try again",
-        variant: "destructive"
+      handleError(error, {
+        context: 'useShareGeneration',
+        toastTitle: 'Something went wrong',
+        toastDescription: 'Please try again'
       });
     } finally {
       setIsCreatingShare(false);

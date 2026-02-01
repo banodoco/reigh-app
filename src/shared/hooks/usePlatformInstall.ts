@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export type Platform = 'mac' | 'windows' | 'linux' | 'ios' | 'android' | 'unknown';
 export type Browser = 'chrome' | 'safari' | 'edge' | 'firefox' | 'samsung' | 'unknown';
@@ -427,7 +428,7 @@ export function usePlatformInstall(): PlatformInstallState {
         setPromptConsumed(true);
         return outcome === 'accepted';
       } catch (error) {
-        console.error('Error installing PWA:', error);
+        handleError(error, { context: 'usePlatformInstall', showToast: false });
         setPromptConsumed(true);
         return false;
       }

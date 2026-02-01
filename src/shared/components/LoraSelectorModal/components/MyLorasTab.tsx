@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shar
 import { Progress } from '@/shared/components/ui/progress';
 import { Info, X, Pencil, Upload, Link } from 'lucide-react';
 import { toast } from "sonner";
+import { handleError } from '@/shared/lib/errorHandler';
 
 import FileInput from "@/shared/components/FileInput";
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
@@ -361,8 +362,7 @@ export const MyLorasTab: React.FC<MyLorasTabProps> = ({
       resetForm();
       onSwitchToBrowse();
     } catch (error) {
-      console.error(`Error ${isEditMode ? 'updating' : 'adding'} LoRA:`, error);
-      toast.error(`Failed to ${isEditMode ? 'update' : 'add'} LoRA: ` + (error instanceof Error ? error.message : String(error)));
+      handleError(error, { context: 'MyLorasTab', toastTitle: `Failed to ${isEditMode ? 'update' : 'add'} LoRA` });
     } finally {
       setIsSubmitting(false);
     }

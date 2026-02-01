@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { GenerationRow } from '@/types/shots';
 import { createImageUpscaleTask } from '@/shared/lib/tasks/imageUpscale';
 import { getDisplayUrl } from '@/shared/lib/utils';
@@ -113,7 +114,7 @@ export const useUpscale = ({
         localStorage.removeItem(`upscale-pending-${media.id}`);
         console.log('[ImageUpscale] ✅ Successfully removed pending state from localStorage');
       } catch (e) {
-        console.error('[ImageUpscale] ❌ Error removing pending state:', e);
+        handleError(e, { context: 'useUpscale', showToast: false });
       }
     } else {
       console.log('[ImageUpscale] Not clearing pending state because:', {
@@ -162,12 +163,11 @@ export const useUpscale = ({
           key: `upscale-pending-${media.id}`
         });
       } catch (e) {
-        console.error('[ImageUpscale] ❌ Error setting pending state:', e);
+        handleError(e, { context: 'useUpscale', showToast: false });
       }
 
     } catch (error) {
-      console.error('[ImageUpscale] Error creating upscale task:', error);
-      toast.error('Failed to create upscale task');
+      handleError(error, { context: 'useUpscale', toastTitle: 'Failed to create upscale task' });
     } finally {
       setIsUpscaling(false);
     }

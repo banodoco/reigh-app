@@ -3,6 +3,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { CheckCircle, PlusCircle, ImagePlus, Loader2, ArrowRight } from 'lucide-react';
 import ShotSelectorWithAdd from '@/shared/components/ShotSelectorWithAdd';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface ShotOption {
   id: string;
@@ -149,7 +150,7 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
         console.log('[AddWithoutPosDebug] ⚠️ Success was falsy:', success);
       }
     } catch (error) {
-      console.error('[AddWithoutPosDebug] ❌ Error adding without position:', error);
+      handleError(error, { context: 'ShotSelectorControls', showToast: false });
     }
   };
 
@@ -185,7 +186,7 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
         setTimeout(() => setAddedVariantAsNewSuccess(false), 2000);
       }
     } catch (error) {
-      console.error('[VariantToShot] Error:', error);
+      handleError(error, { context: 'ShotSelectorControls', showToast: false });
     } finally {
       setIsAddingVariantAsNew(false);
     }

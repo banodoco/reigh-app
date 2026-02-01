@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { useToast } from '@/shared/hooks/use-toast';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface QuickCreateSuccessState {
   isSuccessful: boolean;
@@ -145,11 +145,9 @@ export const useQuickShotCreate = ({
       }, 5000);
 
     } catch (error) {
-      console.error('[useQuickShotCreate] Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create shot and add image. Please try again.",
-        variant: "destructive",
+      handleError(error, {
+        context: 'useQuickShotCreate',
+        toastTitle: 'Failed to create shot and add image. Please try again.'
       });
     } finally {
       onLoadingEnd?.();

@@ -36,6 +36,7 @@ import { findClosestAspectRatio } from '@/shared/lib/aspectRatios';
 import { DEFAULT_PHASE_CONFIG } from '@/tools/travel-between-images/settings';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID, FEATURED_PRESET_IDS } from '@/tools/travel-between-images/components/MotionControl';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface VideoGenerationModalProps {
   isOpen: boolean;
@@ -311,8 +312,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         toast.error(result.error || 'Failed to generate video');
       }
     } catch (error) {
-      console.error('[VideoGenerationModal] Error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to generate video');
+      handleError(error, { context: 'VideoGenerationModal', toastTitle: 'Failed to generate video' });
     } finally {
       setIsGenerating(false);
     }

@@ -8,6 +8,7 @@ import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControl
 import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
 import { AIPromptItem, GeneratePromptsParams, EditPromptParams, AIModelType } from '@/types/ai';
 import { toast } from "sonner";
+import { handleError } from '@/shared/lib/errorHandler';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { useProject } from '@/shared/contexts/ProjectContext';
@@ -210,7 +211,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
           onSave(internalPromptsRef.current);
           lastSavedSignatureRef.current = currentSignatureRef.current;
         } catch (err) {
-          console.error('[PromptEditorModal:AUTO_SAVE] Failed to auto-save prompts:', err);
+          handleError(err, { context: 'PromptEditorModal', showToast: false });
         }
       }
     }, 3000);
@@ -347,8 +348,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
               console.warn(`[PromptEditorModal] AI Generation: Summary generation returned empty for prompt ID: ${entry.id}.`);
             }
           } catch (error) {
-            console.error(`[PromptEditorModal] AI Generation: Error generating summary for prompt ID: ${entry.id}:`, error);
-            // Optionally, toast an error for this specific summary generation
+            handleError(error, { context: 'PromptEditorModal', showToast: false });
           }
         }
       }
@@ -412,8 +412,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
           console.warn(`[PromptEditorModal] AI Bulk Edit: Edit returned no result or failed for prompt ID: ${promptIdToUpdate}. Success: ${result.success}`);
         }
       } catch (error) {
-        console.error(`[PromptEditorModal] AI Bulk Edit: Error editing prompt ID: ${promptIdToUpdate}:`, error);
-        toast.error(`Error editing prompt ${promptIdToUpdate.substring(0,8)}...`);
+        handleError(error, { context: 'PromptEditorModal', toastTitle: `Error editing prompt ${promptIdToUpdate.substring(0,8)}...` });
         // Continue to the next prompt
       }
     }

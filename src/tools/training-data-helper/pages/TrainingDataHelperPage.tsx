@@ -7,8 +7,8 @@ import { BatchSelector } from '../components/BatchSelector';
 import { MultiVideoUploader } from '../components/MultiVideoUploader';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { Video, Scissors } from 'lucide-react';
-import { toast } from 'sonner';
 import { cropFilename } from '@/shared/lib/utils';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export default function TrainingDataHelperPage() {
   const { 
@@ -60,8 +60,7 @@ export default function TrainingDataHelperPage() {
     try {
       await uploadVideosWithSplitModes(videoFiles);
     } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Failed to upload videos');
+      handleError(error, { context: 'TrainingDataHelperPage', toastTitle: 'Failed to upload videos' });
     }
   };
 

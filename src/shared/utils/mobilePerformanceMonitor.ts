@@ -4,6 +4,8 @@
  * Tag: [MobileHeatDebug]
  */
 
+import { handleError } from '@/shared/lib/errorHandler';
+
 interface PerformanceMetrics {
   fps: number;
   memory?: number;
@@ -141,7 +143,7 @@ class MobilePerformanceMonitor {
       return result;
     } catch (error) {
       const duration = performance.now() - start;
-      console.error(`[MobileHeatDebug] Failed: ${name} (${duration.toFixed(2)}ms)`, error);
+      handleError(error, { context: 'MobilePerformanceMonitor', showToast: false });
       throw error;
     }
   }

@@ -4,6 +4,7 @@
  */
 
 import { toast } from "sonner";
+import { handleError } from "@/shared/lib/errorHandler";
 import { Shot } from "@/types/shots";
 import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
 import { parseRatio } from '@/shared/lib/aspectRatios';
@@ -101,7 +102,7 @@ export const cropImagesToShotAspectRatio = async (
       }
       return file; // Return original if cropping fails
     } catch (error) {
-      console.error(`[ImageCrop] Failed to crop image ${file.name}:`, error);
+      handleError(error, { context: 'ImageCrop', showToast: false });
       return file; // Return original on error
     }
   });
@@ -151,7 +152,7 @@ export const calculateNextAvailableFrame = async (
   });
 
   if (error) {
-    console.error('[AddImagesDebug] ❌ Error fetching shot generations for position calculation:', error);
+    handleError(error, { context: 'AddImagesDebug', showToast: false });
     // Default to 0 if query fails
     return targetFrame !== undefined ? targetFrame : 0;
   }
@@ -250,7 +251,7 @@ export const queryShotGenerationRecords = async (
     .in('generation_id', generationIds);
   
   if (queryError) {
-    console.error('[AddImagesDebug] ❌ Error querying shot_generation records:', queryError);
+    handleError(queryError, { context: 'AddImagesDebug', showToast: false });
     throw queryError;
   }
   
@@ -290,12 +291,12 @@ export const queryShotGenerationRecords = async (
       .in('generation_id', generationIds);
     
     if (retryQueryError) {
-      console.error('[AddImagesDebug] ❌ Retry query error:', retryQueryError);
+      handleError(retryQueryError, { context: 'AddImagesDebug', showToast: false });
       throw retryQueryError;
     }
-    
+
     if (!retryRecords || retryRecords.length === 0) {
-      console.error('[AddImagesDebug] ❌ Still no records found after retry');
+      handleError(new Error('Still no records found after retry'), { context: 'AddImagesDebug', showToast: false });
       throw new Error('Shot generation records not found after retry');
     }
     
@@ -454,8 +455,10 @@ export const persistTimelinePositions = async (
     const errors = results.filter(r => !r.success);
     
     if (errors.length > 0) {
-      console.error('[AddImagesDebug] ❌ Errors updating positions:', errors);
-      toast.error(`Failed to set ${errors.length} timeline position(s)`);
+      handleError(new Error(`Failed to update ${errors.length} position(s)`), {
+        context: 'AddImagesDebug',
+        toastTitle: `Failed to set ${errors.length} timeline position(s)`
+      });
       throw new Error(`Failed to update ${errors.length} position(s)`);
     }
     
@@ -465,7 +468,7 @@ export const persistTimelinePositions = async (
     await verifyPositionUpdates(shotId, generationIds);
     
   } catch (dbError) {
-    console.error('[AddImagesDebug] ❌ Exception writing positions to database:', dbError);
+    handleError(dbError, { context: 'AddImagesDebug', showToast: false });
     throw dbError;
   }
 };

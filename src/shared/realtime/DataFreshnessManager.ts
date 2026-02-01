@@ -1,11 +1,13 @@
 /**
  * DataFreshnessManager - Single source of truth for data freshness and polling decisions
- * 
+ *
  * This class centralizes all decisions about:
  * - Whether data is fresh (based on realtime events)
  * - What polling intervals React Query should use
  * - Realtime connection health status
  */
+
+import { handleError } from '@/shared/lib/errorHandler';
 
 type RealtimeStatus = 'connected' | 'disconnected' | 'error';
 type PollingInterval = number | false; // false = no polling
@@ -220,7 +222,7 @@ export class DataFreshnessManager {
       try {
         callback();
       } catch (error) {
-        console.error('[DataFreshness] Error in subscriber callback:', error);
+        handleError(error, { context: 'DataFreshnessManager', showToast: false });
       }
     });
   }

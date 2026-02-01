@@ -6,6 +6,7 @@ import { Skeleton } from '@/shared/components/ui/skeleton';
 import { GenerationRow } from '@/types/shots';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { InlineEditView } from '../components/InlineEditView';
 import { useGenerations, useDeleteVariant } from '@/shared/hooks/useGenerations';
@@ -219,9 +220,8 @@ export default function EditImagesPage() {
       setSelectedMedia(generation as any);
       // Toast removed as per user request
 
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload image: " + error.message);
+    } catch (error) {
+      handleError(error, { context: 'EditImagesPage', toastTitle: 'Failed to upload image' });
     } finally {
       setIsUploading(false);
     }
@@ -337,9 +337,8 @@ export default function EditImagesPage() {
 
       setSelectedMedia(generation as any);
 
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload image: " + error.message);
+    } catch (error) {
+      handleError(error, { context: 'EditImagesPage', toastTitle: 'Failed to upload image' });
     } finally {
       setIsUploading(false);
     }
@@ -646,7 +645,7 @@ export default function EditImagesPage() {
                       setSelectedMedia(data as any);
                     }
                   } catch (e) {
-                    console.error("Failed to navigate to generation", e);
+                    handleError(e, { context: 'EditImagesPage', showToast: false });
                   }
                 }}
               />

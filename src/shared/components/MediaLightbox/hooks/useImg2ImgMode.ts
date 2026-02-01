@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { GenerationRow } from '@/types/shots';
 import { createBatchZImageTurboI2ITasks, ZImageLoraConfig } from '@/shared/lib/tasks/zImageTurboI2I';
 import { useLoraManager, UseLoraManagerReturn, ActiveLora, LoraModel } from '@/shared/hooks/useLoraManager';
@@ -193,8 +194,7 @@ export const useImg2ImgMode = ({
       }, 2000);
 
     } catch (error) {
-      console.error('[Img2Img] Error creating tasks:', error);
-      toast.error(`Failed to create Img2Img tasks: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      handleError(error, { context: 'useImg2ImgMode', toastTitle: 'Failed to create Img2Img tasks' });
     } finally {
       setIsGeneratingImg2Img(false);
       isSubmittingRef.current = false;

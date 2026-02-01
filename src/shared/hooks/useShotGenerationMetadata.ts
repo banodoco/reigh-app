@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface ShotGenerationMetadata {
   magicEditPrompts?: Array<{
@@ -112,11 +113,7 @@ export function useShotGenerationMetadata({
           setIsLoading(false);
         }
       } catch (err) {
-        console.error('[MagicEditPromptPersist] 💥 UNEXPECTED ERROR:', {
-          error: err instanceof Error ? err.message : err,
-          stack: err instanceof Error ? err.stack : undefined,
-          timestamp: Date.now()
-        });
+        handleError(err, { context: 'useShotGenerationMetadata.loadMetadata', showToast: false });
         if (!cancelled) {
           setMetadata({});
           setIsLoading(false);
@@ -202,11 +199,7 @@ export function useShotGenerationMetadata({
       });
 
     } catch (error) {
-      console.error('[MagicEditPromptPersist] 💥 UPDATE FAILED:', {
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: Date.now()
-      });
+      handleError(error, { context: 'useShotGenerationMetadata.updateMetadata', showToast: false });
       throw error;
     } finally {
       setIsUpdating(false);

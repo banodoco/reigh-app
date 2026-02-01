@@ -12,6 +12,7 @@
 import { useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { Shot } from '@/types/shots';
 
@@ -137,8 +138,7 @@ export const useVideoTravelAddToShot = ({
       
       return true;
     } catch (error) {
-      console.error("[VideoTravelAddToShot] ❌ Error adding video to target shot:", error);
-      toast.error("Failed to add item to shot.");
+      handleError(error, { context: 'useVideoTravelAddToShot', toastTitle: 'Failed to add item to shot' });
       return false;
     }
   }, [targetShotInfo.targetShotIdForButton, targetShotInfo.targetShotNameForButtonTooltip, lastAffectedShotId, selectedProjectId, addImageToShotMutation, setLastAffectedShotId, queryClient]);
@@ -185,8 +185,7 @@ export const useVideoTravelAddToShot = ({
       
       return true;
     } catch (error) {
-      console.error("[VideoTravelAddToShot] Error adding video to target shot without position:", error);
-      toast.error("Failed to add item to shot without position.");
+      handleError(error, { context: 'useVideoTravelAddToShot', toastTitle: 'Failed to add item to shot without position' });
       return false;
     }
   }, [targetShotInfo.targetShotIdForButton, selectedProjectId, addImageToShotWithoutPositionMutation, setLastAffectedShotId, queryClient]);

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Image, Upload } from 'lucide-react';
 import { ImageUploadActions } from '@/shared/components/ImageUploadActions';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface EmptyStateProps {
   onImageUpload?: (files: File[]) => Promise<void>;
@@ -81,8 +82,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           }
         }
       } catch (error) {
-        console.error('Error handling generation drop:', error);
-        toast.error(`Failed to add image: ${(error as Error).message}`);
+        handleError(error, { context: 'EmptyState', toastTitle: 'Failed to add image' });
       }
       return;
     }
@@ -105,8 +105,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     try {
       await onImageUpload(validFiles);
     } catch (error) {
-      console.error('Error handling file drop:', error);
-      toast.error(`Failed to add images: ${(error as Error).message}`);
+      handleError(error, { context: 'EmptyState', toastTitle: 'Failed to add images' });
     }
   }, [onImageUpload, onGenerationDrop]);
 

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface CreditBalance {
   balance: number;
@@ -183,7 +184,7 @@ export function useCredits() {
       }
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to create checkout session');
+      handleError(error, { context: 'useCredits', toastTitle: 'Failed to create checkout session' });
     },
   });
 
@@ -213,7 +214,7 @@ export function useCredits() {
       
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to grant credits');
+      handleError(error, { context: 'useCredits', toastTitle: 'Failed to grant credits' });
     },
   });
 

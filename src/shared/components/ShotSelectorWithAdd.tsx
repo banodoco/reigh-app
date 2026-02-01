@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo } from "react";
 import { PlusCircle, Check } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipTrigger 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
 } from "@/shared/components/ui/tooltip";
 import ShotSelector, { ShotOption } from "@/shared/components/ShotSelector";
 import { useToast } from "@/shared/hooks/use-toast";
@@ -13,6 +13,7 @@ import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
 import { cn } from "@/shared/lib/utils";
 import type { Shot } from "@/types/shots";
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface ShotSelectorWithAddProps {
   // Image data
@@ -146,12 +147,7 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
         onOptimisticPositioned?.(imageId, selectedShotId);
       }
     } catch (error) {
-      console.error('[ShotSelectorWithAdd] Error adding to shot:', error);
-      toast({ 
-        title: "Error", 
-        description: "Could not add image to shot. Please try again.",
-        variant: "destructive" 
-      });
+      handleError(error, { context: 'ShotSelectorWithAdd', toastTitle: 'Could not add image to shot' });
     }
   }, [showTick, isAlreadyPositionedInSelectedShot, selectedShotId, shots, navigateToShot, onAddToShot, imageId, imageUrl, thumbUrl, onShowTick, onOptimisticPositioned, toast, onClose]);
   

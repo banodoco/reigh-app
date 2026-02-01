@@ -19,9 +19,9 @@ import { useSourceImageChanges } from '@/shared/hooks/useSourceImageChanges';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
 import { GenerationRow } from '@/types/shots';
 import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from './constants';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getDisplayUrl } from '@/shared/lib/utils';
+import { handleError } from '@/shared/lib/errorHandler';
 import { cn } from '@/lib/utils';
 
 import type { PairData } from './TimelineContainer';
@@ -231,7 +231,7 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       console.log('[SegmentOutputStrip] Checking variants for generation:', generationId.substring(0, 8), variants);
 
       if (checkError) {
-        console.error('[SegmentOutputStrip] Error checking variants:', checkError);
+        handleError(checkError, { context: 'SegmentOutputStrip', showToast: false });
         return;
       }
 
@@ -249,14 +249,14 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
         .is('viewed_at', null); // Only update if not already viewed
 
       if (error) {
-        console.error('[SegmentOutputStrip] Error marking variant as viewed:', error);
+        handleError(error, { context: 'SegmentOutputStrip', showToast: false });
       } else {
         console.log('[SegmentOutputStrip] Marked variant as viewed, invalidating queries');
         // Invalidate variant badges to refresh NEW state
         queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantBadges });
       }
     } catch (error) {
-      console.error('[SegmentOutputStrip] Failed to mark as viewed:', error);
+      handleError(error, { context: 'SegmentOutputStrip', showToast: false });
     }
   }, [queryClient]);
 
@@ -428,8 +428,7 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       
       console.log('[SegmentDelete] Delete complete');
     } catch (error) {
-      console.error('[SegmentDelete] ❌ FAILED:', error);
-      toast.error(`Failed to delete segment: ${(error as Error).message}`);
+      handleError(error, { context: 'SegmentDelete', toastTitle: 'Failed to delete segment' });
     } finally {
       setDeletingSegmentId(null);
     }

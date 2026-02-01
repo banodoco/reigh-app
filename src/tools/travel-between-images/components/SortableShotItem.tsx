@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Shot } from '@/types/shots';
 import VideoShotDisplay from './VideoShotDisplay';
 import { cn } from '@/shared/lib/utils';
+import { handleError } from '@/shared/lib/errorHandler';
 import { isValidDropTarget, getGenerationDropData, isFileDrag, type GenerationDropData } from '@/shared/lib/dragDrop';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { Loader2, Check } from 'lucide-react';
@@ -299,7 +300,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             successTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          console.error('[ShotDrop] Error handling generation drop:', error);
+          handleError(error, { context: 'ShotDrop', showToast: false });
           setWithoutPositionDropState('idle');
           setIsDropTarget(false);
         }
@@ -330,7 +331,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             withPositionSuccessTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          console.error('[ShotDrop] Error handling generation drop:', error);
+          handleError(error, { context: 'ShotDrop', showToast: false });
           setWithPositionDropState('idle');
           // Clear skeleton on error
           expectedNewCountRef.current = 0;
@@ -381,7 +382,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             successTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          console.error('[ShotDrop] Error handling file drop:', error);
+          handleError(error, { context: 'ShotDrop', showToast: false });
           setWithoutPositionDropState('idle');
           setIsDropTarget(false);
         }
@@ -412,7 +413,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             withPositionSuccessTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          console.error('[ShotDrop] Error handling file drop:', error);
+          handleError(error, { context: 'ShotDrop', showToast: false });
           setWithPositionDropState('idle');
           // Clear skeleton on error
           expectedNewCountRef.current = 0;

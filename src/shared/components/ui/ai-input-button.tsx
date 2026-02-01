@@ -7,6 +7,7 @@ import { useVoiceRecording } from "@/shared/hooks/use-voice-recording"
 import { useIsMobile } from "@/shared/hooks/use-mobile"
 import { supabase } from "@/integrations/supabase/client"
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
+import { handleError } from "@/shared/lib/errorHandler"
 
 type TextProcessingState = "idle" | "open" | "processing" | "success"
 
@@ -113,14 +114,14 @@ export const AIInputButton = React.forwardRef<
       })
 
       if (error) {
-        console.error("[AIInputButton] Edge function error:", error)
+        handleError(error, { context: 'AIInputButton', showToast: false })
         onError?.(error.message || "Failed to process instructions")
         setTextState("open")
         return
       }
 
       if (data?.error) {
-        console.error("[AIInputButton] API error:", data.error)
+        handleError(new Error(data.error), { context: 'AIInputButton', showToast: false })
         onError?.(data.error)
         setTextState("open")
         return
@@ -139,7 +140,7 @@ export const AIInputButton = React.forwardRef<
         setInputValue("")
       }, 500)
     } catch (err: any) {
-      console.error("[AIInputButton] Processing error:", err)
+      handleError(err, { context: 'AIInputButton', showToast: false })
       onError?.(err.message || "Failed to process instructions")
       setTextState("open")
     }

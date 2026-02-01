@@ -5,6 +5,7 @@ import { simpleRealtimeManager } from '@/shared/realtime/SimpleRealtimeManager';
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 import { invalidateGenerationsSync, invalidateAllShotGenerations } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface SimpleRealtimeContextType {
   isConnected: boolean;
@@ -85,13 +86,13 @@ export function SimpleRealtimeProvider({ children }: SimpleRealtimeProviderProps
       } catch (error) {
         if (!mounted) return;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        setState(prev => ({ 
-          ...prev, 
-          isConnected: false, 
-          isConnecting: false, 
-          error: errorMessage 
+        setState(prev => ({
+          ...prev,
+          isConnected: false,
+          isConnecting: false,
+          error: errorMessage
         }));
-        console.error('[SimpleRealtimeProvider] ❌ Connection error:', error);
+        handleError(error, { context: 'SimpleRealtimeProvider', showToast: false });
       }
     };
 

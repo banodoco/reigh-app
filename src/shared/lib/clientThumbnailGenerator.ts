@@ -3,6 +3,8 @@
  * Generates thumbnails from image files using Canvas API
  */
 
+import { handleError } from '@/shared/lib/errorHandler';
+
 interface ThumbnailResult {
   thumbnailBlob: Blob;
   thumbnailWidth: number;
@@ -168,7 +170,7 @@ export async function uploadImageWithThumbnail(
 
     return { imageUrl, thumbnailUrl };
   } catch (thumbnailError) {
-    console.error('Thumbnail upload error:', thumbnailError);
+    handleError(thumbnailError, { context: 'ClientThumbnailGenerator', showToast: false });
     // Don't fail the main upload, use main image as thumbnail fallback
     onProgress?.(100);
     return { imageUrl, thumbnailUrl: imageUrl };

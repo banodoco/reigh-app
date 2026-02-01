@@ -9,6 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidation';
 import type { GenerationRow } from '@/types/shots';
@@ -143,7 +144,7 @@ export function useMakeMainVariant({
       // Close the lightbox (UI will now reflect updated data without refresh)
       onClose();
     } catch (error) {
-      console.error('[VariantClickDebug] handleMakeMainVariant failed:', error);
+      handleError(error, { context: 'useMakeMainVariant', showToast: false });
     } finally {
       setIsMakingMainVariant(false);
     }

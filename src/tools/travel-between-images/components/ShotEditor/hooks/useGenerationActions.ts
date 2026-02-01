@@ -1,6 +1,7 @@
 import { useCallback, useRef, useMemo } from 'react';
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
+import { handleError } from "@/shared/lib/errorHandler";
 import { GenerationRow, Shot } from "@/types/shots";
 import { useProject } from "@/shared/contexts/ProjectContext";
 import { uploadImageToStorage } from "@/shared/lib/imageUploader";
@@ -371,8 +372,7 @@ export const useGenerationActions = ({
         
         return { optimisticId: optimisticImage.id, finalImage, success: true };
       } catch (error: any) {
-        console.error(`[ShotEditor] Error uploading one image: ${file.name}`, error);
-        toast.error(`Failed to upload ${file.name}: ${error.message}`);
+        handleError(error, { context: 'ShotEditor', toastTitle: `Failed to upload ${file.name}` });
         return { optimisticId: optimisticImage.id, success: false };
       }
     });
@@ -573,7 +573,7 @@ export const useGenerationActions = ({
         });
 
         if (rpcError) {
-          console.error('[DeleteDebug] ❌ Batch update RPC failed:', rpcError);
+          handleError(rpcError, { context: 'DeleteDebug', showToast: false });
           // Rollback optimistic update on error
           if (previousGens) {
             queryClientRef.current.setQueryData(['all-shot-generations', currentShot.id], previousGens);
@@ -603,7 +603,7 @@ export const useGenerationActions = ({
       });
       await demoteOrphanedVariantsRef.current(currentShot.id, 'single-image-delete');
     } catch (error) {
-      console.error('[DeleteDebug] ❌ Error during deletion or frame shift:', error);
+      handleError(error, { context: 'DeleteDebug', showToast: false });
       // Error handling is done by the mutation itself
     }
   }, []); // mutations, queryClient, selectedShot, projectId, orderedShotImages accessed via refs
@@ -776,9 +776,8 @@ export const useGenerationActions = ({
         setTimeout(() => actionsRef.current.setDuplicateSuccessImageId(null), 2000);
       },
       onError: (error) => {
-        console.error('[DUPLICATE] Duplicate mutation failed:', error);
-        toast.error(`Failed to duplicate image: ${error.message}`);
-        
+        handleError(error, { context: 'DUPLICATE', toastTitle: 'Failed to duplicate image' });
+
         // REMOVED: Rollback logic - no optimistic state to revert
       },
       onSettled: () => {
@@ -903,8 +902,7 @@ export const useGenerationActions = ({
       console.log('[TimelineDrop] ✅ Drop complete');
       
     } catch (error) {
-      console.error('[TimelineDrop] ❌ Error:', error);
-      toast.error(`Failed to add images: ${(error as Error).message}`);
+      handleError(error, { context: 'TimelineDrop', toastTitle: 'Failed to add images' });
       throw error;
     } finally {
       actionsRef.current.setUploadingImage(false);
@@ -966,8 +964,7 @@ export const useGenerationActions = ({
       // already invalidates the cache, and calling refresh causes double-refresh flicker
       console.log('[GenerationDrop] ✅ handleTimelineGenerationDrop complete');
     } catch (error) {
-      console.error('[GenerationDrop] ❌ Error adding generation to timeline:', error);
-      toast.error(`Failed to add generation: ${(error as Error).message}`);
+      handleError(error, { context: 'GenerationDrop', toastTitle: 'Failed to add generation' });
       throw error;
     }
   }, []); // mutations, selectedShot, projectId accessed via refs
@@ -1122,16 +1119,15 @@ export const useGenerationActions = ({
       console.log('[BatchDrop] ✅ Drop complete');
       
     } catch (error) {
-      console.error('[BatchDrop] ❌ Error:', error);
-      toast.error(`Failed to add images: ${(error as Error).message}`);
-      
+      handleError(error, { context: 'BatchDrop', toastTitle: 'Failed to add images' });
+
       // Remove optimistic items on error
       const currentCache = queryClientRef.current.getQueryData<GenerationRow[]>(['all-shot-generations', currentShot.id]) || [];
       queryClientRef.current.setQueryData(
         ['all-shot-generations', currentShot.id],
         currentCache.filter(item => !optimisticIds.includes(item.id))
       );
-      
+
       throw error;
     } finally {
       actionsRef.current.setUploadingImage(false);
@@ -1179,8 +1175,7 @@ export const useGenerationActions = ({
         timelineFrame: timelineFrame,
       });
     } catch (error) {
-      console.error('[BatchDrop] Error adding generation:', error);
-      toast.error(`Failed to add generation: ${(error as Error).message}`);
+      handleError(error, { context: 'BatchDrop', toastTitle: 'Failed to add generation' });
       throw error;
     }
   }, []); // mutations, selectedShot, projectId accessed via refs

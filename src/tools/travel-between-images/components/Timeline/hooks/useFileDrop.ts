@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
+import { handleError } from "@/shared/lib/errorHandler";
 import { pixelToFrame } from "../utils/timeline-utils";
 
 interface UseFileDropProps {
@@ -81,8 +82,7 @@ export const useFileDrop = ({ onImageDrop, fullMin, fullRange }: UseFileDropProp
     try {
       await onImageDrop(validFiles, targetFrame ?? undefined);
     } catch (error) {
-      console.error('Error handling image drop:', error);
-      toast.error(`Failed to add images: ${(error as Error).message}`);
+      handleError(error, { context: 'FileDrop', toastTitle: 'Failed to add images' });
     }
   }, [onImageDrop, dropTargetFrame]);
 

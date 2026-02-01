@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Shared cache to prevent duplicate database calls
 const settingsCache = new Map<string, { data: any; timestamp: number; loading: Promise<any> | null }>();
@@ -131,7 +132,7 @@ export function useUserUIState<K extends keyof UISettings>(
       settingsCache.delete(cacheKey);
       setValue(fallbackToSave); // Update local state after successful save
     } catch (error) {
-      console.error('[useUserUIState] Error in saveFallbackToDatabase:', error);
+      handleError(error, { context: 'useUserUIState.saveFallbackToDatabase', showToast: false });
     }
   };
 
@@ -187,7 +188,7 @@ export function useUserUIState<K extends keyof UISettings>(
               const cacheKey = `user_settings_${user.id}`;
               settingsCache.delete(cacheKey);
             }).catch(e => {
-              console.error('[useUserUIState] Error backfilling/normalizing fields:', e);
+              handleError(e, { context: 'useUserUIState.backfillFields', showToast: false });
             });
           }
         } else {
@@ -205,7 +206,7 @@ export function useUserUIState<K extends keyof UISettings>(
         
         setIsLoading(false);
       } catch (error) {
-        console.error('[useUserUIState] Error in loadUserSettings:', error);
+        handleError(error, { context: 'useUserUIState.loadUserSettings', showToast: false });
         setIsLoading(false);
       }
     };
@@ -275,7 +276,7 @@ export function useUserUIState<K extends keyof UISettings>(
           console.log(`[useUserUIState] Cache invalidated for user ${userId} after update`);
         }
       } catch (error) {
-        console.error('[useUserUIState] Error in update:', error);
+        handleError(error, { context: 'useUserUIState.update', showToast: false });
       }
     }, 200);
   };

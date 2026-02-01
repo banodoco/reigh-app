@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import {
   generateClientThumbnail,
@@ -145,8 +146,7 @@ export const useCreateShotWithImage = () => {
     },
 
     onError: (error: Error) => {
-      console.error('[CreateShotWithImage] Error:', error);
-      toast.error(`Failed to create shot with image: ${error.message}`);
+      handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to create shot with image' });
     },
   });
 };
@@ -408,10 +408,7 @@ export const useHandleExternalImageDrop = () => {
 
             generationIds.push(newGeneration.id as string);
           } catch (fileError) {
-            console.error(`[useShots] Error processing file ${imageFile.name}:`, fileError);
-            toast.error(
-              `Failed to process file ${imageFile.name}: ${(fileError as Error).message}`
-            );
+            handleError(fileError, { context: 'useShotCreation', toastTitle: `Failed to process file ${imageFile.name}` });
           }
         }
 
@@ -421,8 +418,7 @@ export const useHandleExternalImageDrop = () => {
           return null;
         }
       } catch (error) {
-        console.error('[useShots] Error handling external image drop:', error);
-        toast.error(`Failed to process dropped image(s): ${(error as Error).message}`);
+        handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to process dropped image(s)' });
         return null;
       }
     },

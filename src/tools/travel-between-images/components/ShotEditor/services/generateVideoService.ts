@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { getDisplayUrl } from '@/shared/lib/utils';
 // NOTE: resolveImageUrl is no longer needed - location already contains the best version
 import {
@@ -528,8 +529,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
       .order('timeline_frame', { ascending: true });
 
     if (error) {
-      console.error('[TaskSubmission] Error fetching fresh shot data:', error);
-      toast.error('Failed to fetch current images. Please try again.');
+      handleError(error, { context: 'TaskSubmission', toastTitle: 'Failed to fetch current images' });
       return { success: false, error: 'Failed to fetch shot data' };
     }
 
@@ -579,8 +579,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
       idsMatchUrls: absoluteImageUrls.length === imageGenerationIds.length
     });
   } catch (err) {
-    console.error('[TaskSubmission] Error fetching fresh image data:', err);
-    toast.error('Failed to prepare task data. Please try again.');
+    handleError(err, { context: 'TaskSubmission', toastTitle: 'Failed to prepare task data' });
     return { success: false, error: 'Failed to prepare task data' };
   }
 
@@ -631,8 +630,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
         .order('timeline_frame', { ascending: true });
 
       if (error) {
-        console.error('[Generation] Error fetching shot generations:', error);
-        console.error('[BasePromptsDebug] ❌ Query failed:', error);
+        handleError(error, { context: 'Generation', showToast: false });
       } else if (shotGenerationsData) {
         console.log('[BasePromptsDebug] ✅ Query returned data');
         console.log('[BasePromptsDebug] Total records from DB:', shotGenerationsData.length);
@@ -838,9 +836,9 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
         });
       }
     } catch (err) {
-      console.error('[Generation] Error fetching shot generations:', err);
+      handleError(err, { context: 'Generation', showToast: false });
     }
-    
+
     // Calculate frame gaps from sorted positions
     const frameGaps = [];
     for (let i = 0; i < sortedPositions.length - 1; i++) {
@@ -1543,7 +1541,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
         await clearAllEnhancedPrompts();
         console.log("[generateVideoService] ✅ Successfully cleared all enhanced prompts");
       } catch (clearError) {
-        console.error("[generateVideoService] ⚠️ Failed to clear enhanced prompts:", clearError);
+        handleError(clearError, { context: 'generateVideoService', showToast: false });
         // Continue with task submission even if clearing fails (non-critical)
       }
     }
@@ -1561,10 +1559,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
       parentGenerationId: result.parentGenerationId,
     };
   } catch (error) {
-    console.error('Error creating video generation task:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    toast.error(`Failed to create video generation task: ${errorMessage}`);
-    return { success: false, error: errorMessage };
+    const appError = handleError(error, { context: 'generateVideoService', toastTitle: 'Failed to create video generation task' });
+    return { success: false, error: appError.message };
   }
 }
 

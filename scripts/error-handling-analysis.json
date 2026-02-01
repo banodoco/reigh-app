@@ -1,0 +1,3622 @@
+{
+  "summary": {
+    "already-uses-handleError": 367,
+    "validation-toast": 133
+  },
+  "findings": [
+    {
+      "file": "app/App.tsx",
+      "line": 200,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'App', showToast: false });\n    }",
+      "suggestedContext": "App"
+    },
+    {
+      "file": "app/Layout.tsx",
+      "line": 248,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'Layout', showToast: false });\n      }",
+      "suggestedContext": "Layout"
+    },
+    {
+      "file": "integrations/supabase/auth/AuthStateManager.ts",
+      "line": 20,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'AuthStateManager', showToast: false });\n      }",
+      "suggestedContext": "AuthStateManager"
+    },
+    {
+      "file": "integrations/supabase/auth/AuthStateManager.ts",
+      "line": 47,
+      "type": "already-uses-handleError",
+      "code": "handleError(importError, { context: 'AuthStateManager', showToast: false });\n              }",
+      "suggestedContext": "AuthStateManager"
+    },
+    {
+      "file": "integrations/supabase/auth/AuthStateManager.ts",
+      "line": 51,
+      "type": "already-uses-handleError",
+      "code": "handleError(healError, { context: 'AuthStateManager', showToast: false });\n          }",
+      "suggestedContext": "AuthStateManager"
+    },
+    {
+      "file": "integrations/supabase/auth/AuthStateManager.ts",
+      "line": 56,
+      "type": "already-uses-handleError",
+      "code": "handleError(setAuthError, { context: 'AuthStateManager', showToast: false });\n    }",
+      "suggestedContext": "AuthStateManager"
+    },
+    {
+      "file": "integrations/supabase/auth/AuthStateManager.ts",
+      "line": 72,
+      "type": "already-uses-handleError",
+      "code": "handleError(authError, { context: 'AuthStateManager', showToast: false });\n    }",
+      "suggestedContext": "AuthStateManager"
+    },
+    {
+      "file": "integrations/supabase/client.ts",
+      "line": 70,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'client', showToast: false });\n  }",
+      "suggestedContext": "client"
+    },
+    {
+      "file": "integrations/supabase/instrumentation/realtime/index.ts",
+      "line": 62,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'realtime', showToast: false });\n  }",
+      "suggestedContext": "realtime"
+    },
+    {
+      "file": "integrations/supabase/instrumentation/realtime/index.ts",
+      "line": 103,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'realtime', showToast: false });\n            }",
+      "suggestedContext": "realtime"
+    },
+    {
+      "file": "integrations/supabase/reconnect/ReconnectScheduler.ts",
+      "line": 156,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ReconnectScheduler', showToast: false });\n    }",
+      "suggestedContext": "ReconnectScheduler"
+    },
+    {
+      "file": "pages/Home/HomePage.tsx",
+      "line": 259,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'HomePage', showToast: false });\n        }",
+      "suggestedContext": "HomePage"
+    },
+    {
+      "file": "pages/Home/HomePage.tsx",
+      "line": 412,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'HomePage', showToast: false });\n    }",
+      "suggestedContext": "HomePage"
+    },
+    {
+      "file": "pages/SharePage.tsx",
+      "line": 176,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'SharePage', showToast: false });\nsetError('Failed to load shared generation');\n    } finally {\n      setLoading(false);\n    }",
+      "suggestedContext": "SharePage"
+    },
+    {
+      "file": "pages/ShotsPage.tsx",
+      "line": 86,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot delete image: Shot or Project ID is missing.');",
+      "suggestedContext": "ShotsPage",
+      "toastMessage": "Cannot delete image: Shot or Project ID is missing."
+    },
+    {
+      "file": "pages/ShotsPage.tsx",
+      "line": 113,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot reorder images: Shot or Project ID is missing.');",
+      "suggestedContext": "ShotsPage",
+      "toastMessage": "Cannot reorder images: Shot or Project ID is missing."
+    },
+    {
+      "file": "pages/ShotsPage.tsx",
+      "line": 150,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot add to shot: No shot or project selected');",
+      "suggestedContext": "ShotsPage",
+      "toastMessage": "Cannot add to shot: No shot or project selected"
+    },
+    {
+      "file": "pages/ShotsPage.tsx",
+      "line": 173,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot: ...' });\nreturn false;\n    }",
+      "suggestedContext": "ShotsPage"
+    },
+    {
+      "file": "pages/ShotsPage.tsx",
+      "line": 186,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot add to shot: No shot or project selected');",
+      "suggestedContext": "ShotsPage",
+      "toastMessage": "Cannot add to shot: No shot or project selected"
+    },
+    {
+      "file": "pages/ShotsPage.tsx",
+      "line": 206,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot: ...' });\nreturn false;\n    }",
+      "suggestedContext": "ShotsPage"
+    },
+    {
+      "file": "shared/components/BatchDropZone.tsx",
+      "line": 333,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid file type for ${file.name}. Only JPEG, PNG, and WebP are supported.`);",
+      "suggestedContext": "BatchDropZone"
+    },
+    {
+      "file": "shared/components/BatchDropZone.tsx",
+      "line": 345,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchDropZone', toastTitle: 'Failed to add images: ...' });\nsetPendingDropIndex(null);\n      } finally {\n        setIsProcessingDrop(false);\n      }",
+      "suggestedContext": "BatchDropZone"
+    },
+    {
+      "file": "shared/components/BatchDropZone.tsx",
+      "line": 364,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchDropZone', toastTitle: 'Failed to add generation: ...' });\nsetPendingDropIndex(null);\n      } finally {\n        setIsProcessingDrop(false);\n      }",
+      "suggestedContext": "BatchDropZone"
+    },
+    {
+      "file": "shared/components/CreateProjectModal.tsx",
+      "line": 85,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please select an aspect ratio.\");",
+      "suggestedContext": "CreateProjectModal",
+      "toastMessage": "Please select an aspect ratio."
+    },
+    {
+      "file": "shared/components/CreateProjectModal.tsx",
+      "line": 97,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CreateProjectModal', toastTitle: 'An error occurred while creating the project.' });\n    }",
+      "suggestedContext": "CreateProjectModal"
+    },
+    {
+      "file": "shared/components/CreateShotModal.tsx",
+      "line": 98,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CreateShotModal', toastTitle: 'Failed to crop ...' });\nreturn file; // Return original on error\n            }",
+      "suggestedContext": "CreateShotModal"
+    },
+    {
+      "file": "shared/components/CreateShotModal.tsx",
+      "line": 125,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CreateShotModal', toastTitle: 'Failed to process images' });\n      // Cropping failed - show error but don't close\nsetIsProcessing(false);\n    }",
+      "suggestedContext": "CreateShotModal"
+    },
+    {
+      "file": "shared/components/CreditsManagement/hooks/useTaskLogDownload.ts",
+      "line": 129,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTaskLogDownload', showToast: false });\n    }",
+      "suggestedContext": "useTaskLogDownload"
+    },
+    {
+      "file": "shared/components/DatasetBrowserModal.tsx",
+      "line": 301,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to update visibility' });\n    }",
+      "suggestedContext": "DatasetBrowserModal"
+    },
+    {
+      "file": "shared/components/DatasetBrowserModal.tsx",
+      "line": 350,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to process selected resource' });\n    }",
+      "suggestedContext": "DatasetBrowserModal"
+    },
+    {
+      "file": "shared/components/ImageGenerationModal.tsx",
+      "line": 60,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project selected. Please select a project before generating images.\");",
+      "suggestedContext": "ImageGenerationModal",
+      "toastMessage": "No project selected. Please select a project before generating images."
+    },
+    {
+      "file": "shared/components/ImageGenerationModal.tsx",
+      "line": 83,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationModal' });\n    }",
+      "suggestedContext": "ImageGenerationModal"
+    },
+    {
+      "file": "shared/components/LineageGifModal.tsx",
+      "line": 64,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'LineageGifModal', showToast: false });\nsetDownloadState({\n        status: 'error',\n        message: err instanceof Error ? err.message : 'Failed to generate GIF',\n      })",
+      "suggestedContext": "LineageGifModal"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 130,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MyLorasTab', showToast: false });\n      }",
+      "suggestedContext": "MyLorasTab"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 165,
+      "type": "validation-toast",
+      "code": "toast.error(\"Name is required\");",
+      "suggestedContext": "MyLorasTab",
+      "toastMessage": "Name is required"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 178,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please select a LoRA file to upload\");",
+      "suggestedContext": "MyLorasTab",
+      "toastMessage": "Please select a LoRA file to upload"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 183,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please select at least one LoRA file (High Noise or Low Noise)\");",
+      "suggestedContext": "MyLorasTab",
+      "toastMessage": "Please select at least one LoRA file (High Noise or Low Noise)"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 191,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please provide at least one LoRA URL (High Noise or Low Noise)\");",
+      "suggestedContext": "MyLorasTab",
+      "toastMessage": "Please provide at least one LoRA URL (High Noise or Low Noise)"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 198,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid High Noise URL: ${highNoiseValidation.message}`);",
+      "suggestedContext": "MyLorasTab"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 205,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid Low Noise URL: ${lowNoiseValidation.message}`);",
+      "suggestedContext": "MyLorasTab"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 212,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid HuggingFace URL: ${urlValidation.message}`);",
+      "suggestedContext": "MyLorasTab"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 239,
+      "type": "validation-toast",
+      "code": "toast.error(`Failed to upload to HuggingFace: ${uploadResult.error}`);",
+      "suggestedContext": "MyLorasTab"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 261,
+      "type": "validation-toast",
+      "code": "toast.error(`Failed to upload to HuggingFace: ${uploadResult.error}`);",
+      "suggestedContext": "MyLorasTab"
+    },
+    {
+      "file": "shared/components/LoraSelectorModal/components/MyLorasTab.tsx",
+      "line": 364,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MyLorasTab' });\n    }",
+      "suggestedContext": "MyLorasTab"
+    },
+    {
+      "file": "shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+      "line": 583,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MediaGalleryLightbox', toastTitle: 'Failed to load generation' });\n    }",
+      "suggestedContext": "MediaGalleryLightbox"
+    },
+    {
+      "file": "shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+      "line": 157,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMediaGalleryActions', showToast: false });\n// Only clear on error - success case is handled by Grid when new data renders\n            setIsBackfillLoading(false);\n   ",
+      "suggestedContext": "useMediaGalleryActions"
+    },
+    {
+      "file": "shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+      "line": 167,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMediaGalleryActions', toastTitle: 'Could not delete the image. Please try again.' });\n// Revert optimistic state\n      removeOptimisticDeleted(imageId);\n      pending",
+      "suggestedContext": "useMediaGalleryActions"
+    },
+    {
+      "file": "shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+      "line": 276,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMediaGalleryActions', showToast: false });\n    }",
+      "suggestedContext": "useMediaGalleryActions"
+    },
+    {
+      "file": "shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+      "line": 387,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMediaGalleryActions', showToast: false });\n        }",
+      "suggestedContext": "useMediaGalleryActions"
+    },
+    {
+      "file": "shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+      "line": 418,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMediaGalleryActions', showToast: false });\n    }",
+      "suggestedContext": "useMediaGalleryActions"
+    },
+    {
+      "file": "shared/components/MediaGallery/index.tsx",
+      "line": 420,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MediaGallery', showToast: false });\n    }",
+      "suggestedContext": "MediaGallery"
+    },
+    {
+      "file": "shared/components/MediaGallery/index.tsx",
+      "line": 454,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MediaGallery', showToast: false });\n    }",
+      "suggestedContext": "MediaGallery"
+    },
+    {
+      "file": "shared/components/MediaGalleryItem.tsx",
+      "line": 403,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MediaGalleryItem', toastTitle: 'Failed to create the shot. Please try again.' });\n    }",
+      "suggestedContext": "MediaGalleryItem"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/SegmentRegenerateForm.tsx",
+      "line": 455,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentRegenerateForm' });\n        }",
+      "suggestedContext": "SegmentRegenerateForm"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/SegmentRegenerateForm.tsx",
+      "line": 503,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentRegenerateForm' });\n    }",
+      "suggestedContext": "SegmentRegenerateForm"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/SegmentSlotFormView.tsx",
+      "line": 326,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentSlotFormView' });\n        }",
+      "suggestedContext": "SegmentSlotFormView"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/SegmentSlotFormView.tsx",
+      "line": 377,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentSlotFormView' });\n    }",
+      "suggestedContext": "SegmentSlotFormView"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+      "line": 152,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotSelectorControls', showToast: false });\n    }",
+      "suggestedContext": "ShotSelectorControls"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+      "line": 188,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotSelectorControls', showToast: false });\n    }",
+      "suggestedContext": "ShotSelectorControls"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/SourceGenerationDisplay.tsx",
+      "line": 133,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SourceGenerationDisplay', showToast: false });\n    }",
+      "suggestedContext": "SourceGenerationDisplay"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+      "line": 209,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'StrokeOverlay', showToast: false });\ndocument.body.removeChild(container);\n        return null;\n      }",
+      "suggestedContext": "StrokeOverlay"
+    },
+    {
+      "file": "shared/components/MediaLightbox/components/WorkflowControls.tsx",
+      "line": 115,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'WorkflowControls', showToast: false });\n    }",
+      "suggestedContext": "WorkflowControls"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+      "line": 117,
+      "type": "validation-toast",
+      "code": "toast.error(`Cannot generate ${taskType === 'inpaint' ? 'inpaint' : 'annotated edit'}`);",
+      "suggestedContext": "useTaskGeneration"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+      "line": 122,
+      "type": "validation-toast",
+      "code": "toast.error(config.emptyStrokesError);",
+      "suggestedContext": "useTaskGeneration"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+      "line": 127,
+      "type": "validation-toast",
+      "code": "toast.error('Please enter a prompt');",
+      "suggestedContext": "useTaskGeneration",
+      "toastMessage": "Please enter a prompt"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+      "line": 132,
+      "type": "validation-toast",
+      "code": "toast.error(config.overlayNotReadyError);",
+      "suggestedContext": "useTaskGeneration"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+      "line": 191,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTaskGeneration' });\n    }",
+      "suggestedContext": "useTaskGeneration"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useImg2ImgMode.ts",
+      "line": 122,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected');",
+      "suggestedContext": "useImg2ImgMode",
+      "toastMessage": "No project selected"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useImg2ImgMode.ts",
+      "line": 127,
+      "type": "validation-toast",
+      "code": "toast.error('Img2Img is only available for images');",
+      "suggestedContext": "useImg2ImgMode",
+      "toastMessage": "Img2Img is only available for images"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useImg2ImgMode.ts",
+      "line": 132,
+      "type": "validation-toast",
+      "code": "toast.error('No source image URL available');",
+      "suggestedContext": "useImg2ImgMode",
+      "toastMessage": "No source image URL available"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useImg2ImgMode.ts",
+      "line": 196,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useImg2ImgMode', toastTitle: 'Failed to create Img2Img tasks: ...' });\n    }",
+      "suggestedContext": "useImg2ImgMode"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useJoinClips.ts",
+      "line": 91,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useJoinClips', showToast: false });\n    }",
+      "suggestedContext": "useJoinClips"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useMagicEditMode.ts",
+      "line": 190,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected');",
+      "suggestedContext": "useMagicEditMode",
+      "toastMessage": "No project selected"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useMagicEditMode.ts",
+      "line": 196,
+      "type": "validation-toast",
+      "code": "toast.error('Please enter a prompt');",
+      "suggestedContext": "useMagicEditMode",
+      "toastMessage": "Please enter a prompt"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useMagicEditMode.ts",
+      "line": 266,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMagicEditMode', showToast: false });\n          }",
+      "suggestedContext": "useMagicEditMode"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useMagicEditMode.ts",
+      "line": 273,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMagicEditMode', toastTitle: 'Failed to create magic edit tasks' });\n      }",
+      "suggestedContext": "useMagicEditMode"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useMakeMainVariant.ts",
+      "line": 146,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMakeMainVariant', showToast: false });\n    }",
+      "suggestedContext": "useMakeMainVariant"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useReferences.ts",
+      "line": 63,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot add videos to references');",
+      "suggestedContext": "useReferences",
+      "toastMessage": "Cannot add videos to references"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useReferences.ts",
+      "line": 127,
+      "type": "already-uses-handleError",
+      "code": "handleError(thumbnailError, { context: 'useReferences', showToast: false });\n      }",
+      "suggestedContext": "useReferences"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useReferences.ts",
+      "line": 286,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useReferences', toastTitle: 'Failed to add to references' });\n    }",
+      "suggestedContext": "useReferences"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useReplaceInShot.ts",
+      "line": 97,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useReplaceInShot', showToast: false });\n    }",
+      "suggestedContext": "useReplaceInShot"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useRepositionMode.ts",
+      "line": 378,
+      "type": "validation-toast",
+      "code": "toast.error('Missing project or image dimensions');",
+      "suggestedContext": "useRepositionMode",
+      "toastMessage": "Missing project or image dimensions"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useRepositionMode.ts",
+      "line": 383,
+      "type": "validation-toast",
+      "code": "toast.error('Please move, scale, or rotate the image first');",
+      "suggestedContext": "useRepositionMode",
+      "toastMessage": "Please move, scale, or rotate the image first"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useRepositionMode.ts",
+      "line": 571,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useRepositionMode', toastTitle: 'Failed to create reposition task' });\n    }",
+      "suggestedContext": "useRepositionMode"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useRepositionMode.ts",
+      "line": 597,
+      "type": "validation-toast",
+      "code": "toast.error('Missing project or image dimensions');",
+      "suggestedContext": "useRepositionMode",
+      "toastMessage": "Missing project or image dimensions"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useRepositionMode.ts",
+      "line": 602,
+      "type": "validation-toast",
+      "code": "toast.error('Please make some changes first');",
+      "suggestedContext": "useRepositionMode",
+      "toastMessage": "Please make some changes first"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useRepositionMode.ts",
+      "line": 809,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useRepositionMode', toastTitle: 'Failed to save as variant' });\n    }",
+      "suggestedContext": "useRepositionMode"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useSourceGeneration.ts",
+      "line": 132,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useSourceGeneration', showToast: false });\n// Don't show toast - this is a non-critical feature\n        setSourceGenerationData(null);\n        setSourcePrimaryVariant(nu",
+      "suggestedContext": "useSourceGeneration"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useUpscale.ts",
+      "line": 116,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useUpscale', showToast: false });\n      }",
+      "suggestedContext": "useUpscale"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useUpscale.ts",
+      "line": 130,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot upscale videos');",
+      "suggestedContext": "useUpscale",
+      "toastMessage": "Cannot upscale videos"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useUpscale.ts",
+      "line": 165,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useUpscale', showToast: false });\n      }",
+      "suggestedContext": "useUpscale"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useUpscale.ts",
+      "line": 169,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUpscale', toastTitle: 'Failed to create upscale task' });\n    }",
+      "suggestedContext": "useUpscale"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useVariantPromotion.ts",
+      "line": 42,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected');",
+      "suggestedContext": "useVariantPromotion",
+      "toastMessage": "No project selected"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useVariantPromotion.ts",
+      "line": 66,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useVariantPromotion', showToast: false });\n    }",
+      "suggestedContext": "useVariantPromotion"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useVariantPromotion.ts",
+      "line": 79,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected');",
+      "suggestedContext": "useVariantPromotion",
+      "toastMessage": "No project selected"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useVariantPromotion.ts",
+      "line": 164,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useVariantPromotion', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "useVariantPromotion"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useVideoEditing.ts",
+      "line": 523,
+      "type": "validation-toast",
+      "code": "toast.error('Please fix validation errors before generating');",
+      "suggestedContext": "useVideoEditing",
+      "toastMessage": "Please fix validation errors before generating"
+    },
+    {
+      "file": "shared/components/MediaLightbox/hooks/useVideoEnhance.ts",
+      "line": 119,
+      "type": "already-uses-handleError",
+      "code": "console.error('[useVideoEnhance] Error creating task:', error);\n      handleError(error, { context: 'VideoEnhance', toastTitle: 'Failed to create video enhancement task' });\n    } finally {\n      setI",
+      "suggestedContext": "useVideoEnhance"
+    },
+    {
+      "file": "shared/components/MediaLightbox/utils/download.ts",
+      "line": 139,
+      "type": "already-uses-handleError",
+      "code": "handleError(openError, { context: 'download', toastTitle: 'Unable to download. Try opening in Safari.' });\nreturn;\n    }",
+      "suggestedContext": "download"
+    },
+    {
+      "file": "shared/components/MediaLightbox/utils/download.ts",
+      "line": 206,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'download', toastTitle: 'Download timed out. Please try again.' });\n    const errorDuration = Date.now() - downloadStartTime;\nif (error.name === 'AbortError') {\nreturn; /",
+      "suggestedContext": "download"
+    },
+    {
+      "file": "shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal.tsx",
+      "line": 861,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'PhaseConfigSelectorModal', showToast: false });\n      }",
+      "suggestedContext": "PhaseConfigSelectorModal"
+    },
+    {
+      "file": "shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal.tsx",
+      "line": 875,
+      "type": "validation-toast",
+      "code": "toast.error(\"Name is required\");",
+      "suggestedContext": "PhaseConfigSelectorModal",
+      "toastMessage": "Name is required"
+    },
+    {
+      "file": "shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal.tsx",
+      "line": 881,
+      "type": "validation-toast",
+      "code": "toast.error(\"No phase config available to save\");",
+      "suggestedContext": "PhaseConfigSelectorModal",
+      "toastMessage": "No phase config available to save"
+    },
+    {
+      "file": "shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal.tsx",
+      "line": 971,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'PhaseConfigSelectorModal' });\n    }",
+      "suggestedContext": "PhaseConfigSelectorModal"
+    },
+    {
+      "file": "shared/components/PhaseConfigSelectorModal/components/CopyIdButton.tsx",
+      "line": 19,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'CopyIdButton', showToast: false });\n    }",
+      "suggestedContext": "CopyIdButton"
+    },
+    {
+      "file": "shared/components/ProjectSelectorModal.tsx",
+      "line": 84,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectSelectorModal', showToast: false });\n    }",
+      "suggestedContext": "ProjectSelectorModal"
+    },
+    {
+      "file": "shared/components/ProjectSelectorModal.tsx",
+      "line": 117,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectSelectorModal', showToast: false });\n    }",
+      "suggestedContext": "ProjectSelectorModal"
+    },
+    {
+      "file": "shared/components/ProjectSettingsModal.tsx",
+      "line": 81,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project selected to update.\");",
+      "suggestedContext": "ProjectSettingsModal",
+      "toastMessage": "No project selected to update."
+    },
+    {
+      "file": "shared/components/ProjectSettingsModal.tsx",
+      "line": 104,
+      "type": "validation-toast",
+      "code": "toast.error(\"Project name cannot be empty if it's the only change.\");",
+      "suggestedContext": "ProjectSettingsModal"
+    },
+    {
+      "file": "shared/components/ProjectSettingsModal.tsx",
+      "line": 162,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectSettingsModal', toastTitle: 'Failed to update some reference images. You may need to re-upload them.' });\n    }",
+      "suggestedContext": "ProjectSettingsModal"
+    },
+    {
+      "file": "shared/components/PromptEditorModal.tsx",
+      "line": 213,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'PromptEditorModal', showToast: false });\n        }",
+      "suggestedContext": "PromptEditorModal"
+    },
+    {
+      "file": "shared/components/PromptEditorModal.tsx",
+      "line": 350,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'PromptEditorModal', showToast: false });\n          }",
+      "suggestedContext": "PromptEditorModal"
+    },
+    {
+      "file": "shared/components/PromptEditorModal.tsx",
+      "line": 414,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'PromptEditorModal', toastTitle: 'Error editing prompt ......' });\n      }",
+      "suggestedContext": "PromptEditorModal"
+    },
+    {
+      "file": "shared/components/ReferralModal.tsx",
+      "line": 77,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'ReferralModal', showToast: false });\n      }",
+      "suggestedContext": "ReferralModal"
+    },
+    {
+      "file": "shared/components/ReferralModal.tsx",
+      "line": 98,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'ReferralModal', showToast: false });\n    }",
+      "suggestedContext": "ReferralModal"
+    },
+    {
+      "file": "shared/components/SegmentSettingsForm.tsx",
+      "line": 599,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentSettingsForm', showToast: false });\n    }",
+      "suggestedContext": "SegmentSettingsForm"
+    },
+    {
+      "file": "shared/components/SegmentSettingsForm.tsx",
+      "line": 761,
+      "type": "validation-toast",
+      "code": "toast.error('Invalid file type. Please upload an MP4, WebM, or MOV file.');",
+      "suggestedContext": "SegmentSettingsForm",
+      "toastMessage": "Invalid file type. Please upload an MP4, WebM, or MOV file."
+    },
+    {
+      "file": "shared/components/SegmentSettingsForm.tsx",
+      "line": 769,
+      "type": "validation-toast",
+      "code": "toast.error(`File too large. Maximum size is ${maxSizeMB}MB`);",
+      "suggestedContext": "SegmentSettingsForm"
+    },
+    {
+      "file": "shared/components/SegmentSettingsForm.tsx",
+      "line": 830,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentSettingsForm', toastTitle: 'Failed to upload video: ...' });\n    }",
+      "suggestedContext": "SegmentSettingsForm"
+    },
+    {
+      "file": "shared/components/ShotImageManager/ShotImageManagerMobile.tsx",
+      "line": 253,
+      "type": "validation-toast",
+      "code": "toast.error(message);",
+      "suggestedContext": "ShotImageManagerMobile"
+    },
+    {
+      "file": "shared/components/ShotImageManager/ShotImageManagerMobile.tsx",
+      "line": 292,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImageManagerMobile', showToast: false });\n    }",
+      "suggestedContext": "ShotImageManagerMobile"
+    },
+    {
+      "file": "shared/components/ShotImageManager/ShotImageManagerMobile.tsx",
+      "line": 322,
+      "type": "validation-toast",
+      "code": "toast.error(message);",
+      "suggestedContext": "ShotImageManagerMobile"
+    },
+    {
+      "file": "shared/components/ShotImageManager/components/EmptyState.tsx",
+      "line": 84,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'EmptyState', toastTitle: 'Failed to add image: ...' });\n      }",
+      "suggestedContext": "EmptyState"
+    },
+    {
+      "file": "shared/components/ShotImageManager/components/EmptyState.tsx",
+      "line": 99,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid file type for ${file.name}. Only JPEG, PNG, and WebP are supported.`);",
+      "suggestedContext": "EmptyState"
+    },
+    {
+      "file": "shared/components/ShotImageManager/components/EmptyState.tsx",
+      "line": 107,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'EmptyState', toastTitle: 'Failed to add images: ...' });\n    }",
+      "suggestedContext": "EmptyState"
+    },
+    {
+      "file": "shared/components/ShotImageManager/hooks/useExternalGenerations.ts",
+      "line": 82,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useExternalGenerations', showToast: false });\n          }",
+      "suggestedContext": "useExternalGenerations"
+    },
+    {
+      "file": "shared/components/ShotImageManager/hooks/useExternalGenerations.ts",
+      "line": 111,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });\nreturn false;\n    }",
+      "suggestedContext": "useExternalGenerations"
+    },
+    {
+      "file": "shared/components/ShotImageManager/hooks/useExternalGenerations.ts",
+      "line": 132,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });\nreturn false;\n    }",
+      "suggestedContext": "useExternalGenerations"
+    },
+    {
+      "file": "shared/components/ShotImageManager/hooks/useExternalGenerations.ts",
+      "line": 322,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to load generation' });\n    }",
+      "suggestedContext": "useExternalGenerations"
+    },
+    {
+      "file": "shared/components/ShotImageManager/hooks/useMobileGestures.ts",
+      "line": 135,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useMobileGestures', showToast: false });\n    }",
+      "suggestedContext": "useMobileGestures"
+    },
+    {
+      "file": "shared/components/ShotSelectorWithAdd.tsx",
+      "line": 149,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotSelectorWithAdd', toastTitle: 'Could not add image to shot. Please try again.' });\n    }",
+      "suggestedContext": "ShotSelectorWithAdd"
+    },
+    {
+      "file": "shared/components/TasksPane/TaskItem.tsx",
+      "line": 262,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'TaskItem', toastTitle: 'Progress Check Failed' });\n    }",
+      "suggestedContext": "TaskItem"
+    },
+    {
+      "file": "shared/components/TasksPane/hooks/useShotActions.ts",
+      "line": 90,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useShotActions', showToast: false });\n// Revert optimistic update on error\n      const key = `${generationId}:${targetShotId}`;\n      setOptimisticPositionedIds(prev => ",
+      "suggestedContext": "useShotActions"
+    },
+    {
+      "file": "shared/components/TasksPane/hooks/useShotActions.ts",
+      "line": 137,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useShotActions', showToast: false });\n// Revert optimistic update on error\n      const key = `${generationId}:${targetShotId}`;\n      setOptimisticUnpositionedIds(prev =",
+      "suggestedContext": "useShotActions"
+    },
+    {
+      "file": "shared/components/TasksPane/hooks/useTasksLightbox.ts",
+      "line": 138,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTasksLightbox', showToast: false });\n    }",
+      "suggestedContext": "useTasksLightbox"
+    },
+    {
+      "file": "shared/components/VideoGenerationModal.tsx",
+      "line": 229,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project or shot selected.\");",
+      "suggestedContext": "VideoGenerationModal",
+      "toastMessage": "No project or shot selected."
+    },
+    {
+      "file": "shared/components/VideoGenerationModal.tsx",
+      "line": 233,
+      "type": "validation-toast",
+      "code": "toast.error(\"At least 1 positioned image is required.\");",
+      "suggestedContext": "VideoGenerationModal",
+      "toastMessage": "At least 1 positioned image is required."
+    },
+    {
+      "file": "shared/components/VideoGenerationModal.tsx",
+      "line": 314,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoGenerationModal' });\n    }",
+      "suggestedContext": "VideoGenerationModal"
+    },
+    {
+      "file": "shared/components/VideoPortionTimeline/index.tsx",
+      "line": 70,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'VideoPortionTimeline', showToast: false });\nsetError(true);\n          }",
+      "suggestedContext": "VideoPortionTimeline"
+    },
+    {
+      "file": "shared/components/ui/ai-input-button.tsx",
+      "line": 142,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ai-input-button', showToast: false });\n}",
+      "suggestedContext": "ai-input-button"
+    },
+    {
+      "file": "shared/contexts/PanesContext.tsx",
+      "line": 213,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'PanesContext', showToast: false });\n    }",
+      "suggestedContext": "PanesContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 59,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'ProjectContext', showToast: false });\n  }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 94,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'ProjectContext', showToast: false });\nreturn null;\n  }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 176,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'ProjectContext', showToast: false });\n    }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 339,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectContext', showToast: false });\n// [MobileStallFix] Set empty preferences on error instead of leaving undefined\n      setUserPreferences({});\n      userPreferences",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 373,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectContext', showToast: false });\n    }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 436,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'ProjectContext', showToast: false });\n        }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 465,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'ProjectContext', showToast: false });\n      }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 475,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'ProjectContext', showToast: false });\n      }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 555,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectContext', toastTitle: 'Failed to load projects: ...' });\nsetProjects([]);\n      // CRITICAL FIX: DO NOT clear selectedProjectId on fetch error!\n      // This was ",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 574,
+      "type": "validation-toast",
+      "code": "toast.error(\"Project name cannot be empty.\");",
+      "suggestedContext": "ProjectContext",
+      "toastMessage": "Project name cannot be empty."
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 578,
+      "type": "validation-toast",
+      "code": "toast.error(\"Aspect ratio cannot be empty.\");",
+      "suggestedContext": "ProjectContext",
+      "toastMessage": "Aspect ratio cannot be empty."
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 720,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'ProjectContext', showToast: false });\n        }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 784,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectContext', toastTitle: 'Failed to create project: ...' });\nreturn null;\n    } finally {\n      setIsCreatingProject(false);\n    }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 794,
+      "type": "validation-toast",
+      "code": "toast.error(\"No changes to save.\");",
+      "suggestedContext": "ProjectContext",
+      "toastMessage": "No changes to save."
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 825,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectContext', toastTitle: 'Failed to update project: ...' });\nreturn false;\n    } finally {\n      setIsUpdatingProject(false);\n    }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/contexts/ProjectContext.tsx",
+      "line": 865,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ProjectContext', toastTitle: 'Failed to delete project: ...' });\nreturn false;\n    } finally {\n      setIsDeletingProject(false);\n    }",
+      "suggestedContext": "ProjectContext"
+    },
+    {
+      "file": "shared/hooks/shots/useShotCreation.ts",
+      "line": 188,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot add image(s): current project is not identified.\");",
+      "suggestedContext": "useShotCreation",
+      "toastMessage": "Cannot add image(s): current project is not identified."
+    },
+    {
+      "file": "shared/hooks/shots/useShotCreation.ts",
+      "line": 260,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useShotCreation', showToast: false });\n        }",
+      "suggestedContext": "useShotCreation"
+    },
+    {
+      "file": "shared/hooks/shots/useShotCreation.ts",
+      "line": 279,
+      "type": "validation-toast",
+      "code": "toast.error('Failed to create new shot.');",
+      "suggestedContext": "useShotCreation",
+      "toastMessage": "Failed to create new shot."
+    },
+    {
+      "file": "shared/hooks/shots/useShotCreation.ts",
+      "line": 285,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot add images to an unknown shot.');",
+      "suggestedContext": "useShotCreation",
+      "toastMessage": "Cannot add images to an unknown shot."
+    },
+    {
+      "file": "shared/hooks/shots/useShotCreation.ts",
+      "line": 364,
+      "type": "already-uses-handleError",
+      "code": "handleError(generationError, {\n                context: 'useShotCreation',\n                toastTitle: `Failed to create generation data for ${imageFile.name}`\n              });\n              continue",
+      "suggestedContext": "useShotCreation"
+    },
+    {
+      "file": "shared/hooks/shots/useShotCreation.ts",
+      "line": 411,
+      "type": "already-uses-handleError",
+      "code": "handleError(fileError, { context: 'useShotCreation' });\n          }",
+      "suggestedContext": "useShotCreation"
+    },
+    {
+      "file": "shared/hooks/shots/useShotCreation.ts",
+      "line": 421,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to process dropped image(s): ...' });\nreturn null;\n      }",
+      "suggestedContext": "useShotCreation"
+    },
+    {
+      "file": "shared/hooks/shots/useShotGenerationMutations.ts",
+      "line": 356,
+      "type": "validation-toast",
+      "code": "toast.error('Database error: unexpected constraint. Please try again.');",
+      "suggestedContext": "useShotGenerationMutations",
+      "toastMessage": "Database error: unexpected constraint. Please try again."
+    },
+    {
+      "file": "shared/hooks/use-voice-recording.ts",
+      "line": 166,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'use-voice-recording', showToast: false });\nonError?.(err.message || \"Failed to process recording\");\n          setState(\"idle\");\n        }",
+      "suggestedContext": "use-voice-recording"
+    },
+    {
+      "file": "shared/hooks/use-voice-recording.ts",
+      "line": 197,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'use-voice-recording', showToast: false });\nif (err.name === \"NotAllowedError\") {\n        onError?.(\"Microphone access denied. Please allow microphone access.\");\n      } ",
+      "suggestedContext": "use-voice-recording"
+    },
+    {
+      "file": "shared/hooks/useAIInteractionService.ts",
+      "line": 73,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useAIInteractionService', showToast: false });\nreturn [];\n      } finally {\n        setIsGenerating(false);\n      }",
+      "suggestedContext": "useAIInteractionService"
+    },
+    {
+      "file": "shared/hooks/useAIInteractionService.ts",
+      "line": 97,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useAIInteractionService', showToast: false });\nreturn null;\n      } finally {\n        setIsSummarizing(false);\n      }",
+      "suggestedContext": "useAIInteractionService"
+    },
+    {
+      "file": "shared/hooks/useAIInteractionService.ts",
+      "line": 125,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useAIInteractionService', showToast: false });\nreturn { success: false, newText: params.originalPromptText };\n      } finally {\n        setIsEditing(false);\n      }",
+      "suggestedContext": "useAIInteractionService"
+    },
+    {
+      "file": "shared/hooks/useAutoSaveSettings.ts",
+      "line": 202,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useAutoSaveSettings', showToast: false });\nsetStatus('error');\n      setError(err as Error);\n      onSaveError?.(err as Error);\n      throw err;\n    }",
+      "suggestedContext": "useAutoSaveSettings"
+    },
+    {
+      "file": "shared/hooks/useAutoSaveSettings.ts",
+      "line": 365,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useAutoSaveSettings', showToast: false });\n        }",
+      "suggestedContext": "useAutoSaveSettings"
+    },
+    {
+      "file": "shared/hooks/useAutoSaveSettings.ts",
+      "line": 422,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useAutoSaveSettings', showToast: false });\n        }",
+      "suggestedContext": "useAutoSaveSettings"
+    },
+    {
+      "file": "shared/hooks/useAutoSaveSettings.ts",
+      "line": 568,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useAutoSaveSettings', showToast: false });\n          }",
+      "suggestedContext": "useAutoSaveSettings"
+    },
+    {
+      "file": "shared/hooks/useCredits.ts",
+      "line": 69,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useCredits', showToast: false });\n  }",
+      "suggestedContext": "useCredits"
+    },
+    {
+      "file": "shared/hooks/useCredits.ts",
+      "line": 120,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useCredits', showToast: false });\n  }",
+      "suggestedContext": "useCredits"
+    },
+    {
+      "file": "shared/hooks/useDemoteOrphanedVariants.ts",
+      "line": 146,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useDemoteOrphanedVariants', showToast: false });\nreturn 0;\n    }",
+      "suggestedContext": "useDemoteOrphanedVariants"
+    },
+    {
+      "file": "shared/hooks/useEnhancedShotImageReorder.ts",
+      "line": 225,
+      "type": "validation-toast",
+      "code": "toast.error('Please wait a moment and try again');",
+      "suggestedContext": "useEnhancedShotImageReorder",
+      "toastMessage": "Please wait a moment and try again"
+    },
+    {
+      "file": "shared/hooks/useEnhancedShotImageReorder.ts",
+      "line": 368,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useEnhancedShotImageReorder', showToast: false });\n      }",
+      "suggestedContext": "useEnhancedShotImageReorder"
+    },
+    {
+      "file": "shared/hooks/useEnhancedShotImageReorder.ts",
+      "line": 410,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to reorder items' });\n    }",
+      "suggestedContext": "useEnhancedShotImageReorder"
+    },
+    {
+      "file": "shared/hooks/useEnhancedShotImageReorder.ts",
+      "line": 438,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to delete item' });\n    }",
+      "suggestedContext": "useEnhancedShotImageReorder"
+    },
+    {
+      "file": "shared/hooks/useGenerationsPageLogic.ts",
+      "line": 782,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationsPageLogic' });\nconsole.error('[AddDebug] handleAddToShot failed:', {\n        error: error instanceof Error ? error.message : error,\n        stack: error in",
+      "suggestedContext": "useGenerationsPageLogic"
+    },
+    {
+      "file": "shared/hooks/useGenerationsPageLogic.ts",
+      "line": 815,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationsPageLogic' });\nreturn false;\n    }",
+      "suggestedContext": "useGenerationsPageLogic"
+    },
+    {
+      "file": "shared/hooks/useLoraManager.tsx",
+      "line": 264,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useLoraManager', showToast: false });\nsetSaveFlash(false); // Clear flash on error too\n    }",
+      "suggestedContext": "useLoraManager"
+    },
+    {
+      "file": "shared/hooks/useLoraManager.tsx",
+      "line": 316,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useLoraManager', showToast: false });\n    }",
+      "suggestedContext": "useLoraManager"
+    },
+    {
+      "file": "shared/hooks/useOnboarding.ts",
+      "line": 54,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useOnboarding', showToast: false });\n      }",
+      "suggestedContext": "useOnboarding"
+    },
+    {
+      "file": "shared/hooks/useOnboarding.ts",
+      "line": 77,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useOnboarding', showToast: false });\n    }",
+      "suggestedContext": "useOnboarding"
+    },
+    {
+      "file": "shared/hooks/usePersistentState.ts",
+      "line": 34,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'usePersistentState', showToast: false });\n    }",
+      "suggestedContext": "usePersistentState"
+    },
+    {
+      "file": "shared/hooks/usePersistentState.ts",
+      "line": 75,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'usePersistentState' });\n// Different error message for mobile users\n      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);\n      const errorDescri",
+      "suggestedContext": "usePersistentState"
+    },
+    {
+      "file": "shared/hooks/usePersistentToolState.ts",
+      "line": 216,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'usePersistentToolState', showToast: false });\n          const errorMessage = error instanceof Error ? error.message : 'Unknown error';\nsetSaveError(error as Error);\n    ",
+      "suggestedContext": "usePersistentToolState"
+    },
+    {
+      "file": "shared/hooks/usePlatformInstall.ts",
+      "line": 430,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'usePlatformInstall', showToast: false });\nsetPromptConsumed(true);\n        return false;\n      }",
+      "suggestedContext": "usePlatformInstall"
+    },
+    {
+      "file": "shared/hooks/usePrefetchToolSettings.ts",
+      "line": 95,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'usePrefetchToolSettings', showToast: false });\n  }",
+      "suggestedContext": "usePrefetchToolSettings"
+    },
+    {
+      "file": "shared/hooks/useQuickShotCreate.ts",
+      "line": 148,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useQuickShotCreate', toastTitle: 'Failed to create shot and add image. Please try again.' });\n    }",
+      "suggestedContext": "useQuickShotCreate"
+    },
+    {
+      "file": "shared/hooks/useReferralTracking.ts",
+      "line": 88,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useReferralTracking', showToast: false });\n      }",
+      "suggestedContext": "useReferralTracking"
+    },
+    {
+      "file": "shared/hooks/useSegmentSettings.ts",
+      "line": 648,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useSegmentSettings', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "useSegmentSettings"
+    },
+    {
+      "file": "shared/hooks/useSegmentSettings.ts",
+      "line": 808,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useSegmentSettings', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "useSegmentSettings"
+    },
+    {
+      "file": "shared/hooks/useSegmentSettings.ts",
+      "line": 847,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useSegmentSettings', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "useSegmentSettings"
+    },
+    {
+      "file": "shared/hooks/useSegmentSettings.ts",
+      "line": 1021,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useSegmentSettings', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "useSegmentSettings"
+    },
+    {
+      "file": "shared/hooks/useSegmentSettings.ts",
+      "line": 1073,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useSegmentSettings', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "useSegmentSettings"
+    },
+    {
+      "file": "shared/hooks/useShareGeneration.ts",
+      "line": 396,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useShareGeneration', toastTitle: 'Please try again' });\n    }",
+      "suggestedContext": "useShareGeneration"
+    },
+    {
+      "file": "shared/hooks/useShotCreation.ts",
+      "line": 235,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected');",
+      "suggestedContext": "useShotCreation",
+      "toastMessage": "No project selected"
+    },
+    {
+      "file": "shared/hooks/useShotCreation.ts",
+      "line": 424,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to create shot: ...' });\n// Clear skeleton on error\n      if (dispatchSkeletonEvents) {\n        clearSkeletonEvent();\n      }\nretur",
+      "suggestedContext": "useShotCreation"
+    },
+    {
+      "file": "shared/hooks/useShotGenerationMetadata.ts",
+      "line": 115,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useShotGenerationMetadata', showToast: false });\nif (!cancelled) {\n          setMetadata({});\n          setIsLoading(false);\n        }\n      }",
+      "suggestedContext": "useShotGenerationMetadata"
+    },
+    {
+      "file": "shared/hooks/useShotGenerationMetadata.ts",
+      "line": 201,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useShotGenerationMetadata', showToast: false });\n    }",
+      "suggestedContext": "useShotGenerationMetadata"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 199,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', toastTitle: 'Failed to update position' });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 227,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', toastTitle: 'Failed to update positions' });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 249,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', toastTitle: 'Failed to reorder items' });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 278,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', toastTitle: 'Failed to delete item' });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 303,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', toastTitle: 'Failed to remove from timeline' });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 348,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', toastTitle: 'Failed to add item to timeline' });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 412,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', showToast: false });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 479,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', showToast: false });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 544,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', showToast: false });\n      }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 581,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', showToast: false });\n    }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelineCore.ts",
+      "line": 606,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelineCore', showToast: false });\n    }",
+      "suggestedContext": "useTimelineCore"
+    },
+    {
+      "file": "shared/hooks/useTimelinePositionUtils.ts",
+      "line": 135,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useTimelinePositionUtils', showToast: false });\n      const error = err instanceof Error ? err : new Error(String(err));\n      setError(error);\n      setIsLoading(false);\n",
+      "suggestedContext": "useTimelinePositionUtils"
+    },
+    {
+      "file": "shared/hooks/useToolSettings.ts",
+      "line": 332,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useToolSettings', showToast: false });\n    }",
+      "suggestedContext": "useToolSettings"
+    },
+    {
+      "file": "shared/hooks/useToolSettings.ts",
+      "line": 407,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useToolSettings', showToast: false });\n    // Handle abort errors silently to reduce noise during task cancellation\n    if (error?.name === 'AbortError' || \n        erro",
+      "suggestedContext": "useToolSettings"
+    },
+    {
+      "file": "shared/hooks/useUserPreferences.ts",
+      "line": 26,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUserPreferences', showToast: false });\n    }",
+      "suggestedContext": "useUserPreferences"
+    },
+    {
+      "file": "shared/hooks/useUserPreferences.ts",
+      "line": 36,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUserPreferences', showToast: false });\n    }",
+      "suggestedContext": "useUserPreferences"
+    },
+    {
+      "file": "shared/hooks/useUserUIState.ts",
+      "line": 134,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUserUIState', showToast: false });\n    }",
+      "suggestedContext": "useUserUIState"
+    },
+    {
+      "file": "shared/hooks/useUserUIState.ts",
+      "line": 208,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUserUIState', showToast: false });\nsetIsLoading(false);\n      }",
+      "suggestedContext": "useUserUIState"
+    },
+    {
+      "file": "shared/hooks/useUserUIState.ts",
+      "line": 278,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUserUIState', showToast: false });\n      }",
+      "suggestedContext": "useUserUIState"
+    },
+    {
+      "file": "shared/hooks/useVariants.ts",
+      "line": 250,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useVariants', showToast: false });\n      }",
+      "suggestedContext": "useVariants"
+    },
+    {
+      "file": "shared/lib/NetworkStatusManager.ts",
+      "line": 176,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'NetworkStatusManager', showToast: false });\n      }",
+      "suggestedContext": "NetworkStatusManager"
+    },
+    {
+      "file": "shared/lib/VisibilityManager.ts",
+      "line": 205,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VisibilityManager', showToast: false });\n      }",
+      "suggestedContext": "VisibilityManager"
+    },
+    {
+      "file": "shared/lib/clientThumbnailGenerator.ts",
+      "line": 171,
+      "type": "already-uses-handleError",
+      "code": "handleError(thumbnailError, { context: 'clientThumbnailGenerator', showToast: false });\n// Don't fail the main upload, use main image as thumbnail fallback\n    onProgress?.(100);\n    return { imageUrl",
+      "suggestedContext": "clientThumbnailGenerator"
+    },
+    {
+      "file": "shared/lib/debugPolling.ts",
+      "line": 36,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'debugPolling', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "debugPolling"
+    },
+    {
+      "file": "shared/lib/debugPolling.ts",
+      "line": 75,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'debugPolling', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "debugPolling"
+    },
+    {
+      "file": "shared/lib/dragDrop.ts",
+      "line": 141,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'dragDrop', showToast: false });\nreturn null;\n  }",
+      "suggestedContext": "dragDrop"
+    },
+    {
+      "file": "shared/lib/recropReferences.ts",
+      "line": 151,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'recropReferences', showToast: false });\nerrorCount++;\n      // Keep the old reference unchanged on error\n      reprocessed.push(ref);\n      // Still report progress\n    ",
+      "suggestedContext": "recropReferences"
+    },
+    {
+      "file": "shared/lib/settingsWriteQueue.ts",
+      "line": 100,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'settingsWriteQueue', showToast: false });\n  }",
+      "suggestedContext": "settingsWriteQueue"
+    },
+    {
+      "file": "shared/lib/shotSettingsInheritance.ts",
+      "line": 84,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'shotSettingsInheritance', showToast: false });\n  }",
+      "suggestedContext": "shotSettingsInheritance"
+    },
+    {
+      "file": "shared/lib/shotSettingsInheritance.ts",
+      "line": 119,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'shotSettingsInheritance', showToast: false });\n    }",
+      "suggestedContext": "shotSettingsInheritance"
+    },
+    {
+      "file": "shared/lib/shotSettingsInheritance.ts",
+      "line": 183,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'shotSettingsInheritance', showToast: false });\n    }",
+      "suggestedContext": "shotSettingsInheritance"
+    },
+    {
+      "file": "shared/lib/simpleCacheValidator.ts",
+      "line": 65,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'simpleCacheValidator', showToast: false });\n    }",
+      "suggestedContext": "simpleCacheValidator"
+    },
+    {
+      "file": "shared/lib/taskCreation.ts",
+      "line": 59,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'taskCreation', showToast: false });\n// Fallback to default resolution\n    return {\n      resolution: ASPECT_RATIO_TO_RESOLUTION[DEFAULT_ASPECT_RATIO],\n      aspectRatio:",
+      "suggestedContext": "taskCreation"
+    },
+    {
+      "file": "shared/lib/taskCreation.ts",
+      "line": 223,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'taskCreation', showToast: false });\n    const context = {\n      requestId,\n      taskType: taskParams.task_type,\n      projectId: taskParams.project_id,\n      durationMs",
+      "suggestedContext": "taskCreation"
+    },
+    {
+      "file": "shared/lib/tasks/characterAnimate.ts",
+      "line": 140,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'characterAnimate', showToast: false });\n  }",
+      "suggestedContext": "characterAnimate"
+    },
+    {
+      "file": "shared/lib/tasks/imageGeneration.ts",
+      "line": 450,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'imageGeneration', showToast: false });\n  }",
+      "suggestedContext": "imageGeneration"
+    },
+    {
+      "file": "shared/lib/tasks/imageGeneration.ts",
+      "line": 568,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'imageGeneration', showToast: false });\n  }",
+      "suggestedContext": "imageGeneration"
+    },
+    {
+      "file": "shared/lib/tasks/imageUpscale.ts",
+      "line": 90,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'imageUpscale', showToast: false });\n  }",
+      "suggestedContext": "imageUpscale"
+    },
+    {
+      "file": "shared/lib/tasks/individualTravelSegment.ts",
+      "line": 755,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'individualTravelSegment', showToast: false });\n  }",
+      "suggestedContext": "individualTravelSegment"
+    },
+    {
+      "file": "shared/lib/tasks/joinClips.ts",
+      "line": 442,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'joinClips', showToast: false });\n  }",
+      "suggestedContext": "joinClips"
+    },
+    {
+      "file": "shared/lib/tasks/magicEdit.ts",
+      "line": 276,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'magicEdit', showToast: false });\n  }",
+      "suggestedContext": "magicEdit"
+    },
+    {
+      "file": "shared/lib/tasks/magicEdit.ts",
+      "line": 366,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'magicEdit', showToast: false });\n  }",
+      "suggestedContext": "magicEdit"
+    },
+    {
+      "file": "shared/lib/tasks/travelBetweenImages.ts",
+      "line": 986,
+      "type": "already-uses-handleError",
+      "code": "handleError(linkErr, { context: 'travelBetweenImages', showToast: false });\n      }",
+      "suggestedContext": "travelBetweenImages"
+    },
+    {
+      "file": "shared/lib/tasks/travelBetweenImages.ts",
+      "line": 1040,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'travelBetweenImages', showToast: false });\n  }",
+      "suggestedContext": "travelBetweenImages"
+    },
+    {
+      "file": "shared/lib/tasks/videoEnhance.ts",
+      "line": 244,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'videoEnhance', showToast: false });\n  }",
+      "suggestedContext": "videoEnhance"
+    },
+    {
+      "file": "shared/lib/tasks/zImageTurboI2I.ts",
+      "line": 204,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'zImageTurboI2I', showToast: false });\n  }",
+      "suggestedContext": "zImageTurboI2I"
+    },
+    {
+      "file": "shared/lib/tasks/zImageTurboI2I.ts",
+      "line": 278,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'zImageTurboI2I', showToast: false });\n  }",
+      "suggestedContext": "zImageTurboI2I"
+    },
+    {
+      "file": "shared/lib/utils.ts",
+      "line": 49,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'utils', showToast: false });\nreturn null;\n  }",
+      "suggestedContext": "utils"
+    },
+    {
+      "file": "shared/lib/videoUploader.ts",
+      "line": 256,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'videoUploader', showToast: false });\n      lastError = error instanceof Error ? error : new Error('Unknown upload error');\n// Don't retry for user cancellation\n      if ",
+      "suggestedContext": "videoUploader"
+    },
+    {
+      "file": "shared/providers/SimpleRealtimeProvider.tsx",
+      "line": 85,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SimpleRealtimeProvider', showToast: false });\n        if (!mounted) return;\n        const errorMessage = error instanceof Error ? error.message : 'Unknown error';\n      ",
+      "suggestedContext": "SimpleRealtimeProvider"
+    },
+    {
+      "file": "shared/realtime/DataFreshnessManager.ts",
+      "line": 223,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'DataFreshnessManager', showToast: false });\n      }",
+      "suggestedContext": "DataFreshnessManager"
+    },
+    {
+      "file": "shared/realtime/SimpleRealtimeManager.ts",
+      "line": 73,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SimpleRealtimeManager', showToast: false });\n      }",
+      "suggestedContext": "SimpleRealtimeManager"
+    },
+    {
+      "file": "shared/realtime/SimpleRealtimeManager.ts",
+      "line": 103,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SimpleRealtimeManager', showToast: false });\ndataFreshnessManager.onRealtimeStatusChange('error', 'Auth check failed');\n      return false;\n    }",
+      "suggestedContext": "SimpleRealtimeManager"
+    },
+    {
+      "file": "shared/realtime/SimpleRealtimeManager.ts",
+      "line": 245,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SimpleRealtimeManager', showToast: false });\n// Report connection failure to freshness manager\n      dataFreshnessManager.onRealtimeStatusChange('error', `Join failed: $",
+      "suggestedContext": "SimpleRealtimeManager"
+    },
+    {
+      "file": "shared/utils/mobilePerformanceMonitor.ts",
+      "line": 143,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'mobilePerformanceMonitor', showToast: false });\n    }",
+      "suggestedContext": "mobilePerformanceMonitor"
+    },
+    {
+      "file": "shared/utils/videoThumbnailGenerator.ts",
+      "line": 208,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'videoThumbnailGenerator', showToast: false });\nreturn {\n      success: false,\n      error: error instanceof Error ? error.message : String(error),\n    };\n  }",
+      "suggestedContext": "videoThumbnailGenerator"
+    },
+    {
+      "file": "shared/utils/videoThumbnailGenerator.ts",
+      "line": 247,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'videoThumbnailGenerator', showToast: false });\nreturn {\n      success: false,\n      error: error instanceof Error ? error.message : String(error),\n    };\n  }",
+      "suggestedContext": "videoThumbnailGenerator"
+    },
+    {
+      "file": "tools/character-animate/components/CharacterEditor.tsx",
+      "line": 171,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CharacterEditor', toastTitle: 'Failed to upload character image' });\n    }",
+      "suggestedContext": "CharacterEditor"
+    },
+    {
+      "file": "tools/character-animate/pages/CharacterAnimatePage.tsx",
+      "line": 259,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });\n    } finally {\n      setIsUploadingImage(false);\n    }",
+      "suggestedContext": "CharacterAnimatePage"
+    },
+    {
+      "file": "tools/character-animate/pages/CharacterAnimatePage.tsx",
+      "line": 341,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });\n    } finally {\n      setIsUploadingVideo(false);\n    }",
+      "suggestedContext": "CharacterAnimatePage"
+    },
+    {
+      "file": "tools/character-animate/pages/CharacterAnimatePage.tsx",
+      "line": 481,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });\n    } finally {\n      setIsUploadingImage(false);\n    }",
+      "suggestedContext": "CharacterAnimatePage"
+    },
+    {
+      "file": "tools/character-animate/pages/CharacterAnimatePage.tsx",
+      "line": 597,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'CharacterAnimate', toastTitle: 'Upload Failed' });\n    } finally {\n      setIsUploadingVideo(false);\n    }",
+      "suggestedContext": "CharacterAnimatePage"
+    },
+    {
+      "file": "tools/edit-images/pages/EditImagesPage.tsx",
+      "line": 145,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please select a project first\");",
+      "suggestedContext": "EditImagesPage",
+      "toastMessage": "Please select a project first"
+    },
+    {
+      "file": "tools/edit-images/pages/EditImagesPage.tsx",
+      "line": 223,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'EditImagesPage' });\n    }",
+      "suggestedContext": "EditImagesPage"
+    },
+    {
+      "file": "tools/edit-images/pages/EditImagesPage.tsx",
+      "line": 267,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please drop an image file\");",
+      "suggestedContext": "EditImagesPage",
+      "toastMessage": "Please drop an image file"
+    },
+    {
+      "file": "tools/edit-images/pages/EditImagesPage.tsx",
+      "line": 272,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please select a project first\");",
+      "suggestedContext": "EditImagesPage",
+      "toastMessage": "Please select a project first"
+    },
+    {
+      "file": "tools/edit-images/pages/EditImagesPage.tsx",
+      "line": 340,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'EditImagesPage' });\n    }",
+      "suggestedContext": "EditImagesPage"
+    },
+    {
+      "file": "tools/edit-images/pages/EditImagesPage.tsx",
+      "line": 647,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'EditImagesPage', showToast: false });\n                  }",
+      "suggestedContext": "EditImagesPage"
+    },
+    {
+      "file": "tools/edit-video/components/InlineEditVideoView.tsx",
+      "line": 680,
+      "type": "validation-toast",
+      "code": "toast.error('Please select a valid portion of the video');",
+      "suggestedContext": "InlineEditVideoView",
+      "toastMessage": "Please select a valid portion of the video"
+    },
+    {
+      "file": "tools/edit-video/components/VideoPortionEditor.tsx",
+      "line": 84,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'VideoPortionEditor', showToast: false });\nsetError(true);\n          }",
+      "suggestedContext": "VideoPortionEditor"
+    },
+    {
+      "file": "tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 201,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please select a project first\");",
+      "suggestedContext": "EditVideoPage",
+      "toastMessage": "Please select a project first"
+    },
+    {
+      "file": "tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 210,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please upload a video file\");",
+      "suggestedContext": "EditVideoPage",
+      "toastMessage": "Please upload a video file"
+    },
+    {
+      "file": "tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 296,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'EditVideoPage' });\n    }",
+      "suggestedContext": "EditVideoPage"
+    },
+    {
+      "file": "tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 340,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please drop a video file\");",
+      "suggestedContext": "EditVideoPage",
+      "toastMessage": "Please drop a video file"
+    },
+    {
+      "file": "tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 345,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please select a project first\");",
+      "suggestedContext": "EditVideoPage",
+      "toastMessage": "Please select a project first"
+    },
+    {
+      "file": "tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 433,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'EditVideoPage' });\n    }",
+      "suggestedContext": "EditVideoPage"
+    },
+    {
+      "file": "tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 681,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'EditVideoPage', showToast: false });\n                  }",
+      "suggestedContext": "EditVideoPage"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 688,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to migrate style reference image' });\n        }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 761,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', showToast: false });\n        }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 813,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', showToast: false });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 918,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to migrate references' });\nmigrationCompleteRef.current = false; // Allow retry\n        try {\n          if (typeof window !== '",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1151,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', showToast: false });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1157,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', showToast: false });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1200,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', showToast: false });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1207,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', showToast: false });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1629,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', showToast: false });\n    }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1677,
+      "type": "validation-toast",
+      "code": "toast.error('Please wait for settings to load');",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "Please wait for settings to load"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1732,
+      "type": "already-uses-handleError",
+      "code": "handleError(thumbnailError, { context: 'ImageGenerationForm', showToast: false });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1872,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to upload reference image' });\n    }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1885,
+      "type": "validation-toast",
+      "code": "toast.error('Please wait for settings to load');",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "Please wait for settings to load"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1957,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'ImageGenerationForm', showToast: false });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 1972,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to add reference' });\n    }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2025,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to delete reference' });\nreturn;\n    }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2100,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to update reference settings' });\n    }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2152,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to update visibility' });\n    }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2392,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please enter at least one valid prompt.\");",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "Please enter at least one valid prompt."
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2402,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please upload a style reference image for by-reference mode.\");",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "Please upload a style reference image for by-reference mode."
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2493,
+      "type": "validation-toast",
+      "code": "toast.error(\"No prompts available. Please add prompts first.\");",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "No prompts available. Please add prompts first."
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2499,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please upload a style reference image for by-reference mode.\");",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "Please upload a style reference image for by-reference mode."
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2537,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to generate prompts. Please try again.' });\n    }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2570,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please enter a master prompt.\");",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "Please enter a master prompt."
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2581,
+      "type": "validation-toast",
+      "code": "toast.error(\"Please upload a style reference image for by-reference mode.\");",
+      "suggestedContext": "ImageGenerationForm",
+      "toastMessage": "Please upload a style reference image for by-reference mode."
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2687,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to generate prompts. Please try again.' });\n        }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/components/ImageGenerationForm/index.tsx",
+      "line": 2728,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationForm', toastTitle: 'Failed to create tasks. Please try again.' });\n      }",
+      "suggestedContext": "ImageGenerationForm"
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 434,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationToolPage' });\n    }",
+      "suggestedContext": "ImageGenerationToolPage"
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 454,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project selected. Please select a project before generating images.\");",
+      "suggestedContext": "ImageGenerationToolPage",
+      "toastMessage": "No project selected. Please select a project before generating images."
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 496,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationToolPage' });\nreturn [];\n    } finally {\n      setLocalIsGenerating(false);\n    }",
+      "suggestedContext": "ImageGenerationToolPage"
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 531,
+      "type": "validation-toast",
+      "code": "toast.error(\"No target shot available to add to. Create a shot first or interact with one.\");",
+      "suggestedContext": "ImageGenerationToolPage",
+      "toastMessage": "No target shot available to add to. Create a shot first or interact with one."
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 535,
+      "type": "validation-toast",
+      "code": "toast.error(\"Image has no ID, cannot add to shot.\");",
+      "suggestedContext": "ImageGenerationToolPage",
+      "toastMessage": "Image has no ID, cannot add to shot."
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 539,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project selected. Cannot add image to shot.\");",
+      "suggestedContext": "ImageGenerationToolPage",
+      "toastMessage": "No project selected. Cannot add image to shot."
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 573,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationToolPage', toastTitle: 'Failed to add image to shot.' });\nreturn false;\n    }",
+      "suggestedContext": "ImageGenerationToolPage"
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 581,
+      "type": "validation-toast",
+      "code": "toast.error(\"No target shot available to add to. Create a shot first or interact with one.\");",
+      "suggestedContext": "ImageGenerationToolPage",
+      "toastMessage": "No target shot available to add to. Create a shot first or interact with one."
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 585,
+      "type": "validation-toast",
+      "code": "toast.error(\"Image has no ID, cannot add to shot.\");",
+      "suggestedContext": "ImageGenerationToolPage",
+      "toastMessage": "Image has no ID, cannot add to shot."
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 589,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project selected. Cannot add image to shot.\");",
+      "suggestedContext": "ImageGenerationToolPage",
+      "toastMessage": "No project selected. Cannot add image to shot."
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 609,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationToolPage', toastTitle: 'Failed to add image to shot without position.' });\nreturn false;\n    }",
+      "suggestedContext": "ImageGenerationToolPage"
+    },
+    {
+      "file": "tools/image-generation/pages/ImageGenerationToolPage.tsx",
+      "line": 689,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ImageGenerationToolPage', showToast: false });\n    }",
+      "suggestedContext": "ImageGenerationToolPage"
+    },
+    {
+      "file": "tools/join-clips/pages/JoinClipsPage.tsx",
+      "line": 574,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'JoinClipsPage', showToast: false });\n      }",
+      "suggestedContext": "JoinClipsPage"
+    },
+    {
+      "file": "tools/join-clips/pages/JoinClipsPage.tsx",
+      "line": 918,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'JoinClipsPage', showToast: false });\nsetClips(prev => prev.map(c => \n          c.id === clip.id\n            ? { ...c, durationSeconds: 0, metadataLoading: false }\n      ",
+      "suggestedContext": "JoinClipsPage"
+    },
+    {
+      "file": "tools/join-clips/pages/JoinClipsPage.tsx",
+      "line": 1151,
+      "type": "already-uses-handleError",
+      "code": "handleError(genError, { context: 'JoinClipsPage', showToast: false });\n        }",
+      "suggestedContext": "JoinClipsPage"
+    },
+    {
+      "file": "tools/join-clips/pages/JoinClipsPage.tsx",
+      "line": 1158,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'JoinClipsPage', toastTitle: 'Failed to upload video' });\nreturn null;\n    } finally {\n      setUploadingClipId(null);\n    }",
+      "suggestedContext": "JoinClipsPage"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 72,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchSelector', showToast: false });\n    }",
+      "suggestedContext": "BatchSelector"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 97,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchSelector', showToast: false });\n    }",
+      "suggestedContext": "BatchSelector"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 111,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchSelector', showToast: false });\n    }",
+      "suggestedContext": "BatchSelector"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 123,
+      "type": "validation-toast",
+      "code": "toast.error('Please select a batch first');",
+      "suggestedContext": "BatchSelector",
+      "toastMessage": "Please select a batch first"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 130,
+      "type": "validation-toast",
+      "code": "toast.error('No videos found in this batch');",
+      "suggestedContext": "BatchSelector",
+      "toastMessage": "No videos found in this batch"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 139,
+      "type": "validation-toast",
+      "code": "toast.error('No segments found for videos in this batch');",
+      "suggestedContext": "BatchSelector",
+      "toastMessage": "No segments found for videos in this batch"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 303,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchSelector', toastTitle: 'Failed to process segment from ...: ...' });\n        }",
+      "suggestedContext": "BatchSelector"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 309,
+      "type": "validation-toast",
+      "code": "toast.error('No segments were successfully processed');",
+      "suggestedContext": "BatchSelector",
+      "toastMessage": "No segments were successfully processed"
+    },
+    {
+      "file": "tools/training-data-helper/components/BatchSelector.tsx",
+      "line": 333,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchSelector', toastTitle: 'Failed to prepare download. Please try again.' });\n    }",
+      "suggestedContext": "BatchSelector"
+    },
+    {
+      "file": "tools/training-data-helper/components/MultiVideoUploader.tsx",
+      "line": 220,
+      "type": "validation-toast",
+      "code": "toast.error('Please select at least one video file');",
+      "suggestedContext": "MultiVideoUploader",
+      "toastMessage": "Please select at least one video file"
+    },
+    {
+      "file": "tools/training-data-helper/components/MultiVideoUploader.tsx",
+      "line": 225,
+      "type": "validation-toast",
+      "code": "toast.error('Please select or create a batch first');",
+      "suggestedContext": "MultiVideoUploader",
+      "toastMessage": "Please select or create a batch first"
+    },
+    {
+      "file": "tools/training-data-helper/components/MultiVideoUploader.tsx",
+      "line": 248,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MultiVideoUploader', toastTitle: 'Scene detection failed for ..., using manual mode' });\n          }",
+      "suggestedContext": "MultiVideoUploader"
+    },
+    {
+      "file": "tools/training-data-helper/components/MultiVideoUploader.tsx",
+      "line": 268,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'MultiVideoUploader', toastTitle: 'Failed to upload videos' });\nsetUploadProgress(0);\n    }",
+      "suggestedContext": "MultiVideoUploader"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 44,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', showToast: false });\n// Set to null so fallback UI shows\n      setStartFrame(null);\n      setEndFrame(null);\n    } finally {\n      setLoading(false)",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 193,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Unable to capture frame due to security restrictions. Frame preview disabled.' });\n      if (error instanceof DOMException && error.nam",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 237,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', showToast: false });\n        }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 387,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', showToast: false });\nsetIsPlaying(false);\n    }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 442,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', showToast: false });\nsetStartFrameImage(null);\n\n      }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 464,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', showToast: false });\nsetStartFrameImage(null);\n        \n      }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 474,
+      "type": "validation-toast",
+      "code": "toast.error('Please set start time first');",
+      "suggestedContext": "VideoSegmentEditor",
+      "toastMessage": "Please set start time first"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 494,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', showToast: false });\nsetStartFrameImage(null);\n\n      }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 500,
+      "type": "validation-toast",
+      "code": "toast.error('End time must be after start time');",
+      "suggestedContext": "VideoSegmentEditor",
+      "toastMessage": "End time must be after start time"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 516,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', showToast: false });\nsetEndFrameImage(null);\n        \n      }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 526,
+      "type": "validation-toast",
+      "code": "toast.error('Please set both start and end times');",
+      "suggestedContext": "VideoSegmentEditor",
+      "toastMessage": "Please set both start and end times"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 552,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to create segment' });\n    }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoSegmentEditor.tsx",
+      "line": 633,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to update segment' });\n    }",
+      "suggestedContext": "VideoSegmentEditor"
+    },
+    {
+      "file": "tools/training-data-helper/components/VideoUploadList.tsx",
+      "line": 68,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoUploadList', showToast: false });\n    }",
+      "suggestedContext": "VideoUploadList"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 148,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to load videos' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 164,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to load segments' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 184,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to load batches' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 212,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to create batch' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 235,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to update batch' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 245,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot delete batch with videos. Please delete all videos first.');",
+      "suggestedContext": "useTrainingData",
+      "toastMessage": "Cannot delete batch with videos. Please delete all videos first."
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 266,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to delete batch' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 329,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', showToast: false });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 397,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', showToast: false });\n     }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 551,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to delete video' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 619,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', showToast: false });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 649,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to update segment' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/hooks/useTrainingData.ts",
+      "line": 665,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrainingData', toastTitle: 'Failed to delete segment' });\n    }",
+      "suggestedContext": "useTrainingData"
+    },
+    {
+      "file": "tools/training-data-helper/pages/TrainingDataHelperPage.tsx",
+      "line": 63,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'TrainingDataHelperPage', toastTitle: 'Failed to upload videos' });\n    }",
+      "suggestedContext": "TrainingDataHelperPage"
+    },
+    {
+      "file": "tools/travel-between-images/components/BatchGuidanceVideo.tsx",
+      "line": 195,
+      "type": "validation-toast",
+      "code": "toast.error('Invalid file type. Please upload an MP4, WebM, or MOV file.');",
+      "suggestedContext": "BatchGuidanceVideo",
+      "toastMessage": "Invalid file type. Please upload an MP4, WebM, or MOV file."
+    },
+    {
+      "file": "tools/travel-between-images/components/BatchGuidanceVideo.tsx",
+      "line": 203,
+      "type": "validation-toast",
+      "code": "toast.error(`File too large. Maximum size is ${maxSizeMB}MB (file is ${fileSizeMB.toFixed(1)}MB)`);",
+      "suggestedContext": "BatchGuidanceVideo"
+    },
+    {
+      "file": "tools/travel-between-images/components/BatchGuidanceVideo.tsx",
+      "line": 254,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'BatchGuidanceVideo', toastTitle: 'Failed to upload video: ...' });\n    }",
+      "suggestedContext": "BatchGuidanceVideo"
+    },
+    {
+      "file": "tools/travel-between-images/components/SharedGenerationView.tsx",
+      "line": 191,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SharedGenerationView', toastTitle: 'Please try again' });\nsetIsCopying(false);\n    }",
+      "suggestedContext": "SharedGenerationView"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/timelineDropHelpers.ts",
+      "line": 104,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'timelineDropHelpers', showToast: false });\nreturn file; // Return original on error\n    }",
+      "suggestedContext": "timelineDropHelpers"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/timelineDropHelpers.ts",
+      "line": 468,
+      "type": "already-uses-handleError",
+      "code": "handleError(dbError, { context: 'timelineDropHelpers', showToast: false });\n  }",
+      "suggestedContext": "timelineDropHelpers"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useApplySettingsHandler.ts",
+      "line": 105,
+      "type": "validation-toast",
+      "code": "toast.error('Loading shot data... please try again in a moment.');",
+      "suggestedContext": "useApplySettingsHandler",
+      "toastMessage": "Loading shot data... please try again in a moment."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useApplySettingsHandler.ts",
+      "line": 138,
+      "type": "already-uses-handleError",
+      "code": "handleError(fetchError, { context: 'useApplySettingsHandler', showToast: false });\n      }",
+      "suggestedContext": "useApplySettingsHandler"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useApplySettingsHandler.ts",
+      "line": 227,
+      "type": "already-uses-handleError",
+      "code": "handleError(invalidateError, { context: 'useApplySettingsHandler', showToast: false });\n        }",
+      "suggestedContext": "useApplySettingsHandler"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useApplySettingsHandler.ts",
+      "line": 359,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useApplySettingsHandler', showToast: false });\n    }",
+      "suggestedContext": "useApplySettingsHandler"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 168,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot upload image: Project or Shot ID is missing.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot upload image: Project or Shot ID is missing."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 187,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid aspect ratio: ${aspectRatioStr}`);",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 192,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot crop: No aspect ratio found for shot or project.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot crop: No aspect ratio found for shot or project."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 374,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationActions', toastTitle: 'Failed to upload ...: ...' });\nreturn { optimisticId: optimisticImage.id, success: false };\n      }",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 396,
+      "type": "validation-toast",
+      "code": "toast.error(\"No shot or project selected.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "No shot or project selected."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 436,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot remove image: No shot or project selected.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot remove image: No shot or project selected."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 475,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot remove image: Image not found.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot remove image: Image not found."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 605,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationActions', showToast: false });\n    }",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 647,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationActions', toastTitle: 'Failed to remove some images from timeline' });\n    }",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 665,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot duplicate image: No shot or project selected.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot duplicate image: No shot or project selected."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 683,
+      "type": "validation-toast",
+      "code": "toast.error(\"Original image not found for duplication.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Original image not found for duplication."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 813,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot add images: No shot or project selected.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot add images: No shot or project selected."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 904,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationActions', toastTitle: 'Failed to add images: ...' });\n    }",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 939,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot add generation: No shot or project selected.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot add generation: No shot or project selected."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 944,
+      "type": "validation-toast",
+      "code": "toast.error(\"Invalid generation: Missing generation ID.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Invalid generation: Missing generation ID."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 965,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationActions', toastTitle: 'Failed to add generation: ...' });\n    }",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 992,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot add images: No shot or project selected.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot add images: No shot or project selected."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 1119,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationActions', toastTitle: 'Failed to add images: ...' });\n// Remove optimistic items on error\n      const currentCache = queryClientRef.current.getQueryData<Gen",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 1153,
+      "type": "validation-toast",
+      "code": "toast.error(\"Cannot add generation: No shot or project selected.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Cannot add generation: No shot or project selected."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 1158,
+      "type": "validation-toast",
+      "code": "toast.error(\"Invalid generation: Missing generation ID.\");",
+      "suggestedContext": "useGenerationActions",
+      "toastMessage": "Invalid generation: Missing generation ID."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useGenerationActions.ts",
+      "line": 1174,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useGenerationActions', toastTitle: 'Failed to add generation: ...' });\n    }",
+      "suggestedContext": "useGenerationActions"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useLoraSync.tsx",
+      "line": 193,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useLoraSync', showToast: false });\nsetSaveFlash(false);\n    } finally {\n      setIsSaving(false);\n    }",
+      "suggestedContext": "useLoraSync"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/hooks/useLoraSync.tsx",
+      "line": 227,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useLoraSync', showToast: false });\n    }",
+      "suggestedContext": "useLoraSync"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 668,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotEditor', showToast: false });\n    }",
+      "suggestedContext": "ShotEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 1482,
+      "type": "validation-toast",
+      "code": "toast.error('Need at least 2 completed video segments to join');",
+      "suggestedContext": "ShotEditor",
+      "toastMessage": "Need at least 2 completed video segments to join"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 1600,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotEditor' });\n    }",
+      "suggestedContext": "ShotEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 1808,
+      "type": "validation-toast",
+      "code": "toast.error('Failed to clear final video output');",
+      "suggestedContext": "ShotEditor",
+      "toastMessage": "Failed to clear final video output"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 1836,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotEditor', toastTitle: 'Failed to clear final video output' });\n    }",
+      "suggestedContext": "ShotEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 2121,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotEditor', toastTitle: 'Failed to create video task. Please try again.' });\n      }",
+      "suggestedContext": "ShotEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 2303,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotEditor', showToast: false });\n    }",
+      "suggestedContext": "ShotEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 2329,
+      "type": "validation-toast",
+      "code": "toast.error('No images selected');",
+      "suggestedContext": "ShotEditor",
+      "toastMessage": "No images selected"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/index.tsx",
+      "line": 2367,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotEditor', toastTitle: 'Failed to create shot' });\n    }",
+      "suggestedContext": "ShotEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+      "line": 148,
+      "type": "already-uses-handleError",
+      "code": "handleError(queryError, { context: 'applySettingsService', showToast: false });\nreturn null;\n  }",
+      "suggestedContext": "applySettingsService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+      "line": 297,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'applySettingsService', showToast: false });\n        }",
+      "suggestedContext": "applySettingsService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+      "line": 650,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'applySettingsService', showToast: false });\n      const errorMessage = error instanceof Error ? error.message : String(error);\nreturn { success: false, settingName: 'str",
+      "suggestedContext": "applySettingsService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+      "line": 752,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'applySettingsService', showToast: false });\n    const errorMessage = e instanceof Error ? e.message : String(e);\nreturn {\n      success: false,\n      settingName: 'framePosi",
+      "suggestedContext": "applySettingsService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+      "line": 933,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'applySettingsService', showToast: false });\n    const errorMessage = e instanceof Error ? e.message : String(e);\nreturn {\n      success: false,\n      settingName: 'images',\n",
+      "suggestedContext": "applySettingsService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+      "line": 448,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected. Please select a project first.');",
+      "suggestedContext": "generateVideoService",
+      "toastMessage": "No project selected. Please select a project first."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+      "line": 533,
+      "type": "validation-toast",
+      "code": "toast.error('Failed to fetch current images. Please try again.');",
+      "suggestedContext": "generateVideoService",
+      "toastMessage": "Failed to fetch current images. Please try again."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+      "line": 582,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'generateVideoService', toastTitle: 'Failed to prepare task data. Please try again.' });\nreturn { success: false, error: 'Failed to prepare task data' };\n  }",
+      "suggestedContext": "generateVideoService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+      "line": 840,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'generateVideoService', showToast: false });\n    }",
+      "suggestedContext": "generateVideoService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+      "line": 1126,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid phase configuration: num_phases (${numPhases}) doesn't match arrays (phases: ${phasesLength}, steps: ${stepsLength}). Please reset to defaults.`);",
+      "suggestedContext": "generateVideoService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+      "line": 1545,
+      "type": "already-uses-handleError",
+      "code": "handleError(clearError, { context: 'generateVideoService', showToast: false });\n      }",
+      "suggestedContext": "generateVideoService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+      "line": 1562,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'generateVideoService', toastTitle: 'Failed to create video generation task: ...' });\nconst errorMessage = error instanceof Error ? error.message : 'Unknown error';\nretur",
+      "suggestedContext": "generateVideoService"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/ui/Header.tsx",
+      "line": 125,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'Header', showToast: false });\n      }",
+      "suggestedContext": "Header"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotEditor/utils/dimension-utils.ts",
+      "line": 35,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'dimension-utils', showToast: false });\n    }",
+      "suggestedContext": "dimension-utils"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 384,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', toastTitle: 'Failed to delete segment: ...' });\n    }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2134,
+      "type": "validation-toast",
+      "code": "toast.error(\"No images to download\");",
+      "suggestedContext": "ShotImagesEditor",
+      "toastMessage": "No images to download"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2188,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', toastTitle: 'Failed to process image ..., continuing with others...' });\n        }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2213,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', toastTitle: 'Could not create zip file. ...' });\n    }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2237,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', showToast: false });\n    }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2270,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2291,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', showToast: false });\nreturn false;\n    }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2379,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', showToast: false });\n    }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotImagesEditor.tsx",
+      "line": 2770,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotImagesEditor', showToast: false });\n                    }",
+      "suggestedContext": "ShotImagesEditor"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotListDisplay.tsx",
+      "line": 557,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotListDisplay', toastTitle: 'Failed to create shot: ...' });\n      }",
+      "suggestedContext": "ShotListDisplay"
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotListDisplay.tsx",
+      "line": 570,
+      "type": "validation-toast",
+      "code": "toast.error('No valid image files. Only JPEG, PNG, and WebP are supported.');",
+      "suggestedContext": "ShotListDisplay",
+      "toastMessage": "No valid image files. Only JPEG, PNG, and WebP are supported."
+    },
+    {
+      "file": "tools/travel-between-images/components/ShotListDisplay.tsx",
+      "line": 584,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'ShotListDisplay', toastTitle: 'Failed to create shot: ...' });\n      }",
+      "suggestedContext": "ShotListDisplay"
+    },
+    {
+      "file": "tools/travel-between-images/components/SortableShotItem.tsx",
+      "line": 302,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SortableShotItem', showToast: false });\nsetWithoutPositionDropState('idle');\n          setIsDropTarget(false);\n        }",
+      "suggestedContext": "SortableShotItem"
+    },
+    {
+      "file": "tools/travel-between-images/components/SortableShotItem.tsx",
+      "line": 333,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SortableShotItem', showToast: false });\nsetWithPositionDropState('idle');\n          // Clear skeleton on error\n          expectedNewCountRef.current = 0;\n          basel",
+      "suggestedContext": "SortableShotItem"
+    },
+    {
+      "file": "tools/travel-between-images/components/SortableShotItem.tsx",
+      "line": 384,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SortableShotItem', showToast: false });\nsetWithoutPositionDropState('idle');\n          setIsDropTarget(false);\n        }",
+      "suggestedContext": "SortableShotItem"
+    },
+    {
+      "file": "tools/travel-between-images/components/SortableShotItem.tsx",
+      "line": 415,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SortableShotItem', showToast: false });\nsetWithPositionDropState('idle');\n          // Clear skeleton on error\n          expectedNewCountRef.current = 0;\n          basel",
+      "suggestedContext": "SortableShotItem"
+    },
+    {
+      "file": "tools/travel-between-images/components/TaskDetailsModal.tsx",
+      "line": 117,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'TaskDetailsModal', showToast: false });\n        if (cancelled) return;\nsetTaskId(null);\n      }",
+      "suggestedContext": "TaskDetailsModal"
+    },
+    {
+      "file": "tools/travel-between-images/components/TaskDetailsModal.tsx",
+      "line": 147,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'TaskDetailsModal', showToast: false });\n    }",
+      "suggestedContext": "TaskDetailsModal"
+    },
+    {
+      "file": "tools/travel-between-images/components/TaskDetailsPanel.tsx",
+      "line": 79,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'TaskDetailsPanel', showToast: false });\n    }",
+      "suggestedContext": "TaskDetailsPanel"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+      "line": 458,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'GuidanceVideoStrip', showToast: false });\n// Keep existing frames on error, don't clear them\n        setIsExtractingFrames(false);\n      }",
+      "suggestedContext": "GuidanceVideoStrip"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+      "line": 527,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'GuidanceVideoStrip', showToast: false });\nreturn true;\n    }",
+      "suggestedContext": "GuidanceVideoStrip"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+      "line": 583,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'GuidanceVideoStrip', showToast: false });\n// On error, reset seeking state to allow recovery\n      seekingRef.current = false;\n      return false;\n    }",
+      "suggestedContext": "GuidanceVideoStrip"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+      "line": 725,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'GuidanceVideoStrip', showToast: false });\n    }",
+      "suggestedContext": "GuidanceVideoStrip"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/InlineSegmentVideo.tsx",
+      "line": 429,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'InlineSegmentVideo', showToast: false });\n          }",
+      "suggestedContext": "InlineSegmentVideo"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/SegmentOutputStrip.tsx",
+      "line": 258,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentOutputStrip', showToast: false });\n    }",
+      "suggestedContext": "SegmentOutputStrip"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/SegmentOutputStrip.tsx",
+      "line": 427,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentOutputStrip', toastTitle: 'Failed to delete segment: ...' });\n    }",
+      "suggestedContext": "SegmentOutputStrip"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/SegmentSettingsModal.tsx",
+      "line": 405,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentSettingsModal' });\n        }",
+      "suggestedContext": "SegmentSettingsModal"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/SegmentSettingsModal.tsx",
+      "line": 456,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'SegmentSettingsModal' });\n    }",
+      "suggestedContext": "SegmentSettingsModal"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/TimelineContainer.tsx",
+      "line": 1227,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'TimelineContainer', showToast: false });\n                  }",
+      "suggestedContext": "TimelineContainer"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/TimelineContainer.tsx",
+      "line": 1317,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'TimelineContainer', showToast: false });\n                  }",
+      "suggestedContext": "TimelineContainer"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useFileDrop.ts",
+      "line": 74,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid file type for ${file.name}. Only JPEG, PNG, and WebP are supported.`);",
+      "suggestedContext": "useFileDrop"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useFileDrop.ts",
+      "line": 84,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useFileDrop', toastTitle: 'Failed to add images: ...' });\n    }",
+      "suggestedContext": "useFileDrop"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useTimelineDrag.ts",
+      "line": 303,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTimelineDrag', showToast: false });\n      }",
+      "suggestedContext": "useTimelineDrag"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+      "line": 419,
+      "type": "validation-toast",
+      "code": "toast.error('Position conflict detected - operation cancelled');",
+      "suggestedContext": "useTimelinePositions",
+      "toastMessage": "Position conflict detected - operation cancelled"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+      "line": 537,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTimelinePositions', toastTitle: 'Failed to update positions' });\n// Rollback optimistic update\n      if (rollback) {\n        rollback();\n      }\n      \n      setStatu",
+      "suggestedContext": "useTimelinePositions"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useUnifiedDrop.ts",
+      "line": 187,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid file type for ${file.name}. Only JPEG, PNG, and WebP are supported.`);",
+      "suggestedContext": "useUnifiedDrop"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useUnifiedDrop.ts",
+      "line": 204,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUnifiedDrop', toastTitle: 'Failed to add images: ...' });\n      }",
+      "suggestedContext": "useUnifiedDrop"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline/hooks/useUnifiedDrop.ts",
+      "line": 236,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useUnifiedDrop', toastTitle: 'Failed to add generation: ...' });\n      }",
+      "suggestedContext": "useUnifiedDrop"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline.tsx",
+      "line": 747,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'Timeline', toastTitle: 'Failed to add to shot: ...' });\nreturn false;\n    }",
+      "suggestedContext": "Timeline"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline.tsx",
+      "line": 774,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'Timeline', toastTitle: 'Failed to add to shot: ...' });\nreturn false;\n    }",
+      "suggestedContext": "Timeline"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline.tsx",
+      "line": 962,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'Timeline', toastTitle: 'Failed to add image: ...' });\n      }",
+      "suggestedContext": "Timeline"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline.tsx",
+      "line": 980,
+      "type": "validation-toast",
+      "code": "toast.error(`Invalid file type for ${file.name}. Only JPEG, PNG, and WebP are supported.`);",
+      "suggestedContext": "Timeline"
+    },
+    {
+      "file": "tools/travel-between-images/components/Timeline.tsx",
+      "line": 988,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'Timeline', toastTitle: 'Failed to add images: ...' });\n    }",
+      "suggestedContext": "Timeline"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoItem.tsx",
+      "line": 349,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoItem' });\n    }",
+      "suggestedContext": "VideoItem"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoItem.tsx",
+      "line": 630,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoItem', toastTitle: 'Please try again' });\n      }",
+      "suggestedContext": "VideoItem"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoItem.tsx",
+      "line": 806,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoItem', toastTitle: 'Please try again' });\n    }",
+      "suggestedContext": "VideoItem"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/hooks/useTrimSave.ts",
+      "line": 61,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot save: missing generation, project, or video');",
+      "suggestedContext": "useTrimSave",
+      "toastMessage": "Cannot save: missing generation, project, or video"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/hooks/useTrimSave.ts",
+      "line": 67,
+      "type": "validation-toast",
+      "code": "toast.error('Invalid trim settings');",
+      "suggestedContext": "useTrimSave",
+      "toastMessage": "Invalid trim settings"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/hooks/useTrimSave.ts",
+      "line": 76,
+      "type": "validation-toast",
+      "code": "toast.error('No trim changes to save');",
+      "suggestedContext": "useTrimSave",
+      "toastMessage": "No trim changes to save"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/hooks/useTrimSave.ts",
+      "line": 84,
+      "type": "validation-toast",
+      "code": "toast.error('Please log in to save');",
+      "suggestedContext": "useTrimSave",
+      "toastMessage": "Please log in to save"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/hooks/useTrimSave.ts",
+      "line": 251,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useTrimSave', toastTitle: 'Failed to save: ...' });\nconst errorMessage = error instanceof Error ? error.message : 'Unknown error';\n      setSaveError(errorMessage);\n} fi",
+      "suggestedContext": "useTrimSave"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoGallery/index.tsx",
+      "line": 422,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'VideoGallery', showToast: false });\n      }",
+      "suggestedContext": "VideoGallery"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoShotDisplay.tsx",
+      "line": 122,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot update shot: Project ID is missing.');",
+      "suggestedContext": "VideoShotDisplay",
+      "toastMessage": "Cannot update shot: Project ID is missing."
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoShotDisplay.tsx",
+      "line": 163,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot delete shot: Project ID is missing.');",
+      "suggestedContext": "VideoShotDisplay",
+      "toastMessage": "Cannot delete shot: Project ID is missing."
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoShotDisplay.tsx",
+      "line": 180,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot delete shot: Project ID is missing.');",
+      "suggestedContext": "VideoShotDisplay",
+      "toastMessage": "Cannot delete shot: Project ID is missing."
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoShotDisplay.tsx",
+      "line": 193,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoShotDisplay', showToast: false });\n    }",
+      "suggestedContext": "VideoShotDisplay"
+    },
+    {
+      "file": "tools/travel-between-images/components/VideoShotDisplay.tsx",
+      "line": 222,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoShotDisplay', toastTitle: 'Failed to duplicate shot: ...' });\n    }",
+      "suggestedContext": "VideoShotDisplay"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useJoinSegmentsSettings.ts",
+      "line": 149,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useJoinSegmentsSettings', showToast: false });\n      }",
+      "suggestedContext": "useJoinSegmentsSettings"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useJoinSegmentsSettings.ts",
+      "line": 200,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useJoinSegmentsSettings', showToast: false });\n      }",
+      "suggestedContext": "useJoinSegmentsSettings"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useShotSettings.ts",
+      "line": 113,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useShotSettings', showToast: false });\n      }",
+      "suggestedContext": "useShotSettings"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useShotSettings.ts",
+      "line": 170,
+      "type": "already-uses-handleError",
+      "code": "handleError(e, { context: 'useShotSettings', showToast: false });\n      }",
+      "suggestedContext": "useShotSettings"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useShotSettings.ts",
+      "line": 209,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot apply settings: missing shot ID');",
+      "suggestedContext": "useShotSettings",
+      "toastMessage": "Cannot apply settings: missing shot ID"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useShotSettings.ts",
+      "line": 232,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply settings' });\n    }",
+      "suggestedContext": "useShotSettings"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useShotSettings.ts",
+      "line": 240,
+      "type": "validation-toast",
+      "code": "toast.error('Cannot apply defaults: no project selected');",
+      "suggestedContext": "useShotSettings",
+      "toastMessage": "Cannot apply defaults: no project selected"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useShotSettings.ts",
+      "line": 262,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply defaults' });\n    }",
+      "suggestedContext": "useShotSettings"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 103,
+      "type": "validation-toast",
+      "code": "toast.error(\"No target shot available to add to. Create a shot first or interact with one.\");",
+      "suggestedContext": "useVideoTravelAddToShot",
+      "toastMessage": "No target shot available to add to. Create a shot first or interact with one."
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 108,
+      "type": "validation-toast",
+      "code": "toast.error(\"Item has no ID, cannot add to shot.\");",
+      "suggestedContext": "useVideoTravelAddToShot",
+      "toastMessage": "Item has no ID, cannot add to shot."
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 113,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project selected. Cannot add item to shot.\");",
+      "suggestedContext": "useVideoTravelAddToShot",
+      "toastMessage": "No project selected. Cannot add item to shot."
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 140,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useVideoTravelAddToShot', toastTitle: 'Failed to add item to shot.' });\nreturn false;\n    }",
+      "suggestedContext": "useVideoTravelAddToShot"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 156,
+      "type": "validation-toast",
+      "code": "toast.error(\"No target shot available to add to. Create a shot first or interact with one.\");",
+      "suggestedContext": "useVideoTravelAddToShot",
+      "toastMessage": "No target shot available to add to. Create a shot first or interact with one."
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 161,
+      "type": "validation-toast",
+      "code": "toast.error(\"Item has no ID, cannot add to shot.\");",
+      "suggestedContext": "useVideoTravelAddToShot",
+      "toastMessage": "Item has no ID, cannot add to shot."
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 166,
+      "type": "validation-toast",
+      "code": "toast.error(\"No project selected. Cannot add item to shot.\");",
+      "suggestedContext": "useVideoTravelAddToShot",
+      "toastMessage": "No project selected. Cannot add item to shot."
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+      "line": 187,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useVideoTravelAddToShot', toastTitle: 'Failed to add item to shot without position.' });\nreturn false;\n    }",
+      "suggestedContext": "useVideoTravelAddToShot"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelDropHandlers.ts",
+      "line": 122,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected');",
+      "suggestedContext": "useVideoTravelDropHandlers",
+      "toastMessage": "No project selected"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelDropHandlers.ts",
+      "line": 160,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add to shot: ...' });\n    }",
+      "suggestedContext": "useVideoTravelDropHandlers"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelDropHandlers.ts",
+      "line": 233,
+      "type": "validation-toast",
+      "code": "toast.error('No project selected');",
+      "suggestedContext": "useVideoTravelDropHandlers",
+      "toastMessage": "No project selected"
+    },
+    {
+      "file": "tools/travel-between-images/hooks/useVideoTravelDropHandlers.ts",
+      "line": 258,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add images: ...' });\n    }",
+      "suggestedContext": "useVideoTravelDropHandlers"
+    },
+    {
+      "file": "tools/travel-between-images/pages/VideoTravelToolPage.tsx",
+      "line": 558,
+      "type": "already-uses-handleError",
+      "code": "handleError(err, { context: 'VideoTravelToolPage', showToast: false });\nif (!cancelled) {\n          navigate('/tools/travel-between-images', { replace: true });\n        }\n      }",
+      "suggestedContext": "VideoTravelToolPage"
+    },
+    {
+      "file": "tools/travel-between-images/pages/VideoTravelToolPage.tsx",
+      "line": 1532,
+      "type": "already-uses-handleError",
+      "code": "handleError(error, { context: 'VideoTravelToolPage', toastTitle: 'Failed to create shot: ...' });\n// Clear skeleton on error\n        if (skeletonClearRef.current) {\n          skeletonClearRef.current(",
+      "suggestedContext": "VideoTravelToolPage"
+    }
+  ],
+  "filesToChange": []
+}

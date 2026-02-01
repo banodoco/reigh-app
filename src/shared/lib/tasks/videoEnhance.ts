@@ -3,6 +3,7 @@ import {
   validateRequiredFields,
   TaskValidationError,
 } from "../taskCreation";
+import { handleError } from '@/shared/lib/errorHandler';
 
 // ============================================================================
 // Video Enhancement API Param Interfaces (Single Source of Truth)
@@ -241,7 +242,7 @@ export async function createVideoEnhanceTask(
     return { task: result };
 
   } catch (error) {
-    console.error("[createVideoEnhanceTask] Error creating task:", error);
+    handleError(error, { context: 'VideoEnhance', showToast: false });
     throw error;
   }
 }

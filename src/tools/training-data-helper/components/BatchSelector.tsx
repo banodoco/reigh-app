@@ -11,6 +11,7 @@ import { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from '../ho
 import { toast } from 'sonner';
 import { formatDistanceToNow, isValid } from 'date-fns';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface BatchSelectorProps {
   batches: TrainingDataBatch[];
@@ -331,8 +332,7 @@ File Size: ${segmentBlob.size} bytes`;
       
 
     } catch (error) {
-      console.error('Error preparing download:', error);
-      toast.error('Failed to prepare download. Please try again.');
+      handleError(error, { context: 'BatchSelector', toastTitle: 'Failed to prepare download. Please try again.' });
     } finally {
       setIsDownloading(false);
     }

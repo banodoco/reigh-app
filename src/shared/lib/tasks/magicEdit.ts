@@ -7,6 +7,7 @@ import {
   BaseTaskParams,
 } from '../taskCreation';
 import type { HiresFixApiParams } from './imageGeneration';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Parameters for creating a magic edit task
@@ -273,7 +274,7 @@ export async function createMagicEditTask(params: MagicEditTaskParams): Promise<
     return result;
 
   } catch (error) {
-    console.error("[createMagicEditTask] Error creating task:", error);
+    handleError(error, { context: 'MagicEdit', showToast: false });
     throw error;
   }
 }
@@ -364,7 +365,7 @@ export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams
     return successfulResults;
 
   } catch (error) {
-    console.error("[createBatchMagicEditTasks] Error creating batch tasks:", error);
+    handleError(error, { context: 'BatchMagicEdit', showToast: false });
     throw error;
   }
 }

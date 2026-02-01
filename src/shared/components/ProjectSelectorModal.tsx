@@ -15,6 +15,7 @@ import { Loader2, Plus } from 'lucide-react';
 import { Input } from '@/shared/components/ui/input';
 import { useMediumModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface Project {
   id: string;
@@ -81,7 +82,7 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
         setSelectedProjectId(data[0].id);
       }
     } catch (error) {
-      console.error('[ProjectSelectorModal] Unexpected error:', error);
+      handleError(error, { context: 'ProjectSelectorModal', showToast: false });
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
       setShowNewProjectInput(false);
       setNewProjectName('');
     } catch (error) {
-      console.error('[ProjectSelectorModal] Unexpected error:', error);
+      handleError(error, { context: 'ProjectSelectorModal', showToast: false });
     } finally {
       setCreating(false);
     }

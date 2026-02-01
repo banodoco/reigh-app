@@ -6,6 +6,7 @@ import {
   applyFluidTimelineMulti,
 } from "../utils/timeline-utils";
 import { log } from "@/shared/lib/logger";
+import { handleError } from "@/shared/lib/errorHandler";
 import { TIMELINE_PADDING_OFFSET } from "../constants";
 
 interface DragState {
@@ -300,7 +301,7 @@ export const useTimelineDrag = ({
       try {
         await setFramePositions(finalPositions);
       } catch (error) {
-        console.error('[TimelineDrag] Error applying positions:', error);
+        handleError(error, { context: 'TimelineDrag', showToast: false });
       } finally {
         setTimeout(() => {
           setDropState({ isDropping: false, frozenPositions: null });

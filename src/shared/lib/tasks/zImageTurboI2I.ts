@@ -5,6 +5,7 @@ import {
   TaskValidationError,
 } from '../taskCreation';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * LoRA configuration for Z Image Turbo I2I
@@ -201,7 +202,7 @@ export async function createZImageTurboI2ITask(params: ZImageTurboI2ITaskParams)
     return result;
 
   } catch (error) {
-    console.error('[createZImageTurboI2ITask] Error creating task:', error);
+    handleError(error, { context: 'ZImageTurboI2I', showToast: false });
     throw error;
   }
 }
@@ -276,7 +277,7 @@ export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2I
     return successfulResults;
 
   } catch (error) {
-    console.error('[createBatchZImageTurboI2ITasks] Error creating batch tasks:', error);
+    handleError(error, { context: 'BatchZImageTurboI2I', showToast: false });
     throw error;
   }
 }

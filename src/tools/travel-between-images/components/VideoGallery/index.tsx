@@ -25,6 +25,7 @@ import { useExternalGenerations } from '@/shared/components/ShotImageManager/hoo
 import { useDerivedNavigation } from '@/shared/hooks/useDerivedNavigation';
 import { useBackgroundThumbnailGenerator } from '@/shared/hooks/useBackgroundThumbnailGenerator';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import {
   VideoItem,
   VideoHoverPreview,
@@ -419,7 +420,7 @@ const VideoOutputsGallery: React.FC<VideoOutputsGalleryProps> = ({
           setShareSlugs(slugMap);
         }
       } catch (err) {
-        console.error('[VideoGallery] Failed to batch fetch share slugs:', err);
+        handleError(err, { context: 'VideoGallery', showToast: false });
       }
     };
 

@@ -1,16 +1,18 @@
 /**
  * Global Settings Write Queue
- * 
+ *
  * Prevents network exhaustion by serializing and coalescing settings writes.
- * 
+ *
  * Features:
  * - Global concurrency limit (default: 1 in-flight write)
  * - Per-target debouncing (coalesces rapid updates)
  * - Merge-on-write (latest patch wins per field)
  * - Best-effort flush on page unload
- * 
+ *
  * @see settings_system.md for the full settings architecture
  */
+
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface QueuedWrite {
   scope: 'user' | 'project' | 'shot';
@@ -97,8 +99,8 @@ async function processQueue() {
       resolve(result);
     }
   } catch (error) {
-    console.error('[SettingsWriteQueue] ❌ Write failed:', error);
-    
+    handleError(error, { context: 'SettingsWriteQueue', showToast: false });
+
     // Reject all waiters
     for (const { reject } of pending.resolvers) {
       reject(error);

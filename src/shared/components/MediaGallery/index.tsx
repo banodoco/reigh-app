@@ -1,5 +1,4 @@
 import React, { useMemo, useEffect, useCallback, useRef } from "react";
-import { useToast } from "@/shared/hooks/use-toast";
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -11,6 +10,7 @@ import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 import { MediaGalleryPagination } from "@/shared/components/MediaGalleryPagination";
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Import hooks
 import {
@@ -417,7 +417,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
       actionsHook.handleCloseLightbox();
       console.log('[VisitShotDebug] 9. MediaGallery handleCloseLightbox completed');
     } catch (error) {
-      console.error('[VisitShotDebug] ERROR in MediaGallery handleNavigateToShot:', error);
+      handleError(error, { context: 'MediaGallery', showToast: false });
     }
   }, [navigateToShot, actionsHook.handleCloseLightbox]);
 
@@ -451,7 +451,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
       navigateToShot(fullShot);
       console.log('[VisitShotDebug] 3. MediaGallery navigateToShot completed');
     } catch (error) {
-      console.error('[VisitShotDebug] ERROR in MediaGallery handleVisitShotFromNotifier:', error);
+      handleError(error, { context: 'MediaGallery', showToast: false });
     }
   }, [simplifiedShotOptions, allShots, navigateToShot]);
 

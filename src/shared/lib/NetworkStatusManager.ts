@@ -1,9 +1,11 @@
 /**
  * NetworkStatusManager - Centralized network status management
- * 
+ *
  * Provides a single source of truth for online/offline status and connection type.
  * Integrates with ReconnectScheduler and Resurrection Polling for network-aware behavior.
  */
+
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface NetworkStatus {
   isOnline: boolean;
@@ -173,7 +175,7 @@ export class NetworkStatusManager {
       try {
         callback(this.status, eventType, event);
       } catch (error) {
-        console.error('[NetworkStatusManager] ❌ SUBSCRIBER ERROR:', error);
+        handleError(error, { context: 'NetworkStatusManager', showToast: false });
       }
     });
   }

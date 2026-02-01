@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS } from '@/tools/travel-between-images/storageKeys';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Standardized settings inheritance for new shots
@@ -81,7 +82,7 @@ export async function getInheritedSettings(
       });
     }
   } catch (e) {
-    console.error('[ShotSettingsInherit] ❌ Failed to read project localStorage', e);
+    handleError(e, { context: 'ShotSettingsInheritance', showToast: false });
   }
   
   // 1b. If no project-specific settings AND this is a new project (no shots), try global fallback
@@ -116,7 +117,7 @@ export async function getInheritedSettings(
         }
       }
     } catch (e) {
-      console.error('[ShotSettingsInherit] ❌ Failed to read global localStorage', e);
+      handleError(e, { context: 'ShotSettingsInheritance', showToast: false });
     }
   }
 
@@ -180,7 +181,7 @@ export async function getInheritedSettings(
         console.warn('[ShotSettingsInherit] ✅ Using project default UI settings');
       }
     } catch (error) {
-      console.error('[ShotSettingsInherit] ❌ Failed to fetch project settings', error);
+      handleError(error, { context: 'ShotSettingsInheritance', showToast: false });
     }
   }
 

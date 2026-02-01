@@ -5,6 +5,7 @@
 
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import type { GenerationRow } from '@/types/shots';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
@@ -188,8 +189,7 @@ export function useTaskGeneration({
       }, 1000);
 
     } catch (error) {
-      console.error(`${config.logPrefix} Error creating task:`, error);
-      toast.error(config.taskCreationError);
+      handleError(error, { context: 'useTaskGeneration', toastTitle: config.taskCreationError });
     } finally {
       setIsGeneratingInpaint(false);
     }

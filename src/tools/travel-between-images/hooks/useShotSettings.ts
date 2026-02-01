@@ -1,5 +1,6 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useAutoSaveSettings, AutoSaveStatus } from '@/shared/hooks/useAutoSaveSettings';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { VideoTravelSettings, DEFAULT_PHASE_CONFIG } from '../settings';
@@ -110,7 +111,7 @@ export const useShotSettings = (
           },
         } as VideoTravelSettings;
       } catch (e) {
-        console.error('[useShotSettings] Failed to parse inherited settings:', e);
+        handleError(e, { context: 'useShotSettings', showToast: false });
         sessionStorage.removeItem(storageKey);
       }
     }
@@ -168,7 +169,7 @@ export const useShotSettings = (
         const globalSettings = { ...autoSave.settings, pairConfigs: [] };
         localStorage.setItem(STORAGE_KEYS.GLOBAL_LAST_ACTIVE_SHOT_SETTINGS, JSON.stringify(globalSettings));
       } catch (e) {
-        console.error('[useShotSettings] Failed to save to localStorage:', e);
+        handleError(e, { context: 'useShotSettings', showToast: false });
       }
     }
   }, [autoSave.settings, shotId, projectId, autoSave.status]);
@@ -230,8 +231,7 @@ export const useShotSettings = (
         toast.error('Source shot has no settings');
       }
     } catch (err) {
-      console.error('[useShotSettings] Apply failed:', err);
-      toast.error('Failed to apply settings');
+      handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply settings' });
     }
   }, [shotId, autoSave]);
   
@@ -261,8 +261,7 @@ export const useShotSettings = (
         toast.error('Project has no default settings');
       }
     } catch (err) {
-      console.error('[useShotSettings] Apply defaults failed:', err);
-      toast.error('Failed to apply defaults');
+      handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply defaults' });
     }
   }, [projectId, autoSave]);
   

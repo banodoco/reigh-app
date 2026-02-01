@@ -8,6 +8,7 @@ import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery';
 import { GenerationsPaneSettings } from '@/tools/travel-between-images/components/ShotEditor/state/types';
 
@@ -779,15 +780,7 @@ export function useGenerationsPageLogic({
       console.log('[AddDebug] handleAddToShot completed successfully');
       return true;
     } catch (error) {
-      console.error('[AddDebug] Error:', error);
-      console.error('[AddDebug] handleAddToShot failed:', {
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: Date.now()
-      });
-      toast.error("Failed to add image to shot", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
+      handleError(error, { context: 'useGenerationsPageLogic', toastTitle: 'Failed to add image to shot' });
       return false;
     }
   };
@@ -815,10 +808,7 @@ export function useGenerationsPageLogic({
       });
       return true;
     } catch (error) {
-      console.error('[ADDTOSHOT_NOPOS] Error:', error);
-      toast.error("Failed to add image to shot without position", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
+      handleError(error, { context: 'useGenerationsPageLogic', toastTitle: 'Failed to add image to shot' });
       return false;
     }
   };

@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { useToolSettings, SettingsScope } from './useToolSettings';
 import { deepEqual, sanitizeSettings } from '../lib/deepEqual';
 import { toolsManifest } from '@/tools';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Infer an appropriate "empty" value for a given value based on its type.
@@ -213,14 +214,8 @@ export function usePersistentToolState<T extends Record<string, any>>(
           await updateSettings(scope, currentState);
           setSaveError(undefined);
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[usePersistentToolState] [${toolId}] Save error:`, error);
+          handleError(error, { context: 'usePersistentToolState', showToast: false });
           setSaveError(error as Error);
-          
-          // Mobile-specific error handling
-          if (isMobile) {
-            console.error(`[usePersistentToolState] [${toolId}] Mobile save failed - this should now work with Supabase migration. Error: ${errorMessage}`);
-        }
         }
       }
     }, Math.min(debounceMs, 100)); // Cap debounce at 100ms for performance

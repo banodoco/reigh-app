@@ -10,6 +10,7 @@ import FileInput from '@/shared/components/FileInput';
 import { toast } from 'sonner';
 import { cropFilename } from '@/shared/lib/utils';
 import { generateUUID } from '@/shared/lib/taskCreation';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export type SplitMode = 'take-all' | 'manual' | 'auto-scene';
 
@@ -267,8 +268,7 @@ export function MultiVideoUploader({ onUpload, isUploading, selectedBatchId }: M
       setTimeout(() => setUploadProgress(0), 1000);
       
     } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Failed to upload videos');
+      handleError(error, { context: 'MultiVideoUploader', toastTitle: 'Failed to upload videos' });
       setUploadProgress(0);
     }
   };

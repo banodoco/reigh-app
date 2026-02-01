@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react
 import { Stage, Layer, Line, Rect } from 'react-konva';
 import Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export interface BrushStroke {
   id: string;
@@ -206,7 +207,7 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
 
         return dataUrl;
       } catch (error) {
-        console.error('[StrokeOverlay] exportMask failed:', error);
+        handleError(error, { context: 'StrokeOverlay', showToast: false });
         document.body.removeChild(container);
         return null;
       }

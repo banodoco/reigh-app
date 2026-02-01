@@ -3,9 +3,9 @@ import { GenerationRow } from '@/types/shots';
 import { DerivedNavContext } from '../types';
 import { transformExternalGeneration } from '../utils/external-generation-utils';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/useShots';
 import { useProject } from '@/shared/contexts/ProjectContext';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UseExternalGenerationsProps {
   selectedShotId?: string;
@@ -79,7 +79,7 @@ export function useExternalGenerations({
               }
             }
           } catch (err) {
-            console.error('[BasedOnLineage] ❌ Error refetching updated generation:', err);
+            handleError(err, { context: 'useExternalGenerations', showToast: false });
           }
         }
       }
@@ -108,8 +108,7 @@ export function useExternalGenerations({
       });
       return true;
     } catch (error) {
-      console.error('[ShotImageManager] Error adding to shot:', error);
-      toast.error('Failed to add to shot');
+      handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [externalGenLightboxSelectedShot, selectedProjectId, addToShotMutation]);
@@ -130,8 +129,7 @@ export function useExternalGenerations({
       });
       return true;
     } catch (error) {
-      console.error('[ShotImageManager] Error adding to shot without position:', error);
-      toast.error('Failed to add to shot');
+      handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [externalGenLightboxSelectedShot, selectedProjectId, addToShotWithoutPositionMutation]);
@@ -321,8 +319,7 @@ export function useExternalGenerations({
         }
       }
     } catch (error) {
-      console.error('[ShotImageManager] ❌ Failed to fetch external generation:', error);
-      toast.error('Failed to load generation');
+      handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to load generation' });
     }
   }, [optimisticOrder, images, externalGenerations, tempDerivedGenerations, derivedNavContext, setLightboxIndexRef]);
   

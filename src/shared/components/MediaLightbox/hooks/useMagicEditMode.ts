@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GenerationRow } from '@/types/shots';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShotGenerationMetadata } from '@/shared/hooks/useShotGenerationMetadata';
 import { createBatchMagicEditTasks } from '@/shared/lib/tasks/magicEdit';
@@ -263,7 +264,7 @@ export const useMagicEditMode = ({
             );
             console.log('[MediaLightbox] Saved magic edit prompt to metadata');
           } catch (error) {
-            console.error('[MediaLightbox] Failed to save prompt to metadata:', error);
+            handleError(error, { context: 'useMagicEditMode', showToast: false });
             // Don't fail the entire operation if metadata save fails
           }
         }
@@ -271,8 +272,7 @@ export const useMagicEditMode = ({
         setMagicEditTasksCreated(true);
         setTimeout(() => setMagicEditTasksCreated(false), 3000);
       } catch (error) {
-        console.error('[MediaLightbox] Error creating magic edit tasks:', error);
-        toast.error('Failed to create magic edit tasks');
+        handleError(error, { context: 'useMagicEditMode', toastTitle: 'Failed to create magic edit tasks' });
       } finally {
         setIsCreatingMagicEditTasks(false);
       }

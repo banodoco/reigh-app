@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { toast as sonnerToast } from 'sonner';
 import { useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/useShots';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UseShotActionsOptions {
   lightboxSelectedShotId: string | undefined;
@@ -87,7 +87,6 @@ export function useShotActions({
       
       return true;
     } catch (error) {
-      console.error('[useShotActions] Failed to add to shot:', error);
       // Revert optimistic update on error
       const key = `${generationId}:${targetShotId}`;
       setOptimisticPositionedIds(prev => {
@@ -95,7 +94,7 @@ export function useShotActions({
         next.delete(key);
         return next;
       });
-      sonnerToast.error('Failed to add to shot');
+      handleError(error, { context: 'useShotActions', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [lightboxSelectedShotId, currentShotId, lastAffectedShotId, selectedProjectId, addImageToShotMutation, handleOptimisticPositioned]);
@@ -134,7 +133,6 @@ export function useShotActions({
       
       return true;
     } catch (error) {
-      console.error('[useShotActions] Failed to add to shot without position:', error);
       // Revert optimistic update on error
       const key = `${generationId}:${targetShotId}`;
       setOptimisticUnpositionedIds(prev => {
@@ -142,7 +140,7 @@ export function useShotActions({
         next.delete(key);
         return next;
       });
-      sonnerToast.error('Failed to add to shot');
+      handleError(error, { context: 'useShotActions', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [lightboxSelectedShotId, currentShotId, lastAffectedShotId, selectedProjectId, addImageToShotWithoutPositionMutation, handleOptimisticUnpositioned]);

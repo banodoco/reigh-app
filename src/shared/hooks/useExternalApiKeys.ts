@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export type ExternalService = 'huggingface' | 'replicate' | 'civitai';
 
@@ -109,8 +109,7 @@ export function useExternalApiKey(service: ExternalService) {
       queryClient.setQueryData(queryKey, savedKey);
     },
     onError: (error: Error) => {
-      console.error(`Error saving ${service} API key:`, error);
-      toast.error(`Failed to save API key: ${error.message}`);
+      handleError(error, { context: 'useExternalApiKeys', toastTitle: 'Failed to save API key' });
     },
   });
 
@@ -121,8 +120,7 @@ export function useExternalApiKey(service: ExternalService) {
       queryClient.setQueryData(queryKey, null);
     },
     onError: (error: Error) => {
-      console.error(`Error deleting ${service} API key:`, error);
-      toast.error(`Failed to delete API key: ${error.message}`);
+      handleError(error, { context: 'useExternalApiKeys', toastTitle: 'Failed to delete API key' });
     },
   });
 

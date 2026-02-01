@@ -7,6 +7,7 @@ import { usePrefetchToolSettings } from '@/shared/hooks/usePrefetchToolSettings'
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { useQueryClient } from '@tanstack/react-query';
 import { STORAGE_KEYS } from '@/tools/travel-between-images/storageKeys';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Type for updating projects
 interface ProjectUpdate {
@@ -56,7 +57,7 @@ const copyTemplateToNewUser = async (newProjectId: string, newShotId: string): P
 
     console.log('[Onboarding] Template content copied successfully');
   } catch (err) {
-    console.error('[Onboarding] Exception copying template:', err);
+    handleError(err, { context: 'ProjectContext', showToast: false });
   }
 };
 
@@ -80,7 +81,7 @@ const createDefaultShot = async (
       .single();
 
     if (error) {
-      console.error('[ProjectContext] Failed to create default shot:', error);
+      handleError(error, { context: 'ProjectContext', showToast: false });
       return null;
     }
 
@@ -91,7 +92,7 @@ const createDefaultShot = async (
 
     return shot?.id || null;
   } catch (err) {
-    console.error('[ProjectContext] Exception creating default shot:', err);
+    handleError(err, { context: 'ProjectContext', showToast: false });
     return null;
   }
 };
@@ -337,7 +338,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       setUserPreferences(preferences);
       userPreferencesRef.current = preferences;
     } catch (error) {
-      console.error('[ProjectContext] Failed to fetch user preferences:', error);
+      handleError(error, { context: 'ProjectContext', showToast: false });
       // [MobileStallFix] Set empty preferences on error instead of leaving undefined
       setUserPreferences({});
       userPreferencesRef.current = {};
@@ -371,7 +372,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
         return merged;
       });
     } catch (error) {
-      console.error('[ProjectContext] Failed to update user preferences:', error);
+      handleError(error, { context: 'ProjectContext', showToast: false });
     }
   }, [userId]);
 
@@ -553,17 +554,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       }
       console.log(`[ProjectContext:MobileDebug] Projects loaded successfully`);
     } catch (error: any) {
-      console.error('[ProjectContext] Error fetching projects via API:', {
-        error,
-        errorMessage: error?.message,
-        errorStack: error?.stack?.split('\n').slice(0, 3),
-        userId,
-        isLoadingPreferences,
-        visibilityState: document.visibilityState,
-        timestamp: Date.now(),
-        criticalNote: 'This error was previously clearing selectedProjectId - now preserved!'
-      });
-      toast.error(`Failed to load projects: ${error.message}`);
+      handleError(error, { context: 'ProjectContext', toastTitle: 'Failed to load projects' });
       setProjects([]);
       // CRITICAL FIX: DO NOT clear selectedProjectId on fetch error!
       // This was causing localStorage to be wiped and all queries to be disabled
@@ -792,8 +783,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
             
       return mappedProject;
     } catch (err: any) {
-      console.error("[ProjectContext] Exception during project creation via API:", err);
-      toast.error(`Failed to create project: ${err.message}`);
+      handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to create project' });
       return null;
     } finally {
       setIsCreatingProject(false);
@@ -834,8 +824,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       );      
       return true;
     } catch (err: any) {
-      console.error("[ProjectContext] Exception during project update via API:", err);
-      toast.error(`Failed to update project: ${err.message}`);
+      handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to update project' });
       return false;
     } finally {
       setIsUpdatingProject(false);
@@ -875,8 +864,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
 
       return true;
     } catch (err: any) {
-      console.error('[ProjectContext] Exception during project deletion via API:', err);
-      toast.error(`Failed to delete project: ${err.message}`);
+      handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to delete project' });
       return false;
     } finally {
       setIsDeletingProject(false);

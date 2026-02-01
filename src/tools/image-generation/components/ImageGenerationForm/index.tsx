@@ -36,6 +36,7 @@ import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 import { useSubmitButtonState } from '@/shared/hooks/useSubmitButtonState';
 import { useHydratedReferences } from '../../hooks/useHydratedReferences';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Import extracted components
 import { PromptsSection } from "./components/PromptsSection";
@@ -686,8 +687,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           
           console.log('[ImageGenerationForm] Successfully migrated base64 style reference to URL:', uploadedUrl);
         } catch (error) {
-          console.error('[ImageGenerationForm] Failed to migrate base64 style reference:', error);
-          toast.error('Failed to migrate style reference image');
+          handleError(error, { context: 'ImageGenerationForm.migrateBase64ToUrl', toastTitle: 'Failed to migrate style reference image' });
         }
       }
     };
@@ -760,7 +760,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           await updateProjectImageSettings('project', updates);
           console.log('[RefSettings] ✅ Successfully migrated legacy reference settings');
         } catch (error) {
-          console.error('[RefSettings] ❌ Failed to migrate legacy reference:', error);
+          handleError(error, { context: 'ImageGenerationForm.migrateLegacyReference', showToast: false });
         }
       }
     };
@@ -812,7 +812,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
         await updateProjectImageSettings('project', { references: updatedReferences });
         console.log('[RefSettings] ✅ Successfully migrated scene settings');
       } catch (error) {
-        console.error('[RefSettings] ❌ Failed to migrate scene settings:', error);
+        handleError(error, { context: 'ImageGenerationForm.runSceneMigration', showToast: false });
         sceneMigrationStateRef.current[selectedProjectId] = false; // Allow retry if it failed
       }
     };
@@ -918,8 +918,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
         
         console.log('[RefMigration] 🎉 Successfully migrated all references to resources table');
       } catch (error) {
-        console.error('[RefMigration] ❌ Migration failed:', error);
-        toast.error('Failed to migrate references');
+        handleError(error, { context: 'ImageGenerationForm.migrateToResources', toastTitle: 'Failed to migrate references' });
         migrationCompleteRef.current = false; // Allow retry
         try {
           if (typeof window !== 'undefined') {
@@ -1152,13 +1151,13 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           selectedLorasByCategory: updatedLorasByCategory,
         });
       } catch (error) {
-        console.error('[GenerationSourcePersist] Failed to save generationSource:', error);
+        handleError(error, { context: 'ImageGenerationForm.handleGenerationSourceChange', showToast: false });
       }
     } else {
       try {
         await updateProjectImageSettings('project', { generationSource: source });
       } catch (error) {
-        console.error('[GenerationSourcePersist] Failed to save generationSource:', error);
+        handleError(error, { context: 'ImageGenerationForm.handleGenerationSourceChange', showToast: false });
       }
     }
   }, [updateProjectImageSettings, markAsInteracted, selectedTextModel, generationSource, projectImageSettings?.selectedLorasByCategory, loraManager]);
@@ -1201,14 +1200,14 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           selectedLorasByCategory: updatedLorasByCategory,
         });
       } catch (error) {
-        console.error('[GenerationSourcePersist] Failed to save selectedTextModel:', error);
+        handleError(error, { context: 'ImageGenerationForm.handleTextModelChange', showToast: false });
       }
     } else {
       // Same category, just update the model selection
       try {
         await updateProjectImageSettings('project', { selectedTextModel: model });
       } catch (error) {
-        console.error('[GenerationSourcePersist] Failed to save selectedTextModel:', error);
+        handleError(error, { context: 'ImageGenerationForm.handleTextModelChange', showToast: false });
       }
     }
   }, [updateProjectImageSettings, markAsInteracted, selectedTextModel, projectImageSettings?.selectedLorasByCategory, loraManager]);
@@ -1630,7 +1629,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     try {
       await updateProjectImageSettings('project', { selectedLorasByCategory: updatedLorasByCategory });
     } catch (error) {
-      console.error('[LoRAPersist] Failed to save LORAs to category slot:', error);
+      handleError(error, { context: 'ImageGenerationForm.persistLorasToStorage', showToast: false });
     }
   }, [updateProjectImageSettings, projectImageSettings?.selectedLorasByCategory, selectedTextModel, generationSource]);
 
@@ -1722,7 +1721,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           });
         
         if (thumbnailUploadError) {
-          console.error('[ThumbnailDebug] Thumbnail upload error:', thumbnailUploadError);
+          handleError(thumbnailUploadError, { context: 'ImageGenerationForm.handleStyleReferenceUpload.thumbnailUpload', showToast: false });
           // Use original as fallback
           thumbnailUrl = originalUploadedUrl;
         } else {
@@ -1733,7 +1732,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           console.log('[ThumbnailDebug] Thumbnail uploaded successfully:', thumbnailUrl);
         }
       } catch (thumbnailError) {
-        console.error('[ThumbnailDebug] Error generating thumbnail:', thumbnailError);
+        handleError(thumbnailError, { context: 'ImageGenerationForm.handleStyleReferenceUpload.thumbnailGeneration', showToast: false });
         // Use original as fallback
         thumbnailUrl = originalUploadedUrl;
       }
@@ -1875,8 +1874,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
         }
       });
     } catch (error) {
-      console.error('Error uploading style reference:', error);
-      toast.error('Failed to upload reference image');
+      handleError(error, { context: 'ImageGenerationForm.handleStyleReferenceUpload', toastTitle: 'Failed to upload reference image' });
     } finally {
       setIsUploadingStyleReference(false);
     }
@@ -1961,7 +1959,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           }))
         );
       } catch (e) {
-        console.error('[RefBrowser] ❌ Failed to set optimistic cache data:', e);
+        handleError(e, { context: 'ImageGenerationForm.handleResourceSelect.optimisticUpdate', showToast: false });
       }
 
       // Get current values for persistence
@@ -1972,12 +1970,11 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
         references: currentData2?.references || [],
         selectedReferenceIdByShot: currentData2?.selectedReferenceIdByShot || {}
       });
-      
+
       console.log('[RefBrowser] ✅ Successfully linked existing resource and persisted to DB');
       markAsInteracted();
     } catch (error) {
-      console.error('[RefBrowser] ❌ Failed to link resource:', error);
-      toast.error('Failed to add reference');
+      handleError(error, { context: 'ImageGenerationForm.handleResourceSelect', toastTitle: 'Failed to add reference' });
     }
   }, [effectiveShotId, updateProjectImageSettings, queryClient, selectedProjectId, markAsInteracted, referencePointers, selectedReferenceIdByShot, referenceMode, styleReferenceStrength, subjectStrength, inThisScene, inThisSceneStrength, isLoadingProjectSettings]);
 
@@ -2030,8 +2027,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
       });
       console.log('[RefSettings] ✅ Resource deleted successfully');
     } catch (error) {
-      console.error('[RefSettings] ❌ Failed to delete resource:', error);
-      toast.error('Failed to delete reference');
+      handleError(error, { context: 'ImageGenerationForm.handleDeleteReference', toastTitle: 'Failed to delete reference' });
       return;
     }
     
@@ -2106,10 +2102,9 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
       });
       console.log('[RefSettings] ✅ Project settings updated successfully');
     } catch (error) {
-      console.error('[RefSettings] ❌ Failed to update project settings:', error);
-      toast.error('Failed to update reference settings');
+      handleError(error, { context: 'ImageGenerationForm.handleUpdateReference', toastTitle: 'Failed to update reference settings' });
     }
-    
+
     markAsInteracted();
   }, [referencePointers, updateProjectImageSettings, markAsInteracted]);
   
@@ -2159,8 +2154,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
       
       console.log('[RefSettings] ✅ Visibility toggled successfully');
     } catch (error) {
-      console.error('[RefSettings] ❌ Failed to toggle visibility:', error);
-      toast.error('Failed to update visibility');
+      handleError(error, { context: 'ImageGenerationForm.handleToggleVisibility', toastTitle: 'Failed to update visibility' });
     }
   }, [hydratedReferences, updateStyleReference]);
   
@@ -2545,8 +2539,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
       console.log('[ImageGenerationForm] New Prompts Like Existing: Queuing', newPrompts.length, 'images');
       onGenerate(taskParams);
     } catch (error) {
-      console.error('[ImageGenerationForm] New Prompts Like Existing: Error generating prompts:', error);
-      toast.error("Failed to generate prompts. Please try again.");
+      handleError(error, { context: 'ImageGenerationForm.handleNewPromptsLikeExisting', toastTitle: 'Failed to generate prompts. Please try again.' });
     } finally {
       setIsGeneratingAutomatedPrompts(false);
     }
@@ -2696,8 +2689,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           // to wait for tasks to appear in cache before removing the filler, but this caused
           // both the filler AND real tasks to show simultaneously (duplicate visibility).
         } catch (error) {
-          console.error('[ImageGenerationForm] Automated mode: Error generating prompts:', error);
-          toast.error("Failed to generate prompts. Please try again.");
+          handleError(error, { context: 'ImageGenerationForm.handleSubmit.automatedMode', toastTitle: 'Failed to generate prompts. Please try again.' });
         } finally {
           // Wait for task queries to refetch, then do a clean swap
           // Partial key match (no projectId) for broad refetch
@@ -2740,8 +2732,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
       try {
         await onGenerate(taskParams);
       } catch (error) {
-        console.error('[ImageGenerationForm] Managed mode: Error creating tasks:', error);
-        toast.error("Failed to create tasks. Please try again.");
+        handleError(error, { context: 'ImageGenerationForm.handleSubmit.managedMode', toastTitle: 'Failed to create tasks. Please try again.' });
       } finally {
         // Wait for task queries to refetch, then do a clean swap
         // Partial key match (no projectId) for broad refetch

@@ -11,8 +11,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidation';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * A variant of a generation (from generation_variants table)
@@ -252,8 +252,7 @@ export const useVariants = ({
       }
     },
     onError: (error) => {
-      console.error('[useVariants] Failed to set primary variant:', error);
-      toast.error('Failed to set primary variant');
+      handleError(error, { context: 'useVariants.setPrimaryVariant', toastTitle: 'Failed to set primary variant' });
     },
   });
 
@@ -304,8 +303,7 @@ export const useVariants = ({
       }
     },
     onError: (error) => {
-      console.error('[useVariants] Failed to delete variant:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete variant');
+      handleError(error, { context: 'useVariants.deleteVariant', toastTitle: 'Failed to delete variant' });
     },
   });
 

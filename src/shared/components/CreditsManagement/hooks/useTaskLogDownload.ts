@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
+import { handleError } from '@/shared/lib/errorHandler';
 import type { TaskLogFilters } from '../types';
 
 interface UseTaskLogDownloadReturn {
@@ -126,7 +127,7 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
       document.body.removeChild(link);
 
     } catch (error) {
-      console.error('Error downloading task log:', error);
+      handleError(error, { context: 'useTaskLogDownload', showToast: false });
     } finally {
       setIsDownloading(false);
     }

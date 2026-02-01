@@ -1,12 +1,14 @@
 /**
  * Shared utilities for drag-and-drop operations involving generations (images/videos)
- * 
+ *
  * Used by:
  * - MediaGalleryItem (drag source)
  * - ShotGroup, SortableShotItem, ShotListDisplay (drop targets)
  * - Timeline components (drop targets)
  * - BatchDropZone (drop target)
  */
+
+import { handleError } from '@/shared/lib/errorHandler';
 
 // MIME type for generation drag data
 export const GENERATION_MIME_TYPE = 'application/x-generation';
@@ -138,7 +140,7 @@ export function getGenerationDropData(e: React.DragEvent): GenerationDropData | 
     
     return data;
   } catch (error) {
-    console.error('[dragDrop] Failed to parse generation drop data:', error);
+    handleError(error, { context: 'DragDrop', showToast: false });
     return null;
   }
 }

@@ -6,6 +6,7 @@ import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { ChevronLeft, ChevronRight, Upload, Dice5, AlertCircle, Film } from 'lucide-react';
 import { useToast } from '@/shared/hooks/use-toast';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
@@ -168,12 +169,7 @@ const CharacterEditor: React.FC<CharacterEditorProps> = ({
         description: 'Your character image has been added',
       });
     } catch (error) {
-      console.error('Error uploading character image:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload character image',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'CharacterEditor', toastTitle: 'Upload failed' });
     } finally {
       setIsUploading(false);
       if (characterImageInputRef.current) {
@@ -248,12 +244,7 @@ const CharacterEditor: React.FC<CharacterEditorProps> = ({
       }
     },
     onError: (error) => {
-      console.error('Error generating animation:', error);
-      toast({
-        title: 'Generation failed',
-        description: error instanceof Error ? error.message : 'Failed to generate animation',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'CharacterEditor', toastTitle: 'Generation failed' });
     },
   });
 

@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast as sonnerToast } from 'sonner';
 import { GenerationRow } from '@/types/shots';
 import { Task } from '@/types/tasks';
 import { deriveInputImages } from '../utils/task-utils';
 import { usePrefetchTaskData } from '@/shared/hooks/useUnifiedGenerations';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface LightboxData {
   type: 'image' | 'video';
@@ -135,8 +135,7 @@ export function useTasksLightbox({
         });
       }
     } catch (error) {
-      console.error('[useTasksLightbox] Failed to fetch external generation:', error);
-      sonnerToast.error('Failed to load generation');
+      handleError(error, { context: 'useTasksLightbox', toastTitle: 'Failed to load generation' });
     }
   }, [selectedProjectId]);
 

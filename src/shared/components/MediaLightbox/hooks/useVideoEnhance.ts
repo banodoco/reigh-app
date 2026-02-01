@@ -118,7 +118,7 @@ export function useVideoEnhance({
       console.log('[useVideoEnhance] Task created successfully');
     } catch (error) {
       console.error('[useVideoEnhance] Error creating task:', error);
-      handleError(error, 'Failed to create video enhancement task');
+      handleError(error, { context: 'useVideoEnhance', toastTitle: 'Failed to create video enhancement task' });
     } finally {
       setIsGenerating(false);
     }

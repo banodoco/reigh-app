@@ -6,6 +6,7 @@ import { GeneratedImageWithMetadata } from '../index';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
 import { usePrefetchTaskData } from '@/shared/hooks/useUnifiedGenerations';
 
@@ -580,8 +581,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
         toast.error('Generation not found');
       }
     } catch (error) {
-      console.error('[DerivedNav:Gallery] ❌ Failed to fetch external generation:', error);
-      toast.error('Failed to load generation');
+      handleError(error, { context: 'MediaGalleryLightbox', toastTitle: 'Failed to load generation' });
     }
   }, [filteredImages, setActiveLightboxIndex]);
 

@@ -20,7 +20,7 @@ import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { Search, ChevronLeft, ChevronRight, Image as ImageIcon, Video, Loader2, X, Globe, Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { processImageUrl } from '@/shared/lib/urlToFile';
-import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useListResources, useListPublicResources, useUpdateResource, Resource, StyleReferenceMetadata, StructureVideoMetadata, ResourceType } from '@/shared/hooks/useResources';
 import { supabase } from '@/integrations/supabase/client';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
@@ -298,8 +298,7 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
       
       console.log('[ResourceBrowser] ✅ Visibility toggled successfully');
     } catch (error) {
-      console.error('[ResourceBrowser] ❌ Failed to toggle visibility:', error);
-      toast.error('Failed to update visibility');
+      handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to update visibility' });
     }
   }, [allResources, updateResource, resourceType]);
 
@@ -348,8 +347,7 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
         console.warn('[ResourceBrowser] ⚠️ No callback provided');
       }
     } catch (error) {
-      console.error('[ResourceBrowser] ❌ Error processing selected resource:', error);
-      toast.error('Failed to process selected resource');
+      handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to process selected resource' });
     } finally {
       console.log('[ResourceBrowser] 🧹 Clearing processing state');
       setProcessingResource(null);

@@ -10,6 +10,7 @@ import { Loader2, Check, Film, Wand2, AlertTriangle, Trash2, ChevronDown, Chevro
 import { LoraManager } from '@/shared/components/LoraManager';
 import type { LoraModel, UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
 import { cn } from '@/shared/lib/utils';
+import { handleError } from '@/shared/lib/errorHandler';
 import { PortionSelection, formatTime } from '@/shared/components/VideoPortionTimeline';
 import { MotionPresetSelector, type BuiltinPreset } from '@/shared/components/MotionPresetSelector';
 import { PhaseConfig } from '@/tools/travel-between-images/settings';
@@ -81,7 +82,7 @@ function SegmentThumbnail({ videoUrl, time, size = 'small' }: { videoUrl: string
             loadedRef.current = true;
             setLoaded(true);
           } catch (e) {
-            console.error('[SegmentThumbnail] Failed to draw frame:', e);
+            handleError(e, { context: 'SegmentThumbnail', showToast: false });
             setError(true);
           }
         }
@@ -113,15 +114,15 @@ function SegmentThumbnail({ videoUrl, time, size = 'small' }: { videoUrl: string
       }
     };
     
-    const handleError = () => {
-      console.error('[SegmentThumbnail] Video load error for', videoUrl);
+    const handleVideoError = () => {
+      handleError(new Error(`Video load error for ${videoUrl}`), { context: 'SegmentThumbnail', showToast: false });
       setError(true);
     };
-    
+
     video.addEventListener('seeked', handleSeeked);
     video.addEventListener('loadeddata', handleLoadedData);
     video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('error', handleError);
+    video.addEventListener('error', handleVideoError);
     
     // Increased timeout for slower mobile connections
     const timeout = setTimeout(() => {
@@ -139,7 +140,7 @@ function SegmentThumbnail({ videoUrl, time, size = 'small' }: { videoUrl: string
       video.removeEventListener('seeked', handleSeeked);
       video.removeEventListener('loadeddata', handleLoadedData);
       video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('error', handleError);
+      video.removeEventListener('error', handleVideoError);
       video.src = '';
       video.load();
     };

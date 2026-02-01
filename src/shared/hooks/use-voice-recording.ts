@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from '@/shared/lib/errorHandler';
 
 export type VoiceRecordingState = "idle" | "recording" | "processing";
 
@@ -143,14 +144,14 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
           });
 
           if (error) {
-            console.error("[useVoiceRecording] Edge function error:", error);
+            handleError(error, { context: 'useVoiceRecording', showToast: false });
             onError?.(error.message || "Failed to process voice");
             setState("idle");
             return;
           }
 
           if (data?.error) {
-            console.error("[useVoiceRecording] API error:", data.error);
+            handleError(new Error(data.error), { context: 'useVoiceRecording', showToast: false });
             onError?.(data.error);
             setState("idle");
             return;
@@ -163,14 +164,14 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
           });
           setState("idle");
         } catch (err: any) {
-          console.error("[useVoiceRecording] Processing error:", err);
+          handleError(err, { context: 'useVoiceRecording', showToast: false });
           onError?.(err.message || "Failed to process recording");
           setState("idle");
         }
       };
 
       mediaRecorder.onerror = (event: any) => {
-        console.error("[useVoiceRecording] MediaRecorder error:", event.error);
+        handleError(event.error, { context: 'useVoiceRecording', showToast: false });
         onError?.(event.error?.message || "Recording error");
         setState("idle");
       };
@@ -194,7 +195,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
         }
       }, MAX_RECORDING_SECONDS * 1000);
     } catch (err: any) {
-      console.error("[useVoiceRecording] Failed to start recording:", err);
+      handleError(err, { context: 'useVoiceRecording', showToast: false });
       if (err.name === "NotAllowedError") {
         onError?.("Microphone access denied. Please allow microphone access.");
       } else if (err.name === "NotFoundError") {

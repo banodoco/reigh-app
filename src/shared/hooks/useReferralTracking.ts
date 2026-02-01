@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { generateUUID } from '@/shared/lib/taskCreation';
+import { handleError } from '@/shared/lib/errorHandler';
 
 function getOrCreateSessionId(): string {
   try {
@@ -85,7 +86,7 @@ export function useReferralTracking(): void {
           try { localStorage.setItem('referralSessionId', data as unknown as string); } catch {}
         }
       } catch (err) {
-        console.error('[Referral] Failed to track referral visit', err);
+        handleError(err, { context: 'useReferralTracking', showToast: false });
       }
     };
 

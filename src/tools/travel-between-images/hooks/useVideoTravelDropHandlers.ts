@@ -16,6 +16,7 @@
 
 import { useCallback, useContext } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { Shot } from '@/types/shots';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
@@ -157,8 +158,7 @@ export const useVideoTravelDropHandlers = ({
       // Update last affected shot so GenerationsPane targets this shot by default
       setLastAffectedShotId?.(shotId);
     } catch (error) {
-      console.error('[ShotDrop] Failed to add to shot:', error);
-      toast.error(`Failed to add to shot: ${(error as Error).message}`);
+      handleError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add to shot' });
     }
   }, [selectedProjectId, shots, addImageToShotMutation, addImageToShotWithoutPositionMutation, setLastAffectedShotId]);
 
@@ -256,8 +256,7 @@ export const useVideoTravelDropHandlers = ({
       // Update last affected shot so GenerationsPane targets this shot by default
       setLastAffectedShotId?.(shotId);
     } catch (error) {
-      console.error('[ShotDrop] Failed to add files to shot:', error);
-      toast.error(`Failed to add images: ${(error as Error).message}`);
+      handleError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add images' });
     }
   }, [selectedProjectId, shots, handleExternalImageDropMutation, setLastAffectedShotId]);
 

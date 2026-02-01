@@ -11,6 +11,7 @@ import { Play, Pause, RotateCcw, Scissors, Trash2, Clock, Plus, Video, SkipBack,
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/shared/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface SegmentFramePreviewProps {
   segment: TrainingDataSegment;
@@ -553,8 +554,7 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
       
 
     } catch (error) {
-      console.error('[VideoSegmentEditor] Failed to create segment:', error);
-      toast.error('Failed to create segment');
+      handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to create segment' });
     } finally {
       setIsCreating(false);
     }

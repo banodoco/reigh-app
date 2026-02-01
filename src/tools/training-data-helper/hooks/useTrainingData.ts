@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Database types (snake_case)
 interface TrainingDataBatchDB {
@@ -145,8 +146,7 @@ export function useTrainingData() {
       if (error) throw error;
       setVideos((data || []).map(transformVideo));
     } catch (error) {
-      console.error('Error fetching videos:', error);
-      toast.error('Failed to load videos');
+      handleError(error, { context: 'useTrainingData.fetchVideos', toastTitle: 'Failed to load videos' });
     } finally {
       setIsLoading(false);
     }
@@ -162,8 +162,7 @@ export function useTrainingData() {
       if (error) throw error;
       setSegments((data || []).map(transformSegment));
     } catch (error) {
-      console.error('Error fetching segments:', error);
-      toast.error('Failed to load segments');
+      handleError(error, { context: 'useTrainingData.fetchSegments', toastTitle: 'Failed to load segments' });
     }
   };
 
@@ -183,8 +182,7 @@ export function useTrainingData() {
         setSelectedBatchId(batchesData[0].id);
       }
     } catch (error) {
-      console.error('Error fetching batches:', error);
-      toast.error('Failed to load batches');
+      handleError(error, { context: 'useTrainingData.fetchBatches', toastTitle: 'Failed to load batches' });
     }
   };
 
@@ -212,8 +210,7 @@ export function useTrainingData() {
 
       return newBatch.id;
     } catch (error) {
-      console.error('Error creating batch:', error);
-      toast.error('Failed to create batch');
+      handleError(error, { context: 'useTrainingData.createBatch', toastTitle: 'Failed to create batch' });
       throw error;
     }
   };
@@ -237,8 +234,7 @@ export function useTrainingData() {
       setBatches(prev => prev.map(b => b.id === id ? transformBatch(data) : b));
 
     } catch (error) {
-      console.error('Error updating batch:', error);
-      toast.error('Failed to update batch');
+      handleError(error, { context: 'useTrainingData.updateBatch', toastTitle: 'Failed to update batch' });
       throw error;
     }
   };
@@ -270,8 +266,7 @@ export function useTrainingData() {
 
 
     } catch (error) {
-      console.error('Error deleting batch:', error);
-      toast.error('Failed to delete batch');
+      handleError(error, { context: 'useTrainingData.deleteBatch', toastTitle: 'Failed to delete batch' });
     }
   };
 
@@ -558,8 +553,7 @@ export function useTrainingData() {
       }
 
     } catch (error) {
-      console.error('Error deleting video:', error);
-      toast.error('Failed to delete video');
+      handleError(error, { context: 'useTrainingData.deleteVideo', toastTitle: 'Failed to delete video' });
     }
   };
 
@@ -658,8 +652,7 @@ export function useTrainingData() {
       // Update local state
       setSegments(prev => prev.map(s => s.id === id ? transformSegment(data) : s));
     } catch (error) {
-      console.error('Error updating segment:', error);
-      toast.error('Failed to update segment');
+      handleError(error, { context: 'useTrainingData.updateSegment', toastTitle: 'Failed to update segment' });
     }
   };
 
@@ -675,8 +668,7 @@ export function useTrainingData() {
       // Update local state
       setSegments(prev => prev.filter(s => s.id !== id));
     } catch (error) {
-      console.error('Error deleting segment:', error);
-      toast.error('Failed to delete segment');
+      handleError(error, { context: 'useTrainingData.deleteSegment', toastTitle: 'Failed to delete segment' });
     }
   };
 

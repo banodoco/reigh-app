@@ -1,6 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { GenerationRow } from '@/types/shots';
 import { DOUBLE_TAP_THRESHOLD } from '../constants';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UseMobileGesturesProps {
   currentImages: GenerationRow[];
@@ -132,7 +133,7 @@ export function useMobileGestures({
       
       console.log('[MobileReorder] ✅ Mobile reorder completed successfully');
     } catch (error) {
-      console.error('[MobileReorder] ❌ Mobile reorder failed:', error);
+      handleError(error, { context: 'useMobileGestures', showToast: false });
     }
   }, [mobileSelectedIds, currentImages, onImageReorder, setMobileSelectedIds]);
   

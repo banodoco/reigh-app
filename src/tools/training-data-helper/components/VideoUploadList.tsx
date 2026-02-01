@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cropFilename } from '@/shared/lib/utils';
 import { formatDistanceToNow, isValid } from 'date-fns';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Helper to abbreviate distance strings (e.g., "5 minutes ago" -> "5 mins ago")
 const abbreviateDistance = (str: string) => {
@@ -65,7 +66,7 @@ export function VideoUploadList({ videos, selectedVideo, onVideoSelect, segments
         onVideoSelect('');
       }
     } catch (error) {
-      console.error('Failed to delete video:', error);
+      handleError(error, { context: 'VideoUploadList', showToast: false });
     } finally {
       setDeletingVideo(null);
     }

@@ -17,6 +17,7 @@ import FileInput from '@/shared/components/FileInput';
 import { parseRatio } from '@/shared/lib/aspectRatios';
 import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { useProject } from '@/shared/contexts/ProjectContext';
 
@@ -124,8 +125,7 @@ const CreateShotModal: React.FC<CreateShotModalProps> = ({
       onClose();
     } catch (error) {
       // Cropping failed - show error but don't close
-      console.error('Shot creation failed:', error);
-      toast.error('Failed to process images');
+      handleError(error, { context: 'CreateShotModal', toastTitle: 'Failed to process images' });
       setIsProcessing(false);
     }
   };

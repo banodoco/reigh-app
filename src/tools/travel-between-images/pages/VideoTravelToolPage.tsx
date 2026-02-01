@@ -14,11 +14,11 @@ import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { VideoTravelSettings } from '../settings';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 // Settings inheritance is handled by useShotCreation
 import { PageFadeIn } from '@/shared/components/transitions';
 import { useContentResponsive } from '@/shared/hooks/useContentResponsive';
 import { timeEnd } from '@/shared/lib/logger';
+import { handleError } from '@/shared/lib/errorHandler';
 
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import ShotEditor from '../components/ShotEditor';
@@ -542,7 +542,7 @@ const VideoTravelToolPage: React.FC = () => {
           .single();
         
         if (error) {
-          console.error('[VideoTravelToolPage] Error fetching shot:', error);
+          handleError(error, { context: 'VideoTravelToolPage', showToast: false });
           // Shot doesn't exist or user doesn't have access - redirect to main view
           if (!cancelled) {
             console.log(`[VideoTravelToolPage] Shot ${hashShotId} not accessible, redirecting to main view`);
@@ -555,7 +555,7 @@ const VideoTravelToolPage: React.FC = () => {
           setSelectedProjectId(data.project_id);
         }
       } catch (err) {
-        console.error('[VideoTravelToolPage] Unexpected error fetching shot:', err);
+        handleError(err, { context: 'VideoTravelToolPage', showToast: false });
         if (!cancelled) {
           navigate('/tools/travel-between-images', { replace: true });
         }
@@ -1529,8 +1529,7 @@ const VideoTravelToolPage: React.FC = () => {
         
         // Don't auto-navigate into the shot - user stays on shot list
       } catch (error) {
-        console.error("[VideoTravelToolPage] Error creating shot:", error);
-        toast.error(`Failed to create shot: ${(error as Error).message}`);
+        handleError(error, { context: 'VideoTravelToolPage', toastTitle: 'Failed to create shot' });
         // Clear skeleton on error
         if (skeletonClearRef.current) {
           skeletonClearRef.current();

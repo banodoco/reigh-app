@@ -14,6 +14,7 @@ import { useApiKeys } from '@/shared/hooks/useApiKeys';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { ExternalLink } from 'lucide-react';
@@ -80,8 +81,7 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
       }, 3000);
       
     } catch (error) {
-      console.error('[ImageGenerationModal] Error creating tasks:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create tasks.');
+      handleError(error, { context: 'ImageGenerationModal', toastTitle: 'Failed to create tasks' });
     } finally {
       setIsGenerating(false);
     }

@@ -16,6 +16,7 @@ import { useState, useCallback, useMemo, useRef, useTransition, useEffect } from
 import { useQueryClient } from '@tanstack/react-query';
 import { GenerationRow } from '@/types/shots';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { quantizePositions } from '../utils/timeline-utils';
@@ -534,15 +535,15 @@ export function useTimelinePositions({
       });
       
     } catch (error) {
-      console.error(`[TimelinePositions] ❌ Operation ${operationId} failed:`, error);
-      
+      handleError(error, { context: 'TimelinePositions', showToast: false, logData: { operationId } });
+
       // Rollback optimistic update
       if (rollback) {
         rollback();
       }
-      
-      setStatus({ 
-        type: 'error', 
+
+      setStatus({
+        type: 'error',
         message: (error as Error).message,
         canRetry: true
       });

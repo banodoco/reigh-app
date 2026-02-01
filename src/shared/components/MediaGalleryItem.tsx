@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Trash2, Info, Settings, CheckCircle, AlertTriangle, Download, PlusCircle, Check, Star, Eye, Link, Plus, Pencil, Share2, Copy, Loader2, CornerDownLeft } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import HoverScrubVideo from './HoverScrubVideo';
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from "@/shared/components/ui/tooltip";
 import ShotSelector from "@/shared/components/ShotSelector";
 import { DraggableImage } from "@/shared/components/DraggableImage";
@@ -16,6 +16,7 @@ import { getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
 import { TimeStamp } from "@/shared/components/TimeStamp";
 import { useToast } from "@/shared/hooks/use-toast";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { handleError } from '@/shared/lib/errorHandler';
 import { GeneratedImageWithMetadata, DisplayableMetadata } from "./MediaGallery";
 import SharedMetadataDetails from "./SharedMetadataDetails";
 import { GenerationDetails } from "@/shared/components/GenerationDetails";
@@ -382,7 +383,9 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     // Mark this image as cached in the centralized cache to avoid future skeletons
     try {
       setImageCacheStatus(image, true);
-    } catch (_) {}
+    } catch (_) {
+      // Silent: cache status is non-critical optimization; failure won't affect functionality
+    }
     // Notify parent that this image has loaded (if callback provided)
     onImageLoaded?.(image.id);
   }, [image, onImageLoaded]);
@@ -398,12 +401,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
       await onCreateShot(shotName, files);
       setIsCreateShotModalOpen(false);
     } catch (error) {
-      console.error("Error creating shot:", error);
-      toast({ 
-        title: "Error Creating Shot", 
-        description: "Failed to create the shot. Please try again.",
-        variant: "destructive" 
-      });
+      handleError(error, { context: 'MediaGalleryItem', toastTitle: 'Error Creating Shot' });
     } finally {
       setIsCreatingShot(false);
     }

@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from 'react';
+import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface UseReplaceInShotProps {
@@ -94,7 +95,7 @@ export function useReplaceInShot({
       // Close lightbox to force refresh when reopened
       onClose();
     } catch (error) {
-      console.error('[ReplaceInShot] Handler failed:', error);
+      handleError(error, { context: 'useReplaceInShot', showToast: false });
       throw error;
     }
   }, [onClose]);

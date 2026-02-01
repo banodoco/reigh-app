@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useToolSettings } from './useToolSettings';
+import { handleError } from '@/shared/lib/errorHandler';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/components/ui/tooltip';
 import { Button } from '@/shared/components/ui/button';
@@ -261,7 +262,7 @@ export const useLoraManager = (
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000); // Clear success after 2 seconds
     } catch (error) {
-      console.error('Error saving LoRAs:', error);
+      handleError(error, { context: 'useLoraManager', showToast: false });
       setSaveFlash(false); // Clear flash on error too
     }
   }, [enableProjectPersistence, projectId, updatePersistenceSettings, markAsUserSet]);
@@ -313,7 +314,7 @@ export const useLoraManager = (
       // Mark as user set after loading
       markAsUserSet();
     } catch (error) {
-      console.error('Error loading LoRAs:', error);
+      handleError(error, { context: 'useLoraManager', showToast: false });
     }
   }, [
     enableProjectPersistence, 

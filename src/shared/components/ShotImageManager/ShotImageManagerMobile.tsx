@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { ArrowDown, Trash2, Loader2, FolderPlus, ExternalLink } from 'lucide-react';
+import { handleError } from '@/shared/lib/errorHandler';
 import { cn } from '@/shared/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
@@ -289,7 +290,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       
 
     } catch (error) {
-      console.error('[MobileReorder] ❌ Mobile reorder failed:', error);
+      handleError(error, { context: 'ShotImageManagerMobile', showToast: false });
       // Don't clear selection on error so user can retry
     }
   }, [mobileSelectedIds, currentImages, onImageReorder, onSelectionChange]);

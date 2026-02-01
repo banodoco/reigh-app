@@ -7,6 +7,7 @@ import {
   BaseTaskParams,
 } from '../taskCreation';
 import { ASPECT_RATIO_TO_RESOLUTION } from '../aspectRatios';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // ============================================================================
 // API Parameter Types (single source of truth)
@@ -447,7 +448,7 @@ export async function createImageGenerationTask(params: ImageGenerationTaskParam
     return result;
 
   } catch (error) {
-    console.error("[createImageGenerationTask] Error creating task:", error);
+    handleError(error, { context: 'ImageGeneration', showToast: false });
     throw error;
   }
 }
@@ -566,7 +567,7 @@ export async function createBatchImageGenerationTasks(params: BatchImageGenerati
     return successfulResults;
 
   } catch (error) {
-    console.error("[createBatchImageGenerationTasks] Error creating batch tasks:", error);
+    handleError(error, { context: 'BatchImageGeneration', showToast: false });
     throw error;
   }
 }

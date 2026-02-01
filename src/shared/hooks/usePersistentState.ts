@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 
 const MAX_LOCAL_STORAGE_ITEM_LENGTH = 4 * 1024 * 1024; // 4MB
 
@@ -31,7 +32,7 @@ function usePersistentState<T>(key: string, defaultValue: T): [T, React.Dispatch
         return JSON.parse(storedValue) as T;
       }
     } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
+      handleError(error, { context: 'usePersistentState', showToast: false });
     }
     return defaultValue;
   });
@@ -72,15 +73,16 @@ function usePersistentState<T>(key: string, defaultValue: T): [T, React.Dispatch
         })
       );
     } catch (error) {
-      console.error(`Error writing to localStorage key "${key}":`, error);
       // Different error message for mobile users
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const errorDescription = isMobile 
+      const errorDescription = isMobile
         ? "Local storage may be disabled in private browsing mode. Settings will be lost when the tab is closed."
         : "There was an error writing to your browser's local storage.";
-      
-      toast.error("Could not save settings locally.", {
-        description: errorDescription
+
+      handleError(error, {
+        context: 'usePersistentState',
+        toastTitle: 'Could not save settings locally.',
+        toastDescription: errorDescription
       });
     }
   }, [key, state]);

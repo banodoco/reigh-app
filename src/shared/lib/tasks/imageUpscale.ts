@@ -4,6 +4,7 @@ import {
   TaskValidationError,
   BaseTaskParams,
 } from '../taskCreation';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Parameters for creating an image upscale task
@@ -87,7 +88,7 @@ export async function createImageUpscaleTask(params: ImageUpscaleTaskParams): Pr
     return result;
 
   } catch (error) {
-    console.error("[createImageUpscaleTask] Error creating task:", error);
+    handleError(error, { context: 'ImageUpscale', showToast: false });
     throw error;
   }
 }

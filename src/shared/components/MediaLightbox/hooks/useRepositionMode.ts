@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useQueryClient } from '@tanstack/react-query';
 import { GenerationRow } from '@/types/shots';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
@@ -568,8 +569,7 @@ export const useRepositionMode = ({
       }, 1000);
       
     } catch (error) {
-      console.error('[Reposition] Error creating reposition task:', error);
-      toast.error('Failed to create reposition task');
+      handleError(error, { context: 'useRepositionMode', toastTitle: 'Failed to create reposition task' });
     } finally {
       setIsGeneratingReposition(false);
     }
@@ -807,8 +807,7 @@ export const useRepositionMode = ({
       }, 1000);
       
     } catch (error) {
-      console.error('[Reposition] Error saving as variant:', error);
-      toast.error('Failed to save as variant');
+      handleError(error, { context: 'useRepositionMode', toastTitle: 'Failed to save as variant' });
     } finally {
       setIsSavingAsVariant(false);
     }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UserPreferences {
   videoSoundEnabled: boolean;
@@ -23,7 +24,7 @@ export function useUserPreferences() {
         return { ...DEFAULT_PREFERENCES, ...parsed };
       }
     } catch (error) {
-      console.error('[UserPreferences] Failed to load preferences:', error);
+      handleError(error, { context: 'useUserPreferences.load', showToast: false });
     }
     return DEFAULT_PREFERENCES;
   });
@@ -33,7 +34,7 @@ export function useUserPreferences() {
     try {
       localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
     } catch (error) {
-      console.error('[UserPreferences] Failed to save preferences:', error);
+      handleError(error, { context: 'useUserPreferences.save', showToast: false });
     }
   }, [preferences]);
 

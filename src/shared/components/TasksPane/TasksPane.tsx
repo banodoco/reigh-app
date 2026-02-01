@@ -14,6 +14,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useCancelAllPendingTasks, useTaskStatusCounts, usePaginatedTasks, useAllTaskTypes } from '@/shared/hooks/useTasks';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { useToast } from '@/shared/hooks/use-toast';
+import { handleError } from '@/shared/lib/errorHandler';
 import { TasksPaneProcessingWarning } from '../ProcessingWarnings';
 import { useBottomOffset } from '@/shared/hooks/useBottomOffset';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
@@ -288,13 +289,8 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
         queryClient.refetchQueries({ queryKey: ['tasks', 'paginated', selectedProjectId] });
       },
       onError: (error) => {
-        console.error('Cancel-All failed:', error);
         queryClient.setQueryData(queryKey, previousData);
-        toast({
-          title: 'Cancellation Failed',
-          description: (error as Error).message || 'Could not cancel all active tasks.',
-          variant: 'destructive',
-        });
+        handleError(error, { context: 'TasksPane', toastTitle: 'Cancellation Failed' });
       },
     });
   };

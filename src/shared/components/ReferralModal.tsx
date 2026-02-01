@@ -7,6 +7,7 @@ import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import ProfitSplitBar from '@/shared/components/ProfitSplitBar';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface ReferralModalProps {
   isOpen: boolean;
@@ -74,7 +75,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
           setStats(data);
         }
       } catch (err) {
-        console.error('Failed to fetch referral stats:', err);
+        handleError(err, { context: 'ReferralModal', showToast: false });
       } finally {
         setIsLoadingStats(false);
       }
@@ -95,7 +96,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy referral link:', err);
+      handleError(err, { context: 'ReferralModal', showToast: false });
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 import { SharedGenerationView } from '@/tools/travel-between-images/components/SharedGenerationView';
 import { Button } from '@/shared/components/ui/button';
 import { Home, Palette } from 'lucide-react';
@@ -173,7 +174,7 @@ const SharePage: React.FC = () => {
       });
 
     } catch (err) {
-      console.error('[LiveShareDebug] Unexpected error:', err);
+      handleError(err, { context: 'SharePage', showToast: false });
       setError('Failed to load shared generation');
     } finally {
       setLoading(false);

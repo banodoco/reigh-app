@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/config/env";
 import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from "./storagePaths";
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Default timeouts for video (longer than images)
 const DEFAULT_VIDEO_TIMEOUT_MS = 300000; // 5 minutes for videos
@@ -254,7 +255,7 @@ export const uploadVideoToStorage = async (
 
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown upload error');
-      console.error(`[VideoUpload] Upload attempt ${attempt + 1} failed:`, lastError.message);
+      handleError(lastError, { context: 'VideoUploader', showToast: false });
 
       // Don't retry for user cancellation
       if (lastError.message.includes('cancelled')) {

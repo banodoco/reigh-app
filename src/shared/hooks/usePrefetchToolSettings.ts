@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toolsManifest } from '@/tools';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Central list of tool IDs we want to preload. Update when you add more tools.
 const TOOL_IDS = [
@@ -92,7 +93,7 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: { projectId?: stri
     );
 
   } catch (error) {
-    console.error('[fetchToolSettingsSupabase] Error:', error);
+    handleError(error, { context: 'usePrefetchToolSettings', showToast: false });
     throw error;
   }
 }

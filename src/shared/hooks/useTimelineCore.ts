@@ -17,8 +17,8 @@
 import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { GenerationRow } from '@/types/shots';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useAllShotGenerations } from '@/shared/hooks/useShotGenerations';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
@@ -196,8 +196,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'position-update', scope: 'images' });
       } catch (err) {
-        console.error('[useTimelineCore.updatePosition] Error:', err);
-        toast.error('Failed to update position');
+        handleError(err, { context: 'useTimelineCore.updatePosition', toastTitle: 'Failed to update position' });
         throw err;
       }
     },
@@ -226,8 +225,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'positions-commit', scope: 'all' });
       } catch (err) {
-        console.error('[useTimelineCore.commitPositions] Error:', err);
-        toast.error('Failed to update positions');
+        handleError(err, { context: 'useTimelineCore.commitPositions', toastTitle: 'Failed to update positions' });
         throw err;
       }
     },
@@ -250,8 +248,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'reorder', scope: 'all' });
       } catch (err) {
-        console.error('[useTimelineCore.reorder] Error:', err);
-        toast.error('Failed to reorder items');
+        handleError(err, { context: 'useTimelineCore.reorder', toastTitle: 'Failed to reorder items' });
         throw err;
       }
     },
@@ -281,8 +278,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'delete-item', scope: 'all', includeShots: true });
       } catch (err) {
-        console.error('[useTimelineCore.deleteItem] Error:', err);
-        toast.error('Failed to delete item');
+        handleError(err, { context: 'useTimelineCore.deleteItem', toastTitle: 'Failed to delete item' });
         throw err;
       }
     },
@@ -308,8 +304,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'unposition-item', scope: 'all' });
       } catch (err) {
-        console.error('[useTimelineCore.unpositionItem] Error:', err);
-        toast.error('Failed to remove from timeline');
+        handleError(err, { context: 'useTimelineCore.unpositionItem', toastTitle: 'Failed to remove from timeline' });
         throw err;
       }
     },
@@ -355,8 +350,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
 
         return data?.id || null;
       } catch (err) {
-        console.error('[useTimelineCore.addItem] Error:', err);
-        toast.error('Failed to add item to timeline');
+        handleError(err, { context: 'useTimelineCore.addItem', toastTitle: 'Failed to add item to timeline' });
         throw err;
       }
     },

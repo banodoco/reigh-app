@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { handleError } from '@/shared/lib/errorHandler';
 import { GenerationRow } from '@/types/shots';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -129,7 +130,7 @@ export const useSourceGeneration = ({
           setSourcePrimaryVariant(null);
         }
       } catch (error) {
-        console.error('[BasedOnDebug] ❌ Failed to fetch source generation:', error);
+        handleError(error, { context: 'useSourceGeneration', showToast: false });
         // Don't show toast - this is a non-critical feature
         setSourceGenerationData(null);
         setSourcePrimaryVariant(null);

@@ -6,6 +6,7 @@ import {
   TaskValidationError
 } from "../taskCreation";
 import { PhaseConfig, PhaseLoraConfig } from '@/tools/travel-between-images/settings';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // ============================================================================
 
@@ -439,7 +440,7 @@ export async function createJoinClipsTask(params: JoinClipsTaskParams): Promise<
     return result;
 
   } catch (error) {
-    console.error("[createJoinClipsTask] Error creating task:", error);
+    handleError(error, { context: 'JoinClips', showToast: false });
     throw error;
   }
 }

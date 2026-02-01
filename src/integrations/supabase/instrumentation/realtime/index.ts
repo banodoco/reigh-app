@@ -1,6 +1,7 @@
 import { __CORRUPTION_TRACE_ENABLED__, __REALTIME_DOWN_FIX_ENABLED__ } from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot, getEffectiveRealtimeSocket } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export function installRealtimeInstrumentation(supabase: any) {
   // InstrumentationManager removed - calling legacy function directly
@@ -59,7 +60,7 @@ export function installRealtimeInstrumentationLegacy(supabase: any) {
       realtime.__REFERENCE_TRACKING_INSTALLED__ = true;
     }
   } catch (error) {
-    console.error('[ReferenceLoss] ❌ Failed to install reference tracking:', error);
+    handleError(error, { context: 'RealtimeInstrumentation', showToast: false });
   }
 
   // Heuristic for realtime=down to dispatch provider-led heal
@@ -100,16 +101,7 @@ export function installRealtimeInstrumentationLegacy(supabase: any) {
               console.log('[RealtimeDownFix] ✅ requestReconnect called successfully');
               
             } catch (error) {
-              console.error('[RealtimeDownFix] ❌ DETAILED ERROR ANALYSIS:', {
-                error,
-                errorMessage: error?.message,
-                errorStack: error?.stack,
-                errorName: error?.name,
-                errorConstructor: error?.constructor?.name,
-                errorKeys: error ? Object.keys(error) : [],
-                errorStringified: JSON.stringify(error, null, 2),
-                timestamp: Date.now()
-              });
+              handleError(error, { context: 'RealtimeInstrumentation', showToast: false });
             }
           })();
         }

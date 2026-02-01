@@ -44,6 +44,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom";
 import { GenerationRow } from "@/types/shots";
 import { toast } from "sonner";
+import { handleError } from "@/shared/lib/errorHandler";
 import MediaLightbox from "@/shared/components/MediaLightbox";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useDeviceDetection } from "@/shared/hooks/useDeviceDetection";
@@ -744,8 +745,7 @@ const Timeline: React.FC<TimelineProps> = ({
       await onAddToShot(targetShotId as any, generationId as any, undefined as any);
       return true;
     } catch (error) {
-      console.error('[Timeline] Error adding to shot:', error);
-      toast.error(`Failed to add to shot: ${(error as Error).message}`);
+      handleError(error, { context: 'Timeline', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [lightboxSelectedShotId, onAddToShot]);
@@ -772,8 +772,7 @@ const Timeline: React.FC<TimelineProps> = ({
       await onAddToShotWithoutPosition(targetShotId as any, generationId as any);
       return true;
     } catch (error) {
-      console.error('[Timeline] Error adding to shot without position:', error);
-      toast.error(`Failed to add to shot: ${(error as Error).message}`);
+      handleError(error, { context: 'Timeline', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [lightboxSelectedShotId, onAddToShotWithoutPosition]);
@@ -961,8 +960,7 @@ const Timeline: React.FC<TimelineProps> = ({
           }
         }
       } catch (error) {
-        console.error('Error handling generation drop:', error);
-        toast.error(`Failed to add image: ${(error as Error).message}`);
+        handleError(error, { context: 'Timeline', toastTitle: 'Failed to add image' });
       }
       return;
     }
@@ -988,8 +986,7 @@ const Timeline: React.FC<TimelineProps> = ({
     try {
       await onImageUpload(validFiles);
     } catch (error) {
-      console.error('Error handling image drop:', error);
-      toast.error(`Failed to add images: ${(error as Error).message}`);
+      handleError(error, { context: 'Timeline', toastTitle: 'Failed to add images' });
     }
   }, [onImageUpload, onGenerationDrop]);
 

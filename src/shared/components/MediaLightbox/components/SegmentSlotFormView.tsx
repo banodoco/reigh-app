@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/shared/components/ui/button';
 import { X } from 'lucide-react';
 import { useToast } from '@/shared/hooks/use-toast';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useSegmentSettingsForm } from '@/shared/hooks/useSegmentSettingsForm';
 import { SegmentSettingsForm } from '@/shared/components/SegmentSettingsForm';
 import { buildTaskParams } from '@/shared/components/segmentSettingsUtils';
@@ -323,12 +324,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
 
           console.log('[SegmentSlotFormView] ✅ Task created successfully:', result.task_id);
         } catch (error) {
-          console.error('[SegmentSlotFormView] Error in background submission:', error);
-          toast({
-            title: "Error",
-            description: (error as Error).message || "Failed to create task",
-            variant: "destructive",
-          });
+          handleError(error, { context: 'SegmentSlotFormView', toastTitle: 'Failed to create task' });
         } finally {
           await queryClient.refetchQueries({ queryKey: ['tasks', 'paginated'] });
           await queryClient.refetchQueries({ queryKey: ['task-status-counts'] });
@@ -379,12 +375,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
         throw new Error(result.error || 'Failed to create task');
       }
     } catch (error) {
-      console.error('[SegmentSlotFormView] Error creating task:', error);
-      toast({
-        title: "Error",
-        description: (error as Error).message || "Failed to create task",
-        variant: "destructive",
-      });
+      handleError(error, { context: 'SegmentSlotFormView', toastTitle: 'Failed to create task' });
     } finally {
       setIsSubmitting(false);
     }

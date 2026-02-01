@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { handleError } from '@/shared/lib/errorHandler';
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
 import { Toaster as Sonner } from "@/shared/components/ui/sonner";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay } from '@dnd-kit/core';
@@ -197,8 +198,7 @@ const AppInternalContent = () => {
         });
       }
     } catch (error) {
-      console.error('Error handling drop:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      handleError(error, { context: 'App', showToast: false });
     }
 
     // trigger shrink/fade animation then remove overlay

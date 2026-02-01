@@ -1,6 +1,7 @@
 // Simple, clean Supabase Realtime implementation following official documentation
 import { supabase } from '@/integrations/supabase/client';
 import { dataFreshnessManager } from './DataFreshnessManager';
+import { handleError } from '@/shared/lib/errorHandler';
 
 export class SimpleRealtimeManager {
   private channel: any = null;
@@ -70,7 +71,7 @@ export class SimpleRealtimeManager {
           this.attemptReconnect();
         }
       } catch (error) {
-        console.error('[SimpleRealtime] ❌ Reconnect error:', error);
+        handleError(error, { context: 'SimpleRealtimeManager', showToast: false });
         this.attemptReconnect();
       }
     }, delay);
@@ -101,7 +102,7 @@ export class SimpleRealtimeManager {
       
       console.log('[SimpleRealtime] ✅ Authentication verified for user:', session.user.id);
     } catch (error) {
-      console.error('[SimpleRealtime] ❌ Auth check failed:', error);
+      handleError(error, { context: 'SimpleRealtimeManager', showToast: false });
       dataFreshnessManager.onRealtimeStatusChange('error', 'Auth check failed');
       return false;
     }

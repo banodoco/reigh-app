@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ImagePlus, FileUp, Loader2 } from "lucide-react";
 import { getDragType, getGenerationDropData, type DragType } from "@/shared/lib/dragDrop";
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Skeleton component for pending drop items
 const GridSkeletonItem: React.FC<{
@@ -342,8 +343,7 @@ const BatchDropZone: React.FC<BatchDropZoneProps> = ({
       try {
         await onImageDrop(validFiles, targetPosition ?? undefined, framePosition);
       } catch (error) {
-        console.error('[BatchDropZone] File drop error:', error);
-        toast.error(`Failed to add images: ${(error as Error).message}`);
+        handleError(error, { context: 'BatchDropZone', toastTitle: 'Failed to add images' });
         setPendingDropIndex(null);
       } finally {
         setIsProcessingDrop(false);
@@ -362,8 +362,7 @@ const BatchDropZone: React.FC<BatchDropZoneProps> = ({
       try {
         await onGenerationDrop(data.generationId, data.imageUrl, data.thumbUrl, targetPosition ?? undefined, framePosition);
       } catch (error) {
-        console.error('[BatchDropZone] Generation drop error:', error);
-        toast.error(`Failed to add generation: ${(error as Error).message}`);
+        handleError(error, { context: 'BatchDropZone', toastTitle: 'Failed to add generation' });
         setPendingDropIndex(null);
       } finally {
         setIsProcessingDrop(false);

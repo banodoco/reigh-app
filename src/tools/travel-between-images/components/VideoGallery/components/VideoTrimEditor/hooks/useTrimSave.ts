@@ -9,6 +9,7 @@ import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { extractAndUploadThumbnailOnly } from '@/shared/utils/videoThumbnailGenerator';
 import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidation';
 import type { TrimState, UseTrimSaveReturn } from '../types';
@@ -206,7 +207,7 @@ export const useTrimSave = ({
         .single();
 
       if (insertError || !insertedVariant) {
-        console.error('[useTrimSave] Failed to create variant:', insertError);
+        handleError(insertError, { context: 'useTrimSave', showToast: false });
         throw new Error(`Failed to save variant: ${insertError?.message || 'No variant returned'}`);
       }
 
@@ -248,10 +249,8 @@ export const useTrimSave = ({
       }, 2000);
 
     } catch (error) {
-      console.error('[useTrimSave] Save failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setSaveError(errorMessage);
-      toast.error(`Failed to save: ${errorMessage}`);
+      const appError = handleError(error, { context: 'useTrimSave', toastTitle: 'Failed to save' });
+      setSaveError(appError.message);
     } finally {
       setIsSaving(false);
     }

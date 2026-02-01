@@ -13,6 +13,7 @@ import ShotImageManager from '@/shared/components/ShotImageManager';
 import { Button } from '@/shared/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useAllShotGenerations } from '@/shared/hooks/useShotGenerations';
@@ -170,8 +171,7 @@ const ShotsPage: React.FC = () => {
       await refreshSelectedShotImages();
       return true;
     } catch (error) {
-      console.error('[ShotsPage] Error adding to shot:', error);
-      toast.error(`Failed to add to shot: ${(error as Error).message}`);
+      handleError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [currentShotId, selectedProjectId, managedImages, addImageToShotMutation, refreshSelectedShotImages]);
@@ -204,8 +204,7 @@ const ShotsPage: React.FC = () => {
       await refreshSelectedShotImages();
       return true;
     } catch (error) {
-      console.error('[ShotsPage] Error adding to shot without position:', error);
-      toast.error(`Failed to add to shot: ${(error as Error).message}`);
+      handleError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [currentShotId, selectedProjectId, addImageToShotWithoutPositionMutation, refreshSelectedShotImages]);

@@ -1,15 +1,17 @@
 /**
  * Simple Cache Validator - Console Testing Tool
- * 
+ *
  * Run this in browser console to test cache cleanup:
  * ```
  * // Test current cache state
  * validateImageCache()
- * 
+ *
  * // Start real-time monitoring
  * startCacheWatch()
  * ```
  */
+
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Make available globally in development
 if (typeof window !== 'undefined' && import.meta.env.DEV) {
@@ -56,13 +58,13 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
         });
       }
       
-      console.log('💡 To see detailed cache logs:');
-      console.log('   1. Navigate between pages (1 → 2 → 5 → 3)');
+      console.log('To see detailed cache logs:');
+      console.log('   1. Navigate between pages (1 -> 2 -> 5 -> 3)');
       console.log('   2. Watch console for [CacheValidator] messages');
       console.log('   3. Look for "Current cache: pages [X, Y, Z]" logs');
-      
+
     } catch (error) {
-      console.error('❌ Error validating cache:', error);
+      handleError(error, { context: 'SimpleCacheValidator', showToast: false });
     }
     
     console.groupEnd();

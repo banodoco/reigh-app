@@ -30,6 +30,7 @@ import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import type { LoraModel } from '@/shared/hooks/useLoraManager';
 import { cn } from '@/shared/lib/utils';
+import { handleError } from '@/shared/lib/errorHandler';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { Card } from '@/shared/components/ui/card';
 import { extractVideoPosterFrame, extractVideoFinalFrame } from '@/shared/utils/videoPosterExtractor';
@@ -571,7 +572,7 @@ const JoinClipsPage: React.FC = () => {
         // Clear processed clips
         localStorage.removeItem('pendingJoinClips');
       } catch (error) {
-        console.error('[JoinClipsDebug] Failed to process pending join clips:', error);
+        handleError(error, { context: 'JoinClipsPage', showToast: false });
       }
     };
 
@@ -915,8 +916,8 @@ const JoinClipsPage: React.FC = () => {
             : c
         ));
       } catch (error) {
-        console.error('[JoinClipsDebug] Failed to load duration for clip:', clip.id, error);
-        setClips(prev => prev.map(c => 
+        handleError(error, { context: 'JoinClipsPage', showToast: false, logData: { clipId: clip.id } });
+        setClips(prev => prev.map(c =>
           c.id === clip.id
             ? { ...c, durationSeconds: 0, metadataLoading: false }
             : c
@@ -1148,7 +1149,7 @@ const JoinClipsPage: React.FC = () => {
           });
           console.log('[JoinClipsDebug] Generation record created for uploaded clip');
         } catch (genError) {
-          console.error('[JoinClipsDebug] Failed to create generation record:', genError);
+          handleError(genError, { context: 'JoinClipsPage', showToast: false });
           // Don't fail the upload if generation creation fails
         }
       }
@@ -1156,12 +1157,7 @@ const JoinClipsPage: React.FC = () => {
       console.log('[JoinClipsDebug] Video uploaded with duration:', durationSeconds, 'seconds');
       return { videoUrl, posterUrl, finalFrameUrl, durationSeconds };
     } catch (error) {
-      console.error('Error uploading video:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload video',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'JoinClipsPage', toastTitle: 'Upload failed' });
       return null;
     } finally {
       setUploadingClipId(null);
@@ -1445,12 +1441,7 @@ const JoinClipsPage: React.FC = () => {
       });
     },
     onError: (error) => {
-      console.error('[JoinClipsDebug] Task creation failed:', error);
-      toast({
-        title: 'Failed to create task',
-        description: error instanceof Error ? error.message : 'Failed to create join clips task',
-        variant: 'destructive',
-      });
+      handleError(error, { context: 'JoinClipsPage', toastTitle: 'Failed to create task' });
     },
   });
   

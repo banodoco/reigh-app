@@ -14,6 +14,7 @@ import type { LoraModel } from '@/shared/hooks/useLoraManager';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { generateUUID, generateRunId, createTask } from '@/shared/lib/taskCreation';
 import { MultiPortionTimeline, formatTime, PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { SEGMENT_OVERLAY_COLORS } from '@/shared/lib/segmentColors';
@@ -670,8 +671,7 @@ export function InlineEditVideoView({
       });
     },
     onError: (error) => {
-      console.error('[EditVideo] Task creation failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create regeneration task');
+      handleError(error, { context: 'InlineEditVideoView', toastTitle: 'Failed to create regeneration task' });
     },
   });
   

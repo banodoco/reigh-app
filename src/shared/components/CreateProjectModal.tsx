@@ -14,6 +14,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { getRandomDummyName } from '../lib/dummyNames';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useMediumModal } from '@/shared/hooks/useModal';
@@ -94,7 +95,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         navigate('/tools');
       }
     } catch (error) {
-      toast.error("An error occurred while creating the project.");
+      handleError(error, { context: 'CreateProjectModal', toastTitle: 'An error occurred while creating the project' });
     }
   };
 

@@ -40,6 +40,7 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { uploadVideoToStorage, extractVideoMetadata } from '@/shared/lib/videoUploader';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleError } from '@/shared/lib/errorHandler';
 import { quantizeFrameCount, framesToSeconds } from '@/tools/travel-between-images/components/Timeline/utils/time-utils';
 import type { PhaseConfig } from '@/tools/travel-between-images/settings';
 import type { ActiveLora } from '@/shared/hooks/useLoraManager';
@@ -596,7 +597,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
       // Reset after 2 seconds
       setTimeout(() => setSubmitSuccess(false), 2000);
     } catch (error) {
-      console.error('[SegmentSettingsForm] Submit error:', error);
+      handleError(error, { context: 'SegmentSettingsForm', showToast: false });
     }
   }, [onSubmit]);
 
@@ -827,8 +828,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
       setPendingVideoUrl(videoUrl);
       onAddSegmentStructureVideo(newVideo);
     } catch (error) {
-      console.error('[SegmentSettingsForm] Upload failed:', error);
-      toast.error(`Failed to upload video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      handleError(error, { context: 'SegmentSettingsForm', toastTitle: 'Failed to upload video' });
     } finally {
       setIsUploadingVideo(false);
       setUploadProgress(0);
