@@ -15,6 +15,7 @@ export interface UseMediaGalleryActionsProps {
   setActiveLightboxMedia: (media: GenerationRow | null) => void;
   setAutoEnterEditMode: (value: boolean) => void;
   markOptimisticDeleted: (imageId: string) => void;
+  markOptimisticDeletedWithBackfill: (imageId: string) => void;
   removeOptimisticDeleted: (imageId: string) => void;
   setDownloadingImageId: (id: string | null) => void;
   setShowTickForImageId: (id: string | null) => void;
@@ -57,6 +58,7 @@ export const useMediaGalleryActions = ({
   setActiveLightboxMedia,
   setAutoEnterEditMode,
   markOptimisticDeleted,
+  markOptimisticDeletedWithBackfill,
   removeOptimisticDeleted,
   setDownloadingImageId,
   setShowTickForImageId,
@@ -96,14 +98,13 @@ export const useMediaGalleryActions = ({
    * 6. Check page bounds after refetch
    */
   const handleOptimisticDelete = useCallback(async (imageId: string) => {
-    // 1. Show skeleton FIRST so it's ready when item disappears
-    // Both state updates will be batched by React
+    // Use combined action for atomic state update - both deleted mark AND backfill loading
+    // in a single dispatch, ensuring skeleton appears in same render as item disappears
     if (isServerPagination) {
-      setIsBackfillLoading(true);
+      markOptimisticDeletedWithBackfill(imageId);
+    } else {
+      markOptimisticDeleted(imageId);
     }
-
-    // 2. Mark item as deleted - it will be filtered out and others shift
-    markOptimisticDeleted(imageId);
     pendingDeletesRef.current.add(imageId);
 
     // 3. Close lightbox if this image is open
@@ -182,6 +183,7 @@ export const useMediaGalleryActions = ({
     }
   }, [
     markOptimisticDeleted,
+    markOptimisticDeletedWithBackfill,
     removeOptimisticDeleted,
     onDelete,
     activeLightboxMedia,

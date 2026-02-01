@@ -303,6 +303,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     setActiveLightboxMedia: stateHook.setActiveLightboxMedia,
     setAutoEnterEditMode: stateHook.setAutoEnterEditMode,
     markOptimisticDeleted: stateHook.markOptimisticDeleted,
+    markOptimisticDeletedWithBackfill: stateHook.markOptimisticDeletedWithBackfill,
     removeOptimisticDeleted: stateHook.removeOptimisticDeleted,
     setDownloadingImageId: stateHook.setDownloadingImageId,
     setShowTickForImageId: stateHook.setShowTickForImageId,

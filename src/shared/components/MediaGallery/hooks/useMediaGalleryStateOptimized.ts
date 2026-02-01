@@ -46,6 +46,7 @@ export type MediaGalleryStateAction =
   | { type: 'MARK_OPTIMISTIC_UNPOSITIONED'; payload: { mediaId: string; shotId: string } }
   | { type: 'MARK_OPTIMISTIC_POSITIONED'; payload: { mediaId: string; shotId: string } }
   | { type: 'MARK_OPTIMISTIC_DELETED'; payload: string }
+  | { type: 'MARK_OPTIMISTIC_DELETED_WITH_BACKFILL'; payload: string } // Combined action for atomic update
   | { type: 'REMOVE_OPTIMISTIC_DELETED'; payload: string }
   | { type: 'RECONCILE_OPTIMISTIC_STATE'; payload: Set<string> }
   | { type: 'SET_SELECTED_SHOT_ID_LOCAL'; payload: string }
@@ -164,7 +165,15 @@ const mediaGalleryStateReducer = (
       newDeleted.add(action.payload);
       return { ...state, optimisticDeletedIds: newDeleted };
     }
-    
+
+    case 'MARK_OPTIMISTIC_DELETED_WITH_BACKFILL': {
+      // Combined action: mark deleted AND enable backfill loading in ONE state update
+      // This ensures skeleton appears in the same render where item disappears
+      const newDeleted = new Set(state.optimisticDeletedIds);
+      newDeleted.add(action.payload);
+      return { ...state, optimisticDeletedIds: newDeleted, isBackfillLoading: true };
+    }
+
     case 'REMOVE_OPTIMISTIC_DELETED': {
       const newDeleted = new Set(state.optimisticDeletedIds);
       newDeleted.delete(action.payload);
@@ -297,6 +306,7 @@ export interface UseMediaGalleryStateOptimizedReturn {
   markOptimisticUnpositioned: (imageId: string, shotId: string) => void;
   markOptimisticPositioned: (imageId: string, shotId: string) => void;
   markOptimisticDeleted: (imageId: string) => void;
+  markOptimisticDeletedWithBackfill: (imageId: string) => void;
   removeOptimisticDeleted: (imageId: string) => void;
   setSelectedShotIdLocal: (id: string) => void;
   setShowTickForImageId: (id: string | null) => void;
@@ -382,8 +392,10 @@ export const useMediaGalleryStateOptimized = ({
       dispatch({ type: 'MARK_OPTIMISTIC_UNPOSITIONED', payload: { mediaId: imageId, shotId } }),
     markOptimisticPositioned: (imageId: string, shotId: string) => 
       dispatch({ type: 'MARK_OPTIMISTIC_POSITIONED', payload: { mediaId: imageId, shotId } }),
-    markOptimisticDeleted: (imageId: string) => 
+    markOptimisticDeleted: (imageId: string) =>
       dispatch({ type: 'MARK_OPTIMISTIC_DELETED', payload: imageId }),
+    markOptimisticDeletedWithBackfill: (imageId: string) =>
+      dispatch({ type: 'MARK_OPTIMISTIC_DELETED_WITH_BACKFILL', payload: imageId }),
     removeOptimisticDeleted: (imageId: string) => 
       dispatch({ type: 'REMOVE_OPTIMISTIC_DELETED', payload: imageId }),
     setSelectedShotIdLocal: (id: string) => 
