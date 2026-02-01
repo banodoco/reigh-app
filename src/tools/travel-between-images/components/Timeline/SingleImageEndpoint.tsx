@@ -135,6 +135,11 @@ const SingleImageEndpoint: React.FC<SingleImageEndpointProps> = ({
           transform: 'translate(-50%, -50%)',
         }}
         onClick={onDurationClick}
+        onTouchEnd={onDurationClick ? (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDurationClick();
+        } : undefined}
       >
         Duration • {framesToSeconds(displayGap)}
       </div>

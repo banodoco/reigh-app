@@ -147,6 +147,16 @@ const PairRegion: React.FC<PairRegionProps> = ({
                   endFrame: endFrame,
                 });
               }}
+              onTouchEnd={readOnly ? undefined : (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onPairClick?.(index, {
+                  index,
+                  frames: actualFrames,
+                  startFrame: startFrame,
+                  endFrame: endFrame,
+                });
+              }}
             >
               <div className="flex items-center gap-1">
                 <span className="whitespace-nowrap">Pair {index + 1} • {framesToSeconds(actualFrames)}</span>
