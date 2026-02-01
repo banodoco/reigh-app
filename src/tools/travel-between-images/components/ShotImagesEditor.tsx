@@ -713,9 +713,9 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   // Segment slot lightbox state - opens MediaLightbox in segment slot mode
   // When pairIndex is set, MediaLightbox opens showing form (no video) or video+form (has video)
   const [segmentSlotLightboxIndex, setSegmentSlotLightboxIndex] = useState<number | null>(null);
-  // Track current timeline positions (real-time, may differ from DB)
-  // Updated via onFramePositionsChange callback from Timeline
-  const [currentFramePositions, setCurrentFramePositions] = useState<Map<string, number>>(new Map());
+  // Store the pair data snapshot when modal opens (from Timeline's real-time pairInfo)
+  // This ensures modal shows exact same data as timeline display
+  const [activePairData, setActivePairData] = useState<PairData | null>(null);
 
   // Pending image to open in lightbox - used for navigation from segment back to constituent image
   // When set, child components (ShotImageManagerDesktop/Timeline) will open the lightbox for this image
@@ -928,35 +928,18 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     hookDataShotGensCount: hookData.shotGenerations.length,
   });
 
-  // Compute pair data for segment slot lightbox (shared source of truth with TimelineContainer)
-  // IMPORTANT: In batch mode, use per-pair pair_num_frames; in timeline mode, use actual timeline_frame differences
-  // Uses currentFramePositions (real-time) when available, falling back to DB timeline_frame
+  // Compute pair data for metadata lookups (prompts, image URLs, etc.)
+  // Frame counts come from activePairData (passed from Timeline's real-time pairInfo)
   const pairDataByIndex = React.useMemo(() => {
     const dataMap = new Map<number, PairData>();
-
-    // Helper to get frame position: prefer real-time currentFramePositions over stale DB value
-    const getFramePosition = (img: any): number => {
-      if (currentFramePositions.size > 0 && currentFramePositions.has(img.id)) {
-        return currentFramePositions.get(img.id)!;
-      }
-      return img.timeline_frame ?? 0;
-    };
-
     const sortedImages = [...(shotGenerations || [])]
-      .filter((img: any) => {
-        // If we have real-time positions, use those for filtering
-        if (currentFramePositions.size > 0) {
-          return currentFramePositions.has(img.id) && !isVideoAny(img);
-        }
-        // Fall back to DB timeline_frame
-        return img.timeline_frame != null && img.timeline_frame >= 0 && !isVideoAny(img);
-      })
-      .sort((a: any, b: any) => getFramePosition(a) - getFramePosition(b));
+      .filter((img: any) => img.timeline_frame != null && img.timeline_frame >= 0 && !isVideoAny(img))
+      .sort((a: any, b: any) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
 
     // Handle single-image mode: create a pseudo-pair with just the start image
     if (sortedImages.length === 1 && singleImageEndFrame !== undefined) {
       const startImage = sortedImages[0];
-      const startFrame = getFramePosition(startImage);
+      const startFrame = startImage.timeline_frame ?? 0;
       dataMap.set(0, {
         index: 0,
         frames: singleImageEndFrame - startFrame,
@@ -978,17 +961,15 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       const startImage = sortedImages[pairIndex];
       const endImage = sortedImages[pairIndex + 1];
 
-      // In batch mode: use metadata pair_num_frames > uniform batchVideoFrames
-      // In timeline mode: use real-time positions (currentFramePositions) or fall back to DB
       const isBatchMode = effectiveGenerationMode === 'batch';
       const startImageOverrides = readSegmentOverrides(startImage.metadata as Record<string, any> | null);
       const pairNumFramesFromMetadata = startImageOverrides.numFrames;
       const startFrame = isBatchMode
         ? pairIndex * batchVideoFrames
-        : getFramePosition(startImage);
+        : (startImage.timeline_frame ?? 0);
       const endFrame = isBatchMode
         ? (pairIndex + 1) * batchVideoFrames
-        : getFramePosition(endImage);
+        : (endImage.timeline_frame ?? 0);
       const frames = isBatchMode
         ? (pairNumFramesFromMetadata ?? batchVideoFrames)
         : endFrame - startFrame;
@@ -1025,7 +1006,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       dataMap.set(pairIndex, pairDataEntry);
     }
     return dataMap;
-  }, [shotGenerations, effectiveGenerationMode, batchVideoFrames, singleImageEndFrame, currentFramePositions]);
+  }, [shotGenerations, effectiveGenerationMode, batchVideoFrames, singleImageEndFrame]);
 
   // Handle deep-linking to segment slot from TasksPane navigation
   // When navigating from a segment video task, openSegmentSlot contains the pair_shot_generation_id
@@ -1064,14 +1045,12 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   const frameCountDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Build SegmentSlotModeData for MediaLightbox when a segment slot is open
+  // Uses activePairData (snapshot from Timeline's real-time pairInfo) as source of truth
   const segmentSlotModeData: SegmentSlotModeData | null = useMemo(() => {
-    if (segmentSlotLightboxIndex === null) return null;
+    if (segmentSlotLightboxIndex === null || !activePairData) return null;
 
-    const pairData = pairDataByIndex.get(segmentSlotLightboxIndex);
-    if (!pairData) {
-      console.log('[SegmentClickDebug] No pairData for segmentSlotLightboxIndex:', segmentSlotLightboxIndex);
-      return null;
-    }
+    // Use activePairData - this is the real-time data passed from Timeline when modal opened
+    const pairData = activePairData;
 
     // Find the segment slot for this pair (if video exists)
     const pairSlot = segmentSlots.find(slot => slot.index === segmentSlotLightboxIndex);
@@ -1318,7 +1297,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     };
   }, [
     segmentSlotLightboxIndex,
-    pairDataByIndex,
+    activePairData,
     segmentSlots,
     propStructureVideos,
     effectiveGenerationMode,
@@ -2307,6 +2286,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     loadPositions,
     pairDataByIndex,
     setSegmentSlotLightboxIndex,
+    setActivePairData,
     shotGenerations,
     clearEnhancedPrompt,
     onCreateShot,
@@ -2317,6 +2297,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     loadPositions,
     pairDataByIndex,
     setSegmentSlotLightboxIndex,
+    setActivePairData,
     shotGenerations,
     clearEnhancedPrompt,
     onCreateShot,
@@ -2328,8 +2309,9 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   }, []);
 
   // Stable callback: onPairClick
+  // Stores the passed pair data (from Timeline's real-time pairInfo) as the source of truth
   const handlePairClick = React.useCallback((pairIndex: number, passedPairData?: PairData) => {
-    const { pairDataByIndex, setSegmentSlotLightboxIndex } = stableCallbackDepsRef.current;
+    const { pairDataByIndex, setSegmentSlotLightboxIndex, setActivePairData } = stableCallbackDepsRef.current;
     console.log('[SegmentClickDebug] onPairClick (Timeline) called:', {
       pairIndex,
       passedPairDataIndex: passedPairData?.index,
@@ -2337,19 +2319,15 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       hasPairDataInMap: pairDataByIndex.has(pairIndex),
       pairDataByIndexKeys: [...pairDataByIndex.keys()],
     });
-    if (passedPairData || pairDataByIndex.has(pairIndex)) {
-      console.log('[SegmentClickDebug] Setting segmentSlotLightboxIndex to:', pairIndex);
+
+    // Use passed data (real-time from Timeline) or fall back to pairDataByIndex
+    const pairData = passedPairData || pairDataByIndex.get(pairIndex);
+    if (pairData) {
+      console.log('[SegmentClickDebug] Setting segmentSlotLightboxIndex to:', pairIndex, 'frames:', pairData.frames);
+      setActivePairData(pairData);
       setSegmentSlotLightboxIndex(pairIndex);
     }
   }, []);
-
-  // Wrapped callback: track frame positions locally for real-time pairDataByIndex
-  const handleFramePositionsChange = React.useCallback((newPositions: Map<string, number>) => {
-    // Update local state so pairDataByIndex uses real-time positions
-    setCurrentFramePositions(newPositions);
-    // Call original callback to persist to DB
-    onFramePositionsChange?.(newPositions);
-  }, [onFramePositionsChange]);
 
   // Stable callback: onClearEnhancedPrompt
   const handleClearEnhancedPromptByIndex = React.useCallback(async (pairIndex: number) => {
@@ -2537,7 +2515,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                 projectId={projectId}
                 frameSpacing={batchVideoFrames}
                 onImageReorder={onImageReorder}
-                onFramePositionsChange={handleFramePositionsChange}
+                onFramePositionsChange={onFramePositionsChange}
                 onImageDrop={onImageDrop}
                 onGenerationDrop={onGenerationDrop}
                 pendingPositions={pendingPositions}
