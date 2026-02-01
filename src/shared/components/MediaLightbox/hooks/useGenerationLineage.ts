@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { GenerationRow } from '@/types/shots';
 import {
   useDerivedItems,
-  useSourceGeneration,
   DerivedItem
 } from '@/shared/hooks/useGenerations';
 
@@ -20,14 +19,12 @@ export interface UseGenerationLineageReturn {
   derivedTotalPages: number;
   paginatedDerived: DerivedItem[];
   setDerivedPage: React.Dispatch<React.SetStateAction<number>>;
-  
+
   // Legacy: derivedGenerations for backwards compatibility (only generations, not variants)
   derivedGenerations: GenerationRow[] | undefined;
-  
-  // Source generation (this is based on another generation)
+
+  // Source generation info (the actual fetch is done by useSharedLightboxState)
   basedOnId: string | null;
-  sourceGeneration: GenerationRow | undefined;
-  isSourceLoading: boolean;
 }
 
 /**
@@ -94,10 +91,9 @@ export const useGenerationLineage = ({
       })) as GenerationRow[];
   }, [derivedItems]);
 
-  // Fetch source generation if this is based on another generation
+  // Compute basedOnId for consumers (actual source fetch is done by useSharedLightboxState)
   // Check if media.metadata contains based_on field (from generation params)
   const basedOnId = (media as any).based_on || (media.metadata as any)?.based_on || null;
-  const { data: sourceGeneration, isLoading: isSourceLoading } = useSourceGeneration(basedOnId, enabled);
 
   return {
     // New unified
@@ -112,8 +108,6 @@ export const useGenerationLineage = ({
     derivedGenerations,
     // Source
     basedOnId,
-    sourceGeneration,
-    isSourceLoading,
   };
 };
 
