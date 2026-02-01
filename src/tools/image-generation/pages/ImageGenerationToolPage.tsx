@@ -663,42 +663,37 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     handleGalleryFilterChange(shotId);
   }, [handleGalleryFilterChange]);
 
-  // Handle backfill request to fill empty spaces after deletions
-  const handleBackfillRequest = useCallback(async (deletedCount: number, currentPage: number, itemsPerPage: number): Promise<GeneratedImageWithMetadata[]> => {
+  // Handle backfill request - invalidate and refetch current page data after deletion
+  const handleBackfillRequest = useCallback(async (): Promise<void> => {
     if (!selectedProjectId) {
-      console.warn('[BackfillDebug] No project selected for backfill');
-      return [];
+      console.warn('[BackfillV2] No project selected for backfill');
+      return;
     }
 
     try {
-      console.log('[BackfillDebug] Triggering data refresh for backfill:', {
-        deletedCount,
+      console.log('[BackfillV2] Invalidating and refetching data:', {
         currentPage,
         itemsPerPage,
         selectedProjectId,
         timestamp: Date.now()
       });
 
-      // Instead of fetching new data, we'll trigger a refresh of the current page
-      // The server will naturally return items from the next page to fill gaps
-      await queryClient.invalidateQueries({ 
-        queryKey: ['unified-generations', 'project', effectiveProjectId] 
-      });
-      
-      // Refetch the current page - this will get updated data with items moved up from next page
-      await queryClient.refetchQueries({ 
-        queryKey: ['unified-generations', 'project', effectiveProjectId, currentPage, itemsPerPage, generationsFilters] 
+      // Invalidate queries for this project - this marks data as stale
+      await queryClient.invalidateQueries({
+        queryKey: ['unified-generations', 'project', effectiveProjectId]
       });
 
-      console.log('[BackfillDebug] Data refresh completed for backfill');
-      
-      // Return empty array since the refresh will update the main data source
-      return [];
+      // Refetch the current page - server will return items with natural shift from next page
+      await queryClient.refetchQueries({
+        queryKey: ['unified-generations', 'project', effectiveProjectId, currentPage, itemsPerPage, generationsFilters]
+      });
+
+      console.log('[BackfillV2] Refetch completed');
     } catch (error) {
-      console.error('[BackfillDebug] Failed to refresh data for backfill:', error);
-      return [];
+      console.error('[BackfillV2] Failed to refetch data:', error);
+      throw error; // Re-throw so the caller can handle it
     }
-  }, [selectedProjectId, queryClient, generationsFilters]);
+  }, [selectedProjectId, effectiveProjectId, currentPage, itemsPerPage, queryClient, generationsFilters]);
 
   // Handle creating a new shot
   const handleCreateShot = useCallback(async (shotName: string, files: File[]): Promise<void> => {

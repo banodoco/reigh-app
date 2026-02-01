@@ -55,10 +55,12 @@ export interface MediaGalleryGridProps {
   
   // Backfill state
   isBackfillLoading?: boolean;
-  backfillSkeletonCount?: number;
   setIsBackfillLoading?: (loading: boolean) => void;
-  setBackfillSkeletonCount?: (count: number) => void;
-  onSkeletonCleared?: () => void;
+
+  // Props for computing skeleton count dynamically
+  totalCount?: number;
+  offset?: number;
+  optimisticDeletedCount?: number;
   
   // Pagination display state
   hideBottomPagination?: boolean;
@@ -115,20 +117,19 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
   
   // Backfill state
   isBackfillLoading = false,
-  backfillSkeletonCount = 0,
   setIsBackfillLoading,
-  setBackfillSkeletonCount,
-  onSkeletonCleared,
-  
+
+  // Props for computing skeleton count dynamically
+  totalCount = 0,
+  offset = 0,
+  optimisticDeletedCount = 0,
+
   // Pagination display state
   hideBottomPagination = false,
 
   // Pass through all other props for MediaGalleryItem
   ...itemProps
 }) => {
-  
-  // Track previous paginated images length to detect when new images arrive
-  const prevPaginatedLengthRef = React.useRef(paginatedImages.length);
 
   // === SIMPLE PAGE CHANGE DETECTION ===
   // Create a signature for the current page to detect when new data arrives
@@ -159,44 +160,52 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
     }
   }, [pageSignature, isGalleryLoading]);
 
-  // Clear skeleton immediately when new images arrive
+  // Clear backfill loading when new data arrives (signature changes while loading)
+  const prevSignatureForBackfillRef = React.useRef<string>(pageSignature);
   React.useEffect(() => {
-    if (isBackfillLoading && paginatedImages.length > prevPaginatedLengthRef.current) {
-      console.log('[SKELETON_DEBUG] Direct effect - clearing skeleton (new images detected):', {
-        prevLength: prevPaginatedLengthRef.current,
-        newLength: paginatedImages.length,
-        isBackfillLoading,
-        timestamp: Date.now()
-      });
-      if (setIsBackfillLoading) setIsBackfillLoading(false);
-      if (setBackfillSkeletonCount) setBackfillSkeletonCount(0);
-      
-      // Notify the actions hook to reset deletion count
-      if (onSkeletonCleared) {
-        console.log('[SKELETON_DEBUG] Direct effect - calling onSkeletonCleared callback');
-        onSkeletonCleared();
-      }
+    if (isBackfillLoading && prevSignatureForBackfillRef.current !== pageSignature) {
+      console.log('[BackfillV2] Data arrived, clearing backfill loading');
+      setIsBackfillLoading?.(false);
     }
-    prevPaginatedLengthRef.current = paginatedImages.length;
-  }, [paginatedImages.length, isBackfillLoading, setIsBackfillLoading, setBackfillSkeletonCount, onSkeletonCleared]);
+    prevSignatureForBackfillRef.current = pageSignature;
+  }, [pageSignature, isBackfillLoading, setIsBackfillLoading]);
 
-  // [VideoSkeletonDebug] Track grid render - only log on significant state changes
-  // Reduced dependencies to prevent excessive effect runs on mobile
-  const debugStateRef = React.useRef({ logged: false, lastSignature: '' });
-  React.useEffect(() => {
-    // Only log when signature changes significantly (reduces logging frequency)
-    const signature = `${paginatedImages.length}-${isGalleryLoading}-${isBackfillLoading}`;
-    if (debugStateRef.current.lastSignature !== signature) {
-      debugStateRef.current.lastSignature = signature;
-      console.log('[VideoSkeletonDebug] MediaGalleryGrid state changed:', {
-        paginatedImagesLength: paginatedImages.length,
-        isGalleryLoading,
-        isBackfillLoading,
-        backfillSkeletonCount,
-        timestamp: Date.now()
-      });
-    }
-  }, [paginatedImages.length, isGalleryLoading, isBackfillLoading, backfillSkeletonCount]);
+  /**
+   * Compute skeleton count dynamically based on:
+   * - How many items we expect on this page (itemsPerPage or remaining if last page)
+   * - How many items we actually have (after optimistic deletes)
+   * - Whether there are more items to backfill from
+   */
+  const computedSkeletonCount = React.useMemo(() => {
+    if (!isBackfillLoading || !isServerPagination) return 0;
+
+    // Calculate optimistic total (server total minus pending deletes)
+    const optimisticTotal = Math.max(0, totalCount - optimisticDeletedCount);
+
+    // How many items should be on this page?
+    // Either itemsPerPage, or the remainder if this is the last page
+    const itemsAfterOffset = Math.max(0, optimisticTotal - offset);
+    const expectedItems = Math.min(itemsPerPage, itemsAfterOffset);
+
+    // How many items do we actually have?
+    const actualItems = paginatedImages.length;
+
+    // Skeleton count is the gap
+    const skeletonCount = Math.max(0, expectedItems - actualItems);
+
+    console.log('[BackfillV2] Computing skeleton count:', {
+      totalCount,
+      optimisticDeletedCount,
+      optimisticTotal,
+      offset,
+      itemsPerPage,
+      expectedItems,
+      actualItems,
+      skeletonCount
+    });
+
+    return skeletonCount;
+  }, [isBackfillLoading, isServerPagination, totalCount, optimisticDeletedCount, offset, itemsPerPage, paginatedImages.length]);
 
   // Compute aspect ratio padding to match MediaGalleryItem container
   const aspectRatioPadding = React.useMemo(() => {
@@ -287,23 +296,10 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
             isLightboxOpen={isLightboxOpen}
             instanceId={`gallery-${isServerPagination ? (serverPage || 1) : page}`}
             onImagesReady={() => {
-              // This callback is only used for skeleton cleanup
-              console.log('[SKELETON_DEBUG] ProgressiveLoadingManager onImagesReady fired:', {
-                isBackfillLoading,
-                hasSetters: !!(setIsBackfillLoading && setBackfillSkeletonCount),
-                paginatedImagesLength: paginatedImages.length,
-                timestamp: Date.now()
-              });
-
-              // If we were showing backfill skeletons, hide them as soon as real images appear
+              // Clear backfill loading when images are ready to display
               if (isBackfillLoading && setIsBackfillLoading) {
-                console.log('[SKELETON_DEBUG] ProgressiveLoadingManager - clearing skeleton (images ready):', {
-                  isBackfillLoading,
-                  hasSetters: !!(setIsBackfillLoading && setBackfillSkeletonCount),
-                  timestamp: Date.now()
-                });
+                console.log('[BackfillV2] ProgressiveLoadingManager - images ready, clearing loading');
                 setIsBackfillLoading(false);
-                if (setBackfillSkeletonCount) setBackfillSkeletonCount(0);
               }
             }}
           >
@@ -352,23 +348,15 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
                     );
                   })}
                   
-                  {/* Backfill skeleton items - matching MediaGalleryItem design */}
-                  {isBackfillLoading && backfillSkeletonCount > 0 && (() => {
-                    console.log('[SKELETON_DEBUG] Rendering skeleton items:', {
-                      isBackfillLoading,
-                      backfillSkeletonCount,
-                      paginatedImagesLength: paginatedImages.length,
-                      timestamp: Date.now()
-                    });
-                    return Array.from({ length: backfillSkeletonCount }).map((_, index) => {
-                      const skeletonIndex = paginatedImages.length + index;
+                  {/* Backfill skeleton items - fill gaps when items are deleted */}
+                  {computedSkeletonCount > 0 && Array.from({ length: computedSkeletonCount }).map((_, index) => {
+                    const skeletonIndex = paginatedImages.length + index;
                     return (
                       <div key={`skeleton-${skeletonIndex}`} className="relative group">
-                        {/* Match MediaGalleryItem container: border, rounded, overflow-hidden */}
+                        {/* Match MediaGalleryItem container styling */}
                         <div className="border rounded-lg overflow-hidden hover:shadow-md transition-all duration-300 relative group bg-card">
                           <div className="relative w-full">
                             <div style={{ paddingBottom: aspectRatioPadding }} className="relative bg-muted/50">
-                              {/* Match exact skeleton design from MediaGalleryItem */}
                               <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-muted/30 animate-pulse">
                                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-400"></div>
                               </div>
@@ -377,8 +365,7 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
                         </div>
                       </div>
                     );
-                    });
-                  })()}
+                  })}
                 </div>
               </div>
             )}

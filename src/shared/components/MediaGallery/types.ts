@@ -112,7 +112,8 @@ export interface MediaGalleryProps {
   onPrefetchAdjacentPages?: (prevPage: number | null, nextPage: number | null) => void;
   enableAdjacentPagePreloading?: boolean;
   onCreateShot?: (shotName: string, files: File[]) => Promise<void>;
-  onBackfillRequest?: (deletedCount: number, currentPage: number, itemsPerPage: number) => Promise<GeneratedImageWithMetadata[]>;
+  /** Called after delete to trigger data refetch. Should invalidate queries and refetch current page. */
+  onBackfillRequest?: () => Promise<void>;
   showDelete?: boolean;
   showDownload?: boolean;
   showShare?: boolean;

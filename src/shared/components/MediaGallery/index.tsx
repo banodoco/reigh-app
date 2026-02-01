@@ -284,6 +284,14 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     galleryTopRef: stateHook.galleryTopRef,
   });
 
+  // Handle page bounds exceeded (e.g., deleted all items on last page)
+  const handlePageBoundsExceeded = useCallback((newLastPage: number) => {
+    if (onServerPageChange) {
+      console.log('[BackfillV2] Navigating to new last page:', newLastPage);
+      onServerPageChange(newLastPage);
+    }
+  }, [onServerPageChange]);
+
   // Actions hook
   const actionsHook = useMediaGalleryActions({
     onDelete,
@@ -306,10 +314,14 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     itemsPerPage: actualItemsPerPage,
     isServerPagination: paginationHook.isServerPagination,
     setIsBackfillLoading: stateHook.setIsBackfillLoading,
-    setBackfillSkeletonCount: stateHook.setBackfillSkeletonCount,
     filteredImages: filtersHook.filteredImages,
     setIsDownloadingStarred: stateHook.setIsDownloadingStarred,
     setSelectedShotIdLocal: stateHook.setSelectedShotIdLocal,
+    // New props for robust backfill
+    totalCount,
+    offset,
+    optimisticDeletedCount: stateHook.state.optimisticDeletedIds.size,
+    onPageBoundsExceeded: handlePageBoundsExceeded,
   });
 
   // Mobile interactions hook
@@ -883,13 +895,15 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
           
           // Filter state for empty states
           hasFilters={hasFilters}
-          
+
           // Backfill state
           isBackfillLoading={stateHook.state.isBackfillLoading}
-          backfillSkeletonCount={stateHook.state.backfillSkeletonCount}
           setIsBackfillLoading={stateHook.setIsBackfillLoading}
-          setBackfillSkeletonCount={stateHook.setBackfillSkeletonCount}
-          onSkeletonCleared={actionsHook.handleSkeletonCleared}
+
+          // Props for computing skeleton count dynamically
+          totalCount={totalCount}
+          offset={offset}
+          optimisticDeletedCount={stateHook.state.optimisticDeletedIds.size}
           
           // MediaGalleryItem props
           isDeleting={isDeleting}

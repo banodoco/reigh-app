@@ -12,7 +12,7 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/shared/components/ui/alert-dialog";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { MobileImageItem } from './MobileImageItem';
+import { ShotBatchItemMobile } from './ShotBatchItemMobile';
 import { BaseShotImageManagerProps } from './types';
 import { PairPromptIndicator } from './components/PairPromptIndicator';
 import { InlineSegmentVideo } from '@/tools/travel-between-images/components/Timeline/InlineSegmentVideo';
@@ -486,7 +486,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
                   );
                 })()}
                 
-                <MobileImageItem
+                <ShotBatchItemMobile
                   image={image}
                   isSelected={isSelected}
                   index={index}

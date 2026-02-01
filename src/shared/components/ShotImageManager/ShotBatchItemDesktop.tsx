@@ -1,3 +1,10 @@
+/**
+ * ShotBatchItemDesktop - Desktop batch view image item with drag-and-drop
+ *
+ * Uses dnd-kit for drag-and-drop reordering support.
+ * Uses shared utilities for aspect ratio and progressive loading.
+ */
+
 import React, { useRef, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -6,13 +13,13 @@ import { Button } from '@/shared/components/ui/button';
 import { Trash2, Copy, Check } from 'lucide-react';
 import { cn, getDisplayUrl } from '@/shared/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
-import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
-import { framesToSeconds } from './Timeline/utils/time-utils';
+import { useBatchImageLoading } from '@/shared/hooks/useBatchImageLoading';
+import { getImageAspectRatioStyle } from '@/shared/lib/imageAspectRatio';
+import { framesToSeconds } from '@/tools/travel-between-images/components/Timeline/utils/time-utils';
 import { VariantBadge } from '@/shared/components/VariantBadge';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
 
-interface SortableImageItemProps {
+interface ShotBatchItemDesktopProps {
   image: GenerationRow;
   onDelete: (shotImageEntryId: string) => void;
   onDuplicate?: (shotImageEntryId: string, timeline_frame: number) => void;
@@ -34,7 +41,7 @@ interface SortableImageItemProps {
   projectAspectRatio?: string;
 }
 
-const SortableImageItemComponent: React.FC<SortableImageItemProps> = ({
+const ShotBatchItemDesktopComponent: React.FC<ShotBatchItemDesktopProps> = ({
   image,
   onDelete,
   onDuplicate,
@@ -62,58 +69,15 @@ const SortableImageItemComponent: React.FC<SortableImageItemProps> = ({
     }
   }, [image.generation_id, markAllViewed]);
 
-  // Progressive loading for sortable image item
-  const progressiveEnabled = isProgressiveLoadingEnabled();
-  const { src: progressiveSrc, phase, isThumbShowing, isFullLoaded, ref: progressiveRef } = useProgressiveImage(
-    progressiveEnabled ? image.thumbUrl : null,
-    image.imageUrl,
-    {
-      priority: false, // Not high priority in travel tool
-      lazy: true,
-      enabled: progressiveEnabled && shouldLoad,
-      crossfadeMs: 200
-    }
-  );
-
-  // Use progressive src if available, otherwise fallback to display URL
-  const displayImageUrl = progressiveEnabled && progressiveSrc ? progressiveSrc : getDisplayUrl(image.thumbUrl || image.imageUrl);
+  // Progressive loading for batch item
+  const { displayImageUrl, progressiveRef, isThumbShowing, isFullLoaded } = useBatchImageLoading({
+    thumbUrl: image.thumbUrl,
+    imageUrl: image.imageUrl,
+    shouldLoad,
+  });
 
   // Calculate aspect ratio for consistent sizing with skeletons
-  const getAspectRatioStyle = () => {
-    // Try to get dimensions from image metadata first
-    let width = (image as any).metadata?.width;
-    let height = (image as any).metadata?.height;
-    
-    // If not found, try to extract from resolution string
-    if (!width || !height) {
-      const resolution = (image as any).metadata?.originalParams?.orchestrator_details?.resolution;
-      if (resolution && typeof resolution === 'string' && resolution.includes('x')) {
-        const [w, h] = resolution.split('x').map(Number);
-        if (!isNaN(w) && !isNaN(h)) {
-          width = w;
-          height = h;
-        }
-      }
-    }
-    
-    // If we have image dimensions, use them
-    if (width && height) {
-      const aspectRatio = width / height;
-      return { aspectRatio: `${aspectRatio}` };
-    }
-    
-    // Fall back to project aspect ratio if available
-    if (projectAspectRatio) {
-      const [w, h] = projectAspectRatio.split(':').map(Number);
-      if (!isNaN(w) && !isNaN(h)) {
-        const aspectRatio = w / h;
-        return { aspectRatio: `${aspectRatio}` };
-      }
-    }
-    
-    // Default to square aspect ratio
-    return { aspectRatio: '1' };
-  };
+  const aspectRatioStyle = getImageAspectRatioStyle(image as any, projectAspectRatio);
 
   // Use image.id (shot_generations.id) - unique per entry
   const sortableId = image.id;
@@ -137,19 +101,17 @@ const SortableImageItemComponent: React.FC<SortableImageItemProps> = ({
     const touch = e.changedTouches[0];
     const deltaX = Math.abs(touch.clientX - touchStartRef.current.x);
     const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
-    
+
     // Only trigger tap if movement is minimal (< 10px in any direction)
     // This prevents accidental selection during scrolling
     if (deltaX < 10 && deltaY < 10) {
       e.preventDefault();
       onMobileTap();
     }
-    
+
     touchStartRef.current = null;
   };
 
-  const aspectRatioStyle = getAspectRatioStyle();
-  
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -226,8 +188,8 @@ const SortableImageItemComponent: React.FC<SortableImageItemProps> = ({
         className={cn(
           "w-full h-full object-cover transition-all duration-200",
           // Progressive loading visual states
-          progressiveEnabled && isThumbShowing && "opacity-95",
-          progressiveEnabled && isFullLoaded && "opacity-100"
+          isThumbShowing && "opacity-95",
+          isFullLoaded && "opacity-100"
         )}
         onTouchStart={isMobile ? handleTouchStart : undefined}
         onTouchEnd={isMobile ? handleTouchEnd : undefined}
@@ -242,18 +204,18 @@ const SortableImageItemComponent: React.FC<SortableImageItemProps> = ({
           }
         }}
       />
-      
+
       {/* Time overlay - bottom (showing position-based time in seconds) */}
       {(displayTimeSeconds !== undefined || timeline_frame !== undefined) && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] leading-none text-center py-0.5 pointer-events-none whitespace-nowrap overflow-hidden">
           <span className="inline-block">
-            {displayTimeSeconds !== undefined 
+            {displayTimeSeconds !== undefined
               ? `${displayTimeSeconds.toFixed(2)}s`
               : framesToSeconds(timeline_frame!)}
           </span>
         </div>
       )}
-      
+
       {(!isMobile || !isDragDisabled) && (
         <>
           {/* Variant Count + NEW badge - bottom, above time */}
@@ -326,8 +288,8 @@ const SortableImageItemComponent: React.FC<SortableImageItemProps> = ({
 
 // 🎯 PERFORMANCE: Memoize component to prevent unnecessary re-renders
 // Only re-render when these specific props change
-export const SortableImageItem = React.memo(
-  SortableImageItemComponent,
+export const ShotBatchItemDesktop = React.memo(
+  ShotBatchItemDesktopComponent,
   (prevProps, nextProps) => {
     // Use image.id (shot_generations.id) - unique per entry
     return (
@@ -344,4 +306,4 @@ export const SortableImageItem = React.memo(
       prevProps.image.imageUrl === nextProps.image.imageUrl
     );
   }
-); 
+);

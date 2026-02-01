@@ -2,8 +2,8 @@
  * VariantBadge - Shared component for displaying variant count and "new" indicators
  *
  * Used across multiple components:
- * - MobileImageItem (batch view mobile)
- * - SortableImageItem (batch view desktop)
+ * - ShotBatchItemMobile (batch view mobile)
+ * - ShotBatchItemDesktop (batch view desktop)
  * - TimelineItem (timeline view)
  * - MediaGalleryItem (generations gallery)
  * - VideoItem (video gallery)

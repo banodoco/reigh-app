@@ -130,7 +130,7 @@ export interface BaseShotImageManagerProps {
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
 }
 
-export interface MobileImageItemProps {
+export interface ShotBatchItemMobileProps {
   image: GenerationRow;
   isSelected: boolean;
   index: number;

@@ -134,7 +134,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   const imageKey = image.id;
 
   // ===== MOBILE TAP HANDLING =====
-  // Simple immediate tap handler (like MobileImageItem pattern)
+  // Simple immediate tap handler (like ShotBatchItemMobile pattern)
   // - Single tap → immediately toggles selection
   // - When selected → center button appears to open lightbox
   // - No double-tap detection delays
@@ -166,7 +166,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
       return;
     }
 
-    // Immediate selection toggle (like MobileImageItem)
+    // Immediate selection toggle (like ShotBatchItemMobile)
     if (onSelectionClick) {
       onSelectionClick({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent);
     } else if (onMobileTap) {
@@ -444,14 +444,14 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
           />
 
           {/* Selected state: show "Tap timeline to place" hint and Open button */}
-          {/* This replaces the old double-tap pattern with explicit buttons (like MobileImageItem) */}
+          {/* This replaces the old double-tap pattern with explicit buttons (like ShotBatchItemMobile) */}
           {isSelected && (
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none gap-1">
               {/* "Tap timeline to place" hint */}
               <div className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-md">
                 Tap timeline to place
               </div>
-              {/* Open lightbox button (like MobileImageItem) */}
+              {/* Open lightbox button (like ShotBatchItemMobile) */}
               {onMobileTap && (
                 <Button
                   size="icon"

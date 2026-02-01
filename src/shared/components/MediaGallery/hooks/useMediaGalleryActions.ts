@@ -21,15 +21,19 @@ export interface UseMediaGalleryActionsProps {
   setShowTickForSecondaryImageId: (id: string | null) => void;
   mainTickTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
   secondaryTickTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
-  onBackfillRequest?: (deletedCount: number, currentPage: number, itemsPerPage: number) => Promise<GeneratedImageWithMetadata[]>;
+  onBackfillRequest?: () => Promise<void>;
   serverPage?: number;
   itemsPerPage: number;
   isServerPagination: boolean;
   setIsBackfillLoading: (loading: boolean) => void;
-  setBackfillSkeletonCount: (count: number) => void;
   filteredImages: GeneratedImageWithMetadata[];
   setIsDownloadingStarred: (downloading: boolean) => void;
   setSelectedShotIdLocal: (shotId: string) => void;
+  // New props for robust backfill
+  totalCount?: number;
+  offset?: number;
+  optimisticDeletedCount: number;
+  onPageBoundsExceeded?: (newLastPage: number) => void;
 }
 
 export interface UseMediaGalleryActionsReturn {
@@ -41,7 +45,6 @@ export interface UseMediaGalleryActionsReturn {
   handleShowTick: (imageId: string) => void;
   handleShowSecondaryTick: (imageId: string) => void;
   handleShotChange: (shotId: string) => void;
-  handleSkeletonCleared: () => void;
 }
 
 export const useMediaGalleryActions = ({
@@ -65,159 +68,143 @@ export const useMediaGalleryActions = ({
   itemsPerPage,
   isServerPagination,
   setIsBackfillLoading,
-  setBackfillSkeletonCount,
   filteredImages,
   setIsDownloadingStarred,
   setSelectedShotIdLocal,
+  totalCount,
+  offset = 0,
+  optimisticDeletedCount,
+  onPageBoundsExceeded,
 }: UseMediaGalleryActionsProps): UseMediaGalleryActionsReturn => {
-  
+
   const { toast } = useToast();
   const { setLastAffectedShotId } = useLastAffectedShot();
-  
-  // Track deletions per page for backfilling
-  const deletionsCountRef = useRef<Map<number, number>>(new Map());
-  const backfillTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Optimistic delete handler with backfill logic
+
+  // Track in-flight delete operations for debouncing rapid deletions
+  const pendingDeletesRef = useRef<Set<string>>(new Set());
+  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * Robust optimistic delete with immediate skeleton and fast backfill.
+   *
+   * Flow:
+   * 1. Hide item immediately (optimistic)
+   * 2. Show skeleton placeholder if there are more items to backfill
+   * 3. Call server delete
+   * 4. On success: trigger immediate refetch (debounced 100ms for rapid deletes)
+   * 5. On failure: revert optimistic state, hide skeleton, show error
+   * 6. Check page bounds after refetch
+   */
   const handleOptimisticDelete = useCallback(async (imageId: string) => {
-    // Immediately mark as optimistically deleted
+    // 1. Hide item immediately
     markOptimisticDeleted(imageId);
-    
-    // Close lightbox if this image is currently open
+    pendingDeletesRef.current.add(imageId);
+
+    // 2. Close lightbox if this image is open
     if (activeLightboxMedia?.id === imageId) {
       setActiveLightboxMedia(null);
     }
-    
+
+    // 3. Determine if we should show skeleton
+    // Show skeleton if there are more items in the database beyond current page
+    const currentTotal = totalCount ?? 0;
+    const optimisticTotal = currentTotal - optimisticDeletedCount - 1; // -1 for current delete
+    const hasMoreItemsToBackfill = optimisticTotal > offset + filteredImages.length - 1;
+
+    if (isServerPagination && hasMoreItemsToBackfill) {
+      setIsBackfillLoading(true);
+      console.log('[BackfillV2] Showing skeleton - more items available:', {
+        currentTotal,
+        optimisticTotal,
+        offset,
+        currentPageItems: filteredImages.length,
+        hasMore: hasMoreItemsToBackfill
+      });
+    }
+
     try {
-      // Call the original delete handler
+      // 4. Delete on server
       if (onDelete) {
         await onDelete(imageId);
       }
-      
-      // Debug: Check if we're in server pagination mode
-      console.log('[SKELETON_DEBUG] Delete handler - pagination check:', {
-        isServerPagination,
-        serverPage,
-        hasBackfillRequest: !!onBackfillRequest,
-        willShowSkeleton: !!(isServerPagination && serverPage && onBackfillRequest),
-        timestamp: Date.now()
-      });
-      
-      // Track deletion for backfill logic (only for server pagination)
-      if (isServerPagination && serverPage && onBackfillRequest) {
-        const currentPageNum = serverPage;
-        const currentCount = deletionsCountRef.current.get(currentPageNum) || 0;
-        const newCount = currentCount + 1;
-        deletionsCountRef.current.set(currentPageNum, newCount);
-        
-        console.log('[SKELETON_DEBUG] Deletion tracked - checking conditions:', {
-          imageId: imageId.substring(0, 8),
-          page: currentPageNum,
-          previousCount: currentCount,
-          deletionsCount: newCount,
-          itemsPerPage,
-          isServerPagination,
-          hasServerPage: !!serverPage,
-          hasBackfillRequest: !!onBackfillRequest,
-          deletionsMapSize: deletionsCountRef.current.size,
-          timestamp: Date.now()
-        });
-        
-        // Show skeleton loading immediately for any deletion in server pagination mode
-        console.log('[SKELETON_DEBUG] Setting skeleton state ON:', {
-          newCount,
-          serverPage: currentPageNum,
-          timestamp: Date.now()
-        });
-        setIsBackfillLoading(true);
-        setBackfillSkeletonCount(newCount);
-        
-        // Clear any existing timeout and set a new one
-        if (backfillTimeoutRef.current) {
-          clearTimeout(backfillTimeoutRef.current);
+
+      // 5. Trigger refetch (debounced 100ms to batch rapid deletions)
+      if (isServerPagination && onBackfillRequest) {
+        // Clear existing timeout
+        if (refetchTimeoutRef.current) {
+          clearTimeout(refetchTimeoutRef.current);
         }
-        
-        // Debounce backfill requests to handle multiple rapid deletions
-        backfillTimeoutRef.current = setTimeout(async () => {
-          const deletionsCount = deletionsCountRef.current.get(currentPageNum) || 0;
-          
-          // Only trigger backfill if we've deleted a significant number of items
-          // or if we've deleted more than half the page
-          const backfillThreshold = Math.min(3, Math.ceil(itemsPerPage / 2));
-          
-          if (deletionsCount >= backfillThreshold) {
-            console.log('[BackfillDebug] Triggering backfill request:', {
-              page: currentPageNum,
-              deletionsCount,
-              backfillThreshold,
-              itemsPerPage,
-              timestamp: Date.now()
-            });
-            
-            try {
-              // Skeleton loading state is already set immediately upon deletion
-              console.log('[SKELETON_DEBUG] Starting backfill request');
-              const backfillItems = await onBackfillRequest(deletionsCount, currentPageNum, itemsPerPage);
-              console.log('[SKELETON_DEBUG] Backfill request completed - clearing skeleton immediately:', {
-                backfillItemsCount: backfillItems.length,
-                timestamp: Date.now()
+
+        // Short debounce to batch rapid deletions
+        refetchTimeoutRef.current = setTimeout(async () => {
+          console.log('[BackfillV2] Triggering refetch after delete(s):', {
+            pendingDeletes: pendingDeletesRef.current.size,
+            serverPage
+          });
+
+          try {
+            await onBackfillRequest();
+
+            // Check page bounds after refetch
+            // The new total is currentTotal minus all pending deletes
+            const newTotal = currentTotal - pendingDeletesRef.current.size;
+            const newTotalPages = Math.max(1, Math.ceil(newTotal / itemsPerPage));
+
+            if (serverPage && serverPage > newTotalPages) {
+              console.log('[BackfillV2] Page bounds exceeded, navigating to last page:', {
+                currentPage: serverPage,
+                newTotalPages,
+                newTotal
               });
-              
-              // Clear skeleton immediately when backfill request completes
-              setIsBackfillLoading(false);
-              setBackfillSkeletonCount(0);
-              
-              // Reset deletion count for this page since we've backfilled
-              deletionsCountRef.current.delete(currentPageNum);
-              
-              console.log('[SKELETON_DEBUG] Deletion count reset for page:', currentPageNum);
-            } catch (error) {
-              console.error('[SKELETON_DEBUG] Backfill failed - clearing skeleton:', error);
-              // Clear skeleton even if backfill fails
-              setIsBackfillLoading(false);
-              setBackfillSkeletonCount(0);
-              // Reset deletion count even if backfill fails
-              deletionsCountRef.current.delete(currentPageNum);
-              console.log('[SKELETON_DEBUG] Deletion count reset for page (after error):', currentPageNum);
-              // Don't show error to user as this is a nice-to-have feature
-            } finally {
-              console.log('[SKELETON_DEBUG] Backfill request finished - skeleton cleared');
+              onPageBoundsExceeded?.(newTotalPages);
             }
-          }
-        }, 500); // 500ms debounce
-      }
-      
-      // If successful, the image will be removed from the server response
-      // and our reconciliation effect will clean up the optimistic state
-    } catch (error) {
-      console.error('Delete failed, reverting optimistic state:', error);
-      // If delete fails, remove from optimistic deleted state to show the image again
-      removeOptimisticDeleted(imageId);
-      
-      // Clear skeleton loading state if delete fails
-      if (isServerPagination && serverPage && onBackfillRequest) {
-        const currentPageNum = serverPage;
-        const currentCount = deletionsCountRef.current.get(currentPageNum) || 0;
-        if (currentCount > 0) {
-          deletionsCountRef.current.set(currentPageNum, currentCount - 1);
-          const newCount = currentCount - 1;
-          if (newCount === 0) {
+          } catch (error) {
+            console.error('[BackfillV2] Refetch failed:', error);
+          } finally {
+            // Clear skeleton - new data should have arrived
             setIsBackfillLoading(false);
-            setBackfillSkeletonCount(0);
-          } else {
-            setBackfillSkeletonCount(newCount);
+            // Clear pending deletes
+            pendingDeletesRef.current.clear();
           }
-        }
+        }, 100); // 100ms debounce - fast but batches rapid clicks
       }
-      
-      // Show error toast
+
+    } catch (error) {
+      console.error('[BackfillV2] Delete failed, reverting:', error);
+
+      // Revert optimistic state
+      removeOptimisticDeleted(imageId);
+      pendingDeletesRef.current.delete(imageId);
+
+      // Hide skeleton if no more pending deletes
+      if (pendingDeletesRef.current.size === 0) {
+        setIsBackfillLoading(false);
+      }
+
       toast({
         title: "Delete Failed",
         description: "Could not delete the image. Please try again.",
         variant: "destructive"
       });
     }
-  }, [markOptimisticDeleted, removeOptimisticDeleted, onDelete, activeLightboxMedia, setActiveLightboxMedia, toast, isServerPagination, serverPage, onBackfillRequest, itemsPerPage, setIsBackfillLoading, setBackfillSkeletonCount]);
+  }, [
+    markOptimisticDeleted,
+    removeOptimisticDeleted,
+    onDelete,
+    activeLightboxMedia,
+    setActiveLightboxMedia,
+    toast,
+    isServerPagination,
+    serverPage,
+    onBackfillRequest,
+    itemsPerPage,
+    setIsBackfillLoading,
+    totalCount,
+    offset,
+    optimisticDeletedCount,
+    filteredImages.length,
+    onPageBoundsExceeded
+  ]);
 
   const handleOpenLightbox = useCallback((image: GeneratedImageWithMetadata, autoEnterEditMode = false) => {
     console.log('[CrossPageNav] 📸 handleOpenLightbox - opening image:', {
@@ -225,71 +212,45 @@ export const useMediaGalleryActions = ({
       autoEnterEditMode,
       timestamp: Date.now(),
     });
-    console.log('[BasedOnDebug] 🎯 handleOpenLightbox called with image:');
-    console.log('  imageId:', image.id?.substring(0, 8));
-    console.log('  hasBasedOn:', !!image.based_on);
-    console.log('  basedOnValue:', image.based_on);
-    console.log('  hasBasedOnInMetadata:', !!(image.metadata?.based_on));
-    console.log('  basedOnInMetadata:', image.metadata?.based_on);
-    console.log('  imageKeys:', Object.keys(image));
-    console.log('  metadataKeys:', image.metadata ? Object.keys(image.metadata) : 'no metadata');
-    console.log('  timestamp:', Date.now());
-    
-    // We need to map the partial `GeneratedImageWithMetadata` to a `GenerationRow` for the lightbox
+
+    // Map GeneratedImageWithMetadata to GenerationRow for the lightbox
     const mediaRow: GenerationRow = {
       id: image.id,
       imageUrl: image.url,
-      location: image.url, // Assuming url is the location
-      type: image.isVideo ? 'video_travel_output' : 'single_image', // Infer type
+      location: image.url,
+      type: image.isVideo ? 'video_travel_output' : 'single_image',
       createdAt: image.createdAt || new Date().toISOString(),
       metadata: {
         ...image.metadata,
-        __autoEnterEditMode: autoEnterEditMode, // Store the flag in metadata
-        based_on: image.based_on, // Include based_on in metadata for MediaLightbox
+        __autoEnterEditMode: autoEnterEditMode,
+        based_on: image.based_on,
       },
-      thumbUrl: image.isVideo ? image.url : undefined, // simple fallback
-      based_on: image.based_on, // Include based_on field directly on the GenerationRow
+      thumbUrl: image.isVideo ? image.url : undefined,
+      based_on: image.based_on,
     } as GenerationRow;
-    
-    console.log('[BasedOnDebug] 📤 Setting activeLightboxMedia with based_on data:');
-    console.log('  mediaRowId:', mediaRow.id?.substring(0, 8));
-    console.log('  hasBasedOnInMediaRow:', !!(mediaRow as any).based_on);
-    console.log('  basedOnInMediaRow:', (mediaRow as any).based_on);
-    console.log('  hasBasedOnInMetadata:', !!(mediaRow.metadata as any)?.based_on);
-    console.log('  basedOnInMetadata:', (mediaRow.metadata as any)?.based_on);
-    console.log('  mediaRowKeys:', Object.keys(mediaRow));
-    console.log('  metadataKeys:', mediaRow.metadata ? Object.keys(mediaRow.metadata) : 'no metadata');
-    console.log('  timestamp:', Date.now());
-    
+
     setActiveLightboxMedia(mediaRow);
     setAutoEnterEditMode(autoEnterEditMode);
-    
-    console.log('[EditModeDebug] State setters called');
   }, [setActiveLightboxMedia, setAutoEnterEditMode]);
 
   const handleCloseLightbox = useCallback(() => {
-    console.log('[CrossPageNav] 🚪 handleCloseLightbox called - closing lightbox', {
-      stack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-      timestamp: Date.now(),
-    });
+    console.log('[CrossPageNav] 🚪 handleCloseLightbox called');
     setActiveLightboxMedia(null);
-    setAutoEnterEditMode(false); // Reset edit mode flag when closing lightbox
+    setAutoEnterEditMode(false);
   }, [setActiveLightboxMedia, setAutoEnterEditMode]);
 
   const handleDownloadImage = useCallback(async (rawUrl: string, filename: string, imageId?: string, isVideo?: boolean, originalContentType?: string) => {
     const currentDownloadId = imageId || filename;
     setDownloadingImageId(currentDownloadId);
-    const accessibleImageUrl = getDisplayUrl(rawUrl); // Use display URL for download
+    const accessibleImageUrl = getDisplayUrl(rawUrl);
 
     try {
       const xhr = new XMLHttpRequest();
-      xhr.open('GET', accessibleImageUrl, true); // Use accessibleImageUrl
+      xhr.open('GET', accessibleImageUrl, true);
       xhr.responseType = 'blob';
 
       xhr.onload = function() {
         if (this.status === 200) {
-          // Priority: stored content type > response header > fallback
-          // Stored content type is most reliable (from database)
           const responseContentType = this.getResponseHeader('content-type');
           const blobContentType = originalContentType || responseContentType || (isVideo ? 'video/mp4' : 'image/png');
           const blob = new Blob([this.response], { type: blobContentType });
@@ -297,16 +258,12 @@ export const useMediaGalleryActions = ({
           const a = document.createElement('a');
           a.style.display = 'none';
           a.href = url;
-          
-          // Get file extension from content type
+
           let fileExtension = blobContentType.split('/')[1];
-          // Clean up extension - remove codec info (e.g., "mp4; codecs=..." -> "mp4")
           if (fileExtension) {
             fileExtension = fileExtension.split(';')[0].trim();
           }
           if (!fileExtension || fileExtension === 'octet-stream') {
-            // Fallback to guessing from URL or defaulting
-            // Strip query params from URL before extracting extension
             const urlWithoutParams = accessibleImageUrl.split('?')[0];
             const urlParts = urlWithoutParams.split('.');
             fileExtension = urlParts.length > 1 ? urlParts.pop()! : (isVideo ? 'mp4' : 'png');
@@ -332,10 +289,10 @@ export const useMediaGalleryActions = ({
     } catch (error) {
       console.error("Error downloading image:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      toast({ 
-        title: "Download Failed", 
+      toast({
+        title: "Download Failed",
         description: `Could not download ${filename}. ${errorMessage}`,
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setDownloadingImageId(null);
@@ -359,24 +316,14 @@ export const useMediaGalleryActions = ({
   }, [setShowTickForSecondaryImageId, secondaryTickTimeoutRef]);
 
   const handleShotChange = useCallback((shotId: string) => {
-    console.log('[ShotSelectorDebug] 🔄 handleShotChange called with:', shotId);
     setLastAffectedShotId(shotId);
     setSelectedShotIdLocal(shotId);
     setShowTickForImageId(null);
   }, [setLastAffectedShotId, setSelectedShotIdLocal, setShowTickForImageId]);
 
-  // Handle skeleton cleared callback - reset deletion count
-  const handleSkeletonCleared = useCallback(() => {
-    if (isServerPagination && serverPage) {
-      console.log('[SKELETON_DEBUG] Skeleton cleared callback - resetting deletion count for page:', serverPage);
-      deletionsCountRef.current.delete(serverPage);
-    }
-  }, [isServerPagination, serverPage]);
-
   const handleDownloadStarred = useCallback(async () => {
-    // Get starred images from filtered images
     const starredImages = filteredImages.filter(image => image.starred);
-    
+
     if (starredImages.length === 0) {
       toast({
         title: "No starred images",
@@ -386,49 +333,43 @@ export const useMediaGalleryActions = ({
       return;
     }
 
-    // Sort chronologically by createdAt, fallback to id for deterministic ordering
     const sortedImages = [...starredImages].sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      
+
       if (dateA !== dateB) {
-        return dateA - dateB; // Ascending order (oldest first)
+        return dateA - dateB;
       }
-      
-      // Fallback to ID comparison for consistent ordering
+
       return a.id.localeCompare(b.id);
     });
 
     setIsDownloadingStarred(true);
-    
+
     try {
-      // Dynamic import JSZip
       const JSZipModule = await import('jszip');
       const zip = new JSZipModule.default();
-      
+
       toast({
         title: "Starting download",
         description: `Processing ${sortedImages.length} starred images...`
       });
 
-      // Process images sequentially to avoid overwhelming the server
       for (let i = 0; i < sortedImages.length; i++) {
         const image = sortedImages[i];
         const accessibleImageUrl = getDisplayUrl(image.url);
-        
+
         try {
-          // Fetch the image blob
           const response = await fetch(accessibleImageUrl);
           if (!response.ok) {
             throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
           }
-          
+
           const blob = await response.blob();
-          
-          // Determine file extension
-          let fileExtension = 'png'; // Default fallback
+
+          let fileExtension = 'png';
           const contentType = blob.type || image.metadata?.content_type;
-          
+
           if (contentType) {
             if (contentType.includes('jpeg') || contentType.includes('jpg')) {
               fileExtension = 'jpg';
@@ -444,21 +385,18 @@ export const useMediaGalleryActions = ({
               } else if (contentType.includes('webm')) {
                 fileExtension = 'webm';
               } else {
-                fileExtension = 'mp4'; // Default for videos
+                fileExtension = 'mp4';
               }
             }
           } else if (image.isVideo) {
-            fileExtension = 'mp4'; // Default for videos when no content type
+            fileExtension = 'mp4';
           }
-          
-          // Generate zero-padded filename
+
           const paddedNumber = String(i + 1).padStart(3, '0');
           const filename = `${paddedNumber}.${fileExtension}`;
-          
-          // Add to zip
+
           zip.file(filename, blob);
-          
-          // Update progress
+
           if ((i + 1) % 5 === 0 || i === sortedImages.length - 1) {
             toast({
               title: "Processing images",
@@ -467,7 +405,6 @@ export const useMediaGalleryActions = ({
           }
         } catch (error) {
           console.error(`Error processing image ${i + 1}:`, error);
-          // Continue with other images, don't fail the entire operation
           toast({
             title: "Image processing error",
             description: `Failed to process image ${i + 1}, continuing with others...`,
@@ -475,36 +412,33 @@ export const useMediaGalleryActions = ({
           });
         }
       }
-      
-      // Generate zip file
+
       toast({
         title: "Creating zip file",
         description: "Finalizing download..."
       });
-      
+
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-      
-      // Create download
+
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      
-      // Generate filename with current date
+
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
       a.download = `starred-images-${dateStr}.zip`;
-      
+
       document.body.appendChild(a);
       a.click();
       URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Download complete",
         description: `Successfully downloaded ${sortedImages.length} starred images.`
       });
-      
+
     } catch (error) {
       console.error("Error downloading starred images:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -518,11 +452,11 @@ export const useMediaGalleryActions = ({
     }
   }, [filteredImages, toast, setIsDownloadingStarred]);
 
-  // Cleanup backfill timeout on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (backfillTimeoutRef.current) {
-        clearTimeout(backfillTimeoutRef.current);
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
       }
     };
   }, []);
@@ -536,6 +470,5 @@ export const useMediaGalleryActions = ({
     handleShowTick,
     handleShowSecondaryTick,
     handleShotChange,
-    handleSkeletonCleared,
   };
 };

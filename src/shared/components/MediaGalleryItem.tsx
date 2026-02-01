@@ -1502,7 +1502,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                       <div
                         className={cn(
                           "transition-opacity cursor-pointer",
-                          mobileActiveImageId === image.id ? "opacity-100" : "opacity-0 pointer-events-none"
+                          mobileActiveImageId === image.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                         )}
                         onClick={() => {
                           setMobilePopoverOpenImageId(image.id);
@@ -1701,9 +1701,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
               {/* Delete Button - Right (only visible on hover, or when active on mobile) */}
               <div className={cn(
                 "flex items-center gap-1.5 transition-opacity",
-                isMobile
-                  ? (mobileActiveImageId === image.id ? "opacity-100" : "opacity-0")
-                  : "opacity-0 group-hover:opacity-100"
+                "opacity-0 group-hover:opacity-100"
               )}>
                 {onDelete && showDelete && (
                 <Button

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { GenerationRow, PairLoraConfig, PairMotionSettings } from '@/types/shots';
-import { SortableImageItem } from '@/tools/travel-between-images/components/SortableImageItem';
+import { ShotBatchItemDesktop } from '../ShotBatchItemDesktop';
 import { cn } from '@/shared/lib/utils';
 import { DEFAULT_BATCH_VIDEO_FRAMES } from '../constants';
 import { AddImagesCard } from './AddImagesCard';
@@ -216,7 +216,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
             className="relative"
             onMouseEnter={() => handleMouseEnter(generationId)}
           >
-            <SortableImageItem
+            <ShotBatchItemDesktop
               image={image}
               isSelected={desktopSelected}
               isDragDisabled={isMobile}
