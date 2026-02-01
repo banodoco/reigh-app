@@ -1408,23 +1408,32 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 }
                 return;
               }
-              // Use precomputed pair data for image URLs etc, but override frames
-              // with real-time value from pairInfo (computed from currentPositions)
+              // Use pairInfo as source of truth for frames (computed from currentPositions)
+              // pairDataByIndex provides image URLs and other metadata
+              const pairInfoEntry = pairInfo[pairIndex]; // Direct index access - pairInfo is 0-indexed
               const pairData = pairDataByIndex.get(pairIndex);
-              const pairInfoEntry = pairInfo.find(p => p.index === pairIndex);
-              console.log('[SegmentClickDebug] Normal mode, pairData:', {
+              console.log('[SegmentClickDebug] Normal mode:', {
                 pairIndex,
-                foundPairData: !!pairData,
-                pairDataIndex: pairData?.index,
-                pairDataFrames: pairData?.frames,
                 pairInfoFrames: pairInfoEntry?.frames,
+                pairDataFrames: pairData?.frames,
+                usingPairInfo: !!pairInfoEntry,
               });
-              if (pairData) {
-                // Override frames with real-time value from pairInfo
-                const mergedPairData = pairInfoEntry
-                  ? { ...pairData, frames: pairInfoEntry.frames, startFrame: pairInfoEntry.startFrame, endFrame: pairInfoEntry.endFrame }
-                  : pairData;
+
+              if (pairInfoEntry) {
+                // Always use pairInfo for frame data - it's the displayed source of truth
+                const mergedPairData = {
+                  index: pairIndex,
+                  frames: pairInfoEntry.frames,
+                  startFrame: pairInfoEntry.startFrame,
+                  endFrame: pairInfoEntry.endFrame,
+                  startImage: pairData?.startImage,
+                  endImage: pairData?.endImage,
+                };
                 onPairClick(pairIndex, mergedPairData);
+              } else if (pairData) {
+                // Fallback only if pairInfo doesn't have this entry (shouldn't happen)
+                console.warn('[SegmentClickDebug] No pairInfo entry, falling back to pairDataByIndex');
+                onPairClick(pairIndex, pairData);
               }
             } : undefined}
             selectedParentId={selectedOutputId}
