@@ -193,17 +193,21 @@ export const ShotSelector: React.FC<ShotSelectorProps> = ({
             <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent 
+        <PopoverContent
           className={cn(
             "p-0 z-[10000]",
             styles.content,
             contentClassName
           )}
-          style={{ width: 'var(--radix-popover-trigger-width)', minWidth: '160px' }}
+          style={{
+            width: 'var(--radix-popover-trigger-width)',
+            minWidth: '160px',
+            maxWidth: isMobile ? 'calc(100vw - 24px)' : undefined
+          }}
           side={side}
           sideOffset={sideOffset}
           align={align}
-          collisionPadding={8}
+          collisionPadding={12}
           container={container}
           onKeyDown={handleKeyDown}
           // Stop events from bubbling to parent (prevents lightbox closes, etc.)

@@ -863,33 +863,58 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
 
   // Handle click/tap processing with scroll detection
   const handleInteraction = (e: React.TouchEvent | React.MouseEvent) => {
+    // Check if touch/click originated from inside a button using composedPath (more reliable on touch devices)
+    const path = (e as any).nativeEvent?.composedPath?.() as HTMLElement[] | undefined;
+    const isInsideButton = path
+      ? path.some((el) => (el as HTMLElement)?.tagName === 'BUTTON' || (el as HTMLElement)?.closest?.('button'))
+      : !!(e.target as HTMLElement).closest('button');
+
+    // Only allow button interaction if this item is already active (selected)
+    // First tap should select the item, not trigger button actions
+    const isItemActive = mobileActiveImageId === image.id;
+
+    console.log('[MediaGalleryItem] handleInteraction:', {
+      eventType: e.type,
+      isInsideButton,
+      isItemActive,
+      mobileActiveImageId: mobileActiveImageId?.substring(0, 8),
+      targetTagName: (e.target as HTMLElement)?.tagName,
+      imageId: image.id?.substring(0, 8),
+    });
+
+    if (isInsideButton && isItemActive) {
+      console.log('[MediaGalleryItem] handleInteraction - SKIPPED (inside button on active item)');
+      return;
+    }
+
     // For touchend events, only proceed if touchstart happened on this element
     // This prevents clicks from firing when a dropdown (like ShotSelector) closes
     // and the touchend lands on the element behind it
     if (e.type === 'touchend') {
       if (!touchStartPosRef.current) {
         // touchStart didn't happen on this element, ignore the touchend
-        console.log('[MobileDebug] touchend without matching touchstart, ignoring');
+        console.log('[MediaGalleryItem] touchend without matching touchstart, ignoring');
         return;
       }
-      
+
       const touch = (e as React.TouchEvent).changedTouches[0];
       const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
       const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
-      
+
       // Reset touch start position
       touchStartPosRef.current = null;
 
       // If moved more than 10px, treat as scroll/drag and ignore click
       if (deltaX > 10 || deltaY > 10) {
-        console.log('[MobileDebug] Scroll detected, ignoring tap');
+        console.log('[MediaGalleryItem] Scroll detected, ignoring tap');
         return;
       }
     }
 
     // Proceed with click logic
     e.preventDefault();
-    
+
+    console.log('[MediaGalleryItem] handleInteraction - calling onMobileTap/onImageClick');
     if (enableSingleClick && onImageClick) {
       onImageClick(image);
     } else {
@@ -1101,7 +1126,8 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
           {/* Add to Shot UI - Top Left (for non-video content) */}
           {showAddToShot && simplifiedShotOptions.length > 0 && onAddToLastShot && (
           <div className={cn(
-            "absolute top-1.5 left-1.5 flex flex-col items-start gap-1 transition-opacity z-20",
+            "absolute top-1.5 flex flex-col items-start gap-1 transition-opacity z-20",
+            isMobile ? "left-1.5 right-1.5" : "left-1.5",
             isShotSelectorOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}>
               {!isVideoContent && (
@@ -1113,8 +1139,11 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                   }}
                   shots={simplifiedShotOptions}
                   placeholder="Shot..."
-                  triggerClassName="h-7 px-2 py-1 rounded-md bg-black/50 hover:bg-black/70 text-white text-xs min-w-[70px] max-w-[90px] truncate focus:ring-0 focus:ring-offset-0"
-                  contentClassName="w-[var(--radix-select-trigger-width)]"
+                  className={isMobile ? "w-full" : ""}
+                  triggerClassName={isMobile
+                    ? "h-8 px-3 py-1 rounded-md bg-black/50 hover:bg-black/70 text-white text-sm w-full truncate focus:ring-0 focus:ring-offset-0"
+                    : "h-7 px-2 py-1 rounded-md bg-black/50 hover:bg-black/70 text-white text-xs min-w-[70px] max-w-[90px] truncate focus:ring-0 focus:ring-offset-0"
+                  }
                   showAddShot={!!onCreateShot}
                   onCreateShot={handleQuickCreateAndAdd}
                   isCreatingShot={addingToShotImageId === image.id}
@@ -1454,28 +1483,11 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
             </div>
           )}
           
-          {/* Action buttons - Top Right (Delete, Info & Apply) */}
-          <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1.5 mt-7 z-20">
-              {/* Delete button - Mobile Top Right */}
-              {showDelete && isMobile && onDelete && (
-                <Button 
-                    variant="destructive" 
-                    size="icon" 
-                    className="h-7 w-7 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(image.id!);
-                    }}
-                    disabled={isCurrentDeleting}
-                >
-                    {isCurrentDeleting ? (
-                        <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-white"></div>
-                    ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                </Button>
-              )}
-              
+          {/* Action buttons - Top Right (Info & Variants) - below shot selector on mobile */}
+          <div className={cn(
+            "absolute right-1.5 flex flex-col items-end gap-1.5 z-20",
+            isMobile ? "top-12" : "top-1.5 mt-7"
+          )}>
               {/* Info Button + Variant Count + NEW badge Row (for non-video content) */}
               <div className="flex flex-row items-center gap-1.5">
                 {/* Info tooltip (shown on hover) */}
@@ -1488,7 +1500,10 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                   }}>
                     <PopoverPrimitive.Trigger asChild>
                       <div
-                        className={`${mobileActiveImageId === image.id ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 transition-opacity cursor-pointer`}
+                        className={cn(
+                          "transition-opacity cursor-pointer",
+                          mobileActiveImageId === image.id ? "opacity-100" : "opacity-0 pointer-events-none"
+                        )}
                         onClick={() => {
                           setMobilePopoverOpenImageId(image.id);
                         }}
@@ -1581,7 +1596,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                 )}
               </div>
 
-              {/* Share Button - Below Info */}
+              {/* Share Button */}
               {showShare && taskId && (
                 <TooltipProvider>
                   <Tooltip delayDuration={300}>
@@ -1592,8 +1607,8 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                         onClick={handleShare}
                         disabled={isCreatingShare}
                         className={`h-7 w-7 p-0 rounded-full text-white transition-all opacity-0 group-hover:opacity-100 ${
-                          shareCopied 
-                            ? 'bg-green-500 hover:bg-green-600' 
+                          shareCopied
+                            ? 'bg-green-500 hover:bg-green-600'
                             : 'bg-black/50 hover:bg-black/70'
                         }`}
                       >
@@ -1683,9 +1698,14 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                 )}
               </div>
 
-              {/* Delete Button - Right (only visible on hover) */}
-              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                {!isMobile && onDelete && showDelete && (
+              {/* Delete Button - Right (only visible on hover, or when active on mobile) */}
+              <div className={cn(
+                "flex items-center gap-1.5 transition-opacity",
+                isMobile
+                  ? (mobileActiveImageId === image.id ? "opacity-100" : "opacity-0")
+                  : "opacity-0 group-hover:opacity-100"
+              )}>
+                {onDelete && showDelete && (
                 <Button
                     variant="destructive"
                     size="icon"

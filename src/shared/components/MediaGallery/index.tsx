@@ -114,7 +114,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     showDelete = true,
     showDownload = true,
     showShare = true,
-    showEdit = true,
+    showEdit = false,
     showStar = true,
     showAddToShot = true,
     enableSingleClick = false,

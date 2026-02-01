@@ -82,13 +82,50 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
     return { aspectRatio: '1' };
   };
 
-  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    const isButton = target.closest('button') !== null;
+  // Check if an event originated from inside a button using composedPath (more reliable on touch devices)
+  const isEventInsideButton = (e: React.MouseEvent | React.TouchEvent): boolean => {
+    const path = (e as any).nativeEvent?.composedPath?.() as HTMLElement[] | undefined;
+    const result = path
+      ? path.some((el) => (el as HTMLElement)?.tagName === 'BUTTON' || (el as HTMLElement)?.closest?.('button'))
+      : !!(e.target as HTMLElement).closest('button');
+    console.log('[MobileImageItem] isEventInsideButton:', {
+      result,
+      hasPath: !!path,
+      pathLength: path?.length,
+      targetTagName: (e.target as HTMLElement)?.tagName,
+      imageId: image.id?.substring(0, 8),
+    });
+    return result;
+  };
 
-    if (!isButton) {
-      onMobileTap();
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    console.log('[MobileImageItem] handleContainerClick START', {
+      imageId: image.id?.substring(0, 8),
+      targetTagName: (e.target as HTMLElement)?.tagName,
+    });
+    if (isEventInsideButton(e)) {
+      console.log('[MobileImageItem] handleContainerClick - SKIPPED (inside button)');
+      return;
     }
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[MobileImageItem] handleContainerClick - calling onMobileTap');
+    onMobileTap();
+  };
+
+  const handleContainerTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    console.log('[MobileImageItem] handleContainerTouchEnd START', {
+      imageId: image.id?.substring(0, 8),
+      targetTagName: (e.target as HTMLElement)?.tagName,
+    });
+    if (isEventInsideButton(e)) {
+      console.log('[MobileImageItem] handleContainerTouchEnd - SKIPPED (inside button)');
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[MobileImageItem] handleContainerTouchEnd - calling onMobileTap');
+    onMobileTap();
   };
 
   // image.id is shot_generations.id - unique per entry
@@ -105,6 +142,7 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
             : "border-transparent"
         )}
         onClick={handleContainerClick}
+        onTouchEnd={handleContainerTouchEnd}
         style={getAspectRatioStyle()}
       >
         {/* Image */}
@@ -139,11 +177,9 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
               variant="secondary"
               className="h-9 w-9 rounded-full bg-background/90 hover:bg-background shadow-lg pointer-events-auto"
               onClick={(e) => {
+                console.log('[MobileImageItem] Lightbox button onClick', { imageId: image.id?.substring(0, 8) });
                 e.stopPropagation();
                 onOpenLightbox();
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
               }}
               title="Open lightbox"
             >
@@ -162,12 +198,10 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
               index % 2 === 0 ? "left-1" : "right-1"
             )}
             onClick={(e) => {
+              console.log('[MobileImageItem] Copy button onClick', { imageId: image.id?.substring(0, 8) });
               e.stopPropagation();
               // Use id (shot_generations.id) for duplication
               onDuplicate(image.id, (image as any).timeline_frame ?? index);
-            }}
-            onTouchEnd={(e) => {
-              e.stopPropagation();
             }}
             disabled={isDuplicating || image.id?.startsWith('temp-')}
             title={image.id?.startsWith('temp-') ? "Please wait..." : "Duplicate"}
@@ -192,11 +226,9 @@ export const MobileImageItem: React.FC<MobileImageItemProps> = ({
               index % 2 === 0 ? "left-1" : "right-1"
             )}
             onClick={(e) => {
+              console.log('[MobileImageItem] Delete button onClick', { imageId: image.id?.substring(0, 8) });
               e.stopPropagation();
               onDelete();
-            }}
-            onTouchEnd={(e) => {
-              e.stopPropagation();
             }}
             disabled={image.id?.startsWith('temp-')}
             title={image.id?.startsWith('temp-') ? "Please wait..." : "Delete"}

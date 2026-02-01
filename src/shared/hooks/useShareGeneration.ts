@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/shared/hooks/use-toast';
 
 interface UseShareGenerationResult {
-  handleShare: (e: React.MouseEvent) => Promise<void>;
+  handleShare: (e: React.MouseEvent | React.TouchEvent) => Promise<void>;
   isCreatingShare: boolean;
   shareCopied: boolean;
   shareSlug: string | null;
@@ -83,8 +83,14 @@ export function useShareGeneration(
     return result;
   };
 
-  const handleShare = useCallback(async (e: React.MouseEvent) => {
+  const handleShare = useCallback(async (e: React.MouseEvent | React.TouchEvent) => {
+    console.log('[ShareButtonFix] handleShare called', {
+      eventType: e.type,
+      shareSlug: shareSlug?.substring(0, 8),
+      generationId: generationId?.substring(0, 8)
+    });
     e.stopPropagation();
+    e.preventDefault();
 
     if (!generationId) {
       toast({
@@ -98,25 +104,36 @@ export function useShareGeneration(
     // If share already exists (in local state), copy to clipboard
     if (shareSlug) {
       const shareUrl = `${window.location.origin}/share/${shareSlug}`;
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        setShareCopied(true);
-        toast({
-          title: "Link copied!",
-          description: "Share link copied to clipboard"
-        });
+      console.log('[ShareButtonFix] Copying existing share URL:', shareUrl);
 
-        setTimeout(() => {
-          setShareCopied(false);
-        }, 2000);
-      } catch (error) {
-        console.error('[Share] Failed to copy to clipboard:', error);
-        toast({
-          title: "Copy failed",
-          description: "Please try again",
-          variant: "destructive"
-        });
+      // Use fallback for iOS compatibility
+      let copied = false;
+      try {
+        // Try modern API first
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+          copied = true;
+        }
+      } catch {
+        // Fallback: use textarea + execCommand (works on iOS)
+        const textarea = document.createElement('textarea');
+        textarea.value = shareUrl;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
       }
+
+      console.log('[ShareButtonFix] Copy result:', copied);
+      setShareCopied(true);
+      toast({
+        title: "Link copied!",
+        description: "Share link copied to clipboard"
+      });
+      setTimeout(() => setShareCopied(false), 2000);
       return;
     }
 
