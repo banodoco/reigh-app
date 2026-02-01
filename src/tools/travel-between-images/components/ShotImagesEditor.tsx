@@ -758,6 +758,18 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     setIsLightboxTransitioning(false);
   }, []);
 
+  // Helper to navigate with transition overlay - prevents flash when component type changes
+  // Shows overlay synchronously, waits for paint via double-rAF, then executes navigation
+  const navigateWithTransition = useCallback((doNavigation: () => void) => {
+    showTransitionOverlay();
+    document.body.classList.add('lightbox-transitioning');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        doNavigation();
+      });
+    });
+  }, [showTransitionOverlay]);
+
   // Clear transition state when segment slot lightbox opens
   // (Image lightbox clearing is handled in Timeline/ShotImageManager via their useEffect)
   useEffect(() => {
@@ -1129,17 +1141,10 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
 
         if (componentTypeChanges) {
           // Component type changes - use transition overlay to prevent flash
-          console.log('[LightboxTransition] Segment nav: component type changes, showing overlay');
-          showTransitionOverlay();
-          document.body.classList.add('lightbox-transitioning');
-
-          // Use double-rAF to ensure overlay is painted before state changes
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              console.log('[LightboxTransition] Overlay painted, now navigating');
-              setActivePairData(targetPairData);
-              setSegmentSlotLightboxIndex(index);
-            });
+          console.log('[LightboxTransition] Segment nav: component type changes, using transition');
+          navigateWithTransition(() => {
+            setActivePairData(targetPairData);
+            setSegmentSlotLightboxIndex(index);
           });
         } else {
           // Same component type - navigate directly (no flash)
@@ -1305,18 +1310,10 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
 
       // Navigate to constituent image - closes segment slot and opens image lightbox
       onNavigateToImage: (shotGenerationId: string) => {
-        console.log('[LightboxTransition] onNavigateToImage: Showing overlay');
-        // Show overlay synchronously via ref (bypasses React's async state)
-        showTransitionOverlay();
-        document.body.classList.add('lightbox-transitioning');
-
-        // Use double-rAF to ensure overlay is painted before state changes
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            console.log('[LightboxTransition] Overlay painted, now triggering state changes');
-            setSegmentSlotLightboxIndex(null);
-            setPendingImageToOpen(shotGenerationId);
-          });
+        console.log('[LightboxTransition] onNavigateToImage: using transition');
+        navigateWithTransition(() => {
+          setSegmentSlotLightboxIndex(null);
+          setPendingImageToOpen(shotGenerationId);
         });
       },
     };
@@ -1340,7 +1337,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     propOnRemoveStructureVideo,
     propOnSetStructureVideos,
     maxFrameLimit,
-    showTransitionOverlay,
+    navigateWithTransition,
   ]);
 
   // Unified frame count update handler - called from MediaLightbox segment slot mode
@@ -2629,12 +2626,8 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                     document.body.classList.remove('lightbox-transitioning');
                   }, 200);
                 }}
-                // Lightbox transition support (keeps overlay visible during navigation)
-                onStartLightboxTransition={() => {
-                  console.log('[LightboxTransition] onStartLightboxTransition called (Timeline)');
-                  showTransitionOverlay();
-                  document.body.classList.add('lightbox-transitioning');
-                }}
+                // Lightbox transition support (prevents flash during navigation)
+                navigateWithTransition={navigateWithTransition}
                 // Multi-select: create new shot from selected images
                 onNewShotFromSelection={onNewShotFromSelection}
               />
@@ -2799,12 +2792,8 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
                       document.body.classList.remove('lightbox-transitioning');
                     }, 200);
                   }}
-                  // Lightbox transition support (keeps overlay visible during navigation)
-                  onStartLightboxTransition={() => {
-                    console.log('[LightboxTransition] onStartLightboxTransition called (ShotImageManager)');
-                    showTransitionOverlay();
-                    document.body.classList.add('lightbox-transitioning');
-                  }}
+                  // Lightbox transition support (prevents flash during navigation)
+                  navigateWithTransition={navigateWithTransition}
                 />
 
                 {/* Helper for un-positioned generations - in batch mode, show after input images */}

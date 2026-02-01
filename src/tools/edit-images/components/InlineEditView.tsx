@@ -150,6 +150,8 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     annotationMode,
     selectedShapeId,
     showTextModeHint,
+    isDrawing,
+    currentStroke,
     setIsInpaintMode,
     setIsEraseMode,
     setInpaintPrompt,
@@ -158,9 +160,10 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     setIsAnnotateMode,
     setEditMode,
     setAnnotationMode,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
+    handleKonvaPointerDown,
+    handleKonvaPointerMove,
+    handleKonvaPointerUp,
+    handleShapeClick,
     handleUndo,
     handleClearMask,
     handleEnterInpaintMode,
@@ -169,6 +172,7 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     handleDeleteSelected,
     handleToggleFreeForm,
     getDeleteButtonPosition,
+    strokeOverlayRef,
   } = inpaintingHook;
   
   const magicEditHook = useMagicEditMode({
@@ -426,15 +430,25 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
                  repositionTransformStyle={editMode === 'reposition' ? getTransformStyle() : undefined}
                  imageContainerRef={imageContainerRef}
                  canvasRef={canvasRef}
-                 displayCanvasRef={displayCanvasRef}
                  maskCanvasRef={maskCanvasRef}
                  onImageLoad={setImageDimensions}
-                 handlePointerDown={handlePointerDown}
-                 handlePointerMove={handlePointerMove}
-                 handlePointerUp={handlePointerUp}
                  variant="mobile-stacked"
                  containerClassName="w-full h-full"
                  debugContext="Mobile Inline"
+                 // Konva stroke overlay props
+                 imageDimensions={imageDimensions}
+                 brushStrokes={brushStrokes}
+                 currentStroke={currentStroke}
+                 isDrawing={isDrawing}
+                 isEraseMode={isEraseMode}
+                 brushSize={brushSize}
+                 annotationMode={editMode === 'annotate' ? annotationMode : null}
+                 selectedShapeId={selectedShapeId}
+                 onStrokePointerDown={handleKonvaPointerDown}
+                 onStrokePointerMove={handleKonvaPointerMove}
+                 onStrokePointerUp={handleKonvaPointerUp}
+                 onShapeClick={handleShapeClick}
+                 strokeOverlayRef={strokeOverlayRef}
                />
              
                {isSpecialEditMode && (
@@ -619,15 +633,25 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
               repositionTransformStyle={editMode === 'reposition' ? getTransformStyle() : undefined}
               imageContainerRef={imageContainerRef}
               canvasRef={canvasRef}
-              displayCanvasRef={displayCanvasRef}
               maskCanvasRef={maskCanvasRef}
               onImageLoad={setImageDimensions}
-              handlePointerDown={handlePointerDown}
-              handlePointerMove={handlePointerMove}
-              handlePointerUp={handlePointerUp}
               variant="desktop-side-panel"
               containerClassName="max-w-full max-h-full"
               debugContext="InlineEdit"
+              // Konva stroke overlay props
+              imageDimensions={imageDimensions}
+              brushStrokes={brushStrokes}
+              currentStroke={currentStroke}
+              isDrawing={isDrawing}
+              isEraseMode={isEraseMode}
+              brushSize={brushSize}
+              annotationMode={editMode === 'annotate' ? annotationMode : null}
+              selectedShapeId={selectedShapeId}
+              onStrokePointerDown={handleKonvaPointerDown}
+              onStrokePointerMove={handleKonvaPointerMove}
+              onStrokePointerUp={handleKonvaPointerUp}
+              onShapeClick={handleShapeClick}
+              strokeOverlayRef={strokeOverlayRef}
             />
 
             {selectedShapeId && isAnnotateMode && (() => {

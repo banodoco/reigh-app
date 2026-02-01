@@ -58,8 +58,8 @@ export interface ShotImageManagerProps {
   pendingImageToOpen?: string | null;
   /** Callback to clear the pending image request after handling */
   onClearPendingImageToOpen?: () => void;
-  /** Callback to signal start of lightbox transition (keeps overlay visible during navigation) */
-  onStartLightboxTransition?: () => void;
+  /** Helper to navigate with transition overlay (prevents flash when component type changes) */
+  navigateWithTransition?: (doNavigation: () => void) => void;
   // Segment video output props
   segmentSlots?: SegmentSlot[];
   onSegmentClick?: (slotIndex: number) => void;

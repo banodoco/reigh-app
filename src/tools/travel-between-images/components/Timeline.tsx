@@ -195,8 +195,8 @@ export interface TimelineProps {
   pendingImageToOpen?: string | null;
   // Callback to clear the pending image request after handling
   onClearPendingImageToOpen?: () => void;
-  // Callback to signal start of lightbox transition (keeps overlay visible during navigation)
-  onStartLightboxTransition?: () => void;
+  // Helper to navigate with transition overlay (prevents flash when component type changes)
+  navigateWithTransition?: (doNavigation: () => void) => void;
 }
 
 // Stable empty object to avoid creating new references when enhancedPrompts is undefined
@@ -280,8 +280,8 @@ const Timeline: React.FC<TimelineProps> = ({
   // Constituent image navigation support
   pendingImageToOpen,
   onClearPendingImageToOpen,
-  // Lightbox transition support (keeps overlay visible during navigation)
-  onStartLightboxTransition,
+  // Lightbox transition support (prevents flash during navigation)
+  navigateWithTransition,
 }) => {
   // [RefactorMetrics] Track render count for baseline measurements
   useRenderCount('Timeline');
@@ -703,21 +703,20 @@ const Timeline: React.FC<TimelineProps> = ({
       prev: prevSegment,
       next: nextSegment,
       onNavigateToSegment: (pairIndex: number) => {
-        console.log('[LightboxTransition] onNavigateToSegment: Showing overlay');
-        // Show overlay via parent callback (handles both ref and body class)
-        onStartLightboxTransition?.();
-
-        // Use double-rAF to ensure overlay is painted before state changes
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            console.log('[LightboxTransition] Overlay painted, now triggering state changes');
+        console.log('[LightboxTransition] onNavigateToSegment: using transition');
+        if (navigateWithTransition) {
+          navigateWithTransition(() => {
             closeLightbox();
             onOpenSegmentSlot(pairIndex);
           });
-        });
+        } else {
+          // Fallback if no transition helper provided
+          closeLightbox();
+          onOpenSegmentSlot(pairIndex);
+        }
       },
     };
-  }, [segmentSlots, onOpenSegmentSlot, lightboxIndex, currentImages, closeLightbox, onStartLightboxTransition]);
+  }, [segmentSlots, onOpenSegmentSlot, lightboxIndex, currentImages, closeLightbox, navigateWithTransition]);
 
   // Adapter functions for onAddToShot that use the target shot ID from the callback
   // CRITICAL FIX: Now receives targetShotId from the callback, not from local state!

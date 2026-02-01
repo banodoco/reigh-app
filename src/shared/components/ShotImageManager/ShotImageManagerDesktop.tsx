@@ -51,8 +51,8 @@ interface ShotImageManagerDesktopProps extends ShotImageManagerProps {
   pendingImageToOpen?: string | null;
   /** Callback to clear the pending image request after handling */
   onClearPendingImageToOpen?: () => void;
-  /** Callback to signal start of lightbox transition (keeps overlay visible during navigation) */
-  onStartLightboxTransition?: () => void;
+  /** Helper to navigate with transition overlay (prevents flash when component type changes) */
+  navigateWithTransition?: (doNavigation: () => void) => void;
 }
 
 export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = ({
@@ -72,7 +72,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
   deletingSegmentId,
   pendingImageToOpen,
   onClearPendingImageToOpen,
-  onStartLightboxTransition,
+  navigateWithTransition,
   ...props
 }) => {
   // State for showing success tick after adding to shot (positioned)
@@ -262,21 +262,20 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
       prev,
       next,
       onNavigateToSegment: (pairIndex: number) => {
-        console.log('[LightboxTransition] ShotImageManager onNavigateToSegment: Showing overlay');
-        // Show overlay via parent callback (handles both ref and body class)
-        onStartLightboxTransition?.();
-
-        // Use double-rAF to ensure overlay is painted before state changes
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            console.log('[LightboxTransition] Overlay painted, now triggering state changes');
+        console.log('[LightboxTransition] ShotImageManager onNavigateToSegment: using transition');
+        if (navigateWithTransition) {
+          navigateWithTransition(() => {
             lightbox.setLightboxIndex(null);
             props.onPairClick!(pairIndex);
           });
-        });
+        } else {
+          // Fallback if no transition helper provided
+          lightbox.setLightboxIndex(null);
+          props.onPairClick!(pairIndex);
+        }
       },
     };
-  }, [segmentSlots, props.onPairClick, lightbox.lightboxIndex, lightbox.currentImages, lightbox.setLightboxIndex, onStartLightboxTransition]);
+  }, [segmentSlots, props.onPairClick, lightbox.lightboxIndex, lightbox.currentImages, lightbox.setLightboxIndex, navigateWithTransition]);
 
   const gridColsClass = GRID_COLS_CLASSES[props.columns || 4] || 'grid-cols-4';
   const isMobile = useIsMobile();

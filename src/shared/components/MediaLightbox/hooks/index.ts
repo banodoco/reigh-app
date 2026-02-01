@@ -2,7 +2,7 @@ export { useUpscale } from './useUpscale';
 export type { UseUpscaleProps, UseUpscaleReturn } from './useUpscale';
 
 export { useInpainting } from './useInpainting';
-export type { UseInpaintingProps, UseInpaintingReturn } from './useInpainting';
+export type { BrushStroke, EditMode as InpaintEditMode, AnnotationMode, UseInpaintingProps, UseInpaintingReturn } from './useInpainting';
 
 export { useReferences } from './useReferences';
 export type { UseReferencesProps, UseReferencesReturn } from './useReferences';

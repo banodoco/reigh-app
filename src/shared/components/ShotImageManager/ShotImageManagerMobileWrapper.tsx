@@ -27,8 +27,8 @@ interface ShotImageManagerMobileWrapperProps extends ShotImageManagerProps {
   pendingImageToOpen?: string | null;
   /** Callback to clear the pending image request after handling */
   onClearPendingImageToOpen?: () => void;
-  /** Callback to signal start of lightbox transition (keeps overlay visible during navigation) */
-  onStartLightboxTransition?: () => void;
+  /** Helper to navigate with transition overlay (prevents flash when component type changes) */
+  navigateWithTransition?: (doNavigation: () => void) => void;
 }
 
 export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapperProps> = ({
@@ -45,7 +45,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
   hasPendingTask,
   pendingImageToOpen,
   onClearPendingImageToOpen,
-  onStartLightboxTransition,
+  navigateWithTransition,
   ...props
 }) => {
   // State for showing success tick after adding to shot (positioned)
@@ -158,21 +158,20 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
       prev,
       next,
       onNavigateToSegment: (pairIndex: number) => {
-        console.log('[LightboxTransition] ShotImageManagerMobile onNavigateToSegment: Showing overlay');
-        // Show overlay via parent callback (handles both ref and body class)
-        onStartLightboxTransition?.();
-
-        // Use double-rAF to ensure overlay is painted before state changes
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            console.log('[LightboxTransition] Mobile: Overlay painted, now triggering state changes');
+        console.log('[LightboxTransition] ShotImageManagerMobile onNavigateToSegment: using transition');
+        if (navigateWithTransition) {
+          navigateWithTransition(() => {
             lightbox.setLightboxIndex(null);
             props.onPairClick!(pairIndex);
           });
-        });
+        } else {
+          // Fallback if no transition helper provided
+          lightbox.setLightboxIndex(null);
+          props.onPairClick!(pairIndex);
+        }
       },
     };
-  }, [segmentSlots, props.onPairClick, lightbox.lightboxIndex, lightbox.currentImages, lightbox.setLightboxIndex, onStartLightboxTransition]);
+  }, [segmentSlots, props.onPairClick, lightbox.lightboxIndex, lightbox.currentImages, lightbox.setLightboxIndex, navigateWithTransition]);
 
   // Debug: Log props received
   console.log('[ShotSelectorDebug] ShotImageManagerMobileWrapper received props', {
