@@ -2348,7 +2348,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     // Update local state so pairDataByIndex uses real-time positions
     setCurrentFramePositions(newPositions);
     // Call original callback to persist to DB
-    onFramePositionsChange(newPositions);
+    onFramePositionsChange?.(newPositions);
   }, [onFramePositionsChange]);
 
   // Stable callback: onClearEnhancedPrompt
