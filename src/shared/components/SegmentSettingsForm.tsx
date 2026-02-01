@@ -875,7 +875,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
 
       {/* Input Images with Frames Slider */}
       {(startImageUrl || endImageUrl) && (
-        <div className="@container">
+        <div className="@container overflow-hidden">
           <div className="grid grid-cols-2 gap-2 @[280px]:grid-cols-3">
             {/* Start Image */}
             <div className="relative aspect-video">
