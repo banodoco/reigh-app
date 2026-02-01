@@ -713,6 +713,9 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
   // Segment slot lightbox state - opens MediaLightbox in segment slot mode
   // When pairIndex is set, MediaLightbox opens showing form (no video) or video+form (has video)
   const [segmentSlotLightboxIndex, setSegmentSlotLightboxIndex] = useState<number | null>(null);
+  // Override frame count passed from timeline (takes precedence over pairDataByIndex)
+  // This is used when timeline positions haven't been saved yet
+  const [segmentSlotFrameCountOverride, setSegmentSlotFrameCountOverride] = useState<number | null>(null);
 
   // Pending image to open in lightbox - used for navigation from segment back to constituent image
   // When set, child components (ShotImageManagerDesktop/Timeline) will open the lightbox for this image
@@ -1101,7 +1104,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
       totalPairs: pairDataByIndex.size,
       pairData: {
         index: pairData.index,
-        frames: pairData.frames,
+        frames: segmentSlotFrameCountOverride ?? pairData.frames,
         startFrame: pairData.startFrame,
         endFrame: pairData.endFrame,
         startImage: pairData.startImage,
@@ -1298,6 +1301,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     };
   }, [
     segmentSlotLightboxIndex,
+    segmentSlotFrameCountOverride,
     pairDataByIndex,
     segmentSlots,
     propStructureVideos,
@@ -2297,6 +2301,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
     loadPositions,
     pairDataByIndex,
     setSegmentSlotLightboxIndex,
+    setSegmentSlotFrameCountOverride,
     shotGenerations,
     clearEnhancedPrompt,
     onCreateShot,
@@ -2309,16 +2314,23 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = ({
 
   // Stable callback: onPairClick
   const handlePairClick = React.useCallback((pairIndex: number, passedPairData?: PairData) => {
-    const { pairDataByIndex, setSegmentSlotLightboxIndex } = stableCallbackDepsRef.current;
+    const { pairDataByIndex, setSegmentSlotLightboxIndex, setSegmentSlotFrameCountOverride } = stableCallbackDepsRef.current;
     console.log('[SegmentClickDebug] onPairClick (Timeline) called:', {
       pairIndex,
       passedPairDataIndex: passedPairData?.index,
+      passedPairDataFrames: passedPairData?.frames,
       hasPairDataInMap: pairDataByIndex.has(pairIndex),
       pairDataByIndexKeys: [...pairDataByIndex.keys()],
     });
     if (passedPairData || pairDataByIndex.has(pairIndex)) {
       console.log('[SegmentClickDebug] Setting segmentSlotLightboxIndex to:', pairIndex);
       setSegmentSlotLightboxIndex(pairIndex);
+      // Store frame count override from timeline (takes precedence over stale pairDataByIndex)
+      if (passedPairData?.frames) {
+        setSegmentSlotFrameCountOverride(passedPairData.frames);
+      } else {
+        setSegmentSlotFrameCountOverride(null);
+      }
     }
   }, []);
 

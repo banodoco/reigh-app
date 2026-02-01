@@ -402,6 +402,14 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
           onClose();
         }
       }}
+      onTouchEnd={(e) => {
+        // Close if tapping directly on the background (not on children) - iPad support
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
       {/* Wrapper to position navigation arrows closer to the form */}
       <div className="relative max-w-2xl w-full flex items-center justify-center">
