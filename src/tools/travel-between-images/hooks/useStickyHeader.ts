@@ -45,9 +45,9 @@ export const useStickyHeader = ({
     const containerEl = headerRef.current;
     if (!containerEl) return;
 
-    const stickyThresholdY = { current: 0 } as { current: number };
-    const isStickyRef = { current: isSticky } as { current: boolean };
-    let rafId = 0 as number | 0;
+    const stickyThresholdY = { current: 0 };
+    const isStickyRef = { current: isSticky };
+    let rafId: number | null = null;
 
     const computeThreshold = () => {
       const rect = containerEl.getBoundingClientRect();
@@ -62,7 +62,7 @@ export const useStickyHeader = ({
     };
 
     const checkSticky = () => {
-      rafId = 0 as number | 0;
+      rafId = null;
       const currentScroll = (window.pageYOffset || document.documentElement.scrollTop || 0);
       const shouldBeSticky = currentScroll > stickyThresholdY.current;
 
@@ -73,14 +73,14 @@ export const useStickyHeader = ({
     };
 
     const onScroll = () => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(checkSticky) as unknown as number;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(checkSticky);
     };
 
     const onResize = () => {
       computeThreshold();
-      if (rafId) cancelAnimationFrame(rafId as unknown as number);
-      rafId = requestAnimationFrame(checkSticky) as unknown as number;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(checkSticky);
     };
 
     computeThreshold();
@@ -98,7 +98,7 @@ export const useStickyHeader = ({
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
-      if (rafId) cancelAnimationFrame(rafId as unknown as number);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       ro.disconnect();
     };
   }, [isMobile, isEditingName, isSticky, enabled]);

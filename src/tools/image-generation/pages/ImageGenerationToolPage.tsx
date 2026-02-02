@@ -818,9 +818,9 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     const containerEl = collapsibleContainerRef.current;
     if (!containerEl) return;
 
-    const stickyThresholdY = { current: 0 } as { current: number };
-    const isStickyRef = { current: isSticky } as { current: boolean };
-    let rafId = 0 as number | 0;
+    const stickyThresholdY = { current: 0 };
+    const isStickyRef = { current: isSticky };
+    let rafId: number | null = null;
 
     const computeThreshold = () => {
       const rect = containerEl.getBoundingClientRect();
@@ -832,7 +832,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     };
 
     const checkSticky = () => {
-      rafId = 0 as number | 0;
+      rafId = null;
       const shouldBeSticky = (window.pageYOffset || document.documentElement.scrollTop || 0) > stickyThresholdY.current;
       if (shouldBeSticky !== isStickyRef.current) {
         isStickyRef.current = shouldBeSticky;
@@ -841,15 +841,15 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     };
 
     const onScroll = () => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(checkSticky) as unknown as number;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(checkSticky);
     };
 
     const onResize = () => {
       computeThreshold();
       // Re-evaluate stickiness immediately after layout changes
-      if (rafId) cancelAnimationFrame(rafId as unknown as number);
-      rafId = requestAnimationFrame(checkSticky) as unknown as number;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(checkSticky);
     };
 
     // Initial measure
@@ -867,7 +867,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
-      if (rafId) cancelAnimationFrame(rafId as unknown as number);
+      if (rafId !== null) cancelAnimationFrame(rafId);
       ro.disconnect();
     };
   }, [isFormExpanded, isMobile]);

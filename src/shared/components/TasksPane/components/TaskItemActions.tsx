@@ -15,6 +15,9 @@ const ORCHESTRATOR_TASK_TYPES = [
   'wan_2_2_i2v', // This is also an orchestrator that spawns individual segments
 ] as const;
 
+/** Event type for action handlers - supports both mouse and touch events */
+type ActionEvent = React.MouseEvent | React.TouchEvent;
+
 interface TaskItemActionsProps {
   task: Task;
   isMobile: boolean;
@@ -26,10 +29,10 @@ interface TaskItemActionsProps {
   // Loading states
   isLoadingVideoGen: boolean;
   waitingForVideoToOpen: boolean;
-  // Handlers
-  onViewVideo: (e: React.MouseEvent) => void;
-  onViewImage: (e: React.MouseEvent) => void;
-  onVisitShot: (e: React.MouseEvent) => void;
+  // Handlers - accept both mouse and touch events for mobile support
+  onViewVideo: (e: ActionEvent) => void;
+  onViewImage: (e: ActionEvent) => void;
+  onVisitShot: (e: ActionEvent) => void;
   // Project indicator
   showProjectIndicator?: boolean;
   projectName?: string;
@@ -126,7 +129,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
                 e.preventDefault();
                 e.stopPropagation();
                 if (!(isLoadingVideoGen && waitingForVideoToOpen)) {
-                  onViewVideo(e as unknown as React.MouseEvent);
+                  onViewVideo(e);
                 }
               }}
               className={cn(
@@ -153,7 +156,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
               onTouchEnd={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onViewImage(e as unknown as React.MouseEvent);
+                onViewImage(e);
               }}
               className={cn(
                 "rounded transition-colors text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700",
@@ -178,7 +181,7 @@ export const TaskItemActions: React.FC<TaskItemActionsProps> = ({
               onTouchEnd={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onVisitShot(e as unknown as React.MouseEvent);
+                onVisitShot(e);
               }}
               className={cn(
                 "rounded transition-colors text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700",

@@ -154,7 +154,7 @@ const SelectContent = React.forwardRef<
   const isCompact = variant === "retro" || variant === "retro-dark" || variant === "zinc";
   
   return (
-  <SelectPrimitive.Portal container={container as unknown as HTMLElement | undefined}>
+  <SelectPrimitive.Portal container={container ?? undefined}>
     <SelectPrimitive.Content
       ref={ref}
       className={cn(

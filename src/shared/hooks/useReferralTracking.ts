@@ -82,8 +82,8 @@ export function useReferralTracking(): void {
           p_visitor_ip: null,
         });
 
-        if (!error && data) {
-          try { localStorage.setItem('referralSessionId', data as unknown as string); } catch {}
+        if (!error && data && typeof data === 'string') {
+          try { localStorage.setItem('referralSessionId', data); } catch {}
         }
       } catch (err) {
         handleError(err, { context: 'useReferralTracking', showToast: false });

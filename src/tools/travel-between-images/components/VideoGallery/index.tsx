@@ -100,7 +100,7 @@ interface VideoOutputsGalleryProps {
   shotId: string | null;
 
   // Event handlers (keeping the same interface for compatibility)
-  onDelete: (generationId: string) => void;
+  onDelete: (generationId: string) => void | Promise<void>;
   deletingVideoId: string | null;
   /**
    * Apply handler that operates using the original task id (server-side extraction).
@@ -831,10 +831,10 @@ const VideoOutputsGallery: React.FC<VideoOutputsGalleryProps> = ({
       return next;
     });
     try {
-      const maybePromise = (onDelete as unknown as (id: string) => Promise<void> | void)(generationId) as Promise<void> | void;
-      if (maybePromise && typeof (maybePromise as any).then === 'function') {
-        (maybePromise as Promise<void>).catch(() => {
-          // Rollback on explicit failure if parent reports it via rejection
+      const result = onDelete(generationId);
+      // Handle async deletion - rollback on rejection
+      if (result instanceof Promise) {
+        result.catch(() => {
           setOptimisticallyRemovedIds(prev => {
             const next = new Set(prev);
             next.delete(generationId);

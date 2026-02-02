@@ -703,7 +703,7 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
             // On desktop, use HoverCard for rich interactive content
             // HoverCard has closeDelay which gives users time to move mouse to the content
             return (
-              <HoverCard key={variant.id} openDelay={200} closeDelay={0}>
+              <HoverCard key={variant.id} openDelay={200} closeDelay={100}>
                 <HoverCardTrigger asChild>
                   {buttonContent}
                 </HoverCardTrigger>

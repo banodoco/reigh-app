@@ -96,7 +96,7 @@ export function useUserUIState<K extends keyof UISettings>(
   // Not allowed:
   // - inCloud: true, onComputer: true → normalize to cloud by default
   const normalizeIfGenerationMethods = (val: any): UISettings[K] => {
-    if ((key as unknown as string) !== 'generationMethods') return val as UISettings[K];
+    if ((key as string) !== 'generationMethods') return val as UISettings[K];
     if (!val || typeof val !== 'object') return val as UISettings[K];
     const inCloud = Boolean((val as any).inCloud);
     const onComputer = Boolean((val as any).onComputer);

@@ -37,6 +37,19 @@ import type { ShotVideoSettings } from '@/shared/utils/settingsMigration';
 // TYPES
 // =============================================================================
 
+/**
+ * Segment settings with nullable fields for "clear override" semantics.
+ *
+ * When a field is `null`, it means "remove the segment-level override and
+ * inherit from shot defaults". This is used by `createClearedSettings` and
+ * consumed by `buildMetadataUpdate` which interprets null as "delete this key".
+ *
+ * At runtime, `getSettingsForTaskCreation` resolves nulls to shot defaults via `??`.
+ */
+type ClearableSegmentSettings = {
+  [K in keyof SegmentSettings]: SegmentSettings[K] | null;
+};
+
 export interface UseSegmentSettingsOptions {
   /** Shot generation ID for pair-specific settings */
   pairShotGenerationId?: string | null;
@@ -223,28 +236,32 @@ function buildShotDefaults(shotSettings: ShotVideoSettings | null | undefined): 
 
 /**
  * Create cleared settings for reset operation.
+ *
+ * Returns settings with nullable fields where `null` means "clear the override
+ * and inherit from shot defaults". The form's saveData and buildMetadataUpdate
+ * handle null values by removing the corresponding keys from storage.
  */
 function createClearedSettings(
   numFrames: number,
   makePrimaryVariant: boolean
-): SegmentSettings {
+): ClearableSegmentSettings {
   return {
     prompt: '',
     negativePrompt: '',
     textBeforePrompts: '',
     textAfterPrompts: '',
-    motionMode: null as unknown as 'basic',
-    amountOfMotion: null as unknown as number,
-    phaseConfig: null as unknown as undefined,
+    motionMode: null,
+    amountOfMotion: null,
+    phaseConfig: null,
     selectedPhasePresetId: null,
-    loras: null as unknown as [],
+    loras: null,
     numFrames,
     randomSeed: true,
-    seed: undefined,
+    seed: null,
     makePrimaryVariant,
-    structureMotionStrength: null as unknown as undefined,
-    structureTreatment: null as unknown as undefined,
-    structureUni3cEndPercent: null as unknown as undefined,
+    structureMotionStrength: null,
+    structureTreatment: null,
+    structureUni3cEndPercent: null,
   };
 }
 
@@ -308,8 +325,10 @@ export function useSegmentSettings({
       defaults.makePrimaryVariant ?? false
     );
 
-    // Save cleared settings, then clear enhanced prompt
-    await form.saveData(cleared);
+    // Save cleared settings, then clear enhanced prompt.
+    // ClearableSegmentSettings uses null to indicate "clear override" - the save
+    // function interprets nulls correctly via buildMetadataUpdate.
+    await form.saveData(cleared as SegmentSettings);
     await mutations.clearEnhancedPrompt();
     form.reset();
   }, [form, mutations, defaults]);
