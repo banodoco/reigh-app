@@ -116,6 +116,9 @@ export function SimpleRealtimeProvider({ children }: SimpleRealtimeProviderProps
 
       // Analyze batch to determine what needs invalidation
       const hasCompleteTask = payloads.some((p: any) => p?.new?.status === 'Complete');
+      const hasFailedOrCancelledTask = payloads.some((p: any) =>
+        p?.new?.status === 'Failed' || p?.new?.status === 'Cancelled'
+      );
       const completedShotIds = new Set<string>(
         payloads
           .filter((p: any) => p?.new?.status === 'Complete')
@@ -136,6 +139,15 @@ export function SimpleRealtimeProvider({ children }: SimpleRealtimeProviderProps
       // ALWAYS invalidate list queries (broad invalidation - matches all projects)
       queryClient.invalidateQueries({ queryKey: ['tasks', 'paginated'] });
       queryClient.invalidateQueries({ queryKey: ['task-status-counts'] });
+
+      // Invalidate pending task queries when tasks fail or get cancelled (for instant UI update)
+      if (hasFailedOrCancelledTask) {
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            query.queryKey[0] === 'pending-segment-tasks' ||
+            query.queryKey[0] === 'pending-generation-tasks'
+        });
+      }
 
       // 🎯 TARGETED INVALIDATION: Invalidate only specific tasks that changed
       payloads.forEach((p: any) => {

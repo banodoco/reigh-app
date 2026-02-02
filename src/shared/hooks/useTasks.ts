@@ -429,6 +429,12 @@ export const useCancelTask = (projectId: string | null) => {
       // Note: Using partial keys for broad invalidation
       queryClient.invalidateQueries({ queryKey: [...queryKeys.tasks.all, 'paginated'] });
       queryClient.invalidateQueries({ queryKey: ['task-status-counts'] });
+      // Immediately invalidate pending task queries so indicators update instantly
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === 'pending-segment-tasks' ||
+          query.queryKey[0] === 'pending-generation-tasks'
+      });
     },
     onError: (error: Error) => {
       handleError(error, { context: 'useCancelTask', toastTitle: 'Failed to cancel task' });
