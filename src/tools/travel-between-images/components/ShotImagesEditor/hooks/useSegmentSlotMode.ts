@@ -227,6 +227,9 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
         segmentEnd: pairEndFrame,
         videoTotalFrames: coveringVideo?.metadata?.total_frames ?? 60,
         videoFps: coveringVideo?.metadata?.frame_rate ?? 24,
+        // Video's output range on timeline (for calculating segment-specific frames in "fit to range" mode)
+        videoOutputStart: coveringVideo?.start_frame ?? 0,
+        videoOutputEnd: coveringVideo?.end_frame ?? pairEndFrame,
       } : undefined,
 
       // Callbacks

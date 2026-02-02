@@ -1,0 +1,276 @@
+import React, { useState, useEffect, useRef } from "react";
+import { LogOut } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/shared/components/ui/dialog";
+import { Button } from "@/shared/components/ui/button";
+import { useApiTokens } from "@/shared/hooks/useApiTokens";
+import usePersistentState from "@/shared/hooks/usePersistentState";
+import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useLargeModal } from '@/shared/hooks/useModal';
+import { useScrollFade } from "@/shared/hooks/useScrollFade";
+import { useUserUIState } from "@/shared/hooks/useUserUIState";
+import { useDarkMode } from "@/shared/hooks/useDarkMode";
+import { useTextCase } from "@/shared/hooks/useTextCase";
+import { GenerationSection, PreferencesSection, TransactionsSection } from "./sections";
+import type { SettingsModalProps } from "./types";
+
+const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onOpenChange,
+  initialTab = "generate-locally",
+  creditsTab = "purchase",
+}) => {
+  const isMobile = useIsMobile();
+
+  // Modal styling and scroll fade
+  const modal = useLargeModal();
+  const { showFade, scrollRef } = useScrollFade({
+    isOpen: isOpen,
+    debug: false,
+    preloadFade: modal.isMobile
+  });
+
+  const {
+    tokens,
+    isLoading: isLoadingTokens,
+    generateToken,
+    isGenerating,
+    generatedToken,
+  } = useApiTokens();
+
+  // Installation tab preference (persistent)
+  const [activeInstallTab, setActiveInstallTab] = usePersistentState<string>("settings-install-tab", "need-install");
+
+  // Computer type preference (persistent)
+  const [computerType, setComputerType] = usePersistentState<string>("computer-type", "linux");
+
+  // GPU type preference (persistent)
+  const [gpuType, setGpuType] = usePersistentState<string>("gpu-type", "nvidia-30-40");
+
+  // Debug logs preference (persistent)
+  const [showDebugLogs, setShowDebugLogs] = usePersistentState<boolean>("show-debug-logs", false);
+
+  // Memory profile preference (persistent)
+  const [memoryProfile, setMemoryProfile] = usePersistentState<string>("memory-profile", "4");
+
+  // Windows shell type preference (persistent) - default to PowerShell as most users use it now
+  const [windowsShell, setWindowsShell] = usePersistentState<string>("windows-shell", "powershell");
+
+  // Settings section toggle (Generation vs Transactions vs Preferences)
+  const [settingsSection, setSettingsSection] = useState<'app' | 'transactions' | 'preferences'>('app');
+
+  // Lock modal height based on first section content
+  const [lockedHeight, setLockedHeight] = useState<number | null>(null);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
+
+  // Lock height immediately on open (avoid "skeleton -> real data" resize)
+  const setDialogContentNode = React.useCallback((node: HTMLDivElement | null) => {
+    dialogContentRef.current = node;
+    if (!node) return;
+    if (!isOpen) return;
+    if (lockedHeight !== null) return;
+    if (settingsSection !== 'app') return;
+    setLockedHeight(node.offsetHeight);
+  }, [isOpen, lockedHeight, settingsSection]);
+
+  // Reset locked height when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setLockedHeight(null);
+    }
+  }, [isOpen]);
+
+  // Dark mode
+  const { darkMode, setDarkMode } = useDarkMode();
+
+  // Text case mode (whether to preserve user-inputted text casing)
+  const { preserveUserText, setPreserveUserText } = useTextCase();
+
+  // Generation method preferences (database-backed)
+  const {
+    value: generationMethods,
+    update: updateGenerationMethods,
+    isLoading: isLoadingGenerationMethods
+  } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
+
+  // Privacy defaults preferences (database-backed)
+  const {
+    value: privacyDefaults,
+    update: updatePrivacyDefaults,
+    isLoading: isLoadingPrivacyDefaults
+  } = useUserUIState('privacyDefaults', { resourcesPublic: true, generationsPublic: false });
+
+  // Enhanced update function that notifies other components
+  const updateGenerationMethodsWithNotification = (patch: Partial<typeof generationMethods>) => {
+    updateGenerationMethods(patch);
+
+    // Notify other components immediately
+    window.dispatchEvent(new CustomEvent('generation-settings-changed'));
+
+    // For cross-tab communication
+    localStorage.setItem('generation-settings-updated', Date.now().toString());
+    localStorage.removeItem('generation-settings-updated');
+  };
+
+  const onComputerChecked = generationMethods.onComputer;
+  const inCloudChecked = generationMethods.inCloud;
+
+  const hasValidToken = tokens.length > 0;
+
+  const getActiveToken = () => {
+    return tokens[0]; // Just return the first token since we no longer have expiry
+  };
+
+  const handleGenerateToken = () => {
+    // Default label
+    const defaultLabel = "Local Generator";
+    generateToken(defaultLabel);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    onOpenChange(false); // Close the modal after signing out
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent
+        ref={setDialogContentNode}
+        className={modal.className}
+        style={{
+          ...modal.style,
+          ...(lockedHeight !== null ? { height: lockedHeight, maxHeight: '90vh', overflow: 'hidden' } : { maxHeight: '90vh' })
+        }}
+        {...modal.props}
+      >
+
+        <div className={modal.headerClass}>
+          <DialogHeader className={`${modal.isMobile ? 'px-2 pt-1 pb-1' : 'px-2 pt-1 pb-1'} flex-shrink-0 relative`}>
+            <div className={`flex ${isMobile ? 'flex-col items-center gap-3' : 'items-center gap-4'}`}>
+              <DialogTitle className={`text-2xl ${isMobile ? 'mb-1' : 'md:mt-[11px]'}`}>
+                App Settings
+              </DialogTitle>
+              <div className="relative inline-flex items-center bg-gray-200 dark:bg-gray-700 rounded-full p-0.5 shadow-inner md:mt-[11px] w-fit">
+                <button
+                  onClick={() => setSettingsSection('app')}
+                  className={`${isMobile ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-xs'} font-medium rounded-full transition-all duration-200 focus:outline-none ${
+                    settingsSection === 'app'
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Generation
+                </button>
+                <button
+                  onClick={() => setSettingsSection('transactions')}
+                  className={`${isMobile ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-xs'} font-medium rounded-full transition-all duration-200 focus:outline-none ${
+                    settingsSection === 'transactions'
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Transactions
+                </button>
+                <button
+                  onClick={() => setSettingsSection('preferences')}
+                  className={`${isMobile ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-xs'} font-medium rounded-full transition-all duration-200 focus:outline-none ${
+                    settingsSection === 'preferences'
+                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  }`}
+                >
+                  Preferences
+                </button>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
+
+        {/* Scrollable content container */}
+        <div
+          ref={scrollRef}
+          className={`${modal.scrollClass} ${modal.isMobile ? 'px-2' : 'px-2'} overflow-x-hidden [scrollbar-gutter:stable_both-edges] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] sm:[&::-webkit-scrollbar]:block sm:[-ms-overflow-style:auto] sm:[scrollbar-width:auto] sm:pr-4`}
+        >
+          {/* Transactions Section */}
+          {settingsSection === 'transactions' && <TransactionsSection />}
+
+          {/* Preferences Section */}
+          {settingsSection === 'preferences' && (
+            <PreferencesSection
+              isMobile={isMobile}
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+              preserveUserText={preserveUserText}
+              setPreserveUserText={setPreserveUserText}
+              privacyDefaults={privacyDefaults}
+              updatePrivacyDefaults={updatePrivacyDefaults}
+              isLoadingPrivacyDefaults={isLoadingPrivacyDefaults}
+            />
+          )}
+
+          {/* App Settings Section */}
+          {settingsSection === 'app' && (
+            <GenerationSection
+              isMobile={isMobile}
+              onComputerChecked={onComputerChecked}
+              inCloudChecked={inCloudChecked}
+              updateGenerationMethodsWithNotification={updateGenerationMethodsWithNotification}
+              isLoadingGenerationMethods={isLoadingGenerationMethods}
+              hasValidToken={hasValidToken}
+              generatedToken={generatedToken}
+              handleGenerateToken={handleGenerateToken}
+              isGenerating={isGenerating}
+              getActiveToken={getActiveToken}
+              computerType={computerType}
+              setComputerType={setComputerType}
+              gpuType={gpuType}
+              setGpuType={setGpuType}
+              memoryProfile={memoryProfile}
+              setMemoryProfile={setMemoryProfile}
+              windowsShell={windowsShell}
+              setWindowsShell={setWindowsShell}
+              showDebugLogs={showDebugLogs}
+              setShowDebugLogs={setShowDebugLogs}
+              activeInstallTab={activeInstallTab}
+              setActiveInstallTab={setActiveInstallTab}
+              creditsTab={creditsTab}
+            />
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className={`${modal.footerClass} relative`}>
+          {/* Fade overlay */}
+          {showFade && (
+            <div
+              className="absolute top-0 left-0 right-0 h-16 pointer-events-none z-10"
+              style={{ transform: 'translateY(-64px)' }}
+            >
+              <div className="h-full bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 dark:to-transparent" />
+            </div>
+          )}
+
+          <DialogFooter className={`${modal.isMobile ? 'px-2 pt-6 pb-3 flex-row justify-between' : 'px-2 pt-7 pb-3'} border-t relative z-20`}>
+            <div className="flex gap-2 mr-auto">
+              <Button variant="retro-secondary" size="retro-sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign out
+              </Button>
+            </div>
+            <Button variant="retro" size="retro-sm" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default SettingsModal;

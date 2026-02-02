@@ -143,6 +143,10 @@ export interface SegmentSettingsFormProps {
     segmentEnd: number;
     videoTotalFrames: number;
     videoFps: number;
+    /** Video's output start position on timeline (for "fit to range" calculation) */
+    videoOutputStart?: number;
+    /** Video's output end position on timeline (for "fit to range" calculation) */
+    videoOutputEnd?: number;
   };
 
   // Enhanced prompt (AI-generated)
@@ -305,9 +309,13 @@ interface StructureVideoPreviewProps {
     segmentEnd: number;
     videoTotalFrames: number;
     videoFps: number;
+    /** Video's output start position on timeline (for "fit to range" calculation) */
+    videoOutputStart?: number;
+    /** Video's output end position on timeline (for "fit to range" calculation) */
+    videoOutputEnd?: number;
   };
   /** Treatment mode determines how frames are sampled:
-   * - 'adjust' (fit to range): samples throughout entire video
+   * - 'adjust' (fit to range): samples the portion of video that maps to this segment
    * - 'clip' (1:1): samples from segment's specific frame range */
   treatment: 'adjust' | 'clip';
   /** Called when all frames have been captured and displayed */
@@ -339,26 +347,48 @@ const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
   const [isExtracting, setIsExtracting] = useState(false);
 
   // Calculate the 3 frame positions (start, middle, end)
-  // For 'adjust' (fit to range): sample throughout entire video
+  // For 'adjust' (fit to range): sample the portion of video that maps to this segment
   // For 'clip' (1:1): sample from segment's specific frame range
   const framePositions = useMemo(() => {
-    const { segmentStart, segmentEnd, videoTotalFrames, videoFps } = frameRange;
+    const { segmentStart, segmentEnd, videoTotalFrames, videoFps, videoOutputStart = 0, videoOutputEnd } = frameRange;
 
     let videoFrameStart: number;
     let videoFrameEnd: number;
     let videoFrameMid: number;
 
     if (treatment === 'adjust') {
-      // "Fit to range" mode: the entire video is stretched/compressed to fit the segment
-      // So the preview should show frames from throughout the entire video
-      videoFrameStart = 0;
-      videoFrameEnd = Math.max(0, videoTotalFrames - 1);
-      videoFrameMid = Math.floor(videoFrameEnd / 2);
+      // "Fit to range" mode: the video is stretched to fit its output range on the timeline
+      // Calculate which portion of the video maps to THIS segment's position
+      const effectiveVideoOutputEnd = videoOutputEnd ?? segmentEnd;
+      const videoOutputRange = effectiveVideoOutputEnd - videoOutputStart;
+
+      if (videoOutputRange > 0) {
+        // Calculate segment's position as a ratio within the video's output range
+        const segmentStartRatio = (segmentStart - videoOutputStart) / videoOutputRange;
+        const segmentEndRatio = (segmentEnd - videoOutputStart) / videoOutputRange;
+
+        // Map to video frames
+        videoFrameStart = Math.floor(segmentStartRatio * (videoTotalFrames - 1));
+        videoFrameEnd = Math.floor(segmentEndRatio * (videoTotalFrames - 1));
+      } else {
+        // Fallback if range is invalid
+        videoFrameStart = 0;
+        videoFrameEnd = videoTotalFrames - 1;
+      }
+
+      // Clamp to valid range
+      videoFrameStart = Math.max(0, Math.min(videoFrameStart, videoTotalFrames - 1));
+      videoFrameEnd = Math.max(0, Math.min(videoFrameEnd, videoTotalFrames - 1));
+      videoFrameMid = Math.floor((videoFrameStart + videoFrameEnd) / 2);
     } else {
-      // "1:1 mapping" mode: specific video frames map to specific output frames
-      // Show the actual frame range being used
-      videoFrameStart = Math.max(0, Math.min(segmentStart, videoTotalFrames - 1));
-      videoFrameEnd = Math.max(0, Math.min(segmentEnd, videoTotalFrames - 1));
+      // "1:1 mapping" mode: video frame N maps to output frame (videoOutputStart + N)
+      // So segment at timeline position X uses video frame (X - videoOutputStart)
+      videoFrameStart = segmentStart - videoOutputStart;
+      videoFrameEnd = segmentEnd - videoOutputStart;
+
+      // Clamp to valid range
+      videoFrameStart = Math.max(0, Math.min(videoFrameStart, videoTotalFrames - 1));
+      videoFrameEnd = Math.max(0, Math.min(videoFrameEnd, videoTotalFrames - 1));
       videoFrameMid = Math.floor((videoFrameStart + videoFrameEnd) / 2);
     }
 
@@ -425,19 +455,16 @@ const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
             ctx.drawImage(video, 0, 0);
           }
         }
-
-        // Mark which URL + treatment these captures are for (on first frame)
-        if (i === 0) {
-          setCapturedFor({ url: videoUrl, treatment });
-        }
-        // Update count to reveal this frame
-        setCapturedCount(i + 1);
       }
 
-      // All frames captured - notify parent
+      // All frames captured - update state atomically to prevent flicker
       if (!cancelled) {
+        setCapturedFor({ url: videoUrl, treatment });
+        setCapturedCount(3);
         setIsExtracting(false);
-        onLoadComplete?.();
+        if (urlChanged) {
+          onLoadComplete?.();
+        }
       }
     };
 
@@ -454,7 +481,7 @@ const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
   }, [videoUrl, framePositions, treatment, onLoadComplete]);
 
   // Track last successfully captured frame positions for stable display
-  const lastCapturedPositionsRef = useRef<typeof framePositions | null>(null);
+  const [displayPositions, setDisplayPositions] = useState(framePositions);
 
   // Check if current captures match current URL + treatment
   const capturesMatch = capturedFor?.url === videoUrl && capturedFor?.treatment === treatment;
@@ -466,13 +493,12 @@ const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
   // Show frames if we have any captured (even if for different treatment)
   const hasFramesToShow = capturedFor !== null && capturedCount >= 3;
 
-  // Update last captured positions when fully loaded
-  if (isFullyLoaded) {
-    lastCapturedPositionsRef.current = framePositions;
-  }
-
-  // Use last captured positions for display (prevents text flicker during updates)
-  const displayPositions = lastCapturedPositionsRef.current ?? framePositions;
+  // Update display positions only when fully loaded (prevents text flicker during updates)
+  useEffect(() => {
+    if (isFullyLoaded) {
+      setDisplayPositions(framePositions);
+    }
+  }, [isFullyLoaded, framePositions]);
 
   return (
     <div className="space-y-1.5">
