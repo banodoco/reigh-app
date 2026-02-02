@@ -7,12 +7,6 @@
 
 import React, { useState } from 'react';
 import { Download, Loader2, AlertCircle } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Progress } from '@/shared/components/ui/progress';
 import { useLineageChain } from '@/shared/hooks/useLineageChain';
@@ -22,6 +16,7 @@ import {
   type CreateGifProgress,
 } from '@/shared/utils/createLineageGif';
 import { handleError } from '@/shared/lib/errorHandler';
+import { ModalContainer } from '@/shared/components/ModalContainer';
 
 interface LineageGifModalProps {
   open: boolean;
@@ -164,14 +159,14 @@ export const LineageGifModal: React.FC<LineageGifModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Evolution</DialogTitle>
-        </DialogHeader>
-        {renderContent()}
-      </DialogContent>
-    </Dialog>
+    <ModalContainer
+      open={open}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
+      size="large"
+      title="Evolution"
+    >
+      {renderContent()}
+    </ModalContainer>
   );
 };
 

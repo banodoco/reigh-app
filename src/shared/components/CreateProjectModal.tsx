@@ -1,24 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from "@/shared/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger, // Will be used in GlobalHeader, not directly here for standalone modal
-} from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from 'sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { getRandomDummyName } from '../lib/dummyNames';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useMediumModal } from '@/shared/hooks/useModal';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
+import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -31,11 +20,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
   const [projectName, setProjectName] = useState(initialName || '');
   const [aspectRatio, setAspectRatio] = useState<string>('16:9');
   const { addNewProject, isCreatingProject, projects, selectedProjectId } = useProject();
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
-  
-  // Modal styling
-  const modal = useMediumModal();
 
   // Get current project to use its aspect ratio as default
   const currentProject = projects.find(p => p.id === selectedProjectId);
@@ -100,66 +85,49 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={modal.className}
-        style={modal.style}
-        {...modal.props}
-      >
-        <div className={modal.headerClass}>
-          <DialogHeader className={`${modal.isMobile ? 'px-4 pt-2 pb-2' : 'px-6 pt-2 pb-2'} flex-shrink-0`}>
-            <DialogTitle>Create New Project</DialogTitle>
-          </DialogHeader>
+    <ModalContainer
+      open={isOpen}
+      onOpenChange={onOpenChange}
+      size="medium"
+      title="Create New Project"
+      footer={
+        <ModalFooterButtons
+          onCancel={() => onOpenChange(false)}
+          onConfirm={handleCreateProject}
+          confirmText={isCreatingProject ? "Creating..." : "Create Project"}
+          isLoading={isCreatingProject}
+          disabled={!aspectRatio}
+        />
+      }
+    >
+      <div className="grid gap-4 py-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="project-name">
+            Name:
+          </Label>
+          <Input
+            id="project-name"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            className="w-full"
+            disabled={isCreatingProject}
+            maxLength={30}
+            placeholder="Enter project name..."
+          />
         </div>
-        
-        <div className={`flex-shrink-0 ${modal.isMobile ? 'px-4' : 'px-6'}`}>
-          <div className="grid gap-4 py-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="project-name">
-                Name:
-              </Label>
-              <Input
-                id="project-name"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="w-full"
-                disabled={isCreatingProject}
-                maxLength={30}
-                placeholder="Enter project name..."
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="aspect-ratio">
-                Aspect Ratio:
-              </Label>
-              <AspectRatioSelector
-                value={aspectRatio}
-                onValueChange={setAspectRatio}
-                disabled={isCreatingProject}
-                id="aspect-ratio"
-                showVisualizer={true}
-              />
-            </div>
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="aspect-ratio">
+            Aspect Ratio:
+          </Label>
+          <AspectRatioSelector
+            value={aspectRatio}
+            onValueChange={setAspectRatio}
+            disabled={isCreatingProject}
+            id="aspect-ratio"
+            showVisualizer={true}
+          />
         </div>
-        
-        <div className={modal.footerClass}>
-          <DialogFooter className={`${modal.isMobile ? 'px-4 pt-4 pb-0 flex-row justify-between' : 'px-6 pt-5 pb-0'} border-t`}>
-            <Button variant="retro-secondary" size="retro-sm" onClick={() => onOpenChange(false)} disabled={isCreatingProject} className={modal.isMobile ? '' : 'mr-auto'}>
-              Cancel
-            </Button>
-            <Button 
-              variant="retro"
-              size="retro-sm"
-              type="submit" 
-              onClick={handleCreateProject} 
-              disabled={isCreatingProject || !aspectRatio}
-            >
-              {isCreatingProject ? "Creating..." : "Create Project"}
-            </Button>
-          </DialogFooter>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ModalContainer>
   );
 }; 

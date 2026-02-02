@@ -1,15 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useMediumModal } from '@/shared/hooks/useModal';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/shared/components/ui/dialog';
-import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Checkbox } from '@/shared/components/ui/checkbox';
@@ -19,6 +8,7 @@ import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
 import { handleError } from '@/shared/lib/errorHandler';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { useProject } from '@/shared/contexts/ProjectContext';
+import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';
 
 interface CreateShotModalProps {
   isOpen: boolean;
@@ -32,11 +22,11 @@ interface CreateShotModalProps {
   cropToProjectSize?: boolean; // Whether to crop uploaded images (from project settings)
 }
 
-const CreateShotModal: React.FC<CreateShotModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  isLoading, 
+const CreateShotModal: React.FC<CreateShotModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
   defaultShotName,
   projectAspectRatio,
   initialAspectRatio,
@@ -48,11 +38,7 @@ const CreateShotModal: React.FC<CreateShotModalProps> = ({
   const [aspectRatio, setAspectRatio] = useState<string>('');
   const [updateProjectAspectRatio, setUpdateProjectAspectRatio] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // Local state for cropping phase
-  const isMobile = useIsMobile();
   const { updateProject } = useProject();
-  
-  // Modal styling
-  const modal = useMediumModal();
   
   // Initialize aspect ratio from props when modal opens
   useEffect(() => {
@@ -137,84 +123,72 @@ const CreateShotModal: React.FC<CreateShotModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent
-        className={modal.className}
-        style={modal.style}
-        {...{...modal.props}}
-      >
-        <div className={modal.headerClass}>
-          <DialogHeader className={`${modal.isMobile ? 'px-4 pt-2 pb-1' : 'px-6 pt-2 pb-1'} flex-shrink-0`}>
-            <DialogTitle>New Shot</DialogTitle>
-          </DialogHeader>
+    <ModalContainer
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="medium"
+      title="New Shot"
+      footer={
+        <ModalFooterButtons
+          onCancel={handleClose}
+          onConfirm={handleSubmit}
+          confirmText={isProcessing ? 'Processing...' : 'New Shot'}
+          isLoading={isProcessing}
+        />
+      }
+    >
+      <div className="grid gap-3 py-3">
+        <div className="space-y-2">
+          <Label htmlFor="shot-name">
+            Name:
+          </Label>
+          <Input
+            id="shot-name"
+            value={shotName}
+            onChange={(e) => setShotName(e.target.value)}
+            className="w-full"
+            placeholder={defaultShotName || "e.g., My Awesome Shot"}
+            maxLength={30}
+          />
         </div>
-        
-        <div className={`${modal.scrollClass} ${modal.isMobile ? 'px-4' : 'px-6'}`}>
-          <div className="grid gap-3 py-3">
-            <div className="space-y-2">
-              <Label htmlFor="shot-name">
-                Name:
-              </Label>
-              <Input 
-                id="shot-name" 
-                value={shotName} 
-                onChange={(e) => setShotName(e.target.value)} 
-                className="w-full" 
-                placeholder={defaultShotName || "e.g., My Awesome Shot"}
-                maxLength={30}
-              />
-            </div>
-            <FileInput 
-              onFileChange={setFiles}
-              multiple
-              acceptTypes={['image']}
-              label="Starting Images: (Optional)"
-            />
-            
-            {/* Aspect Ratio Selection */}
-            <div className="space-y-2 pt-2 border-t">
-              <Label htmlFor="shot-aspect-ratio" className="text-sm font-medium">What size would you like to use?</Label>
-              <AspectRatioSelector
-                value={aspectRatio}
-                onValueChange={setAspectRatio}
+        <FileInput
+          onFileChange={setFiles}
+          multiple
+          acceptTypes={['image']}
+          label="Starting Images: (Optional)"
+        />
+
+        {/* Aspect Ratio Selection */}
+        <div className="space-y-2 pt-2 border-t">
+          <Label htmlFor="shot-aspect-ratio" className="text-sm font-medium">What size would you like to use?</Label>
+          <AspectRatioSelector
+            value={aspectRatio}
+            onValueChange={setAspectRatio}
+            disabled={isProcessing}
+            id="shot-aspect-ratio"
+            showVisualizer={true}
+          />
+
+          {/* Show checkbox when selected aspect ratio differs from project aspect ratio */}
+          {aspectRatio && projectAspectRatio && aspectRatio !== projectAspectRatio && (
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox
+                id="update-project-aspect-ratio"
+                checked={updateProjectAspectRatio}
+                onCheckedChange={(checked) => setUpdateProjectAspectRatio(checked === true)}
                 disabled={isProcessing}
-                id="shot-aspect-ratio"
-                showVisualizer={true}
               />
-              
-              {/* Show checkbox when selected aspect ratio differs from project aspect ratio */}
-              {aspectRatio && projectAspectRatio && aspectRatio !== projectAspectRatio && (
-                <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox
-                    id="update-project-aspect-ratio"
-                    checked={updateProjectAspectRatio}
-                    onCheckedChange={(checked) => setUpdateProjectAspectRatio(checked === true)}
-                    disabled={isProcessing}
-                  />
-                  <Label
-                    htmlFor="update-project-aspect-ratio"
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    Update project aspect ratio to {aspectRatio}
-                  </Label>
-                </div>
-              )}
+              <Label
+                htmlFor="update-project-aspect-ratio"
+                className="text-sm font-normal cursor-pointer"
+              >
+                Update project aspect ratio to {aspectRatio}
+              </Label>
             </div>
-          </div>
+          )}
         </div>
-        
-        <div className={modal.footerClass}>
-          <DialogFooter className={`${modal.isMobile ? 'px-4 pt-4 pb-0 flex-row justify-between' : 'px-6 pt-5 pb-0'} border-t`}>
-            <Button variant="retro-secondary" size="retro-sm" onClick={handleClose} disabled={isProcessing} className={modal.isMobile ? '' : 'mr-auto'}>
-              Cancel
-            </Button>
-            <Button variant="retro" size="retro-sm" type="submit" onClick={handleSubmit} disabled={isProcessing}>
-              {isProcessing ? 'Processing...' : 'New Shot'}
-            </Button>
-          </DialogFooter>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ModalContainer>
   );
 };
 
