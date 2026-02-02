@@ -192,11 +192,11 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
   
   const setIsTasksPaneOpen = useCallback((isOpen: boolean) => {
-    // Only works on desktop - mobile uses hover/tap behavior
-    if (!isMobile) {
+    // Works on desktop and tablets - only small phones use hover/tap behavior exclusively
+    if (!isSmallMobile) {
       setIsTasksPaneOpenState(isOpen);
     }
-  }, [isMobile]);
+  }, [isSmallMobile]);
 
   // Reset all pane locks immediately (used by ProductTour)
   // This updates local state, useUserUIState value, and database without debounce

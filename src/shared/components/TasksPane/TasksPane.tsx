@@ -300,6 +300,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     isLocked: isTasksPaneLocked,
     onToggleLock: () => {
       const willBeLocked = !isTasksPaneLocked;
+      console.log(`[PaneDebug][TasksPane] onToggleLock`, { currentLocked: isTasksPaneLocked, willBeLocked });
       setIsTasksPaneLocked(willBeLocked);
       setIsTasksPaneOpenProgrammatic(willBeLocked);
     },

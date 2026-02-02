@@ -53,10 +53,13 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
   // NOTE: Use setIsOpenInternal here (not setIsOpen) to avoid notifying parent of changes
   // that originated from parent - that would create a feedback loop
   useLayoutEffect(() => {
+    console.log(`[PaneDebug][SlidingPane:${side}] useLayoutEffect sync`, { isLocked, programmaticOpen, currentIsOpen: isOpen });
     // Open if locked OR programmatically opened
     if (isLocked || programmaticOpen) {
+      console.log(`[PaneDebug][SlidingPane:${side}] -> Setting isOpen=true`);
       setIsOpenInternal(true);
     } else {
+      console.log(`[PaneDebug][SlidingPane:${side}] -> Setting isOpen=false`);
       setIsOpenInternal(false);
     }
   }, [isLocked, programmaticOpen]);
@@ -215,14 +218,19 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
   };
 
   const toggleLock = (force?: boolean) => {
+    console.log(`[PaneDebug][SlidingPane:${side}] toggleLock called`, { force, currentIsLocked: isLocked, currentIsOpen: isOpen });
     // Allow locking on all devices including mobile
     if (force !== undefined) {
       // Force to specific state - used by UI buttons
       if (force !== isLocked) {
+        console.log(`[PaneDebug][SlidingPane:${side}] -> Calling onToggleLock (force=${force} !== isLocked=${isLocked})`);
         onToggleLock();
+      } else {
+        console.log(`[PaneDebug][SlidingPane:${side}] -> Skipping onToggleLock (force=${force} === isLocked=${isLocked})`);
       }
     } else {
       // Toggle current state
+      console.log(`[PaneDebug][SlidingPane:${side}] -> Calling onToggleLock (toggle mode)`);
       onToggleLock();
     }
   };
@@ -239,17 +247,22 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
   const getTransformClass = () => {
     // Pane is visible if open OR locked (all devices)
     const isVisible = isOpen || isLocked;
-    
-    switch (side) {
-      case 'left':
-        return isVisible ? 'translate-x-0' : '-translate-x-full';
-      case 'right':
-        return isVisible ? 'translate-x-0' : 'translate-x-full';
-      case 'bottom':
-        return isVisible ? 'translate-y-0' : 'translate-y-full';
-      default:
-        return '';
-    }
+
+    const transformClass = (() => {
+      switch (side) {
+        case 'left':
+          return isVisible ? 'translate-x-0' : '-translate-x-full';
+        case 'right':
+          return isVisible ? 'translate-x-0' : 'translate-x-full';
+        case 'bottom':
+          return isVisible ? 'translate-y-0' : 'translate-y-full';
+        default:
+          return '';
+      }
+    })();
+
+    console.log(`[PaneDebug][SlidingPane:${side}] getTransformClass`, { isOpen, isLocked, isVisible, transformClass });
+    return transformClass;
   };
 
   const paneProps = {
