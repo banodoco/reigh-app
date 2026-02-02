@@ -54,7 +54,17 @@ import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalCon
 </ModalContainer>
 ```
 
-**Migrated modals**: CreateProjectModal, CreateShotModal, LineageGifModal
+**Migrated modals**: CreateProjectModal, CreateShotModal, LineageGifModal, ProjectSettingsModal
+
+**Modals NOT migrated** (custom layouts that don't fit the pattern):
+- VideoGenerationModal - Extra-large with custom header showing image previews, sticky footer
+- ImageGenerationModal - Similar complex layout
+- SettingsModal - Tabbed interface
+- PromptEditorModal - Large content editor
+- OnboardingModal - Multi-step wizard
+- TaskDetailsModal - Has DialogTrigger pattern for controlled/uncontrolled usage
+- ReferralModal, ProjectSelectorModal - Custom scroll fade effects
+- DatasetBrowserModal - Paginated data browser
 
 ### `DataContainer<T>`
 **Location**: `src/shared/components/DataContainer.tsx`
@@ -118,6 +128,15 @@ function MyComponent() {
 ```
 
 **Presets available**: `confirmPresets.delete(itemName)`, `confirmPresets.discard(itemName)`, `confirmPresets.unsavedChanges()`
+
+**Migrated dialogs**:
+- DeleteConfirmationDialog (ShotImageManager)
+- ShotImageManagerMobile delete confirmation
+
+**Dialogs NOT migrated** (have custom content like checkboxes or conditional notes):
+- VideoShotDisplay delete - has "Don't ask for confirmation" checkbox
+- CommunityLorasTab delete - has conditional "Note: LoRA is currently added" text
+- BrowsePresetsTab delete - has conditional "Note: preset is currently selected" text
 
 ---
 

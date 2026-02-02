@@ -1,14 +1,5 @@
 import React from 'react';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel
-} from '@/shared/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 
 interface DeleteConfirmationDialogProps {
   open: boolean;
@@ -23,28 +14,19 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
   pendingDeleteIds,
   onConfirm
 }) => {
+  const count = pendingDeleteIds.length;
+  const plural = count > 1 ? 's' : '';
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete Images</AlertDialogTitle>
-          <AlertDialogDescription>
-            Are you sure you want to delete {pendingDeleteIds.length} selected image{pendingDeleteIds.length > 1 ? 's' : ''}? This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => {
-            onOpenChange(false);
-          }}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => onConfirm(pendingDeleteIds)}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Delete {pendingDeleteIds.length} Image{pendingDeleteIds.length > 1 ? 's' : ''}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Delete Images"
+      description={`Are you sure you want to delete ${count} selected image${plural}? This action cannot be undone.`}
+      confirmText={`Delete ${count} Image${plural}`}
+      cancelText="Cancel"
+      destructive
+      onConfirm={() => onConfirm(pendingDeleteIds)}
+    />
   );
 };
-

@@ -11,7 +11,7 @@ import { cn } from '@/shared/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/shared/components/ui/alert-dialog";
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { ShotBatchItemMobile } from './ShotBatchItemMobile';
 import { BaseShotImageManagerProps } from './types';
@@ -759,32 +759,19 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       })()}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Images</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {pendingDeleteIds.length} selected image{pendingDeleteIds.length > 1 ? 's' : ''}? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel 
-              onClick={() => {
-                setConfirmOpen(false);
-                setPendingDeleteIds([]);
-              }}
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => performBatchDelete(pendingDeleteIds)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete {pendingDeleteIds.length} Image{pendingDeleteIds.length > 1 ? 's' : ''}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          setConfirmOpen(open);
+          if (!open) setPendingDeleteIds([]);
+        }}
+        title="Delete Images"
+        description={`Are you sure you want to delete ${pendingDeleteIds.length} selected image${pendingDeleteIds.length > 1 ? 's' : ''}? This action cannot be undone.`}
+        confirmText={`Delete ${pendingDeleteIds.length} Image${pendingDeleteIds.length > 1 ? 's' : ''}`}
+        cancelText="Cancel"
+        destructive
+        onConfirm={() => performBatchDelete(pendingDeleteIds)}
+      />
     </>
   );
 };
