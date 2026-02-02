@@ -82,6 +82,8 @@ export function usePendingGenerationTasks(
     queryFn: async () => {
       if (!generationId || !projectId) return [];
 
+      const queryStartTime = Date.now();
+
       // Query tasks that are Queued or In Progress
       const { data, error } = await supabase
         .from('tasks')
@@ -103,20 +105,29 @@ export function usePendingGenerationTasks(
           task_type: task.task_type,
         }));
 
-      if (matchingTasks.length > 0) {
-        console.log('[usePendingGenerationTasks] Found pending tasks for generation:', {
-          generationId: generationId.substring(0, 8),
-          count: matchingTasks.length,
-          taskTypes: matchingTasks.map(t => t.task_type),
-        });
-      }
+      console.log('[usePendingGenerationTasks] Query completed:', {
+        timestamp: queryStartTime,
+        generationId: generationId.substring(0, 8),
+        totalPending: data?.length || 0,
+        matchingCount: matchingTasks.length,
+        tasks: matchingTasks.map(t => ({
+          id: t.id.substring(0, 8),
+          status: t.status,
+          type: t.task_type,
+        })),
+      });
 
       return matchingTasks;
     },
     enabled: !!generationId && !!projectId,
     // Poll to catch status changes
     refetchInterval: 5000,
-    staleTime: 2000,
+    // Mark as stale immediately so invalidations trigger refetch
+    staleTime: 0,
+    // Short cache time - don't keep stale data around
+    gcTime: 10000,
+    // Always refetch when window regains focus
+    refetchOnWindowFocus: 'always',
   });
 
   const result = useMemo(() => ({

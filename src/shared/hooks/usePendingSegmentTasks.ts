@@ -70,6 +70,8 @@ export function usePendingSegmentTasks(
     queryFn: async () => {
       if (!shotId || !projectId) return [];
 
+      const queryStartTime = Date.now();
+
       // Query tasks that are Queued or In Progress
       // Filter for travel segment task types
       const { data, error } = await supabase
@@ -95,10 +97,16 @@ export function usePendingSegmentTasks(
       // Note: We can't directly filter by shot_id in the query since it's in params
       // The pair_shot_generation_id links to a shot_generations record for this shot
 
-      console.log('[usePendingSegmentTasks] Found pending tasks:', {
+      console.log('[usePendingSegmentTasks] Query completed:', {
+        timestamp: queryStartTime,
         shotId: shotId.substring(0, 8),
-        count: tasks.length,
-        pairIds: tasks.map(t => t.pair_shot_generation_id?.substring(0, 8)).filter(Boolean),
+        rawCount: data?.length || 0,
+        extractedCount: tasks.length,
+        tasks: tasks.map(t => ({
+          id: t.id.substring(0, 8),
+          status: t.status,
+          pairId: t.pair_shot_generation_id?.substring(0, 8),
+        })),
       });
 
       return tasks;
@@ -106,7 +114,12 @@ export function usePendingSegmentTasks(
     enabled: !!shotId && !!projectId,
     // Poll frequently to catch status changes
     refetchInterval: 3000,
-    staleTime: 1000,
+    // Mark as stale immediately so invalidations trigger refetch
+    staleTime: 0,
+    // Short cache time - don't keep stale data around
+    gcTime: 10000,
+    // Always refetch when window regains focus
+    refetchOnWindowFocus: 'always',
   });
 
   // Build a map of pair_shot_generation_id -> status
