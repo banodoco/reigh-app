@@ -30,8 +30,8 @@ export interface ShotSelectorWithAddProps {
   // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
   onAddToShot: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   
-  // Shot creation (optional)
-  onCreateShot?: (shotName: string, files: File[]) => Promise<void>;
+  // Whether to show the "create shot" option in the dropdown
+  showCreateShot?: boolean;
   
   // State tracking
   isAlreadyPositionedInSelectedShot?: boolean;
@@ -66,7 +66,7 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
   selectedShotId,
   onShotChange,
   onAddToShot,
-  onCreateShot,
+  showCreateShot = false,
   isAlreadyPositionedInSelectedShot = false,
   showTick = false,
   isAdding = false,
@@ -175,7 +175,7 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
           selectorClassName
         )}
         contentClassName="w-[var(--radix-select-trigger-width)]"
-        showAddShot={!!onCreateShot}
+        showAddShot={showCreateShot}
         onCreateShot={handleQuickCreateAndAdd}
         isCreatingShot={isCreatingShot}
         quickCreateSuccess={quickCreateSuccess}

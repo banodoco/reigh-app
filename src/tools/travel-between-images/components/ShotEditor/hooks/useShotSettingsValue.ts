@@ -202,8 +202,8 @@ export function useShotSettingsValue({
   const imageHandlersForContext = useMemo(
     (): ShotSettingsContextValue['imageHandlers'] => ({
       onReorder: handleImageReorder,
-      onImageDrop: async (file: File, targetFrame: number) => {
-        await generationActions.handleTimelineImageDrop([file], targetFrame);
+      onImageDrop: async (files: File[], targetFrame?: number) => {
+        await generationActions.handleTimelineImageDrop(files, targetFrame);
       },
       onGenerationDrop: async (generationId: string, targetFrame: number) => {
         const gen = allShotImages.find(

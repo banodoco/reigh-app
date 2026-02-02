@@ -183,6 +183,14 @@ export const useHandleExternalImageDrop = () => {
         skipOptimistic,
       } = variables;
 
+      console.log('[TimelineUploadDebug] useHandleExternalImageDrop called:', {
+        fileCount: imageFiles?.length,
+        files: imageFiles?.map(f => ({ name: f?.name, type: f?.type, size: f?.size })),
+        targetShotId,
+        currentProjectQueryKey,
+        currentShotCount,
+      });
+
       if (!currentProjectQueryKey) {
         toast.error("Cannot add image(s): current project is not identified.");
         return null;
@@ -224,9 +232,16 @@ export const useHandleExternalImageDrop = () => {
         const projectRatioStr = projectData?.aspect_ratio;
         const effectiveRatioStr = shotRatioStr || projectRatioStr;
 
+        console.log('[TimelineUploadDebug] Aspect ratio strings:', {
+          shotRatioStr,
+          projectRatioStr,
+          effectiveRatioStr,
+        });
+
         if (effectiveRatioStr) {
           targetAspectRatio = parseRatio(effectiveRatioStr);
           aspectRatioSource = shotRatioStr ? 'shot' : 'project';
+          console.log('[TimelineUploadDebug] Parsed aspect ratio:', { targetAspectRatio, aspectRatioSource });
         }
       } catch (err) {
         console.warn('Error fetching aspect ratio settings:', err);
@@ -408,6 +423,12 @@ export const useHandleExternalImageDrop = () => {
 
             generationIds.push(newGeneration.id as string);
           } catch (fileError) {
+            console.error('[TimelineUploadDebug] CAUGHT ERROR processing file:', {
+              fileName: imageFile?.name,
+              message: (fileError as Error)?.message,
+              stack: (fileError as Error)?.stack,
+              fileError,
+            });
             handleError(fileError, { context: 'useShotCreation', toastTitle: `Failed to process file ${imageFile.name}` });
           }
         }
@@ -418,6 +439,11 @@ export const useHandleExternalImageDrop = () => {
           return null;
         }
       } catch (error) {
+        console.error('[TimelineUploadDebug] CAUGHT ERROR in useHandleExternalImageDrop:', {
+          message: (error as Error)?.message,
+          stack: (error as Error)?.stack,
+          error,
+        });
         handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to process dropped image(s)' });
         return null;
       }

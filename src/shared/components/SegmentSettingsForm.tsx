@@ -332,12 +332,13 @@ const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
   const [capturedForUrl, setCapturedForUrl] = useState<string | null>(null);
 
   // Calculate the 3 frame positions (start, middle, end of segment's portion)
+  // segmentStart/segmentEnd are already the frame indices in the structure video for this segment
   const framePositions = useMemo(() => {
     const { segmentStart, segmentEnd, videoTotalFrames, videoFps } = frameRange;
 
-    // Map segment frames to video frames (simple linear mapping)
-    const videoFrameStart = Math.floor((segmentStart / (segmentEnd || 1)) * videoTotalFrames);
-    const videoFrameEnd = Math.min(videoTotalFrames - 1, Math.floor((segmentEnd / (segmentEnd || 1)) * videoTotalFrames));
+    // Use segment frame indices directly (clamped to video bounds)
+    const videoFrameStart = Math.max(0, Math.min(segmentStart, videoTotalFrames - 1));
+    const videoFrameEnd = Math.max(0, Math.min(segmentEnd, videoTotalFrames - 1));
     const videoFrameMid = Math.floor((videoFrameStart + videoFrameEnd) / 2);
 
     return [

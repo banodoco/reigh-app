@@ -82,12 +82,8 @@ export const GuidanceVideosContainer: React.FC<GuidanceVideosContainerProps> = (
             videoUrl={video.path}
             videoMetadata={video.metadata ?? null}
             treatment={video.treatment ?? 'adjust'}
-            motionStrength={video.motion_strength ?? 1.0}
             onTreatmentChange={(treatment) => {
               onUpdateVideo(index, { treatment });
-            }}
-            onMotionStrengthChange={(strength) => {
-              onUpdateVideo(index, { motion_strength: strength });
             }}
             onRemove={() => {
               onRemoveVideo(index);
@@ -101,7 +97,6 @@ export const GuidanceVideosContainer: React.FC<GuidanceVideosContainerProps> = (
             containerWidth={containerWidth}
             zoomLevel={zoomLevel}
             timelineFrameCount={timelineFrameCount}
-            frameSpacing={50}
             readOnly={readOnly}
             // Pass output range for positioning
             outputStartFrame={video.start_frame}

@@ -57,8 +57,8 @@ export interface ShotImagesState {
 export interface ShotImageHandlers {
   /** Reorder images on timeline */
   onReorder: (orderedShotGenerationIds: string[], draggedItemId?: string) => void;
-  /** Drop external file onto timeline */
-  onImageDrop: (file: File, targetFrame: number) => Promise<void>;
+  /** Drop external files onto timeline */
+  onImageDrop: (files: File[], targetFrame?: number) => Promise<void>;
   /** Drop existing generation onto timeline */
   onGenerationDrop: (generationId: string, targetFrame: number) => Promise<void>;
   /** Batch drop files onto timeline/grid */

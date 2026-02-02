@@ -136,7 +136,7 @@ export const WorkflowControls: React.FC<WorkflowControlsProps> = ({
               selectedShotId={selectedShotId || ''}
               onShotChange={onShotChange || (() => {})}
               onAddToShot={onAddToShot}
-              onCreateShot={onCreateShot ? async () => {} : undefined}
+              showCreateShot={!!onCreateShot}
               isAlreadyPositionedInSelectedShot={isAlreadyPositionedInSelectedShot}
               showTick={showTickForImageId === mediaId}
               isAdding={isAdding}

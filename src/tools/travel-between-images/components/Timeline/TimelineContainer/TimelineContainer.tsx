@@ -340,9 +340,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                   videoUrl={structureVideoPath}
                   videoMetadata={structureVideoMetadata || null}
                   treatment={structureVideoTreatment}
-                  motionStrength={structureVideoMotionStrength}
                   onTreatmentChange={(treatment) => onStructureVideoChange(structureVideoPath, structureVideoMetadata, treatment, structureVideoMotionStrength, structureVideoType)}
-                  onMotionStrengthChange={(strength) => onStructureVideoChange(structureVideoPath, structureVideoMetadata, structureVideoTreatment, strength, structureVideoType)}
                   onRemove={() => onStructureVideoChange(null, null, 'adjust', 1.0, 'flow')}
                   onMetadataExtracted={(metadata) => onStructureVideoChange(structureVideoPath, metadata, structureVideoTreatment, structureVideoMotionStrength, structureVideoType)}
                   fullMin={fullMin}
@@ -351,7 +349,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                   containerWidth={containerWidth}
                   zoomLevel={zoomLevel}
                   timelineFrameCount={images.length}
-                  frameSpacing={50}
                   readOnly={readOnly}
                 />
               ) : isUploadingStructureVideo ? (

@@ -189,12 +189,27 @@ export const cropImageToProjectAspectRatio = async (
   inputFile: File,
   targetAspectRatio: number
 ): Promise<ProjectCropResult | null> => {
+  // Debug logging for file type issues
+  console.log('[TimelineUploadDebug] cropImageToProjectAspectRatio called:', {
+    fileName: inputFile?.name,
+    fileType: inputFile?.type,
+    fileSize: inputFile?.size,
+    targetAspectRatio,
+    isFile: inputFile instanceof File,
+  });
+
   // Mobile browsers (especially iOS) sometimes provide files with an empty MIME type
   // or HEIC/HEIF types. Treat known image extensions as images even if MIME is missing.
   const hasImageMime = typeof inputFile.type === 'string' && inputFile.type.startsWith('image/');
   const looksLikeImageByName = typeof inputFile.name === 'string' && /\.(heic|heif|jpg|jpeg|png|webp|gif|bmp|tif|tiff)$/i.test(inputFile.name);
+
+  console.log('[TimelineUploadDebug] File validation:', { hasImageMime, looksLikeImageByName });
+
   if (!hasImageMime && !looksLikeImageByName) {
-    console.error("Invalid file type. Only images are allowed.");
+    console.error("[TimelineUploadDebug] Invalid file type. Only images are allowed.", {
+      fileName: inputFile?.name,
+      fileType: inputFile?.type,
+    });
     return null;
   }
 

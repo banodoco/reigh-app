@@ -1,23 +1,26 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { VideoMetadata, extractVideoMetadataFromUrl } from '@/shared/lib/videoUploader';
+import { VideoMetadata } from '@/shared/lib/videoUploader';
 import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from './constants';
+import { TimelineResizeHandle } from './TimelineResizeHandle';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { Slider } from '@/shared/components/ui/slider';
 import { X } from 'lucide-react';
 import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
+import { useTemporaryVisibility } from '@/shared/hooks/useTemporaryVisibility';
+import { useVideoMetadata } from '@/shared/hooks/useVideoMetadata';
+import { useVideoFrameExtraction } from '@/shared/hooks/useVideoFrameExtraction';
+import { useClickOutside } from '@/shared/hooks/useClickOutside';
+import { useTimelineStripDrag } from './hooks/useTimelineStripDrag';
+import { useVideoHoverPreview } from '@/shared/hooks/useVideoHoverPreview';
 
 interface GuidanceVideoStripProps {
   videoUrl: string;
-  videoMetadata: VideoMetadata | null; // Can be null - will be extracted from video
+  videoMetadata: VideoMetadata | null;
   treatment: 'adjust' | 'clip';
-  motionStrength: number;
   onTreatmentChange: (treatment: 'adjust' | 'clip') => void;
-  onMotionStrengthChange: (strength: number) => void;
   onRemove: () => void;
-  onMetadataExtracted?: (metadata: VideoMetadata) => void; // Callback when metadata is extracted (so it can be saved to DB)
+  onMetadataExtracted?: (metadata: VideoMetadata) => void;
   // Timeline coordinate system
   fullMin: number;
   fullMax: number;
@@ -26,25 +29,24 @@ interface GuidanceVideoStripProps {
   zoomLevel: number;
   // Timeline dimensions
   timelineFrameCount: number;
-  frameSpacing: number;
-  readOnly?: boolean; // Hide interactive controls in read-only mode
-  
-  // NEW: Output range - where in timeline this video is positioned
-  outputStartFrame?: number; // Default: fullMin (legacy behavior)
-  outputEndFrame?: number; // Default: fullMax (legacy behavior)
-  
-  // NEW: Source range - which frames from source video to use
-  sourceStartFrame?: number; // Default: 0
-  sourceEndFrame?: number | null; // Default: null (end of video)
-  
-  // NEW: Callbacks for range changes
+  readOnly?: boolean;
+
+  // Output range - where in timeline this video is positioned
+  outputStartFrame?: number;
+  outputEndFrame?: number;
+
+  // Source range - which frames from source video to use
+  sourceStartFrame?: number;
+  sourceEndFrame?: number | null;
+
+  // Callbacks for range changes
   onRangeChange?: (startFrame: number, endFrame: number) => void;
   onSourceRangeChange?: (sourceStartFrame: number, sourceEndFrame: number | null) => void;
-  
-  // NEW: Position absolutely within parent (for multi-video same-row layout)
+
+  // Position absolutely within parent (for multi-video same-row layout)
   useAbsolutePosition?: boolean;
-  
-  // NEW: Sibling video ranges for collision detection (prevents overlap)
+
+  // Sibling video ranges for collision detection
   siblingRanges?: Array<{ start: number; end: number }>;
 }
 
@@ -59,16 +61,11 @@ const calculateAdjustModeFrame = (
   videoMetadata: VideoMetadata | null
 ): number => {
   if (!videoMetadata) return 0;
-  
-  // 1. Calculate cursor position in timeline coordinate space
-  // Use the same coordinate system as images/ruler to ensure alignment
+
   const effectiveWidth = containerWidth - (TIMELINE_PADDING_OFFSET * 2);
   const normalizedX = Math.max(0, Math.min(1, (cursorPixelX - TIMELINE_PADDING_OFFSET) / effectiveWidth));
-  
-  // 2. Map normalized position to video frame
   const videoFrame = Math.floor(normalizedX * videoMetadata.total_frames);
-  
-  // 3. Clamp to valid range
+
   return Math.max(0, Math.min(videoFrame, videoMetadata.total_frames - 1));
 };
 
@@ -80,20 +77,15 @@ const calculateClipModeFrame = (
   videoMetadata: VideoMetadata | null
 ): number => {
   if (!videoMetadata) return 0;
-  
-  // Direct 1:1 mapping - timeline frame = video frame
-  // Use the same coordinate system as images/ruler to ensure alignment
+
   const effectiveWidth = containerWidth - (TIMELINE_PADDING_OFFSET * 2);
   const normalizedX = Math.max(0, Math.min(1, (cursorPixelX - TIMELINE_PADDING_OFFSET) / effectiveWidth));
   const timelineFrame = fullMin + (normalizedX * (fullMax - fullMin));
-  
-  // Direct mapping (assuming timeline and video have same frame rate)
   const videoFrame = Math.floor(timelineFrame);
-  
-  // May be out of bounds - return clamped value
+
   if (videoFrame < 0) return 0;
   if (videoFrame >= videoMetadata.total_frames) return videoMetadata.total_frames - 1;
-  
+
   return videoFrame;
 };
 
@@ -101,9 +93,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
   videoUrl,
   videoMetadata,
   treatment,
-  motionStrength,
   onTreatmentChange,
-  onMotionStrengthChange,
   onRemove,
   onMetadataExtracted,
   fullMin,
@@ -112,717 +102,175 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
   containerWidth,
   zoomLevel,
   timelineFrameCount,
-  frameSpacing,
   readOnly = false,
-  // NEW: Output range props (defaults for legacy behavior)
   outputStartFrame,
   outputEndFrame,
-  // NEW: Source range props
   sourceStartFrame,
   sourceEndFrame,
-  // NEW: Range change callbacks
   onRangeChange,
   onSourceRangeChange,
   useAbsolutePosition = false,
   siblingRanges = [],
 }) => {
-  // Calculate effective output range (use props or fall back to fullMin/fullMax for legacy)
+  // Calculate effective output range
   const effectiveOutputStart = outputStartFrame ?? fullMin;
   const effectiveOutputEnd = outputEndFrame ?? fullMax;
   const outputFrameCount = effectiveOutputEnd - effectiveOutputStart;
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const stripContainerRef = useRef<HTMLDivElement>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [currentTimelineFrame, setCurrentTimelineFrame] = useState(0);
-  const [isHovering, setIsHovering] = useState(false);
-  const [isVideoReady, setIsVideoReady] = useState(false);
-  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
-  const [frameImages, setFrameImages] = useState<string[]>([]);
-  const [displayFrameImages, setDisplayFrameImages] = useState<string[]>([]); // What's actually shown
-  const [isExtractingFrames, setIsExtractingFrames] = useState(false);
-  const seekingRef = useRef(false);
-  const pendingSeekRef = useRef<number | null>(null);
-  const lastDrawnFrameRef = useRef<number>(-1);
-  const lastSeekTimeRef = useRef<number>(0);
-  const lastBlankCheckRef = useRef<number>(0);
-  const SEEK_THROTTLE_MS = 30; // Minimum time between seeks (reduced for responsiveness)
-  const BLANK_CHECK_THROTTLE_MS = 200; // Minimum time between blank checks to avoid infinite resets
-  
-  // Drag state for moving/resizing the strip
-  const [isDragging, setIsDragging] = useState<'move' | 'left' | 'right' | null>(null);
-  const [dragPreviewRange, setDragPreviewRange] = useState<{ start: number; end: number } | null>(null);
-  const dragStartRef = useRef<{ mouseX: number; startFrame: number; endFrame: number } | null>(null);
-  const outerContainerRef = useRef<HTMLDivElement>(null);
 
-  // Tablet tap-to-select state for endpoints (iPad-friendly interaction)
+  const stripContainerRef = useRef<HTMLDivElement>(null);
+  const outerContainerRef = useRef<HTMLDivElement>(null);
+  const [currentTimelineFrame, setCurrentTimelineFrame] = useState(0);
+
+  // Tablet tap-to-select state for endpoints
   const { isTablet } = useDeviceDetection();
   const [selectedEndpoint, setSelectedEndpoint] = useState<'left' | 'right' | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  const SCROLL_THRESHOLD = 10; // Pixels of movement before considering it a scroll
-  
-  // Use drag preview range during drag, otherwise use actual props
-  const displayOutputStart = dragPreviewRange?.start ?? effectiveOutputStart;
-  const displayOutputEnd = dragPreviewRange?.end ?? effectiveOutputEnd;
-  const displayOutputFrameCount = displayOutputEnd - displayOutputStart;
-  
-  // Extract metadata if not provided
-  const [extractedMetadata, setExtractedMetadata] = useState<VideoMetadata | null>(null);
-  const [isExtractingMetadata, setIsExtractingMetadata] = useState(false);
-  
-  // Use provided metadata or extracted metadata
-  const effectiveMetadata = videoMetadata || extractedMetadata;
-  
-  // Extract metadata from URL if not provided
-  useEffect(() => {
-    if (!videoMetadata && !isExtractingMetadata && !extractedMetadata) {
-      setIsExtractingMetadata(true);
-      console.log('[GuidanceVideoStrip] 🎬 Extracting metadata from URL:', videoUrl.substring(0, 100) + '...');
-      extractVideoMetadataFromUrl(videoUrl)
-        .then(metadata => {
-          console.log('[GuidanceVideoStrip] ✅ Metadata extracted successfully:', {
-            duration: metadata.duration_seconds,
-            frameRate: metadata.frame_rate,
-            totalFrames: metadata.total_frames,
-            dimensions: `${metadata.width}x${metadata.height}`
-          });
-          setExtractedMetadata(metadata);
-          
-          // Save extracted metadata back to database via callback
-          if (onMetadataExtracted) {
-            console.log('[GuidanceVideoStrip] 💾 Calling onMetadataExtracted to save metadata to database');
-            onMetadataExtracted(metadata);
-          }
-        })
-        .catch(error => {
-          console.error('[GuidanceVideoStrip] ❌ Failed to extract metadata:', error);
-        })
-        .finally(() => {
-          setIsExtractingMetadata(false);
-        });
-    }
-  }, [videoUrl, videoMetadata, isExtractingMetadata, extractedMetadata, onMetadataExtracted]);
-  
-  // Calculate timeline duration and frames
-  const ASSUMED_TIMELINE_FPS = 24;
-  const timelineDuration = (fullMax - fullMin) / ASSUMED_TIMELINE_FPS;
-  const timelineFrames = fullMax - fullMin + 1;
+  const SCROLL_THRESHOLD = 10;
+
+  // Active state for handles visibility
+  const [isStripActive, setIsStripActive] = useState(false);
+  const lastTapTimeRef = useRef<number>(0);
+  const DOUBLE_TAP_DELAY = 300;
+
+  // Temporary visibility hooks
+  const tapPreview = useTemporaryVisibility(2000);
+  const tapToPlaceHint = useTemporaryVisibility(2000);
+
+  // Get video metadata (extracts from URL if not provided)
+  const { metadata: effectiveMetadata } = useVideoMetadata(videoUrl, videoMetadata, {
+    onExtracted: onMetadataExtracted,
+  });
+
   const totalVideoFrames = effectiveMetadata?.total_frames || 0;
-  
-  // NEW: Calculate effective source range
+
+  // Calculate effective source range
   const effectiveSourceStart = sourceStartFrame ?? 0;
   const effectiveSourceEnd = sourceEndFrame ?? totalVideoFrames;
   const sourceFrameCount = Math.max(0, effectiveSourceEnd - effectiveSourceStart);
-  
-  // Calculate video coverage for clip mode (using source range, not full video)
+
+  // Use drag hook for strip movement/resize
+  const {
+    isDragging,
+    displayStart: displayOutputStart,
+    displayEnd: displayOutputEnd,
+    handleDragStart,
+  } = useTimelineStripDrag({
+    startFrame: effectiveOutputStart,
+    endFrame: effectiveOutputEnd,
+    fullRange,
+    fullMin,
+    fullMax,
+    containerWidth,
+    zoomLevel,
+    siblingRanges,
+    disabled: readOnly || !onRangeChange,
+    onRangeChange,
+    onTreatmentChange,
+    treatment,
+    videoTotalFrames: totalVideoFrames,
+  });
+
+  const displayOutputFrameCount = displayOutputEnd - displayOutputStart;
+
+  // Video hover preview hook
+  const hoverPreview = useVideoHoverPreview({
+    videoUrl,
+    frameRate: effectiveMetadata?.frame_rate || 30,
+    enabled: !isDragging && !!effectiveMetadata,
+  });
+
+  // Extract frames for thumbnail strip
+  const {
+    frames: displayFrameImages,
+    isExtracting: isExtractingFrames,
+    isReady: isVideoReady,
+  } = useVideoFrameExtraction(videoUrl, {
+    metadata: effectiveMetadata,
+    treatment,
+    sourceRange: { start: effectiveSourceStart, end: effectiveSourceEnd },
+    outputFrameCount,
+    skip: !!isDragging,
+  });
+
+  // Calculate video coverage for clip mode
   const videoCoversFrames = treatment === 'clip' ? Math.min(sourceFrameCount, outputFrameCount) : outputFrameCount;
   const videoCoverageRatio = outputFrameCount > 0 ? videoCoversFrames / outputFrameCount : 1;
-  
-  // NEW: Calculate position on timeline (for multi-video support)
-  // Use the same coordinate system as SegmentOutputStrip for alignment
+
+  // Calculate position on timeline
   const stripEffectiveWidth = containerWidth - (TIMELINE_PADDING_OFFSET * 2);
-  // Calculate pixel positions using same formula as timeline
-  // IMPORTANT: Clamp visual display to timeline boundaries (fullMin to fullMax)
-  // This prevents overflow while preserving actual data range
   const clampedDisplayStart = Math.max(fullMin, displayOutputStart);
   const clampedDisplayEnd = Math.min(fullMax, displayOutputEnd);
-  const startPixel = fullRange > 0 
+  const startPixel = fullRange > 0
     ? TIMELINE_PADDING_OFFSET + ((clampedDisplayStart - fullMin) / fullRange) * stripEffectiveWidth
     : TIMELINE_PADDING_OFFSET;
   const endPixel = fullRange > 0
     ? TIMELINE_PADDING_OFFSET + ((clampedDisplayEnd - fullMin) / fullRange) * stripEffectiveWidth
     : TIMELINE_PADDING_OFFSET + stripEffectiveWidth;
   const widthPixel = Math.max(0, endPixel - startPixel);
-  
-  // Convert to percentages of containerWidth (same approach as SegmentOutputStrip)
+
   const stripLeftPercent = (startPixel / containerWidth) * 100;
   const stripWidthPercent = (widthPixel / containerWidth) * 100;
-  
-  // Legacy percentage-based positioning (for non-absolute/relative mode)
+
+  // Legacy positioning
   const legacyPositionPercent = fullRange > 0 ? ((displayOutputStart - fullMin) / fullRange) * 100 : 0;
   const legacyWidthPercent = fullRange > 0 ? (displayOutputFrameCount / fullRange) * 100 : 100;
-  
-  // Calculate playback speed for adjust mode
-  const playbackSpeed = treatment === 'adjust' 
-    ? (effectiveMetadata?.duration_seconds || 0) / timelineDuration 
-    : 1.0;
-  
-  // Calculate adjust mode description (stretch/compress)
-  const adjustModeDescription = (() => {
-    if (totalVideoFrames === 0 || timelineFrames === 0) return '';
-    
-    if (totalVideoFrames > timelineFrames) {
-      const framesToDrop = totalVideoFrames - timelineFrames;
-      return `Your input video has ${totalVideoFrames} frame${totalVideoFrames === 1 ? '' : 's'} so we'll drop ${framesToDrop} frame${framesToDrop === 1 ? '' : 's'} to compress your guide video to the ${timelineFrames} frame${timelineFrames === 1 ? '' : 's'} your input images cover.`;
-    } else if (totalVideoFrames < timelineFrames) {
-      const framesToDuplicate = timelineFrames - totalVideoFrames;
-      return `Your input video has ${totalVideoFrames} frame${totalVideoFrames === 1 ? '' : 's'} so we'll duplicate ${framesToDuplicate} frame${framesToDuplicate === 1 ? '' : 's'} to stretch your guide video to the ${timelineFrames} frame${timelineFrames === 1 ? '' : 's'} your input images cover.`;
-    } else {
-      return `Perfect! Your input video has ${timelineFrames} frame${timelineFrames === 1 ? '' : 's'}, matching your timeline exactly.`;
-    }
-  })();
-  
-  // Calculate clip mode description (as-is)
-  const clipModeDescription = (() => {
-    if (totalVideoFrames === 0 || timelineFrames === 0) return '';
-    
-    if (totalVideoFrames > timelineFrames) {
-      const unusedFrames = totalVideoFrames - timelineFrames;
-      return `Your video will guide all ${timelineFrames} frame${timelineFrames === 1 ? '' : 's'} of your timeline. The last ${unusedFrames} frame${unusedFrames === 1 ? '' : 's'} of your video (frame${unusedFrames === 1 ? '' : 's'} ${timelineFrames + 1}-${totalVideoFrames}) will be ignored.`;
-    } else if (totalVideoFrames < timelineFrames) {
-      const uncoveredFrames = timelineFrames - totalVideoFrames;
-      return `Your video will guide the first ${totalVideoFrames} frame${totalVideoFrames === 1 ? '' : 's'} of your timeline. The last ${uncoveredFrames} frame${uncoveredFrames === 1 ? '' : 's'} (frame${uncoveredFrames === 1 ? '' : 's'} ${totalVideoFrames + 1}-${timelineFrames}) won't have video guidance.`;
-    } else {
-      return `Perfect! Your video length matches your timeline exactly (${timelineFrames} frame${timelineFrames === 1 ? '' : 's'}).`;
-    }
-  })();
 
-  // Extract frames from video when it loads or treatment changes
-  // NOTE: Only re-extract when video URL, metadata, or treatment changes
-  // Do NOT re-extract on zoom (containerWidth) or timeline expansion (fullMin/fullMax)
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    // Skip extraction during drag - will re-extract when drag ends
-    if (isDragging) {
-      return;
-    }
-    
-    // CRITICAL: Don't start extraction until we have metadata!
-    if (!effectiveMetadata) {
-      console.log('[GuidanceVideoStrip] ⏳ Waiting for metadata before extracting frames...');
-      return;
-    }
+  // Click outside handlers using the hook
+  const enableTapToSelect = isTablet && !readOnly && onRangeChange;
 
-    const extractFrames = async () => {
-      console.log('[GuidanceVideoStrip] 🎞️ Starting frame extraction:', {
-        treatment,
-        totalFrames: effectiveMetadata.total_frames,
-        frameRate: effectiveMetadata.frame_rate,
-        duration: effectiveMetadata.duration_seconds,
-        // NEW: Log source range
-        sourceRange: { start: effectiveSourceStart, end: effectiveSourceEnd, count: sourceFrameCount },
-        outputRange: { start: effectiveOutputStart, end: effectiveOutputEnd, count: outputFrameCount },
-      });
-      setIsExtractingFrames(true);
-      // Don't set isVideoReady to false - keep old frames visible during re-extraction
-      
-      // Wait for video to be ready
-      if (video.readyState < 2) {
-        await new Promise<void>((resolve) => {
-          const handleCanPlay = () => {
-            video.removeEventListener('canplay', handleCanPlay);
-            resolve();
-          };
-          video.addEventListener('canplay', handleCanPlay);
-          
-          // Timeout after 3s
-          setTimeout(() => {
-            video.removeEventListener('canplay', handleCanPlay);
-            resolve();
-          }, 3000);
-        });
-      }
-      
-      try {
-        // Extract frames based on treatment mode
-        // NEW: Use source range instead of full video
-        // In adjust mode: source range is stretched/compressed to fit output range
-        // In clip mode: source frames map 1:1 to output frames
-        
-        // Use a FIXED number of thumbnails based on source range, not container width
-        // This prevents re-extraction on zoom
-        const maxThumbnails = treatment === 'adjust' 
-          ? Math.min(outputFrameCount, 80) // Fixed max for adjust mode
-          : Math.min(sourceFrameCount, 80); // Fixed max for clip mode
-        
-        const numFrames = Math.max(1, maxThumbnails);
-        
-        // Validate inputs before extraction to prevent NaN/Infinity errors
-        if (numFrames < 1) {
-          console.error('[GuidanceVideoStrip] Invalid numFrames:', numFrames);
-          setIsExtractingFrames(false);
-          return;
-        }
-        
-        if (!effectiveMetadata.total_frames || effectiveMetadata.total_frames < 1) {
-          console.error('[GuidanceVideoStrip] Invalid total_frames:', effectiveMetadata.total_frames);
-          setIsExtractingFrames(false);
-          return;
-        }
-        
-        const timelineFrameCount = fullMax - fullMin;
-        if (!isFinite(timelineFrameCount) || timelineFrameCount < 0) {
-          console.error('[GuidanceVideoStrip] Invalid timelineFrameCount:', { fullMax, fullMin, timelineFrameCount });
-          setIsExtractingFrames(false);
-          return;
-        }
-        
-        const extractedFrames: string[] = [];
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        
-        if (!ctx) {
-          console.error('[GuidanceVideoStrip] Failed to get canvas context');
-          setIsExtractingFrames(false);
-          return;
-        }
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Calculate which frames to extract based on treatment mode
-        // NEW: Use source range instead of full video
-        for (let i = 0; i < numFrames; i++) {
-          let frameIndex: number;
-          
-          // Handle edge case: if only extracting 1 frame, use the first source frame
-          if (numFrames === 1) {
-            frameIndex = effectiveSourceStart;
-          } else if (treatment === 'adjust') {
-            // Adjust mode: sample across entire source range, stretched/compressed to fit output
-            // Maps evenly across sourceStartFrame to sourceEndFrame
-            frameIndex = effectiveSourceStart + Math.floor((i / (numFrames - 1)) * (sourceFrameCount - 1));
-          } else {
-            // Clip mode: 1:1 mapping from source to output
-            // Map thumbnail index to source frame within source range
-            const sourcePosition = (i / (numFrames - 1)) * (sourceFrameCount - 1);
-            frameIndex = effectiveSourceStart + Math.floor(sourcePosition);
-          }
-          
-          // Clamp to valid source range
-          frameIndex = Math.max(effectiveSourceStart, Math.min(frameIndex, effectiveSourceEnd - 1));
-          
-          // Validate frameIndex after calculation
-          if (!isFinite(frameIndex) || frameIndex < 0) {
-            console.error('[GuidanceVideoStrip] Invalid frameIndex calculated:', { 
-              i, 
-              numFrames, 
-              treatment, 
-              timelineFrameCount, 
-              totalFrames: effectiveMetadata.total_frames,
-              frameIndex 
-            });
-            throw new Error(`Invalid frame index calculated: ${frameIndex}`);
-          }
-          
-          // Validate frame_rate to prevent NaN/Infinity errors
-          if (!effectiveMetadata.frame_rate || effectiveMetadata.frame_rate <= 0 || !isFinite(effectiveMetadata.frame_rate)) {
-            console.error('[GuidanceVideoStrip] Invalid frame_rate:', effectiveMetadata.frame_rate);
-            throw new Error(`Invalid video frame rate: ${effectiveMetadata.frame_rate}`);
-          }
-          
-          const timeInSeconds = frameIndex / effectiveMetadata.frame_rate;
-          
-          // Additional safety check for currentTime value
-          if (!isFinite(timeInSeconds) || timeInSeconds < 0) {
-            console.error('[GuidanceVideoStrip] Invalid time value:', { frameIndex, frame_rate: effectiveMetadata.frame_rate, timeInSeconds });
-            throw new Error(`Invalid time value calculated: ${timeInSeconds}`);
-          }
-          
-          // Seek to frame
-          video.currentTime = timeInSeconds;
-          
-          // Wait for seek to complete
-          await new Promise<void>((resolve) => {
-            const handleSeeked = () => {
-              video.removeEventListener('seeked', handleSeeked);
-              resolve();
-            };
-            video.addEventListener('seeked', handleSeeked);
-            
-            // Timeout after 1s
-            setTimeout(() => {
-              video.removeEventListener('seeked', handleSeeked);
-              resolve();
-            }, 1000);
-          });
-          
-          // Draw frame to canvas and convert to data URL
-          ctx.drawImage(video, 0, 0);
-          // Use lower quality (0.6 instead of 0.8) for faster processing
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-          extractedFrames.push(dataUrl);
-        }
-        
-        // Only update if we successfully extracted frames
-        if (extractedFrames.length > 0) {
-          setFrameImages(extractedFrames);
-          setDisplayFrameImages(extractedFrames); // Update display with new frames
-          setIsVideoReady(true);
-        }
-        setIsExtractingFrames(false);
-        console.log('[GuidanceVideoStrip] Frame extraction complete for', treatment, 'mode');
-      } catch (error) {
-        console.error('[GuidanceVideoStrip] Error extracting frames:', error);
-        // Keep existing frames on error, don't clear them
-        setIsExtractingFrames(false);
-      }
-    };
+  // Desktop: click outside to deactivate strip
+  useClickOutside(
+    () => {
+      setIsStripActive(false);
+      setSelectedEndpoint(null);
+    },
+    { enabled: isStripActive && !isTablet, delay: 0 },
+    outerContainerRef as React.RefObject<HTMLDivElement>
+  );
 
-    const handleLoadedMetadata = () => {
-      console.log('[GuidanceVideoStrip] Video metadata loaded');
-      extractFrames();
-    };
+  // iPad: touch outside to deselect endpoint
+  useClickOutside(
+    () => setSelectedEndpoint(null),
+    { events: ['touchstart'], enabled: !!selectedEndpoint && !!enableTapToSelect, delay: 100 },
+    outerContainerRef as React.RefObject<HTMLDivElement>
+  );
 
-    const handleError = (e: Event) => {
-      console.error('[GuidanceVideoStrip] Video load error:', e);
-      setIsVideoReady(false);
-      setIsExtractingFrames(false);
-    };
-
-    if (video.readyState >= 2) {
-      // Video already loaded, extract frames immediately
-      extractFrames();
-    } else {
-      // Wait for video to load
-      video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      video.addEventListener('error', handleError);
-    }
-
-    return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('error', handleError);
-    };
-// Include source/output range in deps so thumbnails update when ranges change
-// BUT skip extraction during drag operations to prevent stuttering
-}, [videoUrl, effectiveMetadata, treatment, effectiveSourceStart, effectiveSourceEnd, effectiveOutputStart, effectiveOutputEnd, outputFrameCount, sourceFrameCount, isDragging]);
-  
-  const isCanvasBlank = useCallback((canvas: HTMLCanvasElement): boolean => {
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx || canvas.width === 0 || canvas.height === 0) return true;
-    
-    // Sample pixels to see if canvas is completely blank (all transparent or all same color)
-    try {
-      const imageData = ctx.getImageData(0, 0, Math.min(20, canvas.width), Math.min(20, canvas.height));
-      const pixels = imageData.data;
-      
-      let transparentCount = 0;
-      let totalPixels = 0;
-      
-      // Count transparent pixels
-      for (let i = 0; i < pixels.length; i += 4) {
-        const a = pixels[i + 3];
-        totalPixels++;
-        if (a === 0) {
-          transparentCount++;
-        }
-      }
-      
-      // If more than 95% of pixels are transparent, consider it blank
-      const transparentRatio = transparentCount / totalPixels;
-      const isBlank = transparentRatio > 0.95;
-      
-      if (isBlank) {
-        console.log('[GuidanceVideoStrip] Canvas detected as blank:', {
-          transparentPixels: transparentCount,
-          totalPixels,
-          ratio: transparentRatio.toFixed(2)
-        });
-      }
-      
-      return isBlank;
-    } catch (error) {
-      console.error('[GuidanceVideoStrip] Error checking canvas blank:', error);
-      return true;
-    }
-  }, []);
-
-  const drawVideoFrame = useCallback((video: HTMLVideoElement, frame: number, forceRetry: boolean = false) => {
-    if (!previewCanvasRef.current) {
-      console.warn('[GuidanceVideoStrip] No canvas ref for frame', frame);
-      return false;
-    }
-    
-    const previewCanvas = previewCanvasRef.current;
-    const previewCtx = previewCanvas.getContext('2d', { willReadFrequently: true });
-    
-    if (!previewCtx) {
-      console.warn('[GuidanceVideoStrip] No canvas context for frame', frame);
-      return false;
-    }
-    
-    if (video.readyState < 2) {
-      console.warn('[GuidanceVideoStrip] Video not ready to draw frame', frame, 'readyState:', video.readyState);
-      return false;
-    }
-    
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      console.warn('[GuidanceVideoStrip] Video has no dimensions for frame', frame);
-      return false;
-    }
-    
-    try {
-      // Set canvas size to match video (only if changed)
-      if (previewCanvas.width !== video.videoWidth || previewCanvas.height !== video.videoHeight) {
-        previewCanvas.width = video.videoWidth;
-        previewCanvas.height = video.videoHeight;
-        console.log('[GuidanceVideoStrip] Set canvas size:', video.videoWidth, 'x', video.videoHeight);
-      }
-      
-      // Clear and draw the current frame
-      previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-      previewCtx.drawImage(video, 0, 0);
-      
-      // Verify the draw succeeded (only check if not forcing retry to avoid infinite loops)
-      if (!forceRetry) {
-        const blank = isCanvasBlank(previewCanvas);
-        if (blank) {
-          console.warn('[GuidanceVideoStrip] Canvas appears blank after draw for frame', frame);
-          // Reset seeking state to allow retry
-          seekingRef.current = false;
-          return false;
-        }
-      }
-      
-      lastDrawnFrameRef.current = frame;
-      console.log('[GuidanceVideoStrip] Successfully drew frame', frame);
-      return true;
-    } catch (error) {
-      console.error('[GuidanceVideoStrip] Error drawing frame', frame, ':', error);
-      // On error, reset seeking state to allow recovery
-      seekingRef.current = false;
-      return false;
-    }
-  }, [isCanvasBlank]);
-
-  const ensureVideoReady = useCallback(async (video: HTMLVideoElement): Promise<boolean> => {
-    // If video is ready, return immediately
-    if (video.readyState >= 2) {
-      console.log('[GuidanceVideoStrip] Video already ready, readyState:', video.readyState);
-      return true;
-    }
-    
-    console.log('[GuidanceVideoStrip] Video not ready (readyState:', video.readyState, '), waiting...');
-    
-    // Wait for video to become ready
-    return new Promise<boolean>((resolve) => {
-      const handleCanPlay = () => {
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('loadeddata', handleCanPlay);
-        video.removeEventListener('canplaythrough', handleCanPlay);
-        console.log('[GuidanceVideoStrip] Video became ready, readyState:', video.readyState);
-        resolve(true);
-      };
-      
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('loadeddata', handleCanPlay);
-      video.addEventListener('canplaythrough', handleCanPlay);
-      
-      // Timeout after 1 second (reduced from 2s)
-      setTimeout(() => {
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('loadeddata', handleCanPlay);
-        video.removeEventListener('canplaythrough', handleCanPlay);
-        
-        // Only log as warning if truly problematic (no metadata)
-        if (video.readyState < 1) {
-          console.warn('[GuidanceVideoStrip] Video timeout with no metadata (readyState:', video.readyState, '), retrying...');
-          video.load(); // Force reload
-          resolve(false);
-        } else {
-          // Has metadata (readyState >= 1), proceed - this is acceptable for slow networks
-          resolve(true);
-        }
-      }, 1000);
-      
-      // Try to trigger load
-      if (video.readyState < 2) {
-        video.load();
-      }
-    });
-  }, []);
-  
-  const seekToFrame = useCallback(async (video: HTMLVideoElement, frame: number, fps: number) => {
-    // Throttle seeks to prevent overwhelming the video
-    const now = Date.now();
-    const timeSinceLastSeek = now - lastSeekTimeRef.current;
-    
-    // If currently seeking or too soon since last seek, queue this frame for later
-    if (seekingRef.current || timeSinceLastSeek < SEEK_THROTTLE_MS) {
-      pendingSeekRef.current = frame;
-      
-      // If not currently seeking but just throttled, schedule the pending seek
-      if (!seekingRef.current) {
-        setTimeout(() => {
-          const pending = pendingSeekRef.current;
-          if (pending !== null && videoRef.current) {
-            pendingSeekRef.current = null;
-            seekToFrame(videoRef.current, pending, fps);
-          }
-        }, SEEK_THROTTLE_MS - timeSinceLastSeek);
-      }
-      return;
-    }
-    
-    seekingRef.current = true;
-    lastSeekTimeRef.current = now;
-    
-    try {
-      // Ensure video is ready for seeking - wait if needed
-      const ready = await ensureVideoReady(video);
-      if (!ready) {
-        console.warn('[GuidanceVideoStrip] Video could not become ready for seeking');
-        return;
-      }
-      
-      const timeInSeconds = frame / fps;
-      
-      // If already at this frame (within small tolerance), just redraw
-      if (Math.abs(video.currentTime - timeInSeconds) < 0.05) {
-        drawVideoFrame(video, frame);
-        return;
-      }
-      
-      // Seek to the frame
-        video.currentTime = timeInSeconds;
-        
-      // Wait for seek complete with increased timeout
-        await new Promise<void>((resolve) => {
-          const handleSeeked = () => {
-          video.removeEventListener('seeked', handleSeeked);
-          
-          console.log('[GuidanceVideoStrip] Seeked event fired for frame', frame, 'at time', video.currentTime);
-          
-          // Draw the frame
-          const success = drawVideoFrame(video, frame);
-          if (!success) {
-            console.warn('[GuidanceVideoStrip] Failed to draw frame', frame, 'after seeked event', {
-              readyState: video.readyState,
-              currentTime: video.currentTime,
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight
-            });
-              } else {
-            console.log('[GuidanceVideoStrip] Successfully drew frame', frame);
-          }
-          
-          resolve();
-        };
-        
-        const handleError = (e: Event) => {
-          video.removeEventListener('error', handleError);
-          console.error('[GuidanceVideoStrip] Video error during seek to frame', frame, e);
-            resolve();
-          };
-          
-        video.addEventListener('seeked', handleSeeked, { once: true });
-        video.addEventListener('error', handleError, { once: true });
-          
-        // Timeout after 500ms (increased from 300ms)
-          setTimeout(() => {
-            video.removeEventListener('seeked', handleSeeked);
-          video.removeEventListener('error', handleError);
-          
-          // Seek timeout - this is normal when scrubbing quickly
-          // Try to draw anyway - video might have seeked without firing event
-          drawVideoFrame(video, frame, true); // Force retry flag (failures are expected and silent)
-          resolve();
-          }, 500);
-        });
-    } catch (error) {
-      console.error('[GuidanceVideoStrip] Seek error:', error);
-    } finally {
-      seekingRef.current = false;
-      
-      // Process pending seek if one was queued
-      const pendingFrame = pendingSeekRef.current;
-      if (pendingFrame !== null && pendingFrame !== frame) {
-        pendingSeekRef.current = null;
-        seekToFrame(video, pendingFrame, fps);
-      }
-    }
-  }, [drawVideoFrame, ensureVideoReady]);
-  
-  const resetSeekingState = useCallback(() => {
-    const now = Date.now();
-    const timeSinceLastReset = now - (lastBlankCheckRef.current || 0);
-    
-    // Prevent rapid-fire resets (must be at least 100ms apart)
-    if (timeSinceLastReset < 100) {
-      console.warn('[GuidanceVideoStrip] Ignoring reset - too soon after last reset (', timeSinceLastReset, 'ms)');
-      return;
-    }
-    
-    seekingRef.current = false;
-    pendingSeekRef.current = null;
-    lastSeekTimeRef.current = 0;
-    lastBlankCheckRef.current = now;
-    
-    // Log stack trace to see what's calling this
-    console.log('[GuidanceVideoStrip] Reset seeking state', new Error().stack);
-  }, []);
-  
+  // Handle mouse move for hover preview
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    // Skip hover preview updates during drag - it's not useful and causes performance issues
     if (isDragging) return;
-    if (!videoRef.current || !isVideoReady) return;
-    
+    if (!isVideoReady) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const cursorX = e.clientX - rect.left;
-    
-    // Update hover position for preview box
-    setHoverPosition({ x: e.clientX, y: e.clientY });
-    
-    // Calculate timeline frame from cursor position
-    // Use the same coordinate system as images/ruler to ensure alignment
+
+    // Calculate timeline frame
     const effectiveWidth = containerWidth - (TIMELINE_PADDING_OFFSET * 2);
     const normalizedX = Math.max(0, Math.min(1, (cursorX - TIMELINE_PADDING_OFFSET) / effectiveWidth));
     const timelineFrame = Math.round(fullMin + (normalizedX * (fullMax - fullMin)));
     setCurrentTimelineFrame(timelineFrame);
-    
-    // Calculate video frame based on treatment mode
+
+    // Calculate video frame
     const videoFrame = treatment === 'adjust'
       ? calculateAdjustModeFrame(cursorX, containerWidth, fullMin, fullMax, effectiveMetadata)
       : calculateClipModeFrame(cursorX, containerWidth, fullMin, fullMax, effectiveMetadata);
-    
-    if (videoFrame !== currentFrame && effectiveMetadata) {
-      setCurrentFrame(videoFrame);
-      
-      // Seek to frame for preview canvas
-      if (videoRef.current) {
-        seekToFrame(videoRef.current, videoFrame, effectiveMetadata.frame_rate);
-      }
-    }
-  }, [treatment, containerWidth, fullMin, fullMax, effectiveMetadata, currentFrame, isVideoReady, seekToFrame, isDragging]);
-  
-  const handleMouseEnter = useCallback(() => {
-    setIsHovering(true);
-    // Don't reset here - causes issues when preview appears/disappears
-  }, []);
-  
-  const handleMouseLeave = useCallback(() => {
-    setIsHovering(false);
-    // Don't reset here - causes issues when preview appears/disappears
-  }, []);
 
-  // Drag handlers for moving/resizing the strip
-  const handleDragStart = useCallback((type: 'move' | 'left' | 'right', e: React.MouseEvent) => {
-    if (readOnly || !onRangeChange) return;
-    e.preventDefault();
-    e.stopPropagation();
+    hoverPreview.updateHoverPosition(e.clientX, e.clientY - 140, videoFrame);
+  }, [treatment, containerWidth, fullMin, fullMax, effectiveMetadata, hoverPreview.updateHoverPosition, isDragging, isVideoReady]);
 
-    setIsDragging(type);
-    dragStartRef.current = {
-      mouseX: e.clientX,
-      startFrame: effectiveOutputStart,
-      endFrame: effectiveOutputEnd,
-    };
-  }, [readOnly, onRangeChange, effectiveOutputStart, effectiveOutputEnd]);
+  // Desktop: click on strip to toggle handles visibility
+  const handleStripClick = useCallback((e: React.MouseEvent) => {
+    if (isTablet) return;
+    if ((e.target as HTMLElement).closest('button, select, [role="listbox"], [data-resize-handle]')) return;
+    setIsStripActive(prev => !prev);
+  }, [isTablet]);
 
   // ===== TABLET TAP-TO-SELECT ENDPOINT HANDLERS =====
-  // On iPad: tap endpoint to select it, then tap timeline to set its position
-  const enableTapToSelect = isTablet && !readOnly && onRangeChange;
-
-  // Handle touch start on resize handles (track position for scroll detection)
   const handleEndpointTouchStart = useCallback((endpoint: 'left' | 'right', e: React.TouchEvent) => {
     if (!enableTapToSelect) return;
     const touch = e.touches[0];
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
   }, [enableTapToSelect]);
 
-  // Handle touch end on resize handles (toggle selection if not scrolling)
   const handleEndpointTouchEnd = useCallback((endpoint: 'left' | 'right', e: React.TouchEvent) => {
     if (!enableTapToSelect || !touchStartPosRef.current) return;
 
@@ -831,20 +279,14 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
     touchStartPosRef.current = null;
 
-    // Ignore if user scrolled
-    if (deltaX > SCROLL_THRESHOLD || deltaY > SCROLL_THRESHOLD) {
-      return;
-    }
+    if (deltaX > SCROLL_THRESHOLD || deltaY > SCROLL_THRESHOLD) return;
 
     e.preventDefault();
     e.stopPropagation();
-
-    // Toggle selection: tap same endpoint again to deselect
     setSelectedEndpoint(prev => prev === endpoint ? null : endpoint);
   }, [enableTapToSelect]);
 
   // Handle tap on strip area to place the selected endpoint
-  // This can be called from the strip itself OR from the full-width overlay
   const handleStripTapToPlace = useCallback((e: React.TouchEvent) => {
     if (!enableTapToSelect || !selectedEndpoint || !outerContainerRef.current || !onRangeChange) return;
 
@@ -853,18 +295,16 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     const tapX = touch.clientX;
 
     const MIN_DURATION_FRAMES = 10;
-    const EDGE_SNAP_THRESHOLD = 5; // frames - only snap to edge if within this many frames
+    const EDGE_SNAP_THRESHOLD = 5;
 
-    // Safety check: if strip width is too small, bail out to avoid division issues
     if (stripWidthPercent < 1) {
-      console.warn('[GuidanceVideoStrip] Strip width too small, ignoring tap-to-place');
       setSelectedEndpoint(null);
       return;
     }
 
-    // Find sibling boundaries (clamped to timeline bounds)
+    // Find sibling boundaries
     let leftLimit = Math.max(0, fullMin);
-    let rightLimit = Math.min(fullMax, fullMax); // Start with fullMax
+    let rightLimit = Math.min(fullMax, fullMax);
     for (const sibling of siblingRanges) {
       if (sibling.end <= effectiveOutputStart && sibling.end > leftLimit) {
         leftLimit = sibling.end;
@@ -874,313 +314,132 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
       }
     }
 
-    // Calculate target frame using full timeline coordinate system
-    // The strip is positioned at stripLeftPercent% with stripWidthPercent% width
-    // Work backwards to find the full timeline dimensions
+    // Calculate target frame
     const fullTimelineWidth = rect.width / (stripWidthPercent / 100);
     const timelineLeft = rect.left - (stripLeftPercent / 100) * fullTimelineWidth;
     const normalizedX = Math.max(0, Math.min(1, (tapX - timelineLeft) / fullTimelineWidth));
     const targetFrame = Math.round(fullMin + normalizedX * fullRange);
 
-    console.log('[GuidanceVideoStrip] Tap-to-place calculation:', {
-      selectedEndpoint,
-      tapX,
-      timelineLeft,
-      fullTimelineWidth,
-      normalizedX,
-      targetFrame,
-      leftLimit,
-      rightLimit,
-      fullMin,
-      fullMax,
-    });
-
     if (selectedEndpoint === 'left') {
-      // Only snap to leftLimit if tap is very close to the edge
       let newStart: number;
       if (targetFrame <= leftLimit + EDGE_SNAP_THRESHOLD) {
-        // Tap is at or near the left edge - snap to limit
-        console.log('[GuidanceVideoStrip] Snapping to left edge (within threshold)');
         newStart = leftLimit;
       } else {
-        // Tap is not near edge - use precise position
         newStart = Math.max(leftLimit, targetFrame);
       }
       newStart = Math.min(newStart, effectiveOutputEnd - MIN_DURATION_FRAMES);
-      // Final safety clamp to timeline bounds
       newStart = Math.max(fullMin, Math.min(newStart, fullMax - MIN_DURATION_FRAMES));
       const finalEnd = Math.min(effectiveOutputEnd, fullMax);
-      console.log('[GuidanceVideoStrip] Tap-to-place left endpoint:', { targetFrame, newStart, finalEnd });
       onRangeChange(newStart, finalEnd);
     } else {
-      // Only snap to rightLimit if tap is very close to the edge
       let newEnd: number;
       if (targetFrame >= rightLimit - EDGE_SNAP_THRESHOLD) {
-        // Tap is at or near the right edge - snap to limit
-        console.log('[GuidanceVideoStrip] Snapping to right edge (within threshold)');
         newEnd = rightLimit;
       } else {
-        // Tap is not near edge - use precise position
         newEnd = Math.min(rightLimit, targetFrame);
       }
       newEnd = Math.max(newEnd, effectiveOutputStart + MIN_DURATION_FRAMES);
-      // Final safety clamp to timeline bounds
       newEnd = Math.min(fullMax, Math.max(newEnd, fullMin + MIN_DURATION_FRAMES));
       const finalStart = Math.max(effectiveOutputStart, fullMin);
-      console.log('[GuidanceVideoStrip] Tap-to-place right endpoint:', { targetFrame, newEnd, finalStart });
       onRangeChange(finalStart, newEnd);
     }
 
-    // Clear selection after placing
     setSelectedEndpoint(null);
   }, [enableTapToSelect, selectedEndpoint, stripLeftPercent, stripWidthPercent, fullMin, fullMax, fullRange, effectiveOutputStart, effectiveOutputEnd, siblingRanges, onRangeChange]);
 
-  // Track touch start for tap detection on strip area
+  // Track touch start for tap detection
   const handleStripTouchStart = useCallback((e: React.TouchEvent) => {
-    console.log('[GuidanceVideoStrip] handleStripTouchStart', { enableTapToSelect, selectedEndpoint });
     if (!enableTapToSelect) return;
     const touch = e.touches[0];
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-  }, [enableTapToSelect, selectedEndpoint]);
+  }, [enableTapToSelect]);
 
   const handleStripTouchEnd = useCallback((e: React.TouchEvent) => {
-    console.log('[GuidanceVideoStrip] handleStripTouchEnd called', {
-      enableTapToSelect,
-      hasTouchStart: !!touchStartPosRef.current,
-      selectedEndpoint,
-    });
-
-    if (!enableTapToSelect || !touchStartPosRef.current) {
-      console.log('[GuidanceVideoStrip] Early return - no enableTapToSelect or touchStart');
-      return;
-    }
+    if (!touchStartPosRef.current) return;
 
     const touch = e.changedTouches[0];
     const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x);
     const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y);
     touchStartPosRef.current = null;
 
-    // Ignore if user scrolled
-    if (deltaX > SCROLL_THRESHOLD || deltaY > SCROLL_THRESHOLD) {
-      console.log('[GuidanceVideoStrip] Ignored - scroll detected', { deltaX, deltaY });
-      return;
-    }
+    if (deltaX > SCROLL_THRESHOLD || deltaY > SCROLL_THRESHOLD) return;
 
-    // Check if tapping on a button or handle
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[data-resize-handle]')) {
-      console.log('[GuidanceVideoStrip] Ignored - tapped on button or handle');
-      return;
-    }
+    if (target.closest('button') || target.closest('[data-resize-handle]')) return;
 
-    // If we have a selected endpoint, place it
-    if (selectedEndpoint) {
-      console.log('[GuidanceVideoStrip] Calling handleStripTapToPlace');
+    // If endpoint selected and strip active, place it
+    if (selectedEndpoint && isStripActive && enableTapToSelect) {
       handleStripTapToPlace(e);
       return;
     }
 
-    console.log('[GuidanceVideoStrip] No selected endpoint');
-  }, [enableTapToSelect, selectedEndpoint, handleStripTapToPlace]);
+    // Double-tap detection for iPad
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapTimeRef.current;
+    lastTapTimeRef.current = now;
 
-  // Handle drag move and end via document events
-  useEffect(() => {
-    if (!isDragging || !dragStartRef.current || !onRangeChange) return;
+    if (timeSinceLastTap < DOUBLE_TAP_DELAY && isTablet) {
+      e.preventDefault();
+      setIsStripActive(prev => !prev);
+      tapPreview.hide();
+      setSelectedEndpoint(null);
+    } else if (isTablet && !isStripActive) {
+      // Single tap - show frame preview
+      e.preventDefault();
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!dragStartRef.current) return;
-      
-      // Use containerWidth prop (adjusted for zoom) for reliable frame calculations
-      // This is the same width used for positioning, so drag movement will match
-      const effectiveWidth = (containerWidth * (zoomLevel > 1 ? zoomLevel : 1)) - (TIMELINE_PADDING_OFFSET * 2);
-      if (effectiveWidth <= 0) return; // Safety check
-      
-      const pixelDelta = e.clientX - dragStartRef.current.mouseX;
-      const frameDelta = Math.round((pixelDelta / effectiveWidth) * fullRange);
-      
-      const { startFrame, endFrame } = dragStartRef.current;
-      const duration = endFrame - startFrame;
-      
-      let newStart = startFrame;
-      let newEnd = endFrame;
-      const MIN_DURATION_FRAMES = 10;
-      
-      if (isDragging === 'move') {
-        // Generalized "drag into obstacle reduces the side you hit" rule.
-        //
-        // Phase 1: Normal translation until we hit an obstacle (wall or sibling)
-        // Phase 2: The non-contact side STAYS FIXED (where it was at first contact),
-        //          the contact side REDUCES (moves inward, away from obstacle)
-        //
-        // Example: Clip at 0-90, wall at 90, push 5 frames into wall
-        //   → start stays at 0 (fixed at contact position)
-        //   → end reduces from 90 to 85 (moves away from wall)
-        //   → Clip shrinks from the RIGHT side (the side you dragged into)
-        
-        // Find obstacle limits
-        const prevNeighborEnd = Math.max(
-          0,
-          ...siblingRanges
-            .filter((s) => s.end <= startFrame)
-            .map((s) => s.end)
-        );
-        const nextNeighborStart = Math.min(
-          fullMax,
-          ...siblingRanges
-            .filter((s) => s.start >= endFrame)
-            .map((s) => s.start)
-        );
+      const rect = stripContainerRef.current?.getBoundingClientRect();
+      if (rect && effectiveMetadata) {
+        const cursorX = touch.clientX - rect.left;
+        const videoFrame = treatment === 'adjust'
+          ? calculateAdjustModeFrame(cursorX, containerWidth, fullMin, fullMax, effectiveMetadata)
+          : calculateClipModeFrame(cursorX, containerWidth, fullMin, fullMax, effectiveMetadata);
 
-        const startLimit = Math.max(0, prevNeighborEnd);
-        const endLimit = Math.min(fullMax, nextNeighborStart);
+        const effectiveWidth = containerWidth - (TIMELINE_PADDING_OFFSET * 2);
+        const normalizedX = Math.max(0, Math.min(1, (cursorX - TIMELINE_PADDING_OFFSET) / effectiveWidth));
+        const timelineFrame = Math.round(fullMin + (normalizedX * (fullMax - fullMin)));
 
-        if (frameDelta >= 0) {
-          // Dragging RIGHT
-          const maxTranslateDelta = endLimit - endFrame; // furthest we can translate right
-
-          if (frameDelta <= maxTranslateDelta) {
-            // Phase 1: pure translate (no obstacle hit yet)
-            newStart = startFrame + frameDelta;
-            newEnd = endFrame + frameDelta;
-          } else {
-            // Phase 2: hit right obstacle
-            // - End stays PINNED at the wall
-            // - Start keeps moving right at the drag rate
-            // This shrinks the clip proportionally to how far you drag
-            newEnd = endLimit; // pinned at wall
-            newStart = startFrame + frameDelta; // keeps moving at drag rate
-            
-            // Cap start so we maintain minimum duration
-            if (newStart > newEnd - MIN_DURATION_FRAMES) {
-              newStart = newEnd - MIN_DURATION_FRAMES;
-            }
-          }
-        } else {
-          // Dragging LEFT
-          const minTranslateDelta = startLimit - startFrame; // most negative delta
-
-          if (frameDelta >= minTranslateDelta) {
-            // Phase 1: pure translate (no obstacle hit yet)
-            newStart = startFrame + frameDelta;
-            newEnd = endFrame + frameDelta;
-          } else {
-            // Phase 2: hit left obstacle
-            // - Start stays PINNED at the wall (0 or sibling end)
-            // - End keeps moving left at the drag rate
-            // This shrinks the clip proportionally to how far you drag
-            newStart = startLimit; // pinned at wall
-            newEnd = endFrame + frameDelta; // keeps moving at drag rate
-            
-            // Cap end so we maintain minimum duration
-            if (newEnd < newStart + MIN_DURATION_FRAMES) {
-              newEnd = newStart + MIN_DURATION_FRAMES;
-            }
-          }
-        }
-
-        // Clamp to limits
-        newStart = Math.max(startLimit, newStart);
-        newEnd = Math.min(endLimit, newEnd);
-      } else if (isDragging === 'left') {
-        // Resize from left - change start, keep end fixed
-        newStart = Math.max(0, Math.min(endFrame - MIN_DURATION_FRAMES, startFrame + frameDelta)); // Min duration
-        newEnd = endFrame;
-        
-        // Collision detection - can't resize past a sibling's end
-        for (const sibling of siblingRanges) {
-          if (sibling.end <= newEnd && newStart < sibling.end) {
-            newStart = sibling.end;
-          }
-        }
-      } else if (isDragging === 'right') {
-        // Resize from right - keep start, change end
-        newStart = startFrame;
-        newEnd = Math.max(startFrame + MIN_DURATION_FRAMES, endFrame + frameDelta); // Min duration
-        
-        // Collision detection - can't resize past a sibling's start
-        for (const sibling of siblingRanges) {
-          if (sibling.start >= newStart && newEnd > sibling.start) {
-            newEnd = sibling.start;
-          }
-        }
+        setCurrentTimelineFrame(timelineFrame);
+        hoverPreview.updateHoverPosition(touch.clientX, touch.clientY - 140, videoFrame);
+        tapPreview.show();
       }
-      
-      // Clamp to timeline boundaries for resize operations
-      if (newEnd > fullMax) {
-        newEnd = fullMax;
-      }
-      if (newStart < fullMin) {
-        newStart = fullMin;
-      }
-      
-      // Ensure minimum duration
-      if (newEnd - newStart < MIN_DURATION_FRAMES) {
-        if (isDragging === 'left') {
-          newStart = newEnd - MIN_DURATION_FRAMES;
-        } else if (isDragging === 'right') {
-          newEnd = newStart + MIN_DURATION_FRAMES;
-        }
-      }
-      
-      // Update local preview state only - don't save to database during drag
-      setDragPreviewRange({ start: newStart, end: newEnd });
-    };
-
-    const handleMouseUp = () => {
-      // Commit the final range to parent (saves to database)
-      if (dragPreviewRange) {
-        const newDuration = dragPreviewRange.end - dragPreviewRange.start;
-        const videoFrames = effectiveMetadata?.total_frames || 0;
-        
-        // Auto-switch to "Fit to range" if dragging made range longer than video in 1:1 mode
-        if (treatment === 'clip' && videoFrames > 0 && newDuration > videoFrames) {
-          onTreatmentChange('adjust');
-        }
-        
-        onRangeChange(dragPreviewRange.start, dragPreviewRange.end);
-      }
-      setIsDragging(null);
-      setDragPreviewRange(null);
-      dragStartRef.current = null;
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, onRangeChange, fullRange, fullMax, dragPreviewRange, containerWidth, zoomLevel, siblingRanges, treatment, effectiveMetadata, onTreatmentChange]);
+    }
+  }, [enableTapToSelect, selectedEndpoint, handleStripTapToPlace, isTablet, isStripActive, treatment, containerWidth, fullMin, fullMax, effectiveMetadata, hoverPreview.updateHoverPosition, tapPreview.show, tapPreview.hide]);
 
   // Close hover state when treatment changes
   useEffect(() => {
-    setIsHovering(false);
+    hoverPreview.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hoverPreview.reset is stable (useCallback)
   }, [treatment]);
-  
+
+  // Show tap-to-place hint when endpoint is selected
+  useEffect(() => {
+    if (selectedEndpoint && enableTapToSelect) {
+      tapToPlaceHint.show();
+    } else {
+      tapToPlaceHint.hide();
+    }
+  }, [selectedEndpoint, enableTapToSelect, tapToPlaceHint]);
+
   return (
     <div className={useAbsolutePosition ? 'contents' : 'w-full relative'}>
-      {/* Floating preview box above video strip and header - rendered via portal to document.body */}
-      {/* Canvas always mounted but only visible when hovering */}
+      {/* Floating preview box - rendered via portal */}
       {createPortal(
-        <div 
+        <div
           className="fixed pointer-events-none"
           style={{
-            left: `${hoverPosition.x}px`,
-            top: `${hoverPosition.y - 140}px`, // Position above cursor (adjusted for frame label)
+            left: `${hoverPreview.hoverPosition.x}px`,
+            top: `${hoverPreview.hoverPosition.y}px`,
             transform: 'translateX(-50%)',
-            zIndex: 999999, // Above GlobalHeader and all other elements
-            display: isHovering && isVideoReady && !isDragging ? 'block' : 'none'
+            zIndex: 999999,
+            display: (hoverPreview.isHovering || tapPreview.isVisible) && isVideoReady && !isDragging ? 'block' : 'none'
           }}
         >
           <div className="bg-background border-2 border-primary rounded-lg shadow-2xl overflow-hidden">
-            {/* Preview frame - always mounted so ref is always valid */}
             <canvas
-              ref={previewCanvasRef}
+              ref={hoverPreview.canvasRef}
               className="w-32 h-auto block"
               style={{ imageRendering: 'auto' }}
             />
-            {/* Timeline frame number label */}
             <div className="px-2 py-1 bg-background/95 border-t border-primary/40">
               <span className="text-[10px] font-medium text-foreground">
                 Frame {currentTimelineFrame}
@@ -1191,26 +450,22 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
         document.body
       )}
 
-      {/* Structure video strip - outer container with positioning for multi-video support */}
+      {/* Structure video strip - outer container */}
       <div
         ref={outerContainerRef}
         className={`${useAbsolutePosition ? 'absolute' : 'relative'} h-20 ${useAbsolutePosition ? '' : '-mt-1 mb-3'} group ${isDragging ? 'select-none' : ''}`}
         data-tour="structure-video"
         style={{
-          // Position strip at its output range on timeline
-          // Use absolute positioning when in multi-video mode, otherwise use margins
           ...(useAbsolutePosition ? {
-            // Absolute positioning: use percentages of containerWidth (same as SegmentOutputStrip)
             left: `${stripLeftPercent}%`,
             width: `${stripWidthPercent}%`,
             top: 0,
             bottom: 0,
           } : {
-            // Relative positioning (legacy): use margin/width with padding
-            width: outputStartFrame !== undefined 
+            width: outputStartFrame !== undefined
               ? `${legacyWidthPercent * (zoomLevel > 1 ? zoomLevel : 1)}%`
               : (zoomLevel > 1 ? `${zoomLevel * 100}%` : '100%'),
-            marginLeft: outputStartFrame !== undefined 
+            marginLeft: outputStartFrame !== undefined
               ? `${legacyPositionPercent}%`
               : 0,
             minWidth: outputStartFrame !== undefined ? 0 : '100%',
@@ -1221,14 +476,11 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
           cursor: isDragging === 'move' ? 'grabbing' : undefined,
         }}
       >
-        {/* Full-width tap overlay when endpoint is selected (for extending the strip) */}
-        {selectedEndpoint && enableTapToSelect && useAbsolutePosition && (
+        {/* Full-width tap overlay when endpoint is selected */}
+        {selectedEndpoint && enableTapToSelect && useAbsolutePosition && isStripActive && (
           <div
             className="absolute top-0 bottom-0 z-20 cursor-crosshair"
             style={{
-              // Extend to cover the full timeline width by going beyond strip bounds
-              // Strip is at stripLeftPercent%, width stripWidthPercent%
-              // To cover 0% to 100%, calculate the offset from current strip position
               left: `${(-stripLeftPercent / stripWidthPercent) * 100}%`,
               right: `${(-(100 - stripLeftPercent - stripWidthPercent) / stripWidthPercent) * 100}%`,
             }}
@@ -1237,84 +489,59 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
           />
         )}
 
-        {/* Left resize handle */}
+        {/* Resize handles */}
         {!readOnly && onRangeChange && (
-          <div
-            data-resize-handle="left"
-            className={`absolute left-0 top-0 bottom-0 w-6 cursor-ew-resize z-40 flex items-center justify-center transition-opacity ${
-              selectedEndpoint === 'left' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-            }`}
-            onMouseDown={(e) => handleDragStart('left', e)}
-            onTouchStart={(e) => handleEndpointTouchStart('left', e)}
-            onTouchEnd={(e) => handleEndpointTouchEnd('left', e)}
-            style={{ marginLeft: useAbsolutePosition ? '0px' : `${TIMELINE_HORIZONTAL_PADDING - 6}px` }}
-          >
-            <div className={`w-1.5 h-14 rounded-full transition-all ${
-              selectedEndpoint === 'left'
-                ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.3)]'
-                : 'bg-primary/60 hover:bg-primary'
-            }`} />
-          </div>
+          <>
+            <TimelineResizeHandle
+              side="left"
+              isActive={isStripActive || selectedEndpoint === 'left'}
+              isSelected={selectedEndpoint === 'left'}
+              showHint={!!enableTapToSelect && tapToPlaceHint.isVisible}
+              margin={useAbsolutePosition ? '0px' : `${TIMELINE_HORIZONTAL_PADDING}px`}
+              onMouseDown={(e) => handleDragStart('left', e)}
+              onTouchStart={(e) => handleEndpointTouchStart('left', e)}
+              onTouchEnd={(e) => handleEndpointTouchEnd('left', e)}
+            />
+            <TimelineResizeHandle
+              side="right"
+              isActive={isStripActive || selectedEndpoint === 'right'}
+              isSelected={selectedEndpoint === 'right'}
+              showHint={!!enableTapToSelect && tapToPlaceHint.isVisible}
+              margin={useAbsolutePosition ? '0px' : `${TIMELINE_HORIZONTAL_PADDING}px`}
+              onMouseDown={(e) => handleDragStart('right', e)}
+              onTouchStart={(e) => handleEndpointTouchStart('right', e)}
+              onTouchEnd={(e) => handleEndpointTouchEnd('right', e)}
+            />
+          </>
         )}
 
-        {/* Right resize handle */}
-        {!readOnly && onRangeChange && (
-          <div
-            data-resize-handle="right"
-            className={`absolute right-0 top-0 bottom-0 w-6 cursor-ew-resize z-40 flex items-center justify-center transition-opacity ${
-              selectedEndpoint === 'right' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-            }`}
-            onMouseDown={(e) => handleDragStart('right', e)}
-            onTouchStart={(e) => handleEndpointTouchStart('right', e)}
-            onTouchEnd={(e) => handleEndpointTouchEnd('right', e)}
-            style={{ marginRight: useAbsolutePosition ? '0px' : `${TIMELINE_HORIZONTAL_PADDING - 6}px` }}
-          >
-            <div className={`w-1.5 h-14 rounded-full transition-all ${
-              selectedEndpoint === 'right'
-                ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.3)]'
-                : 'bg-primary/60 hover:bg-primary'
-            }`} />
-          </div>
-        )}
-
-        {/* Tap-to-place hint for selected endpoint (iPad only) */}
-        {selectedEndpoint && enableTapToSelect && (
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full z-50 pointer-events-none">
-            <div className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-medium shadow-md whitespace-nowrap mb-1">
-              Tap to set {selectedEndpoint} edge
-            </div>
-          </div>
-        )}
-        {/* Inner container for video content - shortened in clip mode when source < output */}
+        {/* Inner container for video content */}
         <div
           ref={stripContainerRef}
           className="absolute left-0 top-0 bottom-0"
           style={{
-            // In clip mode with source shorter than output, shrink to show "no guidance" zone
             width: treatment === 'clip' && sourceFrameCount < outputFrameCount
               ? `${videoCoverageRatio * 100}%`
               : '100%',
-            // No internal padding for absolute positioning (edge-to-edge videos)
             paddingLeft: useAbsolutePosition ? '0px' : `${TIMELINE_HORIZONTAL_PADDING}px`,
             paddingRight: useAbsolutePosition ? '0px' : `${TIMELINE_HORIZONTAL_PADDING}px`,
           }}
           onMouseMove={handleMouseMove}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={hoverPreview.handleMouseEnter}
+          onMouseLeave={hoverPreview.handleMouseLeave}
         >
-        {/* Hidden video element for frame extraction and preview */}
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          preload="auto"
-          className="hidden"
-          crossOrigin="anonymous"
-          muted
-          playsInline
-        />
-        
+          {/* Hidden video element for frame extraction */}
+          <video
+            ref={hoverPreview.videoRef}
+            src={videoUrl}
+            preload="auto"
+            className="hidden"
+            crossOrigin="anonymous"
+            muted
+            playsInline
+          />
 
-          {/* Delete button - top right (hidden in readOnly) */}
+          {/* Delete button */}
           {!readOnly && (
             <Button
               variant="destructive"
@@ -1335,66 +562,70 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
             </Button>
           )}
 
-          {/* Frame strip - showing frames side by side with padding to align with timeline */}
-        {displayFrameImages.length > 0 ? (
-          <div
-            className={`absolute top-5 bottom-1 flex border-2 rounded overflow-hidden shadow-md ${
-              isDragging === 'move' ? 'border-primary cursor-grabbing' : 'border-primary/40 cursor-grab'
-            } ${!readOnly && onRangeChange ? 'hover:border-primary/70' : ''} ${selectedEndpoint ? 'cursor-crosshair' : ''}`}
-            style={{
-              left: useAbsolutePosition ? '2px' : '16px',
-              right: useAbsolutePosition ? '2px' : '16px',
-            }}
-            onMouseDown={(e) => {
-              // Only start move drag if not clicking on controls
-              if ((e.target as HTMLElement).closest('button, select, [role="listbox"]')) return;
-              handleDragStart('move', e);
-            }}
-            onTouchStart={handleStripTouchStart}
-            onTouchEnd={handleStripTouchEnd}
-          >
-            {/* Blur overlay when extracting new frames - only show if strip is wide enough and NOT dragging */}
-            {isExtractingFrames && !isDragging && videoCoverageRatio > 0.3 && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-sm z-10">
-                <span className="text-xs font-medium text-foreground bg-background/90 px-3 py-1.5 rounded-md border shadow-sm">
-                  Loading updated timeline...
-                </span>
-              </div>
-            )}
-            
-            {/* Frame images */}
-            {displayFrameImages.map((frameUrl, index) => (
-              <img
-                key={index}
-                src={frameUrl}
-                alt={`Frame ${index}`}
-                className="h-full object-cover flex-1 border-l border-r border-border/20"
-                style={{ minWidth: 0 }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div
-            className={`absolute top-5 bottom-1 flex items-center justify-center bg-muted/50 dark:bg-muted-foreground/15 border rounded-sm ${
-              !readOnly && onRangeChange ? 'cursor-grab hover:border-primary/50' : 'border-border/30'
-            } ${selectedEndpoint ? 'cursor-crosshair' : ''}`}
-            style={{
-              left: useAbsolutePosition ? '2px' : '16px',
-              right: useAbsolutePosition ? '2px' : '16px',
-            }}
-            onMouseDown={(e) => handleDragStart('move', e)}
-            onTouchStart={handleStripTouchStart}
-            onTouchEnd={handleStripTouchEnd}
-          >
-            <span className="text-xs text-muted-foreground font-medium">
-              {isVideoReady ? 'Loading frames...' : 'Loading video...'}
-            </span>
-          </div>
-        )}
+          {/* Frame strip */}
+          {displayFrameImages.length > 0 ? (
+            <div
+              className={`absolute top-5 bottom-1 flex border-2 rounded overflow-hidden shadow-md ${
+                isDragging === 'move' ? 'border-primary cursor-grabbing' : isStripActive ? 'border-primary cursor-grab' : 'border-primary/40 cursor-pointer'
+              } ${!readOnly && onRangeChange && !isStripActive ? 'hover:border-primary/60' : ''} ${selectedEndpoint ? 'cursor-crosshair' : ''}`}
+              style={{
+                left: useAbsolutePosition ? '2px' : '16px',
+                right: useAbsolutePosition ? '2px' : '16px',
+              }}
+              onClick={handleStripClick}
+              onMouseDown={(e) => {
+                if ((e.target as HTMLElement).closest('button, select, [role="listbox"]')) return;
+                if (!isStripActive) return;
+                handleDragStart('move', e);
+              }}
+              onTouchStart={handleStripTouchStart}
+              onTouchEnd={handleStripTouchEnd}
+            >
+              {/* Loading overlay */}
+              {isExtractingFrames && !isDragging && videoCoverageRatio > 0.3 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-sm z-10">
+                  <span className="text-xs font-medium text-foreground bg-background/90 px-3 py-1.5 rounded-md border shadow-sm">
+                    Loading updated timeline...
+                  </span>
+                </div>
+              )}
+
+              {/* Frame images */}
+              {displayFrameImages.map((frameUrl, index) => (
+                <img
+                  key={index}
+                  src={frameUrl}
+                  alt={`Frame ${index}`}
+                  className="h-full object-cover flex-1 border-l border-r border-border/20"
+                  style={{ minWidth: 0 }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              className={`absolute top-5 bottom-1 flex items-center justify-center bg-muted/50 dark:bg-muted-foreground/15 border rounded-sm ${
+                !readOnly && onRangeChange ? (isStripActive ? 'cursor-grab border-primary/50' : 'cursor-pointer hover:border-primary/40') : 'border-border/30'
+              } ${selectedEndpoint ? 'cursor-crosshair' : ''}`}
+              style={{
+                left: useAbsolutePosition ? '2px' : '16px',
+                right: useAbsolutePosition ? '2px' : '16px',
+              }}
+              onClick={handleStripClick}
+              onMouseDown={(e) => {
+                if (!isStripActive) return;
+                handleDragStart('move', e);
+              }}
+              onTouchStart={handleStripTouchStart}
+              onTouchEnd={handleStripTouchEnd}
+            >
+              <span className="text-xs text-muted-foreground font-medium">
+                {isVideoReady ? 'Loading frames...' : 'Loading video...'}
+              </span>
+            </div>
+          )}
         </div>
-        {/* End inner container */}
-        
-        {/* Frame range indicator - bottom of strip */}
+
+        {/* Frame range indicator */}
         {outputStartFrame !== undefined && !readOnly && (
           <div
             className="absolute bottom-0 z-50 flex justify-between items-center text-[9px] text-muted-foreground font-mono"
@@ -1405,15 +636,13 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
           >
             <div className="flex items-center gap-1">
               <span className={`px-1 rounded bg-background/80 pointer-events-none ${isDragging ? 'ring-1 ring-primary' : ''}`}>f{displayOutputStart}</span>
-              {/* Treatment selector - inline with frame count */}
+              {/* Treatment selector */}
               <Select value={treatment} onValueChange={(newTreatment: 'adjust' | 'clip') => {
-                // When switching to 1:1 mapping, shrink range to match video duration
                 if (newTreatment === 'clip' && onRangeChange) {
                   const videoFrames = effectiveMetadata?.total_frames || 0;
                   const currentDuration = displayOutputEnd - displayOutputStart;
-                  
+
                   if (videoFrames > 0 && currentDuration > videoFrames) {
-                    // Shrink the end to match video duration
                     onRangeChange(displayOutputStart, displayOutputStart + videoFrames);
                   }
                 }
@@ -1447,10 +676,8 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
             <span className={`px-1 rounded bg-background/80 pointer-events-none ${isDragging ? 'ring-1 ring-primary' : ''}`}>f{displayOutputEnd}</span>
           </div>
         )}
-        
+
       </div>
-      {/* End outer container */}
     </div>
   );
 };
-

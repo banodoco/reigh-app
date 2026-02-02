@@ -19,7 +19,8 @@ export const ASPECT_RATIO_TO_RESOLUTION: { [key: string]: string } = {
  * @param ratioStr The aspect ratio string (e.g., "16:9").
  * @returns The numerical ratio, or NaN if the format is invalid.
  */
-export const parseRatio = (ratioStr: string): number => {
+export const parseRatio = (ratioStr: string | undefined | null): number => {
+  if (!ratioStr) return NaN;
   if (ratioStr === 'Square') return 1;
   const parts = ratioStr.split(':');
   if (parts.length === 2) {

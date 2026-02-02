@@ -764,7 +764,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     setActiveVariantId: variants.setActiveVariantId,
     setPrimaryVariant: variants.setPrimaryVariant,
     deleteVariant: variants.deleteVariant,
-    onLoadVariantSettings: undefined, // TODO: Implement loading variant params into edit form
+    onLoadVariantSettings: setVariantParamsToLoad,
     promoteSuccess: variants.promoteSuccess,
     isPromoting: variants.isPromoting,
     handlePromoteToGeneration: variants.handlePromoteToGeneration,
