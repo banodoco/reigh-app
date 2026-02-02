@@ -27,6 +27,7 @@ import {
   ReferenceMode,
   ProjectImageSettings,
   getReferenceModeDefaults,
+  HiresFixConfig,
 } from '../types';
 
 // ============================================================================
@@ -49,10 +50,10 @@ export interface UseReferenceManagementProps {
   // Optional: shot settings for shot-level reference selection
   associatedShotId: string | null;
   shotPromptSettings?: {
-    updateField: (field: string, value: any) => void;
+    updateField: <T>(field: string, value: T) => void;
   };
   // Callback when hires fix config should be updated (for mode changes)
-  setHiresFixConfig?: React.Dispatch<React.SetStateAction<any>>;
+  setHiresFixConfig?: React.Dispatch<React.SetStateAction<Partial<HiresFixConfig>>>;
 }
 
 export interface UseReferenceManagementReturn {
@@ -416,12 +417,12 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
       // Optimistic UI updates
       try {
-        queryClient.setQueryData(['resources', 'style-reference'], (prev: any) => {
+        queryClient.setQueryData(['resources', 'style-reference'], (prev: Resource[] | undefined) => {
           const prevResources = prev || [];
           return [...prevResources, resource];
         });
 
-        queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: any) =>
+        queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: unknown) =>
           updateSettingsCache<ProjectImageSettings>(prev, (prevSettings) => ({
             references: [...(prevSettings?.references || []), newPointer],
             selectedReferenceIdByShot: {
@@ -489,7 +490,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
         };
 
         try {
-          queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: any) =>
+          queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: unknown) =>
             updateSettingsCache<ProjectImageSettings>(prev, { selectedReferenceIdByShot: optimisticUpdate })
           );
         } catch (e) {
@@ -526,7 +527,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
       // Optimistic UI update
       try {
-        queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: any) =>
+        queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: unknown) =>
           updateSettingsCache<ProjectImageSettings>(prev, (prevSettings) => ({
             references: [...(prevSettings?.references || []), newPointer],
             selectedReferenceIdByShot: {
@@ -588,7 +589,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
     };
 
     try {
-      queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: any) =>
+      queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: unknown) =>
         updateSettingsCache<ProjectImageSettings>(prev, { selectedReferenceIdByShot: optimisticUpdate })
       );
     } catch (e) {
@@ -638,7 +639,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
     // Optimistic UI update
     try {
-      queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: any) =>
+      queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: unknown) =>
         updateSettingsCache<ProjectImageSettings>(prev, {
           references: filteredPointers,
           selectedReferenceIdByShot: updatedSelections
@@ -849,7 +850,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
     // Set denoise to 0.5 for Subject and Scene modes
     if ((mode === 'subject' || mode === 'scene') && setHiresFixConfig) {
-      setHiresFixConfig((prev: any) => ({ ...prev, hires_denoise: 0.5 }));
+      setHiresFixConfig((prev) => ({ ...prev, hires_denoise: 0.5 }));
     }
 
     await handleUpdateReference(selectedReferenceId, updates);

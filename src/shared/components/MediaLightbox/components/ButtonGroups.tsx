@@ -7,66 +7,41 @@ import {
   CheckCircle,
   Loader2,
   ImagePlus,
-  ArrowUpCircle,
   Trash2,
   Film,
   ArrowRight,
 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import {
+  useLightboxCoreSafe,
+  useLightboxMediaSafe,
+} from '../contexts/LightboxStateContext';
+import { useImageEditSafe } from '../contexts/ImageEditContext';
 
 // ============================================================================
-// SHARED TYPES
+// TOP RIGHT CONTROLS - Download & Delete
 // ============================================================================
 
-interface BaseButtonGroupProps {
-  isVideo: boolean;
-  readOnly: boolean;
-  isSpecialEditMode: boolean;
-  selectedProjectId: string | undefined;
-  isCloudMode: boolean;
-  mediaId?: string;
-}
-
-// ============================================================================
-// TOP LEFT CONTROLS - Edit Button
-// ============================================================================
-
-interface TopLeftControlsProps extends BaseButtonGroupProps {
-  handleEnterMagicEditMode?: () => void;
-}
-
-export const TopLeftControls: React.FC<TopLeftControlsProps> = () => {
-  // Edit button removed - no longer shown in top left
-  return null;
-};
-
-// ============================================================================
-// TOP RIGHT CONTROLS - Download & Delete (no Save - Save is top-left)
-// ============================================================================
-
-interface TopRightControlsProps extends BaseButtonGroupProps {
+interface TopRightControlsProps {
   showDownload: boolean;
   handleDownload: () => Promise<void>;
   isDownloading?: boolean;
   onDelete?: (id: string) => void;
   handleDelete?: () => void;
   isDeleting?: string | null;
-  onClose: () => void;
 }
 
 export const TopRightControls: React.FC<TopRightControlsProps> = ({
-  isVideo,
-  readOnly,
-  isSpecialEditMode,
   showDownload,
   handleDownload,
   isDownloading,
   onDelete,
   handleDelete,
   isDeleting,
-  mediaId,
-  onClose,
 }) => {
+  // Get shared state from context
+  const { readOnly, actualGenerationId } = useLightboxCoreSafe();
+  const { isVideo } = useLightboxMediaSafe();
+
   return (
     <div className="absolute top-4 right-4 flex items-center space-x-2 z-[70]">
       {/* Download Button - Keep visible in edit mode */}
@@ -107,10 +82,10 @@ export const TopRightControls: React.FC<TopRightControlsProps> = ({
                 e.stopPropagation();
                 handleDelete();
               }}
-              disabled={isDeleting === mediaId}
+              disabled={isDeleting === actualGenerationId}
               className="bg-red-600/80 hover:bg-red-600 text-white"
             >
-              {isDeleting === mediaId ? (
+              {isDeleting === actualGenerationId ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Trash2 className="h-4 w-4" />
@@ -120,35 +95,27 @@ export const TopRightControls: React.FC<TopRightControlsProps> = ({
           <TooltipContent className="z-[100001]">Delete from timeline</TooltipContent>
         </Tooltip>
       )}
-
     </div>
   );
 };
 
 // ============================================================================
-// BOTTOM LEFT CONTROLS - Upscale Only (Edit moved to top-left)
+// BOTTOM LEFT CONTROLS - Star button
 // ============================================================================
 
-interface BottomLeftControlsProps extends BaseButtonGroupProps {
-  handleEnterMagicEditMode: () => void; // Kept for backwards compatibility, but not used here
-  isUpscaling: boolean;
-  isPendingUpscale: boolean;
-  hasUpscaledVersion: boolean;
-  showingUpscaled: boolean; // Kept for API compatibility, but not used
-  handleUpscale: () => Promise<void>;
-  handleToggleUpscaled: () => void; // Kept for API compatibility, but not used
-}
-
-export const BottomLeftControls: React.FC<BottomLeftControlsProps & {
+interface BottomLeftControlsProps {
   localStarred?: boolean;
   handleToggleStar?: () => void;
   toggleStarPending?: boolean;
-}> = ({
-  readOnly,
+}
+
+export const BottomLeftControls: React.FC<BottomLeftControlsProps> = ({
   localStarred,
   handleToggleStar,
   toggleStarPending,
 }) => {
+  const { readOnly } = useLightboxCoreSafe();
+
   // Star button in bottom left
   if (readOnly || !handleToggleStar) return null;
 
@@ -168,10 +135,10 @@ export const BottomLeftControls: React.FC<BottomLeftControlsProps & {
 };
 
 // ============================================================================
-// BOTTOM RIGHT CONTROLS - Star & Add to References
+// BOTTOM RIGHT CONTROLS - Add to References / Add to Join Clips
 // ============================================================================
 
-interface BottomRightControlsProps extends BaseButtonGroupProps {
+interface BottomRightControlsProps {
   localStarred: boolean;
   handleToggleStar: () => void;
   toggleStarPending?: boolean;
@@ -186,13 +153,6 @@ interface BottomRightControlsProps extends BaseButtonGroupProps {
 }
 
 export const BottomRightControls: React.FC<BottomRightControlsProps> = ({
-  isVideo,
-  readOnly,
-  isSpecialEditMode,
-  selectedProjectId,
-  localStarred,
-  handleToggleStar,
-  toggleStarPending,
   isAddingToReferences,
   addToReferencesSuccess,
   handleAddToReferences,
@@ -201,6 +161,10 @@ export const BottomRightControls: React.FC<BottomRightControlsProps> = ({
   addToJoinSuccess,
   onGoToJoin,
 }) => {
+  // Get shared state from context
+  const { readOnly, selectedProjectId } = useLightboxCoreSafe();
+  const { isVideo } = useLightboxMediaSafe();
+
   // Keep visible in edit mode - users can add to references while editing
   return (
     <div className="absolute bottom-4 right-4 flex items-center space-x-2 z-10">
@@ -266,4 +230,3 @@ export const BottomRightControls: React.FC<BottomRightControlsProps> = ({
     </div>
   );
 };
-

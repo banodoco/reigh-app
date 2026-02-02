@@ -254,24 +254,14 @@ export function useLightboxLayoutProps(
   input: UseLightboxLayoutPropsInput
 ): UseLightboxLayoutPropsReturn {
   // Build ControlsPanel props (used by DesktopSidePanelLayout and MobileStackedLayout)
+  // SIGNIFICANTLY REDUCED after context migration - child components now read from context
   const controlsPanelProps = useMemo(() => ({
-    isInVideoEditMode: input.isInVideoEditMode,
-    isSpecialEditMode: input.isSpecialEditMode,
-    // VideoEditPanel props
-    videoEditSubMode: input.videoEditSubMode,
-    onEnterTrimMode: input.handleEnterVideoTrimMode,
-    onEnterReplaceMode: input.handleEnterVideoReplaceMode,
-    onEnterRegenerateMode: input.handleEnterVideoRegenerateMode,
-    onEnterEnhanceMode: input.handleEnterVideoEnhanceMode,
-    onExitVideoEditMode: input.handleExitVideoEditMode,
+    // ========================================
+    // VideoEditPanel specialized props
+    // ========================================
     isCloudMode: input.isCloudMode,
-    // Video enhance props
-    enhanceSettings: input.enhanceSettings,
-    onUpdateEnhanceSetting: input.onUpdateEnhanceSetting,
-    onEnhanceGenerate: input.onEnhanceGenerate,
-    isEnhancing: input.isEnhancing,
-    enhanceSuccess: input.enhanceSuccess,
-    canEnhance: input.canEnhance,
+    regenerateFormProps: input.regenerateFormProps,
+    // Trim mode (specialized refs, handlers, save state)
     trimState: input.trimState,
     onStartTrimChange: input.setStartTrim,
     onEndTrimChange: input.setEndTrim,
@@ -286,10 +276,20 @@ export function useLightboxLayoutProps(
     videoUrl: input.effectiveVideoUrl,
     trimCurrentTime: input.trimCurrentTime,
     trimVideoRef: input.trimVideoRef,
+    // Replace (portion) mode (specialized manager)
     videoEditing: input.videoEditing,
     projectId: input.selectedProjectId,
-    regenerateFormProps: input.regenerateFormProps,
-    // EditModePanel props
+    // Enhance mode (specialized handlers)
+    enhanceSettings: input.enhanceSettings,
+    onUpdateEnhanceSetting: input.onUpdateEnhanceSetting,
+    onEnhanceGenerate: input.onEnhanceGenerate,
+    isEnhancing: input.isEnhancing,
+    enhanceSuccess: input.enhanceSuccess,
+    canEnhance: input.canEnhance,
+
+    // ========================================
+    // EditModePanel specialized props
+    // ========================================
     sourceGenerationData: input.sourceGenerationData,
     onOpenExternalGeneration: input.onOpenExternalGeneration,
     allShots: input.allShots,
@@ -298,130 +298,63 @@ export function useLightboxLayoutProps(
     sourcePrimaryVariant: input.sourcePrimaryVariant,
     onMakeMainVariant: input.handleMakeMainVariant,
     canMakeMainVariant: input.canMakeMainVariant,
-    editMode: input.editMode,
-    setEditMode: input.setEditMode,
-    setIsInpaintMode: input.setIsInpaintMode,
-    inpaintPrompt: input.inpaintPrompt,
-    setInpaintPrompt: input.setInpaintPrompt,
-    inpaintNumGenerations: input.inpaintNumGenerations,
-    setInpaintNumGenerations: input.setInpaintNumGenerations,
-    loraMode: input.loraMode,
-    setLoraMode: input.setLoraMode,
-    customLoraUrl: input.customLoraUrl,
-    setCustomLoraUrl: input.setCustomLoraUrl,
-    isGeneratingInpaint: input.isGeneratingInpaint,
-    inpaintGenerateSuccess: input.inpaintGenerateSuccess,
-    isCreatingMagicEditTasks: input.isCreatingMagicEditTasks,
-    magicEditTasksCreated: input.magicEditTasksCreated,
-    brushStrokes: input.brushStrokes,
-    handleExitMagicEditMode: input.handleExitMagicEditMode,
+    // Specialized async handlers
     handleUnifiedGenerate: input.handleUnifiedGenerate,
     handleGenerateAnnotatedEdit: input.handleGenerateAnnotatedEdit,
     handleGenerateReposition: input.handleGenerateReposition,
-    isGeneratingReposition: input.isGeneratingReposition,
-    repositionGenerateSuccess: input.repositionGenerateSuccess,
-    hasTransformChanges: input.hasTransformChanges,
     handleSaveAsVariant: input.handleSaveAsVariant,
-    isSavingAsVariant: input.isSavingAsVariant,
-    saveAsVariantSuccess: input.saveAsVariantSuccess,
-    createAsGeneration: input.createAsGeneration,
-    onCreateAsGenerationChange: input.setCreateAsGeneration,
-    // Img2Img props
-    img2imgPrompt: input.img2imgPrompt,
-    setImg2imgPrompt: input.setImg2imgPrompt,
-    img2imgStrength: input.img2imgStrength,
-    setImg2imgStrength: input.setImg2imgStrength,
-    enablePromptExpansion: input.enablePromptExpansion,
-    setEnablePromptExpansion: input.setEnablePromptExpansion,
-    isGeneratingImg2Img: input.isGeneratingImg2Img,
-    img2imgGenerateSuccess: input.img2imgGenerateSuccess,
     handleGenerateImg2Img: input.handleGenerateImg2Img,
+    // Specialized managers
     img2imgLoraManager: input.img2imgLoraManager,
-    availableLoras: input.availableLoras,
     editLoraManager: input.editLoraManager,
-    // Advanced settings for two-pass generation
+    availableLoras: input.availableLoras,
     advancedSettings: input.advancedSettings,
     setAdvancedSettings: input.setAdvancedSettings,
     isLocalGeneration: input.isLocalGeneration,
-    // Model selection for cloud mode
-    qwenEditModel: input.qwenEditModel,
-    setQwenEditModel: input.setQwenEditModel,
-    // InfoPanel props
-    isVideo: input.isVideo,
+
+    // ========================================
+    // InfoPanel specialized props
+    // ========================================
     showImageEditTools: input.showImageEditTools,
-    readOnly: input.readOnly,
-    isInpaintMode: input.isInpaintMode,
-    onExitInpaintMode: input.handleExitInpaintMode,
-    onEnterInpaintMode: () => {
-      input.setIsInpaintMode(true);
-      input.setEditMode('inpaint');
-    },
-    onEnterVideoEditMode: input.handleEnterVideoEditMode,
-    onClose: input.onClose,
     taskDetailsData: input.adjustedTaskDetailsData,
-    taskId: input.adjustedTaskDetailsData?.taskId || (input.media as any)?.source_task_id || null,
-    generationName: input.generationName,
-    onGenerationNameChange: input.handleGenerationNameChange,
-    isEditingGenerationName: input.isEditingGenerationName,
-    onEditingGenerationNameChange: input.setIsEditingGenerationName,
     derivedItems: input.derivedItems,
-    replaceImages: input.replaceImages,
-    onReplaceImagesChange: input.setReplaceImages,
-    onSwitchToPrimary: input.primaryVariant ? () => input.setActiveVariantId(input.primaryVariant.id) : undefined,
-    variantsSectionRef: input.variantsSectionRef,
-    // Shared props
-    currentMediaId: input.media.id,
-    currentShotId: input.selectedShotId || input.shotId,
     derivedGenerations: input.derivedGenerations,
     paginatedDerived: input.paginatedDerived,
     derivedPage: input.derivedPage,
     derivedTotalPages: input.derivedTotalPages,
     onSetDerivedPage: input.setDerivedPage,
-    variants: input.variants,
-    activeVariant: input.activeVariant,
-    primaryVariant: input.primaryVariant,
-    onVariantSelect: input.setActiveVariantId,
-    onMakePrimary: input.setPrimaryVariant,
-    isLoadingVariants: input.isLoadingVariants,
-    onPromoteToGeneration: input.isVideo ? undefined : input.handlePromoteToGeneration,
-    isPromoting: input.isPromoting,
-    onDeleteVariant: input.deleteVariant,
-    onLoadVariantSettings: input.setVariantParamsToLoad,
+    replaceImages: input.replaceImages,
+    onReplaceImagesChange: input.setReplaceImages,
+    onSwitchToPrimary: input.primaryVariant ? () => input.setActiveVariantId(input.primaryVariant.id) : undefined,
+
+    // ========================================
+    // Shared props
+    // ========================================
+    currentMediaId: input.media.id,
+    currentShotId: input.selectedShotId || input.shotId,
+    taskId: input.adjustedTaskDetailsData?.taskId || (input.media as any)?.source_task_id || null,
   }), [
-    input.isInVideoEditMode, input.isSpecialEditMode, input.videoEditSubMode,
-    input.handleEnterVideoTrimMode, input.handleEnterVideoReplaceMode,
-    input.handleEnterVideoRegenerateMode, input.handleExitVideoEditMode,
-    input.trimState, input.setStartTrim, input.setEndTrim, input.resetTrim,
-    input.trimmedDuration, input.hasTrimChanges, input.saveTrimmedVideo,
-    input.isSavingTrim, input.trimSaveProgress, input.trimSaveError,
-    input.trimSaveSuccess, input.effectiveVideoUrl, input.trimCurrentTime,
-    input.trimVideoRef, input.videoEditing, input.selectedProjectId,
-    input.regenerateFormProps, input.sourceGenerationData, input.onOpenExternalGeneration,
-    input.allShots, input.isAlreadyPositionedInSelectedShot, input.handleReplaceInShot,
-    input.sourcePrimaryVariant, input.handleMakeMainVariant, input.canMakeMainVariant,
-    input.editMode, input.setEditMode, input.setIsInpaintMode, input.inpaintPrompt,
-    input.setInpaintPrompt, input.inpaintNumGenerations, input.setInpaintNumGenerations,
-    input.loraMode, input.setLoraMode, input.customLoraUrl, input.setCustomLoraUrl,
-    input.isGeneratingInpaint, input.inpaintGenerateSuccess, input.isCreatingMagicEditTasks,
-    input.magicEditTasksCreated, input.brushStrokes, input.handleExitMagicEditMode,
-    input.handleUnifiedGenerate, input.handleGenerateAnnotatedEdit, input.handleGenerateReposition,
-    input.isGeneratingReposition, input.repositionGenerateSuccess, input.hasTransformChanges,
-    input.handleSaveAsVariant, input.isSavingAsVariant, input.saveAsVariantSuccess,
-    input.createAsGeneration, input.setCreateAsGeneration, input.img2imgPrompt,
-    input.setImg2imgPrompt, input.img2imgStrength, input.setImg2imgStrength,
-    input.enablePromptExpansion, input.setEnablePromptExpansion, input.isGeneratingImg2Img,
-    input.img2imgGenerateSuccess, input.handleGenerateImg2Img, input.img2imgLoraManager,
-    input.availableLoras, input.editLoraManager, input.advancedSettings, input.setAdvancedSettings,
-    input.isLocalGeneration, input.qwenEditModel, input.setQwenEditModel, input.isVideo,
-    input.showImageEditTools, input.readOnly, input.isInpaintMode, input.handleExitInpaintMode,
-    input.handleEnterVideoEditMode, input.onClose, input.adjustedTaskDetailsData,
-    input.generationName, input.handleGenerationNameChange, input.isEditingGenerationName,
-    input.setIsEditingGenerationName, input.derivedItems, input.replaceImages, input.setReplaceImages,
-    input.primaryVariant, input.setActiveVariantId, input.variantsSectionRef, input.media.id,
-    input.selectedShotId, input.shotId, input.derivedGenerations, input.paginatedDerived,
-    input.derivedPage, input.derivedTotalPages, input.setDerivedPage, input.variants,
-    input.activeVariant, input.isLoadingVariants, input.handlePromoteToGeneration,
-    input.isPromoting, input.deleteVariant, input.setVariantParamsToLoad,
+    // VideoEditPanel deps
+    input.isCloudMode, input.regenerateFormProps, input.trimState, input.setStartTrim,
+    input.setEndTrim, input.resetTrim, input.trimmedDuration, input.hasTrimChanges,
+    input.saveTrimmedVideo, input.isSavingTrim, input.trimSaveProgress, input.trimSaveError,
+    input.trimSaveSuccess, input.effectiveVideoUrl, input.trimCurrentTime, input.trimVideoRef,
+    input.videoEditing, input.selectedProjectId, input.enhanceSettings, input.onUpdateEnhanceSetting,
+    input.onEnhanceGenerate, input.isEnhancing, input.enhanceSuccess, input.canEnhance,
+    // EditModePanel deps
+    input.sourceGenerationData, input.onOpenExternalGeneration, input.allShots,
+    input.isAlreadyPositionedInSelectedShot, input.handleReplaceInShot, input.sourcePrimaryVariant,
+    input.handleMakeMainVariant, input.canMakeMainVariant, input.handleUnifiedGenerate,
+    input.handleGenerateAnnotatedEdit, input.handleGenerateReposition, input.handleSaveAsVariant,
+    input.handleGenerateImg2Img, input.img2imgLoraManager, input.editLoraManager,
+    input.availableLoras, input.advancedSettings, input.setAdvancedSettings, input.isLocalGeneration,
+    // InfoPanel deps
+    input.showImageEditTools, input.adjustedTaskDetailsData, input.derivedItems,
+    input.derivedGenerations, input.paginatedDerived, input.derivedPage, input.derivedTotalPages,
+    input.setDerivedPage, input.replaceImages, input.setReplaceImages, input.primaryVariant,
+    input.setActiveVariantId,
+    // Shared deps
+    input.media.id, input.selectedShotId, input.shotId,
   ]);
 
   // Build workflow bar props (shared across all layouts)

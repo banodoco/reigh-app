@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback, useMemo, Suspense } from "react";
 import { createPortal } from "react-dom";
-import { LoraSelectorModal, LoraModel } from "@/shared/components/LoraSelectorModal";
+import { LoraModel } from "@/shared/components/LoraSelectorModal";
 import { DisplayableMetadata } from "@/shared/components/MediaGallery";
 import { ActiveLora } from "@/shared/components/ActiveLoRAsDisplay";
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { useProject } from "@/shared/contexts/ProjectContext";
 import { usePersistentToolState } from "@/shared/hooks/usePersistentToolState";
-import { useToolSettings, extractSettingsFromCache, updateSettingsCache } from "@/shared/hooks/useToolSettings";
+import { useToolSettings, extractSettingsFromCache } from "@/shared/hooks/useToolSettings";
 import { useAutoSaveSettings } from "@/shared/hooks/useAutoSaveSettings";
 import { useUserUIState } from "@/shared/hooks/useUserUIState";
-import { ImageGenerationSettings } from "../../settings";
-import { VideoTravelSettings } from "@/tools/travel-between-images/settings";
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { useListShots } from "@/shared/hooks/useShots";
 import { useShotCreation } from "@/shared/hooks/useShotCreation";
@@ -21,7 +19,6 @@ import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
 import { BatchImageGenerationTaskParams } from "@/shared/lib/tasks/imageGeneration";
 import { ASPECT_RATIO_TO_RESOLUTION } from "@/shared/lib/aspectRatios";
 import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
-import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 import { useSubmitButtonState } from '@/shared/hooks/useSubmitButtonState';
 import { useHydratedReferences } from '../../hooks/useHydratedReferences';
@@ -48,30 +45,34 @@ import {
 // Import state management
 import { useFormUIState } from "./state";
 
+// Import context
+import {
+  ImageGenerationFormProvider,
+  useContextValue,
+  FormCoreState,
+  FormPromptState,
+  FormPromptHandlers,
+  FormReferenceState,
+  FormReferenceHandlers,
+  FormLoraState,
+  FormLoraHandlers,
+} from "./ImageGenerationFormContext";
+
 // Import types
 import {
-  GenerationMode,
   ImageGenerationFormHandles,
   PromptEntry,
   PersistedFormSettings,
   ProjectImageSettings,
-  ReferenceImage,
-  HydratedReferenceImage,
-  ReferenceMode,
   PromptMode,
   ImageGenShotSettings,
   HiresFixConfig,
   DEFAULT_HIRES_FIX_CONFIG,
-  GenerationSource,
   TextToImageModel,
   LoraCategory,
   getLoraTypeForModel,
   getLoraCategoryForModel,
-  getHiresFixDefaultsForModel,
-  getReferenceModeDefaults,
   BY_REFERENCE_LORA_TYPE,
-  ReferenceApiParams,
-  DEFAULT_REFERENCE_PARAMS,
 } from "./types";
 
 // Lazy load modals to improve initial bundle size and performance
@@ -118,28 +119,16 @@ interface ImageGenerationFormProps {
   initialShotId?: string | null;
 }
 
-interface LoraDataEntry {
-  "Model ID": string;
-  Name: string;
-  Author: string;
-  Images: Array<{ url: string; alt_text: string; [key: string]: any; }>;
-  "Model Files": Array<{ url: string; path: string; [key: string]: any; }>;
-  [key: string]: any;
-}
-
-interface LoraData {
-  models: LoraDataEntry[];
-}
-
 // NOTE: buildBatchTaskParams and BuildBatchTaskParamsInput now come from ./hooks/buildBatchTaskParams
 
 export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageGenerationFormProps>(({
   onGenerate,
-  isGenerating = false,
-  hasApiKey: incomingHasApiKey = true,
-  apiKey,
+  // Legacy props - kept for API compatibility but not used internally
+  isGenerating: _isGenerating = false,
+  hasApiKey: _incomingHasApiKey = true,
+  apiKey: _apiKey,
   openaiApiKey,
-  justQueued = false,
+  justQueued: _justQueued = false,
   onShotChange,
   stickyFooter = false,
   footerPortalId,
@@ -188,7 +177,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   
   const { selectedProjectId, projects } = useProject();
   const queryClient = useQueryClient();
-  const { addIncomingTask, completeIncomingTask } = useIncomingTasks();
 
   // Get current task count for baseline tracking
   const { data: taskStatusCounts } = useTaskStatusCounts(selectedProjectId);
@@ -202,10 +190,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   }, [projects, selectedProjectId]);
   
   // Access user's generation settings to detect local generation
-  const {
-    value: generationMethods,
-    isLoading: isLoadingGenerationMethods
-  } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
+  const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
   
   // Privacy defaults for new resources
   const { value: privacyDefaults } = useUserUIState('privacyDefaults', { resourcesPublic: true, generationsPublic: false });
@@ -225,9 +210,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
 
   // NOTE: modelOverride is now provided by useGenerationSource hook
 
-  // Always use qwen-image model (model selector removed)
-  const selectedModel = 'qwen-image';
-  
   // Get the effective shot ID for storage (use 'none' for null)
   const effectiveShotId = associatedShotId || 'none';
   
@@ -255,7 +237,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   const {
     displayedReferenceId,
     selectedReference,
-    currentSelectedReference,
     isReferenceDataLoading,
   } = useReferenceSelection({
     effectiveShotId,
@@ -297,7 +278,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
         window.sessionStorage.setItem('hasVisitedImageGeneration', 'true');
         uiActions.setHasVisited(true);
       }
-    } catch {}
+    } catch { /* Ignore sessionStorage errors */ }
   }, [uiState.hasVisitedImageGeneration, uiActions]);
 
   // Text to prepend/append to every prompt
@@ -324,10 +305,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   const generatePromptId = useCallback(() => `prompt-${promptIdCounter.current++}`, []);
   
   // AI interaction service for automated prompt generation
-  const {
-    generatePrompts: aiGeneratePrompts,
-    isGenerating: isAIGenerating,
-  } = useAIInteractionService({
+  const { generatePrompts: aiGeneratePrompts } = useAIInteractionService({
     apiKey: openaiApiKey,
     generatePromptId,
   });
@@ -337,20 +315,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
 
   // Fetch public LoRAs from all users
   const { data: availableLoras } = usePublicLoras();
-
-  // Fetch project-level settings for travel tool defaults
-  const { settings: travelProjectSettings } = useToolSettings<VideoTravelSettings>(
-    'travel-between-images',
-    { projectId: selectedProjectId, enabled: !!selectedProjectId }
-  );
-
-  const { settings: travelProjectUISettings } = useToolSettings<{
-    acceleratedMode?: boolean;
-    randomSeed?: boolean;
-  }>('travel-ui-state', { 
-    projectId: selectedProjectId, 
-    enabled: !!selectedProjectId 
-  });
 
   // LoRA management using the modularized hook with new generalized approach
   const loraManager = useLoraManager(availableLoras, {
@@ -388,7 +352,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           // Leave undefined so we can fall back to project-level mapping until the user picks one.
         };
       }
-    } catch (e) {
+    } catch {
       // Ignore localStorage errors
     }
     // Fall back to project-level settings if localStorage is empty
@@ -397,6 +361,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
       masterPrompt: noShotMasterPrompt || '',
       promptMode: promptMode || 'automated',
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- associatedShotId triggers recompute to pick up fresh localStorage
   }, [associatedShotId, noShotMasterPrompt, promptMode]);
 
   // Shot-specific prompts using per-shot storage
@@ -439,7 +404,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     selectedTextModelRef,
     handleGenerationSourceChange,
     handleTextModelChange,
-    handleModelChange,
     setGenerationSource,
     setSelectedTextModel,
     setModelOverride,
@@ -572,20 +536,17 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     styleReferenceStrength,
     subjectStrength,
     subjectDescription,
-    isEditingSubjectDescription,
     inThisScene,
     inThisSceneStrength,
     referenceMode,
     styleBoostTerms,
     isUploadingStyleReference,
-    styleReferenceOverride,
     styleReferenceImageDisplay,
     styleReferenceImageGeneration,
     handleStyleReferenceUpload,
     handleResourceSelect,
     handleSelectReference,
     handleDeleteReference,
-    handleUpdateReference,
     handleUpdateReferenceName,
     handleToggleVisibility,
     handleRemoveStyleReference,
@@ -598,14 +559,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     handleInThisSceneStrengthChange,
     handleStyleBoostTermsChange,
     handleReferenceModeChange,
-    setStyleReferenceStrength,
-    setSubjectStrength,
-    setSubjectDescription,
-    setInThisScene,
-    setInThisSceneStrength,
-    setReferenceMode,
-    setStyleBoostTerms,
-    setStyleReferenceOverride,
   } = useReferenceManagement({
     selectedProjectId,
     effectiveShotId,
@@ -829,7 +782,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
 
   const handleOpenMagicPrompt = useCallback(() => {
     uiActions.openMagicPrompt();
-  }, []);
+  }, [uiActions]);
 
 
   // Handle creating a new shot
@@ -862,7 +815,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     markAsInteracted();
     setAssociatedShotId(result.shotId);
     uiActions.setCreateShotModalOpen(false);
-  }, [createShot, markAsInteracted, queryClient, selectedProjectId]);
+  }, [createShot, markAsInteracted, queryClient, selectedProjectId, uiActions]);
 
   // Optimize event handlers with useCallback to prevent recreating on each render
   const handleSliderChange = useCallback((setter: React.Dispatch<React.SetStateAction<number>>) => (value: number) => {
@@ -909,7 +862,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     if (nextId > promptIdCounter.current) {
       promptIdCounter.current = nextId;
     }
-  }, [prompts]);
+  }, [prompts, setPrompts]);
 
   // Handle shot change with proper prompt initialization
   const handleShotChange = (value: string) => {
@@ -935,41 +888,106 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   // Form fields maintain their current values independent of selected reference
   // This allows users to keep their settings when switching references
 
+  // ============================================================================
+  // Context Value (for sections to pull from)
+  // ============================================================================
+
+  const coreState = useMemo<FormCoreState>(() => ({
+    selectedProjectId,
+    associatedShotId,
+    effectiveShotId,
+    isGenerating: automatedSubmitButton.isSubmitting,
+    hasApiKey,
+    ready,
+  }), [selectedProjectId, associatedShotId, effectiveShotId, automatedSubmitButton.isSubmitting, hasApiKey, ready]);
+
+  const promptState = useMemo<FormPromptState>(() => ({
+    prompts,
+    masterPromptText,
+    effectivePromptMode,
+    actionablePromptsCount,
+    currentBeforePromptText,
+    currentAfterPromptText,
+    lastKnownPromptCount,
+  }), [prompts, masterPromptText, effectivePromptMode, actionablePromptsCount, currentBeforePromptText, currentAfterPromptText, lastKnownPromptCount]);
+
+  const promptHandlersValue = useMemo<FormPromptHandlers>(() => ({
+    setPrompts,
+    setMasterPromptText,
+    setEffectivePromptMode,
+    setCurrentBeforePromptText,
+    setCurrentAfterPromptText,
+    handleAddPrompt,
+    handleUpdatePrompt,
+    handleRemovePrompt,
+    handleDeleteAllPrompts,
+    markAsInteracted,
+  }), [setPrompts, setMasterPromptText, setEffectivePromptMode, setCurrentBeforePromptText, setCurrentAfterPromptText, handleAddPrompt, handleUpdatePrompt, handleRemovePrompt, handleDeleteAllPrompts, markAsInteracted]);
+
+  const referenceState = useMemo<FormReferenceState>(() => ({
+    references: hydratedReferences,
+    selectedReferenceId: displayedReferenceId,
+    referenceMode,
+    styleReferenceStrength,
+    subjectStrength,
+    subjectDescription,
+    inThisScene,
+    inThisSceneStrength,
+    styleBoostTerms,
+    isUploadingStyleReference,
+    styleReferenceImageDisplay,
+  }), [hydratedReferences, displayedReferenceId, referenceMode, styleReferenceStrength, subjectStrength, subjectDescription, inThisScene, inThisSceneStrength, styleBoostTerms, isUploadingStyleReference, styleReferenceImageDisplay]);
+
+  const referenceHandlersValue = useMemo<FormReferenceHandlers>(() => ({
+    onSelectReference: handleSelectReference,
+    onDeleteReference: handleDeleteReference,
+    onUpdateReferenceName: handleUpdateReferenceName,
+    onStyleUpload: handleStyleReferenceUpload,
+    onStyleRemove: handleRemoveStyleReference,
+    onStyleStrengthChange: handleStyleStrengthChange,
+    onSubjectStrengthChange: handleSubjectStrengthChange,
+    onSubjectDescriptionChange: handleSubjectDescriptionChange,
+    onSubjectDescriptionFocus: handleSubjectDescriptionFocus,
+    onSubjectDescriptionBlur: handleSubjectDescriptionBlur,
+    onInThisSceneChange: handleInThisSceneChange,
+    onInThisSceneStrengthChange: handleInThisSceneStrengthChange,
+    onReferenceModeChange: handleReferenceModeChange,
+    onStyleBoostTermsChange: handleStyleBoostTermsChange,
+    onToggleVisibility: handleToggleVisibility,
+    onResourceSelect: handleResourceSelect,
+  }), [handleSelectReference, handleDeleteReference, handleUpdateReferenceName, handleStyleReferenceUpload, handleRemoveStyleReference, handleStyleStrengthChange, handleSubjectStrengthChange, handleSubjectDescriptionChange, handleSubjectDescriptionFocus, handleSubjectDescriptionBlur, handleInThisSceneChange, handleInThisSceneStrengthChange, handleReferenceModeChange, handleStyleBoostTermsChange, handleToggleVisibility, handleResourceSelect]);
+
+  const loraState = useMemo<FormLoraState>(() => ({
+    selectedLoras: loraManager.selectedLoras,
+    availableLoras: availableLoras ?? [],
+  }), [loraManager.selectedLoras, availableLoras]);
+
+  const loraHandlersValue = useMemo<FormLoraHandlers>(() => ({
+    handleAddLora,
+    handleRemoveLora,
+    handleLoraStrengthChange,
+  }), [handleAddLora, handleRemoveLora, handleLoraStrengthChange]);
+
+  const contextValue = useContextValue({
+    uiState,
+    uiActions,
+    core: coreState,
+    prompts: promptState,
+    promptHandlers: promptHandlersValue,
+    references: referenceState,
+    referenceHandlers: referenceHandlersValue,
+    loras: loraState,
+    loraHandlers: loraHandlersValue,
+  });
+
   return (
-    <>
+    <ImageGenerationFormProvider value={contextValue}>
       <form id="image-generation-form" onSubmit={handleSubmit} className="space-y-6">
         {/* Main Content Layout */}
         <div className="flex gap-6 flex-col md:flex-row pb-4">
           {/* Left Column - Prompts and Shot Selector */}
           <div className="flex-1 space-y-6">
             <PromptsSection
-              prompts={prompts}
-              ready={ready}
-              lastKnownPromptCount={lastKnownPromptCount}
-              isGenerating={automatedSubmitButton.isSubmitting}
-              hasApiKey={hasApiKey}
-              actionablePromptsCount={actionablePromptsCount}
-              activePromptId={uiState.directFormActivePromptId}
-              onSetActive={uiActions.setActivePromptId}
-              onAddPrompt={handleAddPrompt}
-              onUpdatePrompt={handleUpdatePrompt}
-              onRemovePrompt={handleRemovePrompt}
-              onOpenPromptModal={() => uiActions.setPromptModalOpen(true)}
-              onOpenMagicPrompt={handleOpenMagicPrompt}
-              beforeEachPromptText={currentBeforePromptText}
-              afterEachPromptText={currentAfterPromptText}
-              onBeforeEachPromptTextChange={(e) => setCurrentBeforePromptText(e.target.value)}
-              onAfterEachPromptTextChange={(e) => setCurrentAfterPromptText(e.target.value)}
-              onClearBeforeEachPromptText={() => {
-                markAsInteracted();
-                setCurrentBeforePromptText('');
-              }}
-              onClearAfterEachPromptText={() => {
-                markAsInteracted();
-                setCurrentAfterPromptText('');
-              }}
-              onDeleteAllPrompts={handleDeleteAllPrompts}
-              promptMode={effectivePromptMode}
               onPromptModeChange={(mode) => {
                 markAsInteracted();
                 setEffectivePromptMode(mode);
@@ -979,12 +997,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
                 } else if (mode === 'managed') {
                   setImagesPerPrompt(1);
                 }
-              }}
-              masterPromptText={masterPromptText}
-              onMasterPromptTextChange={handleTextChange(setMasterPromptText)}
-              onClearMasterPromptText={() => {
-                markAsInteracted();
-                setMasterPromptText('');
               }}
             />
 
@@ -1005,48 +1017,14 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
           
           {/* Right Column - Reference Image and Settings */}
           <ModelSection
-            isGenerating={automatedSubmitButton.isSubmitting}
-            styleReferenceImage={styleReferenceImageDisplay}
-            styleReferenceStrength={styleReferenceStrength}
-            subjectStrength={subjectStrength}
-            subjectDescription={subjectDescription}
-            inThisScene={inThisScene}
-            inThisSceneStrength={inThisSceneStrength}
-            isUploadingStyleReference={isUploadingStyleReference}
-            onStyleUpload={handleStyleReferenceUpload}
-            onStyleRemove={handleRemoveStyleReference}
-            onStyleStrengthChange={handleStyleStrengthChange}
-            onSubjectStrengthChange={handleSubjectStrengthChange}
-            onSubjectDescriptionChange={handleSubjectDescriptionChange}
-            onSubjectDescriptionFocus={handleSubjectDescriptionFocus}
-            onSubjectDescriptionBlur={handleSubjectDescriptionBlur}
-            onInThisSceneChange={handleInThisSceneChange}
-            onInThisSceneStrengthChange={handleInThisSceneStrengthChange}
-            referenceMode={referenceMode}
-            onReferenceModeChange={handleReferenceModeChange}
-            styleBoostTerms={styleBoostTerms}
-            onStyleBoostTermsChange={handleStyleBoostTermsChange}
-            // New multiple references props
-            references={hydratedReferences}
-            selectedReferenceId={displayedReferenceId}
-            onSelectReference={handleSelectReference}
-            onDeleteReference={handleDeleteReference}
-            onUpdateReferenceName={handleUpdateReferenceName}
-            onResourceSelect={handleResourceSelect}
-            onToggleVisibility={handleToggleVisibility}
-            // Loading state - show placeholders while hydrating
-            isLoadingReferenceData={isReferenceDataLoading}
-            referenceCount={referenceCount}
-            // Generation source toggle props (both local and cloud modes)
+            // Props not in context
             generationSource={generationSource}
             onGenerationSourceChange={handleGenerationSourceChange}
-            // Just-text mode props
             selectedTextModel={selectedTextModel}
             onTextModelChange={handleTextModelChange}
-            selectedLoras={loraManager.selectedLoras}
             onOpenLoraModal={() => loraManager.setIsLoraModalOpen(true)}
-            onRemoveLora={handleRemoveLora}
-            onUpdateLoraStrength={handleLoraStrengthChange}
+            isLoadingReferenceData={isReferenceDataLoading}
+            referenceCount={referenceCount}
           />
         </div>
 
@@ -1149,7 +1127,7 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
         isLoading={isCreatingShot}
         projectId={selectedProjectId}
       />
-    </>
+    </ImageGenerationFormProvider>
   );
 });
 

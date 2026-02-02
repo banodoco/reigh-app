@@ -54,6 +54,33 @@ export const GenerationSettingsSection: React.FC<GenerationSettingsSectionProps>
     onHiresFixConfigChange(DEFAULT_HIRES_FIX_CONFIG);
   }, [onHiresFixConfigChange]);
 
+  // Calculate the resulting resolution based on current settings
+  // NOTE: This hook must be called before any early returns
+  const calculatedResolution = useMemo(() => {
+    if (!hiresFixConfig) return null;
+
+    let baseWidth: number;
+    let baseHeight: number;
+
+    if (hiresFixConfig.resolution_mode === 'custom' && hiresFixConfig.custom_aspect_ratio) {
+      const customRes = ASPECT_RATIO_TO_RESOLUTION[hiresFixConfig.custom_aspect_ratio];
+      if (customRes) {
+        [baseWidth, baseHeight] = customRes.split('x').map(Number);
+      } else {
+        return null;
+      }
+    } else if (projectResolution) {
+      [baseWidth, baseHeight] = projectResolution.split('x').map(Number);
+    } else {
+      return null;
+    }
+
+    const scale = hiresFixConfig.resolution_scale ?? 1.5;
+    const scaledWidth = Math.round(baseWidth * scale);
+    const scaledHeight = Math.round(baseHeight * scale);
+    return `${scaledWidth}x${scaledHeight}`;
+  }, [hiresFixConfig, projectResolution]);
+
   // Don't render if hiresFixConfig is not available
   if (!hiresFixConfig) {
     return null;
@@ -79,30 +106,6 @@ export const GenerationSettingsSection: React.FC<GenerationSettingsSectionProps>
       Reset
     </div>
   );
-
-  // Calculate the resulting resolution based on current settings
-  const calculatedResolution = useMemo(() => {
-    let baseWidth: number;
-    let baseHeight: number;
-
-    if (hiresFixConfig.resolution_mode === 'custom' && hiresFixConfig.custom_aspect_ratio) {
-      const customRes = ASPECT_RATIO_TO_RESOLUTION[hiresFixConfig.custom_aspect_ratio];
-      if (customRes) {
-        [baseWidth, baseHeight] = customRes.split('x').map(Number);
-      } else {
-        return null;
-      }
-    } else if (projectResolution) {
-      [baseWidth, baseHeight] = projectResolution.split('x').map(Number);
-    } else {
-      return null;
-    }
-
-    const scale = hiresFixConfig.resolution_scale ?? 1.5;
-    const scaledWidth = Math.round(baseWidth * scale);
-    const scaledHeight = Math.round(baseHeight * scale);
-    return `${scaledWidth}x${scaledHeight}`;
-  }, [hiresFixConfig.resolution_mode, hiresFixConfig.custom_aspect_ratio, hiresFixConfig.resolution_scale, projectResolution]);
 
   return (
     <CollapsibleSection title="Advanced generation settings" headerAction={headerAction}>

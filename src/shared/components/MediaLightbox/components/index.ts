@@ -19,7 +19,7 @@ export { SourceGenerationDisplay } from './SourceGenerationDisplay';
 export { FloatingToolControls } from './FloatingToolControls';
 export type { FloatingToolControlsProps } from './FloatingToolControls';
 
-export { TopLeftControls, TopRightControls, BottomLeftControls, BottomRightControls } from './ButtonGroups';
+export { TopRightControls, BottomLeftControls, BottomRightControls } from './ButtonGroups';
 
 export { ActiveVariantDisplay } from './ActiveVariantDisplay';
 export type { VariantInfo } from './TaskDetailsPanelWrapper';
@@ -70,3 +70,10 @@ export { LightboxShell } from './LightboxShell';
 export type { LightboxShellProps } from './LightboxShell';
 
 export { LightboxProviders } from './LightboxProviders';
+
+// Content components (extracted for orchestrator size reduction)
+export { ImageLightboxContent } from './image';
+export type { ImageLightboxContentProps } from './image';
+
+export { VideoLightboxContent } from './video';
+export type { VideoLightboxContentProps } from './video';

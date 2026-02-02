@@ -6,15 +6,14 @@ export type {
   SortOption,
   ModelTypeFilter,
   PhaseConfigSelectorModalProps,
-  PresetFormState,
   CurrentSettings,
-  BrowsePresetsTabProps,
-  AddNewPresetTabProps,
 } from './types';
+
+// Re-export component types (defined in component files)
+export type { BrowsePresetsTabProps } from './components/BrowsePresetsTab';
+export type { AddNewTabProps } from './components/AddNewPresetTab';
 
 // Re-export sub-components
 export { MediaPreview } from './components/MediaPreview';
 export { CopyIdButton } from './components/CopyIdButton';
 
-// Re-export hooks
-export { usePhaseConfig } from './hooks/usePhaseConfig';

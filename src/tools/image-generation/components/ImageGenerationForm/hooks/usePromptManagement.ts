@@ -111,7 +111,7 @@ export function usePromptManagement(props: UsePromptManagementProps): UsePromptM
         const globalStored = window.sessionStorage.getItem('ig:lastPromptCount');
         if (globalStored) return parseInt(globalStored, 10);
       }
-    } catch {}
+    } catch { /* Ignore sessionStorage errors */ }
     return 1;
   });
 
@@ -260,7 +260,7 @@ export function usePromptManagement(props: UsePromptManagementProps): UsePromptM
         const count = stored ? parseInt(stored, 10) : 1;
         setLastKnownPromptCount(count);
       }
-    } catch {}
+    } catch { /* Ignore sessionStorage errors */ }
   }, [effectiveShotId]);
 
   // Save prompt count whenever it changes
@@ -273,7 +273,7 @@ export function usePromptManagement(props: UsePromptManagementProps): UsePromptM
           window.sessionStorage.setItem('ig:lastPromptCount', prompts.length.toString());
           setLastKnownPromptCount(prompts.length);
         }
-      } catch {}
+      } catch { /* Ignore sessionStorage errors */ }
     }
   }, [ready, prompts.length, effectiveShotId]);
 

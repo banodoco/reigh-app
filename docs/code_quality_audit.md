@@ -2,6 +2,26 @@
 
 This document catalogs patterns, inconsistencies, and areas preventing the codebase from being truly excellent. Issues are organized by severity and area.
 
+## Progress Summary
+
+**Major Milestone: All 4 critical components (>2000 LOC) have been refactored.**
+
+| Component | Before | After | Reduction |
+|-----------|--------|-------|-----------|
+| `ShotImagesEditor.tsx` | 3,775 lines | 32 lines (index) | **99%** |
+| `ImageGenerationForm/index.tsx` | 3,081 lines | 1,164 lines | **62%** |
+| `ShotEditor/index.tsx` | 3,034 lines | 1,190 lines | **61%** |
+| `TimelineContainer.tsx` | 2,241 lines | 714 lines | **68%** |
+
+**Other completed refactors:**
+- `useShots.ts` (2,350 lines → 10 files)
+- `MediaLightbox.tsx` (2,617 lines → 189 lines + 90 files)
+- Cache invalidation centralized (`queryKeys.ts`)
+- Error handling standardized (`handleError()`)
+- MediaLightbox contexts split (`EditFormContext`, `ImageEditContext`, `VideoEditContext`)
+
+**Remaining focus areas:** Oversized hooks, hardcoded colors, inline JSX functions, page components.
+
 ---
 
 ## Table of Contents
@@ -23,7 +43,7 @@ The hook layer contains monolithic files combining multiple concerns:
 | File | Lines | Problem | Status |
 |------|-------|---------|--------|
 | `src/shared/hooks/useShots.ts` | ~~2,350~~ | ~~Shot CRUD, cache management, transformations all mixed~~ | ✅ **REFACTORED** → `src/shared/hooks/shots/` |
-| `src/shared/hooks/useSegmentSettings.ts` | 1,160 | Settings logic intertwined with UI concerns | ❌ Pending |
+| `src/shared/hooks/useSegmentSettings.ts` | ~~1,160~~ 29 | ~~Settings logic intertwined with UI concerns~~ | ✅ **REFACTORED** → `src/shared/hooks/segments/` |
 | `src/shared/hooks/useGenerations.ts` | 942 | Generation queries, mutations, selectors combined | ❌ Pending (reduced from 1,353) |
 | `src/shared/hooks/shots/useShotGenerationMutations.ts` | 924 | Shot generation mutations | ❌ Pending (part of shots refactor) |
 | `src/shared/hooks/useUnifiedGenerations.ts` | 870 | Another generation approach alongside existing ones | ❌ Pending |
@@ -158,6 +178,18 @@ src/shared/components/MediaLightbox/
     VideoEditContext.tsx        # Video edit state (197 lines)
   components/               # 40+ modular UI components
   hooks/                    # 30+ focused hooks
+```
+
+`useSegmentSettings/` (1,160 → 29 lines re-export):
+```
+src/shared/hooks/segments/
+  index.ts                  # Barrel file
+  useSegmentSettings.ts     # Composed hook (~200 lines)
+  usePairMetadata.ts        # Query hook (~45 lines)
+  useShotVideoSettings.ts   # Query hook (~50 lines)
+  useSegmentMutations.ts    # Mutations (~230 lines)
+
+src/shared/hooks/useServerForm.ts  # Reusable pattern (~170 lines)
 ```
 
 ---
@@ -876,9 +908,9 @@ Centralized query key registry now in `src/shared/lib/queryKeys.ts` with TypeScr
 
 | Category | Severity | Count | Status |
 |----------|----------|-------|--------|
-| Giant components | **Critical** | 15 (4 >2000 LOC) | ❌ `ShotImagesEditor` (3,775), `ImageGenerationForm` (3,081), etc. |
-| Hook-heavy components | **Critical** | 5 with 60+ hooks | ❌ `ImageGenerationForm` (128), `VideoTravelToolPage` (91) |
-| Prop drilling | High | 15 components, 30-50 props | ❌ `PhaseConfigSelectorModal` (50), `ImageLightbox` (49) |
+| Giant components | **Critical** | ~~15 (4 >2000 LOC)~~ 11 (0 >2000) | ✅ **4 critical refactored**: `ShotImagesEditor`, `ImageGenerationForm`, `ShotEditor`, `TimelineContainer` |
+| Hook-heavy components | **Critical** | ~~5~~ 3 with 60+ hooks | ✅ **2 refactored**: `ImageGenerationForm`, `ShotImagesEditor` |
+| Prop drilling | High | ~~15~~ 12 components, 30-50 props | ✅ **4 improved** via context: `ImageLightbox`, `VideoLightbox`, `TimelineContainer`, `ModelSection` |
 | Type safety (`any`) | High | 1,316 in 242 files | ❌ Top: `ShotImagesEditor` (65), `useLightboxLayoutProps` (40) |
 | Oversized hooks | High | 7 hooks >800 LOC | ❌ `useSegmentSettings` (1,160), `useGenerations` (942), etc. |
 | Double casts | High | 15 in 7 files | ❌ `ImageGenerationToolPage` (4), `useStickyHeader` (4) |
@@ -909,35 +941,38 @@ Centralized query key registry now in `src/shared/lib/queryKeys.ts` with TypeScr
 | `useShots.ts` → `shots/` | ✅ **COMPLETE** | 2,350 → 10 files. Note: `useShotGenerationMutations.ts` now 924 lines (split candidate). |
 | `useGenerations.ts` cleanup | ⏳ **IN PROGRESS** | 1,353 → 942 lines. Dead code removed. Further split pending. |
 | `MediaLightbox.tsx` | ✅ **COMPLETE** | 2,617 → 189 lines (split into 90+ modular files) |
+| `ShotImagesEditor.tsx` | ✅ **COMPLETE** | 3,775 → 32 lines. Split to `ShotImagesEditor/` with 13 files (2,806 total lines). |
+| `ImageGenerationForm/index.tsx` | ✅ **COMPLETE** | 3,081 → 1,164 lines. Added context + hooks + components (7,706 total lines). |
+| `ShotEditor/index.tsx` | ✅ **COMPLETE** | 3,034 → 1,190 lines. Added `ShotSettingsContext`, sections, hooks, services (12,293 total). |
+| `TimelineContainer.tsx` | ✅ **COMPLETE** | 2,241 → 714 lines. Split to `TimelineContainer/` with 10 files. |
+| MediaLightbox contexts | ✅ **COMPLETE** | Added `EditFormContext`, `ImageEditContext`, `VideoEditContext`, `LightboxProviders`. |
+| `useSegmentSettings.ts` | ✅ **COMPLETE** | 1,160 → 29 lines (re-export). Split to `segments/` with 5 files + reusable `useServerForm`. |
 | Cache invalidation centralization | ✅ **COMPLETE** | `queryKeys.ts` registry + 4 domain invalidation hooks. 327 → 199 inline usages (-39%). |
 | Error handling migration | ✅ **COMPLETE** | 107 files migrated to `handleError()`. 308 scattered calls → 348 structured calls. |
 
-**New Critical Items Discovered (this audit):**
-- `ShotImagesEditor.tsx` (3,775 lines, 85 hooks) — highest priority
-- `ImageGenerationForm/index.tsx` (3,081 lines, 128 hooks) — most hook-heavy
-- `ShotEditor/index.tsx` (3,034 lines)
-- `TimelineContainer.tsx` (2,241 lines)
-- Prop drilling: 15 components with 30-50+ props
+**Remaining Items (from this audit):**
+- Prop drilling: 12 components with 30-50+ props (4 improved)
 - Hardcoded colors: 118+ instances
 - Inline JSX functions: 314 instances
+- Hook-heavy pages: `VideoTravelToolPage` (91 hooks), `ImageGenerationToolPage` (63), `JoinClipsPage` (~60)
 
 ---
 
 ## Prioritized Recommendations
 
-### Phase 1: Critical Components (Highest Impact)
-1. **Split `ShotImagesEditor.tsx`** (3,775 lines, 85 hooks) — Largest component
-2. **Split `ImageGenerationForm/index.tsx`** (3,081 lines, 128 hooks) — Most hook-heavy
-3. **Split `ShotEditor/index.tsx`** (3,034 lines) — Major editing interface
-4. **Add context for prop drilling** — Start with `PhaseConfigSelectorModal` (50 props)
+### Phase 1: Critical Components ~~(Highest Impact)~~ ✅ **COMPLETE**
+1. ~~**Split `ShotImagesEditor.tsx`** (3,775 lines, 85 hooks) — Largest component~~ ✅
+2. ~~**Split `ImageGenerationForm/index.tsx`** (3,081 lines, 128 hooks) — Most hook-heavy~~ ✅
+3. ~~**Split `ShotEditor/index.tsx`** (3,034 lines) — Major editing interface~~ ✅
+4. **Add context for prop drilling** — `PhaseConfigSelectorModal` (50 props) still pending
 
 ### Phase 2: Type Safety & Performance
 5. **Fix double casts** (15 occurrences) — Address underlying type mismatches
-6. **Reduce `any` types in top files** — `ShotImagesEditor` (65), `useLightboxLayoutProps` (40)
+6. **Reduce `any` types in top files** — `useLightboxLayoutProps` (40), remaining files
 7. **Extract inline JSX functions** — Focus on list items: `TimelineItem`, `VideoItem`, `MediaGalleryItem`
 
 ### Phase 3: Hook Structure
-8. **Split `useSegmentSettings.ts`** (1,160 lines) — Largest remaining hook
+8. ~~**Split `useSegmentSettings.ts`** (1,160 lines) — Largest remaining hook~~ ✅ → `segments/` + `useServerForm`
 9. **Split `useShotGenerationMutations.ts`** (924 lines) — Part of shots module
 10. **Continue `useGenerations.ts`** (942 lines) — Further decomposition
 
@@ -953,13 +988,24 @@ Centralized query key registry now in `src/shared/lib/queryKeys.ts` with TypeScr
 17. **Configure import sorting** — Automated consistency
 18. **Migrate static inline styles** — ~80 instances to Tailwind
 
+### Phase 6: Page Components (New)
+19. **Decompose `VideoTravelToolPage.tsx`** (1,852 lines, 91 hooks)
+20. **Decompose `JoinClipsPage.tsx`** (1,833 lines, ~60 hooks)
+21. **Decompose `ImageGenerationToolPage.tsx`** (1,167 lines, 63 hooks)
+
 ### Completed ✅
 - Console logging mitigated (production suppressed)
 - ESLint disables all documented
 - TODO comments minimal (7 total)
 - Test coverage improved (211 files)
-- `useShots.ts` refactored
-- `MediaLightbox.tsx` refactored
+- `useShots.ts` refactored → `shots/` (10 files)
+- `MediaLightbox.tsx` refactored → 189 lines + 90+ modular files
+- `ShotImagesEditor.tsx` refactored → 32 lines + `ShotImagesEditor/` (13 files)
+- `ImageGenerationForm/index.tsx` refactored → 1,164 lines + hooks/components/context
+- `ShotEditor/index.tsx` refactored → 1,190 lines + sections/hooks/services/context
+- `TimelineContainer.tsx` refactored → 714 lines + `TimelineContainer/` (10 files)
+- MediaLightbox contexts added (`EditFormContext`, `ImageEditContext`, `VideoEditContext`)
+- `useSegmentSettings.ts` refactored → 29 lines + `segments/` (5 files) + `useServerForm` pattern
 - Cache invalidation centralized (`queryKeys.ts` + invalidation hooks)
 - Error handling standardized (107 files migrated to `handleError()`)
 
@@ -967,17 +1013,17 @@ Centralized query key registry now in `src/shared/lib/queryKeys.ts` with TypeScr
 
 ## Appendix: File-by-File Quick Reference
 
-### Critical Priority (>3000 lines)
-| File | Lines | Action |
-|------|-------|--------|
-| `src/tools/travel-between-images/components/ShotImagesEditor.tsx` | 3,775 | Split into feature modules |
-| `src/tools/image-generation/components/ImageGenerationForm/index.tsx` | 3,081 | Extract form sections |
-| `src/tools/travel-between-images/components/ShotEditor/index.tsx` | 3,034 | Decompose editor |
+### Critical Priority (>3000 lines) — ✅ ALL COMPLETE
+| File | Lines | Action | Status |
+|------|-------|--------|--------|
+| `src/tools/travel-between-images/components/ShotImagesEditor.tsx` | ~~3,775~~ 32 | Split into feature modules | ✅ → `ShotImagesEditor/` |
+| `src/tools/image-generation/components/ImageGenerationForm/index.tsx` | ~~3,081~~ 1,164 | Extract form sections | ✅ Orchestrator |
+| `src/tools/travel-between-images/components/ShotEditor/index.tsx` | ~~3,034~~ 1,190 | Decompose editor | ✅ Orchestrator |
 
-### High Priority (2000-3000 lines)
-| File | Lines | Action |
-|------|-------|--------|
-| `src/tools/travel-between-images/components/Timeline/TimelineContainer.tsx` | 2,241 | Extract timeline logic |
+### High Priority (2000-3000 lines) — ✅ COMPLETE
+| File | Lines | Action | Status |
+|------|-------|--------|--------|
+| `src/tools/travel-between-images/components/Timeline/TimelineContainer.tsx` | ~~2,241~~ 714 | Extract timeline logic | ✅ → `TimelineContainer/` |
 
 ### Medium Priority (1500-2000 lines)
 | File | Lines | Action |
@@ -989,9 +1035,22 @@ Centralized query key registry now in `src/shared/lib/queryKeys.ts` with TypeScr
 | `src/shared/components/SegmentSettingsForm.tsx` | 1,570 | Extract field groups |
 | `src/tools/travel-between-images/components/VideoGallery/components/VideoItem.tsx` | 1,532 | Extract interactions |
 
+### Orchestrator Files (acceptable size, monitor only)
+| File | Lines | Notes |
+|------|-------|-------|
+| `src/shared/components/MediaLightbox/ImageLightbox.tsx` | 1,303 | Main image lightbox orchestrator |
+| `src/tools/image-generation/components/ImageGenerationForm/index.tsx` | 1,164 | Form orchestrator with extracted hooks |
+| `src/tools/travel-between-images/components/ShotEditor/index.tsx` | 1,190 | Editor orchestrator with extracted sections |
+| `src/shared/components/MediaLightbox/VideoLightbox.tsx` | 1,077 | Main video lightbox orchestrator |
+
 ### Completed ✅
 - ~~`src/shared/hooks/useShots.ts`~~ → `src/shared/hooks/shots/` (10 files)
-- ~~`src/shared/components/MediaLightbox/MediaLightbox.tsx`~~ → 90+ modular files
+- ~~`src/shared/hooks/useSegmentSettings.ts`~~ → `src/shared/hooks/segments/` (5 files) + `useServerForm.ts`
+- ~~`src/shared/components/MediaLightbox/MediaLightbox.tsx`~~ → 189 lines + 90+ modular files
+- ~~`src/tools/travel-between-images/components/ShotImagesEditor.tsx`~~ → `ShotImagesEditor/` (13 files, 2,806 total lines)
+- ~~`src/tools/image-generation/components/ImageGenerationForm/index.tsx`~~ → 1,164 lines + hooks/components/state/context
+- ~~`src/tools/travel-between-images/components/ShotEditor/index.tsx`~~ → 1,190 lines + sections/hooks/services/context
+- ~~`src/tools/travel-between-images/components/Timeline/TimelineContainer.tsx`~~ → `TimelineContainer/` (10 files)
 
 ### Files Setting Good Examples
 - `src/shared/lib/errors.ts` — Good error typing pattern
@@ -999,7 +1058,12 @@ Centralized query key registry now in `src/shared/lib/queryKeys.ts` with TypeScr
 - `src/shared/constants/` — Constants extraction done well
 - `src/shared/components/ui/` — Consistent shadcn patterns
 - `src/shared/hooks/shots/` — Good hook decomposition pattern
+- `src/shared/hooks/segments/` — Clean query/mutation/composed hook pattern
+- `src/shared/hooks/useServerForm.ts` — Reusable "form over server state" pattern
+- `src/tools/travel-between-images/components/ShotImagesEditor/` — Excellent refactor (3,775 → 32 line index)
+- `src/tools/travel-between-images/components/Timeline/TimelineContainer/` — Clean directory split
+- `src/shared/components/MediaLightbox/contexts/` — Context strategy for state distribution
 
 ---
 
-*Last audit: 2026-02-01 (added prop drilling, hook-heavy components, hardcoded colors, inline JSX functions, complex ternaries, inline styles)*
+*Last audit: 2026-02-02 (added useSegmentSettings refactor → segments/ + useServerForm pattern)*

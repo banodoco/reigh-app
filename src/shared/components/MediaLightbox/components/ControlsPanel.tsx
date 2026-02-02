@@ -6,7 +6,7 @@
  * - EditModePanel: when in image edit mode (inpaint/annotate/reposition)
  * - InfoPanel: default info view with task details and variants
  *
- * This eliminates the duplicated ternary logic between desktop and mobile layouts.
+ * Uses context hooks to determine mode and passes only specialized props to children.
  */
 
 import React from 'react';
@@ -18,38 +18,25 @@ import type { EditModePanelProps } from './EditModePanel';
 import type { InfoPanelProps } from './InfoPanel';
 import type { SegmentRegenerateFormProps } from './SegmentRegenerateForm';
 import type { VideoEnhanceSettings } from '../hooks/useVideoEnhance';
+import { useImageEditSafe } from '../contexts/ImageEditContext';
+import { useVideoEditSafe } from '../contexts/VideoEditContext';
 
-// Mode detection props
-interface ModeProps {
-  isInVideoEditMode: boolean;
-  isSpecialEditMode: boolean;
-}
-
-// Combine all panel props (omitting variant since we handle it)
-export interface ControlsPanelProps extends ModeProps {
+/**
+ * ControlsPanel Props - Significantly reduced after context migration
+ *
+ * Child components (InfoPanel, VideoEditPanel, EditModePanel) now use context hooks
+ * for shared state. ControlsPanel only passes specialized/deeply-nested props.
+ */
+export interface ControlsPanelProps {
   /** Layout variant - passed through to child panels */
   variant: 'desktop' | 'mobile';
 
-  // VideoEditPanel props
-  videoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
-  onEnterTrimMode: () => void;
-  onEnterReplaceMode: () => void;
-  onEnterRegenerateMode: () => void;
-  onEnterEnhanceMode: () => void;
-  onExitVideoEditMode: () => void;
+  // ========================================
+  // VideoEditPanel specialized props
+  // ========================================
   isCloudMode?: boolean;
   regenerateFormProps?: SegmentRegenerateFormProps | null;
-  // Enhance mode props
-  enhanceSettings?: VideoEnhanceSettings;
-  onUpdateEnhanceSetting?: <K extends keyof VideoEnhanceSettings>(
-    key: K,
-    value: VideoEnhanceSettings[K]
-  ) => void;
-  onEnhanceGenerate?: () => void;
-  isEnhancing?: boolean;
-  enhanceSuccess?: boolean;
-  canEnhance?: boolean;
-  // Trim props
+  // Trim mode (specialized refs, handlers, save state)
   trimState: VideoEditPanelProps['trimState'];
   onStartTrimChange: VideoEditPanelProps['onStartTrimChange'];
   onEndTrimChange: VideoEditPanelProps['onEndTrimChange'];
@@ -64,11 +51,23 @@ export interface ControlsPanelProps extends ModeProps {
   videoUrl: VideoEditPanelProps['videoUrl'];
   trimCurrentTime: VideoEditPanelProps['trimCurrentTime'];
   trimVideoRef: VideoEditPanelProps['trimVideoRef'];
-  // Regenerate props
+  // Replace (portion) mode (specialized manager)
   videoEditing: VideoEditPanelProps['videoEditing'];
   projectId: VideoEditPanelProps['projectId'];
+  // Enhance mode (specialized handlers)
+  enhanceSettings?: VideoEnhanceSettings;
+  onUpdateEnhanceSetting?: <K extends keyof VideoEnhanceSettings>(
+    key: K,
+    value: VideoEnhanceSettings[K]
+  ) => void;
+  onEnhanceGenerate?: () => void;
+  isEnhancing?: boolean;
+  enhanceSuccess?: boolean;
+  canEnhance?: boolean;
 
-  // EditModePanel props
+  // ========================================
+  // EditModePanel specialized props
+  // ========================================
   sourceGenerationData: EditModePanelProps['sourceGenerationData'];
   onOpenExternalGeneration: EditModePanelProps['onOpenExternalGeneration'];
   allShots: EditModePanelProps['allShots'];
@@ -77,118 +76,49 @@ export interface ControlsPanelProps extends ModeProps {
   sourcePrimaryVariant: EditModePanelProps['sourcePrimaryVariant'];
   onMakeMainVariant: EditModePanelProps['onMakeMainVariant'];
   canMakeMainVariant: EditModePanelProps['canMakeMainVariant'];
-  editMode: EditModePanelProps['editMode'];
-  setEditMode: EditModePanelProps['setEditMode'];
-  setIsInpaintMode: EditModePanelProps['setIsInpaintMode'];
-  inpaintPrompt: EditModePanelProps['inpaintPrompt'];
-  setInpaintPrompt: EditModePanelProps['setInpaintPrompt'];
-  inpaintNumGenerations: EditModePanelProps['inpaintNumGenerations'];
-  setInpaintNumGenerations: EditModePanelProps['setInpaintNumGenerations'];
-  loraMode: EditModePanelProps['loraMode'];
-  setLoraMode: EditModePanelProps['setLoraMode'];
-  customLoraUrl: EditModePanelProps['customLoraUrl'];
-  setCustomLoraUrl: EditModePanelProps['setCustomLoraUrl'];
-  isGeneratingInpaint: EditModePanelProps['isGeneratingInpaint'];
-  inpaintGenerateSuccess: EditModePanelProps['inpaintGenerateSuccess'];
-  isCreatingMagicEditTasks: EditModePanelProps['isCreatingMagicEditTasks'];
-  magicEditTasksCreated: EditModePanelProps['magicEditTasksCreated'];
-  brushStrokes: EditModePanelProps['brushStrokes'];
-  handleExitMagicEditMode: EditModePanelProps['handleExitMagicEditMode'];
+  // Specialized async handlers
   handleUnifiedGenerate: EditModePanelProps['handleUnifiedGenerate'];
   handleGenerateAnnotatedEdit: EditModePanelProps['handleGenerateAnnotatedEdit'];
   handleGenerateReposition: EditModePanelProps['handleGenerateReposition'];
-  isGeneratingReposition: EditModePanelProps['isGeneratingReposition'];
-  repositionGenerateSuccess: EditModePanelProps['repositionGenerateSuccess'];
-  hasTransformChanges: EditModePanelProps['hasTransformChanges'];
   handleSaveAsVariant: EditModePanelProps['handleSaveAsVariant'];
-  isSavingAsVariant: EditModePanelProps['isSavingAsVariant'];
-  saveAsVariantSuccess: EditModePanelProps['saveAsVariantSuccess'];
-  createAsGeneration: EditModePanelProps['createAsGeneration'];
-  onCreateAsGenerationChange: EditModePanelProps['onCreateAsGenerationChange'];
-
-  // Img2Img mode props
-  img2imgPrompt?: EditModePanelProps['img2imgPrompt'];
-  setImg2imgPrompt?: EditModePanelProps['setImg2imgPrompt'];
-  img2imgStrength?: EditModePanelProps['img2imgStrength'];
-  setImg2imgStrength?: EditModePanelProps['setImg2imgStrength'];
-  enablePromptExpansion?: EditModePanelProps['enablePromptExpansion'];
-  setEnablePromptExpansion?: EditModePanelProps['setEnablePromptExpansion'];
-  isGeneratingImg2Img?: EditModePanelProps['isGeneratingImg2Img'];
-  img2imgGenerateSuccess?: EditModePanelProps['img2imgGenerateSuccess'];
   handleGenerateImg2Img?: EditModePanelProps['handleGenerateImg2Img'];
+  // Specialized managers
   img2imgLoraManager?: EditModePanelProps['img2imgLoraManager'];
-  availableLoras?: EditModePanelProps['availableLoras'];
-  // LoRA manager for other edit modes (text, inpaint, annotate, reposition)
   editLoraManager?: EditModePanelProps['editLoraManager'];
+  availableLoras?: EditModePanelProps['availableLoras'];
   advancedSettings?: EditModePanelProps['advancedSettings'];
   setAdvancedSettings?: EditModePanelProps['setAdvancedSettings'];
   isLocalGeneration?: EditModePanelProps['isLocalGeneration'];
-  qwenEditModel?: EditModePanelProps['qwenEditModel'];
-  setQwenEditModel?: EditModePanelProps['setQwenEditModel'];
 
-  // InfoPanel props
-  isVideo: InfoPanelProps['isVideo'];
+  // ========================================
+  // InfoPanel specialized props
+  // ========================================
   showImageEditTools: InfoPanelProps['showImageEditTools'];
-  readOnly: InfoPanelProps['readOnly'];
-  isInpaintMode: InfoPanelProps['isInpaintMode'];
-  onExitInpaintMode: InfoPanelProps['onExitInpaintMode'];
-  onEnterInpaintMode: InfoPanelProps['onEnterInpaintMode'];
-  onEnterVideoEditMode: InfoPanelProps['onEnterVideoEditMode'];
-  onClose: InfoPanelProps['onClose'];
   taskDetailsData: InfoPanelProps['taskDetailsData'];
-  /** Task ID for copy functionality in edit mode (extracted from taskDetailsData) */
-  taskId?: string | null;
   derivedItems: InfoPanelProps['derivedItems'];
-  replaceImages: InfoPanelProps['replaceImages'];
-  onReplaceImagesChange: InfoPanelProps['onReplaceImagesChange'];
-  onSwitchToPrimary: InfoPanelProps['onSwitchToPrimary'];
-  variantsSectionRef: InfoPanelProps['variantsSectionRef'];
-
-  // Shared props (used by multiple panels)
-  currentMediaId: string;
-  currentShotId?: string;
   derivedGenerations: any;
   paginatedDerived: any;
   derivedPage: number;
   derivedTotalPages: number;
   onSetDerivedPage: (page: number | ((prev: number) => number)) => void;
-  variants: any[];
-  activeVariant: any;
-  primaryVariant: any;
-  onVariantSelect: (variantId: string) => void;
-  onMakePrimary: (variantId: string) => Promise<void>;
-  isLoadingVariants: boolean;
-  // Variant promotion
-  onPromoteToGeneration?: (variantId: string) => Promise<void>;
-  isPromoting?: boolean;
-  // Variant deletion
-  onDeleteVariant?: (variantId: string) => Promise<void>;
+  replaceImages: InfoPanelProps['replaceImages'];
+  onReplaceImagesChange: InfoPanelProps['onReplaceImagesChange'];
+  onSwitchToPrimary: InfoPanelProps['onSwitchToPrimary'];
 
-  /** Handler to load a variant's settings into the regenerate form */
-  onLoadVariantSettings?: (variantParams: Record<string, any>) => void;
+  // ========================================
+  // Shared props
+  // ========================================
+  currentMediaId: string;
+  currentShotId?: string;
+  taskId?: string | null;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
   const {
     variant,
-    isInVideoEditMode,
-    isSpecialEditMode,
-    // VideoEditPanel props
-    videoEditSubMode,
-    onEnterTrimMode,
-    onEnterReplaceMode,
-    onEnterRegenerateMode,
-    onEnterEnhanceMode,
-    onExitVideoEditMode,
+    // VideoEditPanel specialized props
     isCloudMode,
     regenerateFormProps,
-    // Enhance props
-    enhanceSettings,
-    onUpdateEnhanceSetting,
-    onEnhanceGenerate,
-    isEnhancing,
-    enhanceSuccess,
-    canEnhance,
     trimState,
     onStartTrimChange,
     onEndTrimChange,
@@ -205,7 +135,13 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
     trimVideoRef,
     videoEditing,
     projectId,
-    // EditModePanel props
+    enhanceSettings,
+    onUpdateEnhanceSetting,
+    onEnhanceGenerate,
+    isEnhancing,
+    enhanceSuccess,
+    canEnhance,
+    // EditModePanel specialized props
     sourceGenerationData,
     onOpenExternalGeneration,
     allShots,
@@ -214,105 +150,48 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
     sourcePrimaryVariant,
     onMakeMainVariant,
     canMakeMainVariant,
-    editMode,
-    setEditMode,
-    setIsInpaintMode,
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-    loraMode,
-    setLoraMode,
-    customLoraUrl,
-    setCustomLoraUrl,
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-    brushStrokes,
-    handleExitMagicEditMode,
     handleUnifiedGenerate,
     handleGenerateAnnotatedEdit,
     handleGenerateReposition,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    hasTransformChanges,
     handleSaveAsVariant,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    createAsGeneration,
-    onCreateAsGenerationChange,
-    // Img2Img props
-    img2imgPrompt,
-    setImg2imgPrompt,
-    img2imgStrength,
-    setImg2imgStrength,
-    enablePromptExpansion,
-    setEnablePromptExpansion,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
     handleGenerateImg2Img,
     img2imgLoraManager,
-    availableLoras,
     editLoraManager,
+    availableLoras,
     advancedSettings,
     setAdvancedSettings,
     isLocalGeneration,
-    qwenEditModel,
-    setQwenEditModel,
-    // InfoPanel props
-    isVideo,
+    // InfoPanel specialized props
     showImageEditTools,
-    readOnly,
-    isInpaintMode,
-    onExitInpaintMode,
-    onEnterInpaintMode,
-    onEnterVideoEditMode,
-    onClose,
     taskDetailsData,
-    taskId,
     derivedItems,
-    replaceImages,
-    onReplaceImagesChange,
-    onSwitchToPrimary,
-    variantsSectionRef,
-    // Shared props
-    currentMediaId,
-    currentShotId,
     derivedGenerations,
     paginatedDerived,
     derivedPage,
     derivedTotalPages,
     onSetDerivedPage,
-    variants,
-    activeVariant,
-    primaryVariant,
-    onVariantSelect,
-    onMakePrimary,
-    isLoadingVariants,
-    // Variant promotion
-    onPromoteToGeneration,
-    isPromoting,
-    // Variant deletion
-    onDeleteVariant,
-    // Load variant settings
-    onLoadVariantSettings,
+    replaceImages,
+    onReplaceImagesChange,
+    onSwitchToPrimary,
+    // Shared props
+    currentMediaId,
+    currentShotId,
+    taskId,
   } = props;
 
-  // Route to VideoEditPanel
+  // ========================================
+  // CONTEXT STATE - Mode detection
+  // ========================================
+  const { isSpecialEditMode } = useImageEditSafe();
+  const { isInVideoEditMode, videoEditSubMode } = useVideoEditSafe();
+
+  // Route to VideoEditPanel (uses context for mode, variants, handlers)
   if (isInVideoEditMode && videoEditSubMode) {
     return (
       <VideoEditPanel
         variant={variant}
-        videoEditSubMode={videoEditSubMode}
-        onEnterTrimMode={onEnterTrimMode}
-        onEnterReplaceMode={onEnterReplaceMode}
-        onEnterRegenerateMode={onEnterRegenerateMode}
-        onEnterEnhanceMode={onEnterEnhanceMode}
-        onClose={onClose}
-        onExitVideoEditMode={onExitVideoEditMode}
         isCloudMode={isCloudMode}
-        // Trim props
+        // Trim specialized props
         trimState={trimState}
         onStartTrimChange={onStartTrimChange}
         onEndTrimChange={onEndTrimChange}
@@ -327,131 +206,64 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
         videoUrl={videoUrl}
         trimCurrentTime={trimCurrentTime}
         trimVideoRef={trimVideoRef}
-        // Replace (portion) props
+        // Replace specialized props
         videoEditing={videoEditing}
         projectId={projectId}
-        // Regenerate props
+        // Regenerate specialized props
         regenerateFormProps={regenerateFormProps}
-        // Enhance props
+        // Enhance specialized props
         enhanceSettings={enhanceSettings}
         onUpdateEnhanceSetting={onUpdateEnhanceSetting}
         onEnhanceGenerate={onEnhanceGenerate}
         isEnhancing={isEnhancing}
         enhanceSuccess={enhanceSuccess}
         canEnhance={canEnhance}
-        // Task ID for copy functionality
+        // Task ID
         taskId={taskId}
-        // Variants props
-        variants={variants}
-        activeVariantId={activeVariant?.id || null}
-        onVariantSelect={onVariantSelect}
-        onMakePrimary={onMakePrimary}
-        isLoadingVariants={isLoadingVariants}
-        onPromoteToGeneration={onPromoteToGeneration}
-        isPromoting={isPromoting}
-        onLoadVariantSettings={onLoadVariantSettings}
-        onDeleteVariant={onDeleteVariant}
       />
     );
   }
 
-  // Route to EditModePanel (image editing)
+  // Route to EditModePanel (uses context for edit state, form state, variants)
   if (isSpecialEditMode) {
     return (
       <EditModePanel
+        variant={variant}
+        // Source generation specialized props
         sourceGenerationData={sourceGenerationData}
         onOpenExternalGeneration={onOpenExternalGeneration}
         currentShotId={currentShotId}
         allShots={allShots}
-        currentMediaId={currentMediaId}
         isCurrentMediaPositioned={isCurrentMediaPositioned}
         onReplaceInShot={onReplaceInShot}
         sourcePrimaryVariant={sourcePrimaryVariant}
         onMakeMainVariant={onMakeMainVariant}
         canMakeMainVariant={canMakeMainVariant}
         taskId={taskId}
-        editMode={editMode}
-        setEditMode={setEditMode}
-        setIsInpaintMode={setIsInpaintMode}
-        inpaintPrompt={inpaintPrompt}
-        setInpaintPrompt={setInpaintPrompt}
-        inpaintNumGenerations={inpaintNumGenerations}
-        setInpaintNumGenerations={setInpaintNumGenerations}
-        loraMode={loraMode}
-        setLoraMode={setLoraMode}
-        customLoraUrl={customLoraUrl}
-        setCustomLoraUrl={setCustomLoraUrl}
-        isGeneratingInpaint={isGeneratingInpaint}
-        inpaintGenerateSuccess={inpaintGenerateSuccess}
-        isCreatingMagicEditTasks={isCreatingMagicEditTasks}
-        magicEditTasksCreated={magicEditTasksCreated}
-        brushStrokes={brushStrokes}
-        handleExitMagicEditMode={handleExitMagicEditMode}
+        currentMediaId={currentMediaId}
+        // Specialized async handlers
         handleUnifiedGenerate={handleUnifiedGenerate}
         handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
         handleGenerateReposition={handleGenerateReposition}
-        isGeneratingReposition={isGeneratingReposition}
-        repositionGenerateSuccess={repositionGenerateSuccess}
-        hasTransformChanges={hasTransformChanges}
         handleSaveAsVariant={handleSaveAsVariant}
-        isSavingAsVariant={isSavingAsVariant}
-        saveAsVariantSuccess={saveAsVariantSuccess}
-        derivedGenerations={derivedGenerations}
-        paginatedDerived={paginatedDerived}
-        derivedPage={derivedPage}
-        derivedTotalPages={derivedTotalPages}
-        setDerivedPage={onSetDerivedPage}
-        variants={variants}
-        activeVariantId={activeVariant?.id || null}
-        onVariantSelect={onVariantSelect}
-        onMakePrimary={onMakePrimary}
-        isLoadingVariants={isLoadingVariants}
-        onPromoteToGeneration={onPromoteToGeneration}
-        isPromoting={isPromoting}
-        onDeleteVariant={onDeleteVariant}
-        onLoadVariantSettings={onLoadVariantSettings}
-        onClose={onClose}
-        variant={variant}
-        createAsGeneration={createAsGeneration}
-        onCreateAsGenerationChange={onCreateAsGenerationChange}
-        // Img2Img props
-        img2imgPrompt={img2imgPrompt}
-        setImg2imgPrompt={setImg2imgPrompt}
-        img2imgStrength={img2imgStrength}
-        setImg2imgStrength={setImg2imgStrength}
-        enablePromptExpansion={enablePromptExpansion}
-        setEnablePromptExpansion={setEnablePromptExpansion}
-        isGeneratingImg2Img={isGeneratingImg2Img}
-        img2imgGenerateSuccess={img2imgGenerateSuccess}
         handleGenerateImg2Img={handleGenerateImg2Img}
+        // Specialized managers
         img2imgLoraManager={img2imgLoraManager}
-        availableLoras={availableLoras}
         editLoraManager={editLoraManager}
+        availableLoras={availableLoras}
         advancedSettings={advancedSettings}
         setAdvancedSettings={setAdvancedSettings}
         isLocalGeneration={isLocalGeneration}
-        qwenEditModel={qwenEditModel}
-        setQwenEditModel={setQwenEditModel}
       />
     );
   }
 
-  // Default: InfoPanel
+  // Default: InfoPanel (uses context for core, media, edit state, variants)
   return (
     <InfoPanel
       variant={variant}
-      // Header props
-      isVideo={isVideo}
       showImageEditTools={showImageEditTools}
-      readOnly={readOnly}
-      isInpaintMode={isInpaintMode}
-      isInVideoEditMode={isInVideoEditMode}
-      onExitInpaintMode={onExitInpaintMode}
-      onEnterInpaintMode={onEnterInpaintMode}
-      onExitVideoEditMode={onExitVideoEditMode}
-      onEnterVideoEditMode={onEnterVideoEditMode}
-      onClose={onClose}
-      // TaskDetails props
+      // TaskDetails specialized props
       taskDetailsData={taskDetailsData}
       derivedItems={derivedItems}
       derivedGenerations={derivedGenerations}
@@ -464,19 +276,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
       currentShotId={currentShotId}
       replaceImages={replaceImages}
       onReplaceImagesChange={onReplaceImagesChange}
-      activeVariant={activeVariant}
-      primaryVariant={primaryVariant}
       onSwitchToPrimary={onSwitchToPrimary}
-      // Variants props
-      variants={variants}
-      onVariantSelect={onVariantSelect}
-      onMakePrimary={onMakePrimary}
-      isLoadingVariants={isLoadingVariants}
-      variantsSectionRef={variantsSectionRef}
-      onPromoteToGeneration={onPromoteToGeneration}
-      isPromoting={isPromoting}
-      onDeleteVariant={onDeleteVariant}
-      onLoadVariantSettings={onLoadVariantSettings}
       taskId={taskId}
     />
   );

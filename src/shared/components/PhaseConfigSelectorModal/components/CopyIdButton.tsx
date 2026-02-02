@@ -43,5 +43,3 @@ export const CopyIdButton: React.FC<CopyIdButtonProps> = ({ id }) => {
     </Tooltip>
   );
 };
-
-export default CopyIdButton;

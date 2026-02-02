@@ -4,7 +4,8 @@
  * Unified info panel for both desktop and mobile layouts.
  * Shows task details, variants, and Info/Edit toggle controls.
  *
- * Follows the same pattern as EditModePanel and VideoEditPanel with variant prop.
+ * Uses context hooks for shared state (core, media, edit, variants).
+ * Receives only layout-specific and deeply-nested props.
  */
 
 import React, { useState } from 'react';
@@ -16,27 +17,23 @@ import { cn } from '@/shared/lib/utils';
 import { TaskDetailsPanelWrapper } from './TaskDetailsPanelWrapper';
 import { VariantSelector } from '@/tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/components/VariantSelector';
 import { VariantBadge } from '@/shared/components/VariantBadge';
-import { useLightboxVariantsSafe } from '../contexts/LightboxStateContext';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import {
+  useLightboxCoreSafe,
+  useLightboxMediaSafe,
+  useLightboxVariantsSafe,
+} from '../contexts/LightboxStateContext';
+import { useImageEditSafe } from '../contexts/ImageEditContext';
+import { useVideoEditSafe } from '../contexts/VideoEditContext';
 import type { GenerationRow } from '@/types/shots';
 
 export interface InfoPanelProps {
   /** Layout variant */
   variant: 'desktop' | 'mobile';
 
-  // Header toggle state & handlers
-  isVideo: boolean;
+  // Header toggle - only specialized props now
   showImageEditTools: boolean;
-  readOnly: boolean;
-  isInpaintMode: boolean;
-  isInVideoEditMode: boolean;
-  onExitInpaintMode: () => void;
-  onEnterInpaintMode: () => void;
-  onExitVideoEditMode: () => void;
-  onEnterVideoEditMode: () => void;
-  onClose: () => void;
 
-  // TaskDetailsPanelWrapper props
+  // TaskDetailsPanelWrapper props (deeply nested data)
   taskDetailsData: any;
   derivedItems: any[];
   derivedGenerations: GenerationRow[] | null;
@@ -49,24 +46,7 @@ export interface InfoPanelProps {
   currentShotId?: string;
   replaceImages: boolean;
   onReplaceImagesChange: (value: boolean) => void;
-  activeVariant: GenerationVariant | null;
-  primaryVariant: GenerationVariant | null;
   onSwitchToPrimary?: () => void;
-
-  // Variants props
-  variants: GenerationVariant[];
-  onVariantSelect: (variantId: string) => void;
-  onMakePrimary: (variantId: string) => Promise<void>;
-  isLoadingVariants: boolean;
-  variantsSectionRef?: React.RefObject<HTMLDivElement>;
-  // Variant promotion
-  onPromoteToGeneration?: (variantId: string) => Promise<void>;
-  isPromoting?: boolean;
-  // Variant deletion
-  onDeleteVariant?: (variantId: string) => Promise<void>;
-
-  // Load variant settings into edit form
-  onLoadVariantSettings?: (variantParams: Record<string, any>) => void;
 
   /** Task ID for copy functionality (fallback when not in taskDetailsData) */
   taskId?: string | null;
@@ -75,16 +55,7 @@ export interface InfoPanelProps {
 export const InfoPanel: React.FC<InfoPanelProps> = ({
   variant,
   // Header props
-  isVideo,
   showImageEditTools,
-  readOnly,
-  isInpaintMode,
-  isInVideoEditMode,
-  onExitInpaintMode,
-  onEnterInpaintMode,
-  onExitVideoEditMode,
-  onEnterVideoEditMode,
-  onClose,
   // TaskDetails props
   taskDetailsData,
   derivedItems,
@@ -98,31 +69,36 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   currentShotId,
   replaceImages,
   onReplaceImagesChange,
-  activeVariant,
-  primaryVariant,
   onSwitchToPrimary,
-  // Variants props
-  variants,
-  onVariantSelect,
-  onMakePrimary,
-  isLoadingVariants,
-  variantsSectionRef,
-  // Variant promotion
-  onPromoteToGeneration,
-  isPromoting,
-  // Variant deletion
-  onDeleteVariant,
-  // Load variant settings
-  onLoadVariantSettings,
   // Task ID fallback
   taskId: taskIdProp,
 }) => {
   const isMobile = variant === 'mobile';
 
-  // Get variant state from context (avoids prop drilling)
-  const { pendingTaskCount, unviewedVariantCount, onMarkAllViewed, variantsSectionRef: contextVariantsSectionRef } = useLightboxVariantsSafe();
-  // Use context ref if prop not provided
-  const effectiveVariantsSectionRef = variantsSectionRef || contextVariantsSectionRef;
+  // ========================================
+  // CONTEXT STATE (no longer from props)
+  // ========================================
+  const { onClose, readOnly } = useLightboxCoreSafe();
+  const { isVideo } = useLightboxMediaSafe();
+  const { isInpaintMode, handleEnterInpaintMode, handleExitInpaintMode } = useImageEditSafe();
+  const { isInVideoEditMode, handleEnterVideoEditMode, handleExitVideoEditMode } = useVideoEditSafe();
+  const {
+    variants,
+    activeVariant,
+    primaryVariant,
+    handleVariantSelect: onVariantSelect,
+    handleMakePrimary: onMakePrimary,
+    isLoadingVariants,
+    variantsSectionRef,
+    pendingTaskCount,
+    unviewedVariantCount,
+    onMarkAllViewed,
+    handlePromoteToGeneration: onPromoteToGeneration,
+    isPromoting,
+    handleDeleteVariant: onDeleteVariant,
+    onLoadVariantSettings,
+  } = useLightboxVariantsSafe();
+
   const hasVariants = variants && variants.length >= 1;
   const [idCopied, setIdCopied] = useState(false);
 
@@ -141,9 +117,9 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
         value={isInpaintMode ? 'edit' : 'info'}
         onValueChange={(value) => {
           if (value === 'info' && isInpaintMode) {
-            onExitInpaintMode();
+            handleExitInpaintMode();
           } else if (value === 'edit' && !isInpaintMode) {
-            onEnterInpaintMode();
+            handleEnterInpaintMode();
           }
         }}
       >
@@ -162,9 +138,9 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
         value={isInVideoEditMode ? 'edit' : 'info'}
         onValueChange={(value) => {
           if (value === 'info' && isInVideoEditMode) {
-            onExitVideoEditMode();
+            handleExitVideoEditMode();
           } else if (value === 'edit' && !isInVideoEditMode) {
-            onEnterVideoEditMode();
+            handleEnterVideoEditMode();
           }
         }}
       >
@@ -214,7 +190,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
           )}
           {hasVariants && (
             <button
-              onClick={() => effectiveVariantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              onClick={() => variantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
             >
               <span>{variants.length} variants</span>
@@ -236,7 +212,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
               alwaysShowNew={true}
               tooltipSide="bottom"
               onMarkAllViewed={onMarkAllViewed}
-              onClick={() => effectiveVariantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              onClick={() => variantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             />
           ) : null}
         </div>
@@ -291,7 +267,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
 
     return (
       <div
-        ref={effectiveVariantsSectionRef}
+        ref={variantsSectionRef}
         className={cn("border-t border-border", variantPadding)}
       >
         <VariantSelector

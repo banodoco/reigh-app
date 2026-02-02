@@ -52,6 +52,7 @@ export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
         setLastParentUpdate(promptEntry.fullPrompt);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- promptEntry.id is stable and only used for logging
   }, [promptEntry.fullPrompt, isEditingFullPrompt, lastParentUpdate]);
 
   // Close edit mode when another prompt becomes active
@@ -76,12 +77,9 @@ export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
     }
   }, [isMobile, autoEnterEditWhenActive, isActiveForFullView, isEditingFullPrompt]);
 
-  const effectiveShortPrompt = promptEntry.shortPrompt?.trim();
-  
   // Always show full prompt by default (user wants to see full text, not summary)
-  let displayText = isEditingFullPrompt ? localFullPrompt : promptEntry.fullPrompt;
+  const displayText = isEditingFullPrompt ? localFullPrompt : promptEntry.fullPrompt;
   let currentPlaceholder = `Enter prompt #${index + 1}...`;
-  let isShowingShort = false;
 
   if (isEditingFullPrompt) {
     currentPlaceholder = `Editing prompt #${index + 1}...`;
@@ -243,7 +241,7 @@ export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
       // This prevents feedback loops when parent updates (like from AI edit)
       onUpdate(promptEntry.id, 'fullPrompt', localFullPrompt);
     }
-  }, [isEditingFullPrompt, localFullPrompt, promptEntry.fullPrompt, lastParentUpdate]);
+  }, [isEditingFullPrompt, localFullPrompt, promptEntry.fullPrompt, promptEntry.id, lastParentUpdate, onUpdate]);
 
   return (
     <div 

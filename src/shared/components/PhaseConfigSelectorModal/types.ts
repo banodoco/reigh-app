@@ -31,60 +31,6 @@ export interface PhaseConfigSelectorModalProps {
   currentSettings?: CurrentSettings;
 }
 
-export interface PresetFormState {
-  name: string;
-  description: string;
-  created_by_is_you: boolean;
-  created_by_username: string;
-  is_public: boolean;
-  basePrompt: string;
-  negativePrompt: string;
-  textBeforePrompts: string;
-  textAfterPrompts: string;
-  enhancePrompt: boolean;
-  durationFrames: number;
-}
-
-export interface BrowsePresetsTabProps {
-  presets: (Resource & { metadata: PhaseConfigMetadata })[];
-  publicPresets: (Resource & { metadata: PhaseConfigMetadata })[];
-  myPresetsLoading: boolean;
-  publicPresetsLoading: boolean;
-  selectedPresetId: string | null;
-  intent: 'load' | 'overwrite';
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  sortOption: SortOption;
-  setSortOption: (option: SortOption) => void;
-  modelTypeFilter: ModelTypeFilter;
-  setModelTypeFilter: (filter: ModelTypeFilter) => void;
-  showMyPresetsOnly: boolean;
-  setShowMyPresetsOnly: (show: boolean) => void;
-  showSelectedPresetOnly: boolean;
-  setShowSelectedPresetOnly: (show: boolean) => void;
-  onSelectPreset: (preset: Resource & { metadata: PhaseConfigMetadata }) => void;
-  onRemovePreset: () => void;
-  onOverwrite?: (preset: Resource & { metadata: PhaseConfigMetadata }) => void;
-  onEdit: (preset: Resource & { metadata: PhaseConfigMetadata }) => void;
-  onDelete: (preset: { id: string; name: string; isSelected: boolean }) => void;
-  availableLoras?: LoraModel[];
-  userId?: string;
-  createResource: any;
-  setPage: (page: number) => void;
-  page: number;
-}
-
-export interface AddNewPresetTabProps {
-  isEditMode: boolean;
-  isOverwriting: boolean;
-  editingPreset: (Resource & { metadata: PhaseConfigMetadata }) | null;
-  currentPhaseConfig?: PhaseConfig;
-  currentSettings?: CurrentSettings;
-  availableLoras?: LoraModel[];
-  initialGenerationTypeMode: 'i2v' | 'vace';
-  defaultIsPublic: boolean;
-  onClearEdit: () => void;
-  onSwitchToBrowse: () => void;
-  createResource: any;
-  updateResource: any;
-}
+// Note: BrowsePresetsTabProps and AddNewTabProps are defined in their respective
+// component files (components/BrowsePresetsTab.tsx and components/AddNewPresetTab.tsx)
+// to keep types close to implementation.

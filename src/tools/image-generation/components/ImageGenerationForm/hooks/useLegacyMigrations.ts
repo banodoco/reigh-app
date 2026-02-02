@@ -115,7 +115,7 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
       if (!projectImageSettings || !selectedProjectId) return;
 
       let needsMigration = false;
-      let updates: Partial<ProjectImageSettings> = {};
+      const updates: Partial<ProjectImageSettings> = {};
 
       // Migration 1: Flat reference properties -> references array
       const hasLegacyFlatFormat = projectImageSettings.styleReferenceImage &&
@@ -261,7 +261,7 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem('referenceMigrationComplete', 'true');
         }
-      } catch {}
+      } catch { /* Ignore sessionStorage errors */ }
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -333,14 +333,15 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
           if (typeof window !== 'undefined') {
             window.sessionStorage.removeItem('referenceMigrationComplete');
           }
-        } catch {}
+        } catch { /* Ignore sessionStorage errors */ }
       }
     };
 
     if (!migrationCompleteRef.current && hasLegacyReferences) {
       migrateToResources();
     }
-  }, [selectedProjectId]); // Minimal dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Minimal deps: migration runs once per project, uses refs for other values
+  }, [selectedProjectId]);
 
   // ============================================================================
   // Cleanup 5: Remove invalid reference pointers (runtime data integrity)
@@ -359,8 +360,9 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
     if (!referencePointers || referencePointers.length === 0) return;
 
     // Count how many non-legacy pointers we have
+    // Legacy pointers have styleReferenceImage but no resourceId (pre-migration format)
     const nonLegacyPointers = referencePointers.filter(p => {
-      const isLegacy = !p.resourceId && (p as any).styleReferenceImage;
+      const isLegacy = !p.resourceId && 'styleReferenceImage' in p;
       return !isLegacy && !!p.resourceId;
     });
 
@@ -372,7 +374,7 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
 
     const hydratedPointerIds = new Set(hydratedReferences.map(r => r.id));
     const invalidPointers = referencePointers.filter(p => {
-      const isLegacy = !p.resourceId && (p as any).styleReferenceImage;
+      const isLegacy = !p.resourceId && 'styleReferenceImage' in p;
       if (isLegacy) return false;
       return !!p.resourceId && !hydratedPointerIds.has(p.id);
     });

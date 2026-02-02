@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { QueryClient } from '@tanstack/react-query';
 import { handleError } from '@/shared/lib/errorHandler';
 import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import {
@@ -40,7 +41,7 @@ export interface UseGenerationSourceProps {
   // Callback for hires fix defaults
   setHiresFixConfig: React.Dispatch<React.SetStateAction<HiresFixConfig | Partial<HiresFixConfig>>>;
   // Callback for model change (used by model selector)
-  queryClient?: any;
+  queryClient?: QueryClient;
 }
 
 export interface UseGenerationSourceReturn {
@@ -242,7 +243,7 @@ export function useGenerationSource(props: UseGenerationSourceProps): UseGenerat
     if (queryClient) {
       try {
         const { updateSettingsCache } = await import('@/shared/hooks/useToolSettings');
-        queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: any) =>
+        queryClient.setQueryData(['toolSettings', 'project-image-settings', selectedProjectId, undefined], (prev: unknown) =>
           updateSettingsCache<ProjectImageSettings>(prev, { selectedModel: value })
         );
       } catch (e) {

@@ -44,14 +44,9 @@ import {
 } from './hooks';
 
 // Import components
-import { LightboxShell, LightboxProviders } from './components';
+import { LightboxShell, LightboxProviders, ImageLightboxContent } from './components';
 import { ImageEditProvider, type ImageEditState } from './contexts/ImageEditContext';
 import { EditFormProvider, type EditFormState } from './contexts/EditFormContext';
-import {
-  DesktopSidePanelLayout,
-  MobileStackedLayout,
-  CenteredLayout,
-} from './components/layouts';
 
 // Import utils
 import { downloadMedia } from './utils';
@@ -1222,11 +1217,14 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     // Panel
     effectiveTasksPaneOpen,
     effectiveTasksPaneWidth,
-    // Button group props
+    // Button group props - override topRight with real handlers (not placeholders)
     buttonGroupProps: {
       ...buttonGroupProps,
-      handleDownload,
-      handleDelete,
+      topRight: {
+        ...buttonGroupProps.topRight,
+        handleDownload,
+        handleDelete,
+      },
     },
     // Workflow props
     allShots: allShots || [],
@@ -1286,13 +1284,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
             accessibilityTitle={accessibilityTitle}
             accessibilityDescription={accessibilityDescription}
           >
-            {layout.shouldShowSidePanel ? (
-              <DesktopSidePanelLayout {...sidePanelLayoutProps} />
-            ) : (showTaskDetails || isSpecialEditMode) && isMobile ? (
-              <MobileStackedLayout {...sidePanelLayoutProps} />
-            ) : (
-              <CenteredLayout {...centeredLayoutProps} />
-            )}
+            <ImageLightboxContent
+              sidePanelLayoutProps={sidePanelLayoutProps}
+              centeredLayoutProps={centeredLayoutProps}
+              showTaskDetails={showTaskDetails}
+              shouldShowSidePanel={layout.shouldShowSidePanel}
+            />
           </LightboxShell>
         </EditFormProvider>
       </ImageEditProvider>

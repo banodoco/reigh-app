@@ -24,7 +24,7 @@ import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePendingGenerationTasks } from '@/shared/hooks/usePendingGenerationTasks';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
-import { LightboxProviders } from './components';
+import { LightboxProviders, VideoLightboxContent } from './components';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 
 // Import hooks
@@ -41,13 +41,8 @@ import {
 } from './hooks';
 
 // Import components
-import { LightboxShell, SegmentSlotFormView } from './components';
+import { LightboxShell } from './components';
 import { VideoEditProvider, type VideoEditState } from './contexts/VideoEditContext';
-import {
-  DesktopSidePanelLayout,
-  MobileStackedLayout,
-  CenteredLayout,
-} from './components/layouts';
 
 // Import utils
 import { downloadMedia } from './utils';
@@ -988,11 +983,14 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     // Panel
     effectiveTasksPaneOpen,
     effectiveTasksPaneWidth,
-    // Button group props
+    // Button group props - override topRight with real handlers (not placeholders)
     buttonGroupProps: {
       ...buttonGroupProps,
-      handleDownload,
-      handleDelete,
+      topRight: {
+        ...buttonGroupProps.topRight,
+        handleDownload,
+        handleDelete,
+      },
     },
     // Workflow props
     allShots: allShots || [],
@@ -1051,23 +1049,16 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
           accessibilityTitle={accessibilityTitle}
           accessibilityDescription={accessibilityDescription}
         >
-          {isFormOnlyMode ? (
-            <SegmentSlotFormView
-              segmentSlotMode={segmentSlotMode!}
-              onClose={onClose}
-              onNavPrev={handleSlotNavPrev}
-              onNavNext={handleSlotNavNext}
-              hasPrevious={hasPrevious}
-              hasNext={hasNext}
-              readOnly={readOnly}
-            />
-          ) : shouldShowSidePanelWithTrim ? (
-            <DesktopSidePanelLayout {...sidePanelLayoutProps} />
-          ) : (showTaskDetails || isAnyVideoEditMode || (isSegmentSlotMode && hasSegmentVideo)) && isMobile ? (
-            <MobileStackedLayout {...sidePanelLayoutProps} />
-          ) : (
-            <CenteredLayout {...centeredLayoutProps} />
-          )}
+          <VideoLightboxContent
+            sidePanelLayoutProps={sidePanelLayoutProps}
+            centeredLayoutProps={centeredLayoutProps}
+            showTaskDetails={showTaskDetails}
+            shouldShowSidePanelWithTrim={shouldShowSidePanelWithTrim}
+            segmentSlotMode={segmentSlotMode}
+            isFormOnlyMode={isFormOnlyMode}
+            isSegmentSlotMode={isSegmentSlotMode}
+            hasSegmentVideo={hasSegmentVideo}
+          />
         </LightboxShell>
       </VideoEditProvider>
     </LightboxProviders>

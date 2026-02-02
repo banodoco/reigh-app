@@ -6,13 +6,11 @@ import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { CheckCircle, Loader2, Move, Paintbrush, Pencil, Save, Sparkles, Type, XCircle, Layers, Wand2, Plus } from 'lucide-react';
-import { Checkbox } from '@/shared/components/ui/checkbox';
 import { cn } from '@/shared/lib/utils';
 import { SourceGenerationDisplay } from './SourceGenerationDisplay';
 import { GenerationRow } from '@/types/shots';
 import type { LoraMode, QwenEditModel } from '../hooks';
 import type { SourceVariantData } from '../hooks/useSourceGeneration';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import { ActiveLoRAsDisplay, ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import { LoraSelectorModal, LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
@@ -20,13 +18,20 @@ import { EditAdvancedSettings } from './EditAdvancedSettings';
 import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/useGenerationEditSettings';
 import { EditPanelLayout } from './EditPanelLayout';
 import { ModeSelector } from './ModeSelector';
+import { useLightboxCoreSafe, useLightboxVariantsSafe } from '../contexts/LightboxStateContext';
+import { useImageEditSafe } from '../contexts/ImageEditContext';
+import { useEditFormSafe } from '../contexts/EditFormContext';
 
 export interface EditModePanelProps {
-  // Source generation
+  /** Layout variant */
+  variant: 'desktop' | 'mobile';
+  hideInfoEditToggle?: boolean;
+
+  // Source generation (specialized - deeply nested data)
   sourceGenerationData: GenerationRow | null;
   onOpenExternalGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
-  currentShotId?: string; // Optional: to check if parent is in same shot
-  allShots?: Array<{ id: string; name: string }>; // Optional: for shot names
+  currentShotId?: string;
+  allShots?: Array<{ id: string; name: string }>;
   isCurrentMediaPositioned?: boolean;
   onReplaceInShot?: (parentGenerationId: string, currentMediaId: string, parentTimelineFrame: number, currentShotId: string) => Promise<void>;
   sourcePrimaryVariant?: SourceVariantData | null;
@@ -36,105 +41,27 @@ export interface EditModePanelProps {
   // Task ID for copy functionality
   taskId?: string | null;
 
-  // Edit mode state
-  editMode: 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img';
-  setEditMode: (mode: 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img') => void;
-  setIsInpaintMode: (value: boolean) => void;
+  // Current media ID (for tracking prompt changes)
+  currentMediaId: string;
 
-  // Prompt state
-  inpaintPrompt: string;
-  setInpaintPrompt: (value: string) => void;
-
-  // Generations state
-  inpaintNumGenerations: number;
-  setInpaintNumGenerations: (value: number) => void;
-
-  // LoRA Mode
-  loraMode: LoraMode;
-  setLoraMode: (mode: LoraMode) => void;
-  customLoraUrl: string;
-  setCustomLoraUrl: (url: string) => void;
-
-  // Generation status
-  isGeneratingInpaint: boolean;
-  inpaintGenerateSuccess: boolean;
-  isCreatingMagicEditTasks: boolean;
-
-  // Close lightbox
-  onClose: () => void;
-  magicEditTasksCreated: boolean;
-
-  // Brush strokes
-  brushStrokes: any[];
-
-  // Handlers
-  handleExitMagicEditMode: () => void;
+  // Specialized async handlers (mutation triggers)
   handleUnifiedGenerate: () => void;
   handleGenerateAnnotatedEdit: () => void;
   handleGenerateReposition?: () => void;
-
-  // Reposition state
-  isGeneratingReposition?: boolean;
-  repositionGenerateSuccess?: boolean;
-  hasTransformChanges?: boolean;
   handleSaveAsVariant?: () => void;
-  isSavingAsVariant?: boolean;
-  saveAsVariantSuccess?: boolean;
-
-  // Derived generations (legacy - kept for compatibility)
-  derivedGenerations?: GenerationRow[] | null;
-  paginatedDerived?: GenerationRow[];
-  derivedPage?: number;
-  derivedTotalPages?: number;
-  setDerivedPage?: (page: number | ((prev: number) => number)) => void;
-  currentMediaId: string;
-
-  // Variants - for VariantSelector
-  variants?: GenerationVariant[];
-  activeVariantId?: string | null;
-  onVariantSelect?: (variantId: string) => void;
-  onMakePrimary?: (variantId: string) => Promise<void>;
-  isLoadingVariants?: boolean;
-  // Variant promotion
-  onPromoteToGeneration?: (variantId: string) => Promise<void>;
-  isPromoting?: boolean;
-  // Variant deletion
-  onDeleteVariant?: (variantId: string) => Promise<void>;
-
-  // Load variant settings into form
-  onLoadVariantSettings?: (variantParams: Record<string, any>) => void;
-
-  // Variant
-  variant: 'desktop' | 'mobile';
-  hideInfoEditToggle?: boolean;
-
-  // Create as generation toggle
-  createAsGeneration?: boolean;
-  onCreateAsGenerationChange?: (value: boolean) => void;
-
-  // Img2Img mode props
-  img2imgPrompt?: string;
-  setImg2imgPrompt?: (prompt: string) => void;
-  img2imgStrength?: number;
-  setImg2imgStrength?: (strength: number) => void;
-  enablePromptExpansion?: boolean;
-  setEnablePromptExpansion?: (enabled: boolean) => void;
-  isGeneratingImg2Img?: boolean;
-  img2imgGenerateSuccess?: boolean;
   handleGenerateImg2Img?: () => void;
-  // LoRA manager for img2img (uses shared LoRA selector)
+
+  // Specialized managers (complex objects with methods)
   img2imgLoraManager?: UseLoraManagerReturn;
-  availableLoras?: LoraModel[];
-  // LoRA manager for other edit modes (text, inpaint, annotate, reposition)
   editLoraManager?: UseLoraManagerReturn;
-  // Advanced settings for two-pass generation
+  availableLoras?: LoraModel[];
+
+  // Advanced settings for two-pass generation (deeply nested config)
   advancedSettings?: EditAdvancedSettingsType;
   setAdvancedSettings?: (updates: Partial<EditAdvancedSettingsType>) => void;
+
   // Whether running in local generation mode (shows steps slider)
   isLocalGeneration?: boolean;
-  // Model selection for cloud mode
-  qwenEditModel?: QwenEditModel;
-  setQwenEditModel?: (model: QwenEditModel) => void;
 }
 
 /**
@@ -146,6 +73,9 @@ export interface EditModePanelProps {
 const REPOSITION_DEFAULT_PROMPT = 'match existing content';
 
 export const EditModePanel: React.FC<EditModePanelProps> = ({
+  variant,
+  hideInfoEditToggle = false,
+  // Source generation props (specialized)
   sourceGenerationData,
   onOpenExternalGeneration,
   currentShotId,
@@ -156,72 +86,77 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   onMakeMainVariant,
   canMakeMainVariant,
   taskId,
-  editMode,
-  setEditMode,
-  setIsInpaintMode,
-  inpaintPrompt,
-  setInpaintPrompt,
-  inpaintNumGenerations,
-  setInpaintNumGenerations,
-  loraMode,
-  setLoraMode,
-  customLoraUrl,
-  setCustomLoraUrl,
-  isGeneratingInpaint,
-  inpaintGenerateSuccess,
-  isCreatingMagicEditTasks,
-  magicEditTasksCreated,
-  brushStrokes,
-  handleExitMagicEditMode,
+  currentMediaId,
+  // Specialized async handlers
   handleUnifiedGenerate,
   handleGenerateAnnotatedEdit,
   handleGenerateReposition,
-  isGeneratingReposition = false,
-  repositionGenerateSuccess = false,
-  hasTransformChanges = false,
   handleSaveAsVariant,
-  isSavingAsVariant = false,
-  saveAsVariantSuccess = false,
-  derivedGenerations,
-  paginatedDerived,
-  derivedPage,
-  derivedTotalPages,
-  setDerivedPage,
-  currentMediaId,
-  variants,
-  activeVariantId,
-  onVariantSelect,
-  onMakePrimary,
-  isLoadingVariants,
-  onPromoteToGeneration,
-  isPromoting,
-  onDeleteVariant,
-  onLoadVariantSettings,
-  onClose,
-  variant,
-  hideInfoEditToggle = false,
-  createAsGeneration = false,
-  onCreateAsGenerationChange,
-  // Img2Img props
-  img2imgPrompt = '',
-  setImg2imgPrompt,
-  img2imgStrength = 0.6,
-  setImg2imgStrength,
-  enablePromptExpansion = false, // Hidden UI, always false
-  setEnablePromptExpansion,
-  isGeneratingImg2Img = false,
-  img2imgGenerateSuccess = false,
   handleGenerateImg2Img,
+  // Specialized managers
   img2imgLoraManager,
-  availableLoras = [],
   editLoraManager,
+  availableLoras = [],
   advancedSettings,
   setAdvancedSettings,
   isLocalGeneration = false,
-  qwenEditModel = 'qwen-edit',
-  setQwenEditModel,
 }) => {
   const isMobile = variant === 'mobile';
+
+  // ========================================
+  // CONTEXT STATE (no longer from props)
+  // ========================================
+  const { onClose } = useLightboxCoreSafe();
+  const {
+    editMode,
+    setEditMode,
+    setIsInpaintMode,
+    brushStrokes,
+    handleExitMagicEditMode,
+    hasTransformChanges,
+    isGeneratingReposition,
+    repositionGenerateSuccess,
+    isSavingAsVariant,
+    saveAsVariantSuccess,
+  } = useImageEditSafe();
+  const {
+    inpaintPrompt,
+    setInpaintPrompt,
+    inpaintNumGenerations,
+    setInpaintNumGenerations,
+    loraMode,
+    setLoraMode,
+    customLoraUrl,
+    setCustomLoraUrl,
+    isGeneratingInpaint,
+    inpaintGenerateSuccess,
+    isCreatingMagicEditTasks,
+    magicEditTasksCreated,
+    createAsGeneration,
+    setCreateAsGeneration,
+    img2imgPrompt,
+    setImg2imgPrompt,
+    img2imgStrength,
+    setImg2imgStrength,
+    setEnablePromptExpansion,
+    isGeneratingImg2Img,
+    img2imgGenerateSuccess,
+    qwenEditModel,
+    setQwenEditModel,
+  } = useEditFormSafe();
+  const {
+    variants,
+    activeVariant,
+    handleVariantSelect: onVariantSelect,
+    handleMakePrimary: onMakePrimary,
+    isLoadingVariants,
+    handlePromoteToGeneration: onPromoteToGeneration,
+    isPromoting,
+    handleDeleteVariant: onDeleteVariant,
+    onLoadVariantSettings,
+  } = useLightboxVariantsSafe();
+
+  const activeVariantId = activeVariant?.id || null;
 
   // Track previous edit mode to detect changes
   const prevEditModeRef = useRef<'text' | 'inpaint' | 'annotate'>(editMode);
@@ -589,7 +524,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
           )}
 
           {/* Number of Generations + Create as Variant - shown for all image edit modes */}
-          {onCreateAsGenerationChange && (
+          {setCreateAsGeneration && (
             <div className={cn(
               "py-1.5 px-1 rounded-md flex items-center gap-2 overflow-hidden w-[80%]",
               isMobile && "bg-muted/30"
@@ -647,7 +582,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
                 <Switch
                   id="create-as-variant"
                   checked={!createAsGeneration}
-                  onCheckedChange={(checked) => onCreateAsGenerationChange(!checked)}
+                  onCheckedChange={(checked) => setCreateAsGeneration(!checked)}
                   className={cn(isMobile && "scale-90")}
                 />
               </div>

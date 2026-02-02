@@ -22,7 +22,6 @@ import {
 
 import {
   MediaDisplayWithCanvas,
-  TopLeftControls,
   TopRightControls,
   BottomLeftControls,
   BottomRightControls,
@@ -476,16 +475,6 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
                    />
                  )}
 
-                 <TopLeftControls
-                   isVideo={isVideo}
-                   readOnly={false}
-                   isSpecialEditMode={isSpecialEditMode}
-                   selectedProjectId={selectedProjectId}
-                   isCloudMode={isCloudMode}
-                   showImageEditTools={true}
-                   effectiveImageUrl={effectiveImageUrl}
-                 />
-
                  <TopRightControls
                    isVideo={isVideo}
                    readOnly={false}
@@ -692,16 +681,6 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
                 </div>
               );
             })()}
-
-              <TopLeftControls
-                isVideo={isVideo}
-                readOnly={false}
-                isSpecialEditMode={isSpecialEditMode}
-                selectedProjectId={selectedProjectId}
-                isCloudMode={isCloudMode}
-                showImageEditTools={true}
-                effectiveImageUrl={effectiveImageUrl}
-              />
 
               {isSpecialEditMode && (
                 <FloatingToolControls

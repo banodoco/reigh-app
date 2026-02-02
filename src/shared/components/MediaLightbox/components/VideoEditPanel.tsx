@@ -4,7 +4,8 @@
  * Unified video editing panel for both desktop and mobile layouts.
  * Handles Trim, Replace Portion, and Regenerate sub-modes with variant display.
  *
- * Uses shared EditPanelLayout for consistent header and variants handling.
+ * Uses context hooks for shared state (core, video edit, variants).
+ * Receives only layout-specific and specialized props.
  */
 
 import React from 'react';
@@ -15,7 +16,6 @@ import {
   TrimControlsPanel,
 } from '@/tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor';
 import type { TrimState } from '@/tools/travel-between-images/components/VideoGallery/components/VideoTrimEditor/types';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import { VideoPortionEditor } from '@/tools/edit-video/components/VideoPortionEditor';
 import { DEFAULT_VACE_PHASE_CONFIG } from '@/shared/lib/vaceDefaults';
 import type { UseVideoEditingReturn } from '../hooks/useVideoEditing';
@@ -25,36 +25,17 @@ import { SegmentRegenerateForm } from './SegmentRegenerateForm';
 import type { SegmentRegenerateFormProps } from './SegmentRegenerateForm';
 import { VideoEnhanceForm } from './VideoEnhanceForm';
 import type { VideoEnhanceSettings } from '../hooks/useVideoEnhance';
+import { useLightboxCoreSafe, useLightboxVariantsSafe } from '../contexts/LightboxStateContext';
+import { useVideoEditSafe } from '../contexts/VideoEditContext';
 
 export interface VideoEditPanelProps {
   /** Layout variant */
   variant: 'desktop' | 'mobile';
 
-  /** Current sub-mode: trim, replace (portion replacement), regenerate (full segment), or enhance */
-  videoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance';
-
-  /** Handler to switch to trim mode */
-  onEnterTrimMode: () => void;
-
-  /** Handler to switch to replace (portion) mode */
-  onEnterReplaceMode: () => void;
-
-  /** Handler to switch to regenerate mode */
-  onEnterRegenerateMode: () => void;
-
-  /** Handler to switch to enhance mode */
-  onEnterEnhanceMode: () => void;
-
-  /** Handler to close the lightbox entirely */
-  onClose: () => void;
-
-  /** Handler to exit video edit mode (switch to info view) */
-  onExitVideoEditMode: () => void;
-
   /** Whether cloud mode is enabled (shows enhance mode) */
   isCloudMode?: boolean;
 
-  // Trim mode props
+  // Trim mode props (specialized - refs, handlers, save state)
   trimState: TrimState;
   onStartTrimChange: (seconds: number) => void;
   onEndTrimChange: (seconds: number) => void;
@@ -70,14 +51,14 @@ export interface VideoEditPanelProps {
   trimCurrentTime: number;
   trimVideoRef: React.RefObject<HTMLVideoElement>;
 
-  // Replace (portion) mode props
+  // Replace (portion) mode props (specialized manager)
   videoEditing: UseVideoEditingReturn;
   projectId: string | undefined;
 
   // Regenerate mode props - pass props instead of JSX for proper hook pattern
   regenerateFormProps?: SegmentRegenerateFormProps | null;
 
-  // Enhance mode props
+  // Enhance mode props (specialized handlers)
   enhanceSettings?: VideoEnhanceSettings;
   onUpdateEnhanceSetting?: <K extends keyof VideoEnhanceSettings>(
     key: K,
@@ -90,32 +71,12 @@ export interface VideoEditPanelProps {
 
   // Task ID for copy functionality
   taskId?: string | null;
-
-  // Variants props
-  variants: GenerationVariant[];
-  activeVariantId: string | null;
-  onVariantSelect: (variantId: string) => void;
-  onMakePrimary: (variantId: string) => Promise<void>;
-  isLoadingVariants: boolean;
-
-  /** Handler to load a variant's settings into the regenerate form */
-  onLoadVariantSettings?: (variantParams: Record<string, any>) => void;
-
-  /** Handler to delete a variant */
-  onDeleteVariant?: (variantId: string) => Promise<void>;
 }
 
 export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   variant,
-  videoEditSubMode,
-  onEnterTrimMode,
-  onEnterReplaceMode,
-  onEnterRegenerateMode,
-  onEnterEnhanceMode,
-  onClose,
-  onExitVideoEditMode,
   isCloudMode,
-  // Trim props
+  // Trim props (specialized)
   trimState,
   onStartTrimChange,
   onEndTrimChange,
@@ -130,12 +91,12 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   videoUrl,
   trimCurrentTime,
   trimVideoRef,
-  // Replace (portion) props
+  // Replace (portion) props (specialized)
   videoEditing,
   projectId,
-  // Regenerate props
+  // Regenerate props (specialized)
   regenerateFormProps,
-  // Enhance props
+  // Enhance props (specialized)
   enhanceSettings,
   onUpdateEnhanceSetting,
   onEnhanceGenerate,
@@ -144,15 +105,30 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   canEnhance,
   // Task ID
   taskId,
-  // Variants props
-  variants,
-  activeVariantId,
-  onVariantSelect,
-  onMakePrimary,
-  isLoadingVariants,
-  onLoadVariantSettings,
-  onDeleteVariant,
 }) => {
+  // ========================================
+  // CONTEXT STATE (no longer from props)
+  // ========================================
+  const { onClose } = useLightboxCoreSafe();
+  const {
+    videoEditSubMode,
+    handleEnterVideoTrimMode: onEnterTrimMode,
+    handleEnterVideoReplaceMode: onEnterReplaceMode,
+    handleEnterVideoRegenerateMode: onEnterRegenerateMode,
+    handleEnterVideoEnhanceMode: onEnterEnhanceMode,
+    handleExitVideoEditMode: onExitVideoEditMode,
+  } = useVideoEditSafe();
+  const {
+    variants,
+    activeVariant,
+    handleVariantSelect: onVariantSelect,
+    handleMakePrimary: onMakePrimary,
+    isLoadingVariants,
+    onLoadVariantSettings,
+    handleDeleteVariant: onDeleteVariant,
+  } = useLightboxVariantsSafe();
+
+  const activeVariantId = activeVariant?.id || null;
   // Mode selector items for video editing
   const modeSelectorItems = [
     {

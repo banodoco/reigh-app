@@ -14,6 +14,8 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { ImageGenerationFormUIState, FormUIActions } from './state';
 import { PromptEntry, PromptMode, HydratedReferenceImage, ReferenceMode } from './types';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { Resource } from '@/shared/hooks/useResources';
 
 // ============================================================================
 // Context Value Types
@@ -37,6 +39,7 @@ export interface FormPromptState {
   actionablePromptsCount: number;
   currentBeforePromptText: string;
   currentAfterPromptText: string;
+  lastKnownPromptCount: number;
 }
 
 /** Prompt handlers */
@@ -85,18 +88,18 @@ export interface FormReferenceHandlers {
   onReferenceModeChange: (mode: ReferenceMode) => void;
   onStyleBoostTermsChange: (terms: string) => void;
   onToggleVisibility: (resourceId: string, isPublic?: boolean) => void;
-  onResourceSelect: (resource: any) => void;
+  onResourceSelect: (resource: Resource) => void;
 }
 
 /** LORA-related state */
 export interface FormLoraState {
   selectedLoras: ActiveLora[];
-  availableLoras: any[];
+  availableLoras: LoraModel[];
 }
 
 /** LORA handlers */
 export interface FormLoraHandlers {
-  handleAddLora: (lora: any) => void;
+  handleAddLora: (lora: LoraModel) => void;
   handleRemoveLora: (id: string) => void;
   handleLoraStrengthChange: (id: string, strength: number) => void;
 }
@@ -244,3 +247,4 @@ export function useContextValue(props: UseContextValueProps): ImageGenerationFor
     loraHandlers,
   ]);
 }
+

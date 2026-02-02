@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/shared/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { useProject } from '@/shared/contexts/ProjectContext';
@@ -17,11 +9,10 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronDown, AlertTriangle, RefreshCw } from 'lucide-react';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useMediumModal } from '@/shared/hooks/useModal';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { recropAllReferences, ReferenceImage } from '@/shared/lib/recropReferences';
 import { handleError } from '@/shared/lib/errorHandler';
+import { ModalContainer } from '@/shared/components/ModalContainer';
 
 
 interface ProjectImageSettings {
@@ -37,8 +28,6 @@ interface ProjectSettingsModalProps {
 }
 
 export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOpen, onOpenChange, project }) => {
-  const isMobile = useIsMobile();
-  const modal = useMediumModal();
   const [projectName, setProjectName] = useState('');
   const [aspectRatio, setAspectRatio] = useState<string>('');
   // Persistent project-level upload settings

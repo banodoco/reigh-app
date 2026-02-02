@@ -1,13 +1,13 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { PlusCircle, Edit3, Sparkles, Trash2, Wand2, Info, Layers } from "lucide-react";
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
+import { Trash2, Wand2, Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from "@/shared/components/ui/tooltip";
 import {
   Popover,
@@ -16,67 +16,75 @@ import {
 } from "@/shared/components/ui/popover";
 import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/segmented-control";
 import { CollapsibleSection } from "@/shared/components/ui/collapsible-section";
-import { PromptEntry, PromptMode } from "../types";
-import { PromptInputRow } from "./PromptInputRow";
+import { PromptMode } from "../types";
 import { SectionHeader } from "./SectionHeader";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
+import {
+  useFormUIContext,
+  useFormCoreContext,
+  useFormPromptsContext,
+} from "../ImageGenerationFormContext";
 
 interface PromptsSectionProps {
-  prompts: PromptEntry[];
-  ready: boolean;
-  lastKnownPromptCount: number;
-  isGenerating: boolean;
-  hasApiKey: boolean;
-  actionablePromptsCount: number;
-  activePromptId: string | null;
-  onSetActive: (id: string | null) => void;
-  onAddPrompt: () => void;
-  onUpdatePrompt: (id: string, field: 'fullPrompt' | 'shortPrompt', value: string) => void;
-  onRemovePrompt: (id: string) => void;
-  onOpenPromptModal: () => void;
-  onOpenMagicPrompt: () => void;
-  beforeEachPromptText: string;
-  afterEachPromptText: string;
-  onBeforeEachPromptTextChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onAfterEachPromptTextChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onClearBeforeEachPromptText?: () => void;
-  onClearAfterEachPromptText?: () => void;
-  onDeleteAllPrompts?: () => void;
-  // Prompt mode props
-  promptMode: PromptMode;
+  /** Handler for prompt mode changes - includes side effects like adjusting imagesPerPrompt */
   onPromptModeChange: (mode: PromptMode) => void;
-  masterPromptText: string;
-  onMasterPromptTextChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onClearMasterPromptText?: () => void;
 }
 
 export const PromptsSection: React.FC<PromptsSectionProps> = ({
-  prompts,
-  ready,
-  lastKnownPromptCount,
-  isGenerating,
-  hasApiKey,
-  actionablePromptsCount,
-  activePromptId,
-  onSetActive,
-  onAddPrompt,
-  onUpdatePrompt,
-  onRemovePrompt,
-  onOpenPromptModal,
-  onOpenMagicPrompt,
-  beforeEachPromptText,
-  afterEachPromptText,
-  onBeforeEachPromptTextChange,
-  onAfterEachPromptTextChange,
-  onClearBeforeEachPromptText,
-  onClearAfterEachPromptText,
-  onDeleteAllPrompts,
-  promptMode,
   onPromptModeChange,
-  masterPromptText,
-  onMasterPromptTextChange,
-  onClearMasterPromptText,
 }) => {
+  // Pull from context
+  const { uiState, uiActions } = useFormUIContext();
+  const { isGenerating, hasApiKey, ready } = useFormCoreContext();
+  const {
+    prompts,
+    masterPromptText,
+    effectivePromptMode: promptMode,
+    actionablePromptsCount,
+    currentBeforePromptText: beforeEachPromptText,
+    currentAfterPromptText: afterEachPromptText,
+    setMasterPromptText,
+    setCurrentBeforePromptText,
+    setCurrentAfterPromptText,
+    handleDeleteAllPrompts,
+    markAsInteracted,
+  } = useFormPromptsContext();
+
+  // Derived handlers
+  const onMasterPromptTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMasterPromptText(e.target.value);
+  }, [setMasterPromptText]);
+
+  const onBeforeEachPromptTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCurrentBeforePromptText(e.target.value);
+  }, [setCurrentBeforePromptText]);
+
+  const onAfterEachPromptTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCurrentAfterPromptText(e.target.value);
+  }, [setCurrentAfterPromptText]);
+
+  const onClearMasterPromptText = useCallback(() => {
+    markAsInteracted();
+    setMasterPromptText('');
+  }, [markAsInteracted, setMasterPromptText]);
+
+  const onClearBeforeEachPromptText = useCallback(() => {
+    markAsInteracted();
+    setCurrentBeforePromptText('');
+  }, [markAsInteracted, setCurrentBeforePromptText]);
+
+  const onClearAfterEachPromptText = useCallback(() => {
+    markAsInteracted();
+    setCurrentAfterPromptText('');
+  }, [markAsInteracted, setCurrentAfterPromptText]);
+
+  const onOpenPromptModal = useCallback(() => {
+    uiActions.setPromptModalOpen(true);
+  }, [uiActions]);
+
+  const onOpenMagicPrompt = useCallback(() => {
+    uiActions.openMagicPrompt();
+  }, [uiActions]);
   const isMobile = useIsMobile();
   
   // Normalize promptMode to handle invalid/empty values from persistence

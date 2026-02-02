@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { Input } from "@/shared/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useCreateResource, useUpdateResource, useDeleteResource, Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
+import { useCreateResource, useDeleteResource, Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
 import { UseQueryResult } from '@tanstack/react-query';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/shared/components/ui/alert-dialog";
 import { Info, Layers, Zap, Settings2, Trash2, Pencil } from 'lucide-react';
@@ -22,14 +22,10 @@ export interface BrowsePresetsTabProps {
   myPresetsResource: UseQueryResult<Resource[], Error>;
   publicPresetsResource: UseQueryResult<Resource[], Error>;
   createResource: ReturnType<typeof useCreateResource>;
-  updateResource: ReturnType<typeof useUpdateResource>;
   deleteResource: ReturnType<typeof useDeleteResource>;
-  onClose: () => void;
   onEdit: (preset: Resource & { metadata: PhaseConfigMetadata }) => void;
   showMyPresetsOnly: boolean;
-  setShowMyPresetsOnly: (value: boolean) => void;
   showSelectedPresetOnly: boolean;
-  setShowSelectedPresetOnly: (value: boolean) => void;
   onProcessedPresetsLengthChange: (length: number) => void;
   onPageChange?: (page: number, totalPages: number, setPage: (page: number) => void) => void;
   intent?: 'load' | 'overwrite';
@@ -44,14 +40,10 @@ export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = ({
   myPresetsResource,
   publicPresetsResource,
   createResource,
-  updateResource,
   deleteResource,
-  onClose,
   onEdit,
   showMyPresetsOnly,
-  setShowMyPresetsOnly,
   showSelectedPresetOnly,
-  setShowSelectedPresetOnly,
   onProcessedPresetsLengthChange,
   onPageChange,
   intent = 'load',
@@ -177,8 +169,6 @@ export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = ({
       onPageChange(page, totalPages, setPage);
     }
   }, [page, totalPages, onPageChange]);
-
-  const myPresetsCount = allPresets.filter(preset => preset._isMyPreset).length;
 
   return (
     <div className="relative flex flex-col h-full min-h-0 px-0 sm:px-4">

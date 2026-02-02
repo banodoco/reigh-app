@@ -50,9 +50,9 @@ interface LoraDataEntry {
   "Model ID": string;
   Name: string;
   Author: string;
-  Images: Array<{ url: string; alt_text: string; [key: string]: any; }>;
-  "Model Files": Array<{ url: string; path: string; [key: string]: any; }>;
-  [key: string]: any;
+  Images: Array<{ url: string; alt_text: string; [key: string]: unknown; }>;
+  "Model Files": Array<{ url: string; path: string; [key: string]: unknown; }>;
+  [key: string]: unknown;
 }
 
 export interface LoraData {
