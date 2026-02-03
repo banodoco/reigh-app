@@ -5,6 +5,33 @@
 - **6 mixed import warnings** from Vite (modules imported both dynamically and statically)
 - **4 properly split chunks**: EditImagesPage, PromptEditorModal, TrainingDataHelperPage, jszip
 
+## Key Constraints (discovered during analysis)
+- **Safari mobile** has issues with dynamic imports for routes - this is why most tool pages are eagerly loaded
+- **TanStack Query** has issues with lazy loaded pages
+- These are documented in `src/app/routes.tsx` comments
+
+## Dynamic Import Analysis (16 total)
+
+| Module | Dynamic Imports | Static Imports | Action |
+|--------|-----------------|----------------|--------|
+| `jszip` | 3 | 0 | ✅ Keep (correct) |
+| `supabase/client` | 2 | 90+ | ❌ Remove dynamic |
+| `sonner` (toast) | 4 | 60+ | ❌ Remove dynamic |
+| `imageUploader` | 1 | 13 | ❌ Remove dynamic |
+| `useToolSettings` | 1 | 27 | ❌ Remove dynamic |
+| `videoUploader` | 2 | 5 | ❌ Remove dynamic |
+| `ReconnectScheduler` | 2 | 1 | ❌ Remove dynamic |
+| Test file | 1 | 0 | ✅ Ignore |
+
+## React.lazy Analysis (4 total)
+
+| Usage | Location | Notes |
+|-------|----------|-------|
+| `EditImagesPage` | routes.tsx | ✅ Correct |
+| `TrainingDataHelperPage` | routes.tsx | ✅ Correct |
+| `LoraSelectorModal` | ImageGenerationForm | Inconsistent (7 other static imports) |
+| `PromptEditorModal` | ImageGenerationForm | ✅ Correct |
+
 ## Master Checklist
 
 ### Phase 1: Quick Wins - Remove Spurious Dynamic Imports
@@ -68,13 +95,32 @@
   ```
 - [ ] **4.2** Test bundle output after manual chunks
 
-### Phase 5: Large Component Lazy Loading
-- [ ] **5.1** Identify components > 50KB that could be lazy loaded
-- [ ] **5.2** Consider lazy loading:
-  - `PromptEditorModal` (already split - 35KB)
-  - `SettingsModal`
-  - `MediaLightbox`
-  - `Timeline` components
+### Phase 5: Large Component Analysis (Requires Careful Consideration)
+
+**Large components identified:**
+| Component | Lines | Notes |
+|-----------|-------|-------|
+| `ImageLightbox.tsx` | 1296 | Core feature, used frequently |
+| `VideoLightbox.tsx` | 1064 | Core feature, used frequently |
+| `ShotEditor/index.tsx` | 1200 | Main editing interface |
+| `VideoGallery/index.tsx` | 1181 | Core gallery view |
+| `MediaGallery/index.tsx` | 1027 | Core gallery view |
+
+- [ ] **5.1** Evaluate if Konva (canvas library, 9 imports) can be lazy loaded
+  - Only needed for inpainting/annotation features
+  - Files using Konva:
+    - `src/shared/components/MediaLightbox/components/StrokeOverlay.tsx`
+    - `src/shared/components/MediaLightbox/hooks/inpainting/*.ts`
+  - Could lazy load the entire inpaint mode feature
+- [ ] **5.2** Consider splitting lightbox into shell + content
+  - Load shell immediately, lazy load heavy content
+  - Tricky due to state management
+- [ ] **5.3** Evaluate SettingsModal lazy loading (276 lines - lower priority)
+
+### Phase 6: Additional Cleanup (Optional)
+- [ ] **6.1** Remove unused exports from barrel files
+- [ ] **6.2** Audit for circular dependencies
+- [ ] **6.3** Check if any shadcn components can use tree-shaking better
 
 ---
 
@@ -185,13 +231,19 @@ export default defineConfig({
 
 | Phase | Effort | Main Bundle Reduction | Load Time Impact |
 |-------|--------|----------------------|------------------|
-| Phase 1 | Low | ~0% (cleanup only) | Faster builds |
-| Phase 2 | Medium | ~5-10% | Faster initial load |
-| Phase 3 | Medium | ~10-20% | Per-route loading |
+| Phase 1 | Low | ~0% (cleanup only) | Cleaner builds, removes warnings |
+| Phase 2 | Medium | ~2-5% | Faster initial load |
+| Phase 3 | Low | Limited due to Safari | Audit only |
 | Phase 4 | Low | Better caching | Faster repeat visits |
-| Phase 5 | High | ~20-30% | Significant improvement |
+| Phase 5 | High | ~10-20% (if Konva lazy) | Significant for non-edit users |
 
-**Target:** Reduce main bundle from 982KB to under 500KB gzipped.
+**Realistic Target:** Reduce main bundle from 982KB to ~700-800KB gzipped.
+
+**Why not 500KB?** Safari mobile constraints prevent lazy loading most routes. The bulk of the bundle is:
+- Core UI (shadcn/radix) - 407 imports, can't reduce
+- TanStack Query - 119 imports, can't reduce
+- Supabase client - used everywhere
+- Tool pages - can't lazy load (Safari)
 
 ---
 
