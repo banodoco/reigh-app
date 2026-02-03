@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { usePersistentState } from '@/shared/hooks/usePersistentState';
+import { useEntityState } from '@/shared/hooks/useEntityState';
 
 // Import canonical types from single source of truth
 import {
@@ -177,7 +177,7 @@ async function saveGenerationSettings(generationId: string, settings: Generation
 /**
  * Hook for managing per-generation edit settings persistence
  *
- * Uses usePersistentState for the core persistence logic:
+ * Uses useEntityState for the core persistence logic:
  * - Status machine (idle → loading → ready → saving)
  * - Debounced auto-save
  * - Pending refs protection
@@ -199,7 +199,7 @@ export function useGenerationEditSettings({
     updateField,
     updateFields,
     initializeFrom,
-  } = usePersistentState<GenerationEditSettings>({
+  } = useEntityState<GenerationEditSettings>({
     entityId: generationId,
     load: loadGenerationSettings,
     save: saveGenerationSettings,
