@@ -8,7 +8,7 @@ import {
 } from "@/shared/components/ui/select";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 
 interface MediaGalleryPaginationProps {
   totalPages: number;
@@ -52,6 +52,9 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
   const [showStickyTopPagination, setShowStickyTopPagination] = useState(false);
   const compactPaginationRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  // Phone only (not iPad) - phones have no header, iPads do
+  const isPhoneOnly = isMobile && !isTablet;
 
   // Get pane states to adjust sticky pagination position
   const {
@@ -61,8 +64,10 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
     tasksPaneWidth
   } = usePanes();
 
-  // Track the original pagination's left position for sticky alignment
+  // Track the original positions for sticky alignment
   const [originalLeftPosition, setOriginalLeftPosition] = useState(0);
+  const [originalRightPosition, setOriginalRightPosition] = useState(0);
+  const rightContentRef = useRef<HTMLDivElement>(null);
 
   // Scroll detection for compact/top sticky pagination
   useEffect(() => {
@@ -79,15 +84,20 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
         const paginationEl = compactPaginationRef.current;
         if (paginationEl) {
           const rect = paginationEl.getBoundingClientRect();
-          // Header height: 96px desktop, 60px mobile
+          // On desktop and iPad, account for 96px header. On phone only, no header.
           // Add buffer to show sticky earlier (when element is 40px from going under header)
-          const headerHeight = isMobile ? 60 : 96;
-          const buffer = 40;
-          const shouldShow = rect.bottom < headerHeight + buffer;
+          const scrollThreshold = isPhoneOnly ? 40 : 96 + 40;
+          const shouldShow = rect.bottom < scrollThreshold;
 
-          // Capture the left position when first detected (for sticky alignment)
+          // Capture positions when first detected (for sticky alignment)
           if (!showStickyTopPagination && shouldShow) {
             setOriginalLeftPosition(rect.left);
+            // Capture right content position
+            const rightEl = rightContentRef.current;
+            if (rightEl) {
+              const rightRect = rightEl.getBoundingClientRect();
+              setOriginalRightPosition(rightRect.left);
+            }
           }
 
           if (shouldShow !== showStickyTopPagination) {
@@ -97,11 +107,16 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
       });
     };
 
-    // Capture initial position for sticky alignment
+    // Capture initial positions for sticky alignment
     const paginationEl = compactPaginationRef.current;
     if (paginationEl) {
       const rect = paginationEl.getBoundingClientRect();
       setOriginalLeftPosition(rect.left);
+    }
+    const rightEl = rightContentRef.current;
+    if (rightEl) {
+      const rightRect = rightEl.getBoundingClientRect();
+      setOriginalRightPosition(rightRect.left);
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -114,7 +129,7 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
       if (rafId) cancelAnimationFrame(rafId);
       clearTimeout(timeout);
     };
-  }, [compact, isMobile, showStickyTopPagination]);
+  }, [compact, isPhoneOnly, showStickyTopPagination]);
 
   // Don't render if conditions not met - AFTER all hooks
   if (totalPages <= 1 || hidePagination) {
@@ -163,8 +178,8 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
       : <ChevronRight className="h-4 w-4" />;
   };
 
-  // Header height for sticky positioning
-  const headerHeight = isMobile ? 60 : 96;
+  // Header height for sticky positioning (no header on phone, but iPad has header)
+  const stickyTopOffset = isPhoneOnly ? 12 : 96 + 12;
 
   if (compact) {
     // Compact layout for top pagination
@@ -222,13 +237,13 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
           {paginationControls(false)}
 
           {rightContent && (
-            <div>
+            <div ref={rightContentRef}>
               {rightContent}
             </div>
           )}
         </div>
 
-        {/* Sticky pagination - matches original layout exactly */}
+        {/* Sticky pagination - aligned with original pagination position */}
         <div
           className={`fixed z-[100] transition-all duration-200 ease-in-out ${
             showStickyTopPagination && totalPages > 1
@@ -236,15 +251,33 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
               : '-translate-y-2 opacity-0 pointer-events-none'
           }`}
           style={{
-            top: `${headerHeight + 4}px`,
+            top: `${stickyTopOffset}px`,
             left: `${originalLeftPosition}px`,
           }}
         >
-          <div className="bg-card/95 dark:bg-gray-900/95 backdrop-blur-md rounded-lg px-3 py-1.5 shadow-lg border border-border/50 flex items-center gap-4">
+          <div className="bg-card/95 dark:bg-gray-900/95 backdrop-blur-md rounded-lg px-2 py-1 shadow-lg border border-border/50 -ml-2">
             {paginationControls(true)}
-            {rightContent}
           </div>
         </div>
+
+        {/* Sticky star filter - aligned with original star position */}
+        {rightContent && (
+          <div
+            className={`fixed z-[100] transition-all duration-200 ease-in-out ${
+              showStickyTopPagination && totalPages > 1
+                ? 'translate-y-0 opacity-100 pointer-events-auto'
+                : '-translate-y-2 opacity-0 pointer-events-none'
+            }`}
+            style={{
+              top: `${stickyTopOffset}px`,
+              left: `${originalRightPosition}px`,
+            }}
+          >
+            <div className="bg-card/95 dark:bg-gray-900/95 backdrop-blur-md rounded-lg px-1 py-1 shadow-lg border border-border/50 -ml-1">
+              {rightContent}
+            </div>
+          </div>
+        )}
       </>
     );
   }

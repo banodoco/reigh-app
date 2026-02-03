@@ -74,10 +74,12 @@ export interface ContainerDimensions {
  * regardless of scroll position or where the gallery is on the page.
  *
  * @param heightOffset - Pixels to subtract from viewport height (e.g., for header + pagination)
+ * @param skipHeaderDetection - Skip auto-detecting sticky/fixed headers (e.g., on mobile where there's no header)
  * @returns [ref, dimensions] - Attach ref to container, dimensions update on resize
  */
 export function useContainerDimensions(
-  heightOffset: number = 0
+  heightOffset: number = 0,
+  skipHeaderDetection: boolean = false
 ): [RefObject<HTMLDivElement | null>, ContainerDimensions] {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -104,15 +106,18 @@ export function useContainerDimensions(
 
       // Detect sticky/fixed header height by scanning for header-like elements
       // pinned at the top of the viewport (the site header is a sibling, not ancestor)
+      // Skip on mobile/iPad where there's no fixed header
       let fixedChromeHeight = 0;
-      const candidates = document.querySelectorAll('[class*="sticky"], [class*="fixed"]');
-      for (const el of candidates) {
-        const style = getComputedStyle(el);
-        if (style.position !== 'sticky' && style.position !== 'fixed') continue;
-        const rect = el.getBoundingClientRect();
-        // Must be at the top (within 10px) and header-sized (under 200px)
-        if (rect.top <= 10 && rect.height > 0 && rect.height < 200) {
-          fixedChromeHeight = Math.max(fixedChromeHeight, rect.height);
+      if (!skipHeaderDetection) {
+        const candidates = document.querySelectorAll('[class*="sticky"], [class*="fixed"]');
+        for (const el of candidates) {
+          const style = getComputedStyle(el);
+          if (style.position !== 'sticky' && style.position !== 'fixed') continue;
+          const rect = el.getBoundingClientRect();
+          // Must be at the top (within 10px) and header-sized (under 200px)
+          if (rect.top <= 10 && rect.height > 0 && rect.height < 200) {
+            fixedChromeHeight = Math.max(fixedChromeHeight, rect.height);
+          }
         }
       }
 
@@ -167,7 +172,7 @@ export function useContainerDimensions(
       clearTimeout(fallbackTimeout);
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [initialWidthEstimate, heightOffset]);
+  }, [initialWidthEstimate, heightOffset, skipHeaderDetection]);
 
   return [containerRef, dimensions];
 }

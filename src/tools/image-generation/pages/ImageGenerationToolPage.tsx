@@ -31,7 +31,7 @@ import { usePublicLoras, usePublicStyleReferences, useMyStyleReferences } from '
 import { PageFadeIn } from '@/shared/components/transitions';
 import { useSearchParams } from 'react-router-dom';
 import { timeEnd } from '@/shared/lib/logger';
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile, useIsTablet } from "@/shared/hooks/use-mobile";
 import { fetchGenerations } from "@/shared/hooks/useProjectGenerations";
 import { getDisplayUrl } from '@/shared/lib/utils';
 import { smartPreloadImages, initializePrefetchOperations, smartCleanupOldPages, triggerImageGarbageCollection } from '@/shared/hooks/useAdjacentPagePreloading';
@@ -102,7 +102,10 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   const [isSticky, setIsSticky] = useState(false);
   const [isScrollingToForm, setIsScrollingToForm] = useState(false);
   const isMobile = useIsMobile();
-  
+  const isTablet = useIsTablet();
+  // Phone only (not iPad) - phones have no header, iPads do
+  const isPhoneOnly = isMobile && !isTablet;
+
   // Get pane states to adjust sticky header position
   const { 
     isShotsPaneLocked, 
@@ -172,7 +175,8 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   // Measure gallery container dimensions for calculating correct items per page
   // Height offset accounts for gallery internal chrome:
   //   MediaGalleryHeader filters (~40px) + space-y-6 gaps (~48px) + bottom pagination (~62px) ≈ 150px
-  const [galleryRef, containerDimensions] = useContainerDimensions(150);
+  // Skip header detection on phone only (iPad has a header, phones don't)
+  const [galleryRef, containerDimensions] = useContainerDimensions(150, isPhoneOnly);
   const formContainerRef = useRef<HTMLDivElement>(null);
   const collapsibleContainerRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
