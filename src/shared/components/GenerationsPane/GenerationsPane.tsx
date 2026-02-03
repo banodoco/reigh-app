@@ -42,7 +42,7 @@ import { PANE_CONFIG } from '@/shared/config/panes';
 import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants';
 
 // Fallback rows for pane (smaller than full page galleries)
-const PANE_ROWS = 3;
+const PANE_ROWS = 2;
 
 const GenerationsPaneComponent: React.FC = () => {
   // [RefactorMetrics] Track render count for baseline measurements
