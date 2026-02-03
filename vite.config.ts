@@ -38,6 +38,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
       },
+      dedupe: ['react', 'react-dom', 'react-reconciler'],
     },
     build: {
       outDir: "dist",
@@ -48,7 +49,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
             // Vendor chunk splitting for better caching and parallel loading
             if (id.includes('node_modules')) {
               // React core - rarely changes
-              if (id.includes('/react/') || id.includes('react-dom') || id.includes('scheduler')) {
+              if (id.includes('/react/') || id.includes('react-dom') || id.includes('react-reconciler') || id.includes('scheduler')) {
                 return 'vendor-react';
               }
               // TanStack Query - frequently used, benefits from caching
