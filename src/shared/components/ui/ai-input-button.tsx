@@ -223,6 +223,9 @@ export const AIInputButton = React.forwardRef<
     return "bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground"
   }
 
+  // Check if className contains flex-1 (for stretching)
+  const isStretching = className?.includes('flex-1')
+
   // Voice mode button content
   const voiceButtonContent = (
     <button
@@ -232,7 +235,8 @@ export const AIInputButton = React.forwardRef<
       onPointerDown={isMobile ? handleVoiceInteraction : undefined}
       disabled={disabled || voiceState === "processing"}
       className={cn(
-        "relative h-6 w-6 rounded-md flex items-center justify-center transition-colors z-10",
+        "relative rounded-md flex items-center justify-center transition-colors z-10",
+        !isStretching && "h-6 w-6",
         getButtonStyles(),
         disabled && "opacity-50 cursor-not-allowed",
         className
@@ -294,7 +298,8 @@ export const AIInputButton = React.forwardRef<
       type="button"
       disabled={disabled || textState === "processing"}
       className={cn(
-        "relative h-6 w-6 rounded-md flex items-center justify-center transition-colors z-10",
+        "relative rounded-md flex items-center justify-center transition-colors z-10",
+        !isStretching && "h-6 w-6",
         getButtonStyles(),
         disabled && "opacity-50 cursor-not-allowed",
         className

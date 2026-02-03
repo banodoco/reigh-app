@@ -18,14 +18,20 @@ import { EditAdvancedSettings } from './EditAdvancedSettings';
 import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/useGenerationEditSettings';
 import { EditPanelLayout } from './EditPanelLayout';
 import { ModeSelector } from './ModeSelector';
-import { useLightboxCoreSafe, useLightboxVariantsSafe } from '../contexts/LightboxStateContext';
-import { useImageEditSafe } from '../contexts/ImageEditContext';
-import { useEditFormSafe } from '../contexts/EditFormContext';
+import { useLightboxCoreSafe, useLightboxVariantsSafe, type LightboxCoreState, type LightboxVariantState } from '../contexts/LightboxStateContext';
+import { useImageEditSafe, type ImageEditState } from '../contexts/ImageEditContext';
+import { useEditFormSafe, type EditFormState } from '../contexts/EditFormContext';
 
 export interface EditModePanelProps {
   /** Layout variant */
   variant: 'desktop' | 'mobile';
   hideInfoEditToggle?: boolean;
+  /**
+   * Simplified header mode for page views (edit-images, edit-video tools).
+   * When true, shows only [ModeSelector | X button] in header.
+   * When false (default), shows full header with id copy, variants link, pending badge, etc.
+   */
+  simplifiedHeader?: boolean;
 
   // Source generation (specialized - deeply nested data)
   sourceGenerationData: GenerationRow | null;
@@ -62,12 +68,38 @@ export interface EditModePanelProps {
 
   // Whether running in local generation mode (shows steps slider)
   isLocalGeneration?: boolean;
+
+  // ========================================
+  // Optional state overrides (props-first pattern)
+  // When provided, these override the corresponding context values.
+  // This allows EditModePanel to work without requiring parent providers.
+  // ========================================
+  coreState?: Pick<LightboxCoreState, 'onClose'>;
+  imageEditState?: ImageEditState;
+  editFormState?: EditFormState;
+  variantsState?: Pick<LightboxVariantState,
+    | 'variants'
+    | 'activeVariant'
+    | 'handleVariantSelect'
+    | 'handleMakePrimary'
+    | 'isLoadingVariants'
+    | 'handlePromoteToGeneration'
+    | 'isPromoting'
+    | 'handleDeleteVariant'
+    | 'onLoadVariantSettings'
+  >;
 }
 
 /**
  * EditModePanel Component
- * The panel shown when in edit mode (inpaint/magic-edit/annotate)
+ *
+ * The panel shown when in edit mode (inpaint/magic-edit/annotate/reposition/img2img).
  * Uses shared EditPanelLayout for consistent header and variants handling.
+ *
+ * Supports props-first pattern: optional state props (coreState, imageEditState,
+ * editFormState, variantsState) override context values when provided. This allows
+ * the component to work both within ImageLightbox (using context) and standalone
+ * (using props, e.g., in InlineEditView).
  */
 // Default prompt for reposition mode - shown when user hasn't entered a custom prompt
 const REPOSITION_DEFAULT_PROMPT = 'match existing content';
@@ -75,6 +107,7 @@ const REPOSITION_DEFAULT_PROMPT = 'match existing content';
 export const EditModePanel: React.FC<EditModePanelProps> = ({
   variant,
   hideInfoEditToggle = false,
+  simplifiedHeader = false,
   // Source generation props (specialized)
   sourceGenerationData,
   onOpenExternalGeneration,
@@ -100,13 +133,28 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   advancedSettings,
   setAdvancedSettings,
   isLocalGeneration = false,
+  // Optional state overrides
+  coreState,
+  imageEditState,
+  editFormState,
+  variantsState,
 }) => {
   const isMobile = variant === 'mobile';
 
   // ========================================
-  // CONTEXT STATE (no longer from props)
+  // STATE: Props-first with context fallback
+  // When state props are provided, use them directly.
+  // Otherwise, read from context (for use within MediaLightbox).
   // ========================================
-  const { onClose } = useLightboxCoreSafe();
+  const contextCore = useLightboxCoreSafe();
+  const contextImageEdit = useImageEditSafe();
+  const contextEditForm = useEditFormSafe();
+  const contextVariants = useLightboxVariantsSafe();
+
+  // Core state
+  const { onClose } = coreState ?? contextCore;
+
+  // Image edit state
   const {
     editMode,
     setEditMode,
@@ -118,7 +166,9 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     repositionGenerateSuccess,
     isSavingAsVariant,
     saveAsVariantSuccess,
-  } = useImageEditSafe();
+  } = imageEditState ?? contextImageEdit;
+
+  // Edit form state
   const {
     inpaintPrompt,
     setInpaintPrompt,
@@ -143,8 +193,9 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     img2imgGenerateSuccess,
     qwenEditModel,
     setQwenEditModel,
-  } = useEditFormSafe();
+  } = editFormState ?? contextEditForm;
 
+  // Variants state
   const {
     variants,
     activeVariant,
@@ -155,7 +206,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     isPromoting,
     handleDeleteVariant: onDeleteVariant,
     onLoadVariantSettings,
-  } = useLightboxVariantsSafe();
+  } = variantsState ?? contextVariants;
 
   const activeVariantId = activeVariant?.id || null;
 
@@ -266,6 +317,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
         onClose={onClose}
         onExitEditMode={handleExitMagicEditMode}
         hideInfoEditToggle={hideInfoEditToggle}
+        simplifiedHeader={simplifiedHeader}
         modeSelector={modeSelector}
         taskId={taskId}
         variants={variants}
@@ -345,7 +397,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
                   clearable
                   onClear={() => setImg2imgPrompt('')}
                   voiceInput
-                  voiceContext="This is an image-to-image prompt. Describe the desired style or transformation for the image. Be specific about the visual result you want."
+                  voiceContext="This is an image-to-image prompt. Describe the desired image you want to create. Be specific about the visual result."
                   onVoiceResult={(result) => {
                     setImg2imgPrompt(result.prompt || result.transcription);
                   }}

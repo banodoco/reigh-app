@@ -28,6 +28,13 @@ interface EditPanelLayoutProps {
   /** Whether to hide the Info/Edit toggle */
   hideInfoEditToggle?: boolean;
 
+  /**
+   * Simplified header mode for page views (edit-images, edit-video tools).
+   * When true, shows only [ModeSelector | X button] in header.
+   * When false (default), shows full header with id copy, variants link, pending badge, etc.
+   */
+  simplifiedHeader?: boolean;
+
   /** Mode selector content (the toggle buttons) */
   modeSelector: React.ReactNode;
 
@@ -61,6 +68,7 @@ export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
   onClose,
   onExitEditMode,
   hideInfoEditToggle = false,
+  simplifiedHeader = false,
   modeSelector,
   children,
   taskId,
@@ -96,72 +104,19 @@ export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header with ID copy, Info/Edit toggle and close button */}
-      <div className={cn(
-        "flex items-center justify-between border-b border-border bg-background flex-shrink-0",
-        isMobile ? "px-3 py-2 gap-2" : "p-4 gap-3"
-      )}>
-        {/* Left side - copy id + variants link */}
-        <div className="flex items-center gap-2">
-          {taskId && (
-            <button
-              onClick={handleCopyId}
-              className={cn(
-                "px-2 py-1 text-xs rounded transition-colors touch-manipulation",
-                idCopied
-                  ? "text-green-400 bg-green-400/10"
-                  : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700"
-              )}
-            >
-              {idCopied ? 'copied' : 'id'}
-            </button>
-          )}
-          {hasVariants && (
-            <button
-              onClick={() => variantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
-            >
-              <span>{variants.length} variants</span>
-              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-              </svg>
-            </button>
-          )}
-          {pendingTaskCount > 0 ? (
-            <div className="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-primary/10 text-primary">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>{pendingTaskCount} pending</span>
-            </div>
-          ) : variants && variants.length > 1 && unviewedVariantCount > 0 ? (
-            <VariantBadge
-              variant="inline"
-              derivedCount={variants.length}
-              unviewedVariantCount={unviewedVariantCount}
-              hasUnviewedVariants={true}
-              tooltipSide="bottom"
-              onMarkAllViewed={onMarkAllViewed}
-              onClick={() => variantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            />
-          ) : null}
-        </div>
+      {/* Header - simplified or full based on prop */}
+      {simplifiedHeader ? (
+        /* Simplified header for page views: just [ModeSelector | X] */
+        <div className={cn(
+          "flex items-center justify-between border-b border-border bg-background flex-shrink-0",
+          isMobile ? "px-3 py-2 gap-2" : "p-4 gap-3"
+        )}>
+          {/* Mode selector takes available space */}
+          <div className="flex-1">
+            {modeSelector}
+          </div>
 
-        {/* Right side - toggles and close button */}
-        <div className="flex items-center gap-3">
-          {!hideInfoEditToggle && (
-            <SegmentedControl
-              value="edit"
-              onValueChange={(value) => {
-                console.log('[EditPanelLayout] SegmentedControl onValueChange:', value);
-                console.log('[EditPanelLayout] SegmentedControl stack:', new Error().stack);
-                if (value === 'info') {
-                  onExitEditMode();
-                }
-              }}
-            >
-              <SegmentedControlItem value="info">Info</SegmentedControlItem>
-              <SegmentedControlItem value="edit">Edit</SegmentedControlItem>
-            </SegmentedControl>
-          )}
+          {/* Close button */}
           <Button
             variant="ghost"
             size="sm"
@@ -169,19 +124,101 @@ export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
               e.stopPropagation();
               onClose();
             }}
-            className={cn("p-0 hover:bg-muted", isMobile ? "h-7 w-7" : "h-8 w-8")}
+            className={cn("p-0 hover:bg-muted flex-shrink-0", isMobile ? "h-7 w-7" : "h-8 w-8")}
           >
             <X className={cn(isMobile ? "h-3.5 w-3.5" : "h-4 w-4")} />
           </Button>
         </div>
-      </div>
+      ) : (
+        /* Full header for MediaLightbox: ID copy, variants link, pending badge, Info/Edit toggle, close */
+        <div className={cn(
+          "flex items-center justify-between border-b border-border bg-background flex-shrink-0",
+          isMobile ? "px-3 py-2 gap-2" : "p-4 gap-3"
+        )}>
+          {/* Left side - copy id + variants link */}
+          <div className="flex items-center gap-2">
+            {taskId && (
+              <button
+                onClick={handleCopyId}
+                className={cn(
+                  "px-2 py-1 text-xs rounded transition-colors touch-manipulation",
+                  idCopied
+                    ? "text-green-400 bg-green-400/10"
+                    : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700"
+                )}
+              >
+                {idCopied ? 'copied' : 'id'}
+              </button>
+            )}
+            {hasVariants && (
+              <button
+                onClick={() => variantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+              >
+                <span>{variants.length} variants</span>
+                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </button>
+            )}
+            {pendingTaskCount > 0 ? (
+              <div className="flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-primary/10 text-primary">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>{pendingTaskCount} pending</span>
+              </div>
+            ) : variants && variants.length > 1 && unviewedVariantCount > 0 ? (
+              <VariantBadge
+                variant="inline"
+                derivedCount={variants.length}
+                unviewedVariantCount={unviewedVariantCount}
+                hasUnviewedVariants={true}
+                tooltipSide="bottom"
+                onMarkAllViewed={onMarkAllViewed}
+                onClick={() => variantsSectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              />
+            ) : null}
+          </div>
+
+          {/* Right side - toggles and close button */}
+          <div className="flex items-center gap-3">
+            {!hideInfoEditToggle && (
+              <SegmentedControl
+                value="edit"
+                onValueChange={(value) => {
+                  console.log('[EditPanelLayout] SegmentedControl onValueChange:', value);
+                  console.log('[EditPanelLayout] SegmentedControl stack:', new Error().stack);
+                  if (value === 'info') {
+                    onExitEditMode();
+                  }
+                }}
+              >
+                <SegmentedControlItem value="info">Info</SegmentedControlItem>
+                <SegmentedControlItem value="edit">Edit</SegmentedControlItem>
+              </SegmentedControl>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className={cn("p-0 hover:bg-muted", isMobile ? "h-7 w-7" : "h-8 w-8")}
+            >
+              <X className={cn(isMobile ? "h-3.5 w-3.5" : "h-4 w-4")} />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Mode selector section */}
-        <div className={cn("border-b border-border", isMobile ? "p-2" : "px-6 py-3")}>
-          {modeSelector}
-        </div>
+        {/* Mode selector section - only shown when NOT using simplified header */}
+        {!simplifiedHeader && (
+          <div className={cn("border-b border-border", isMobile ? "p-2" : "px-6 py-3")}>
+            {modeSelector}
+          </div>
+        )}
 
         {/* Main content */}
         <div className={cn(padding, spacing)}>

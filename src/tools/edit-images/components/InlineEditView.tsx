@@ -28,6 +28,8 @@ import {
   EditModePanel,
   FloatingToolControls,
 } from '@/shared/components/MediaLightbox/components';
+import type { ImageEditState } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
+import type { EditFormState } from '@/shared/components/MediaLightbox/contexts/EditFormContext';
 import { Button } from '@/shared/components/ui/button';
 import { Square, Trash2, Diamond } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
@@ -410,11 +412,170 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     }
   }, [isSpecialEditMode, handleEnterMagicEditMode]);
 
+  // ========================================
+  // STATE VALUES FOR EDIT MODE PANEL
+  // These are passed as props to EditModePanel (props-first pattern)
+  // ========================================
+
+  // Build ImageEditState value
+  const imageEditValue = useMemo<ImageEditState>(() => ({
+    // Mode state
+    isInpaintMode,
+    isMagicEditMode: isSpecialEditMode,
+    isSpecialEditMode,
+    editMode: editMode as ImageEditState['editMode'],
+
+    // Mode setters
+    setIsInpaintMode,
+    setIsMagicEditMode: () => {},
+    setEditMode: setEditMode as ImageEditState['setEditMode'],
+
+    // Mode entry/exit handlers
+    handleEnterInpaintMode,
+    handleExitInpaintMode: handleExitMagicEditMode,
+    handleEnterMagicEditMode,
+    handleExitMagicEditMode,
+
+    // Brush/Inpaint state
+    brushSize,
+    setBrushSize,
+    isEraseMode,
+    setIsEraseMode,
+    brushStrokes,
+    currentStroke,
+    isDrawing,
+
+    // Annotation state
+    isAnnotateMode,
+    setIsAnnotateMode,
+    annotationMode,
+    setAnnotationMode,
+    selectedShapeId,
+
+    // Undo/Clear
+    handleUndo,
+    handleClearMask,
+
+    // Reposition state
+    repositionTransform: repositionHook.transform,
+    hasTransformChanges,
+
+    // Panel UI state
+    inpaintPanelPosition,
+    setInpaintPanelPosition,
+  }), [
+    isInpaintMode,
+    isSpecialEditMode,
+    editMode,
+    setIsInpaintMode,
+    setEditMode,
+    handleEnterInpaintMode,
+    handleExitMagicEditMode,
+    handleEnterMagicEditMode,
+    brushSize,
+    setBrushSize,
+    isEraseMode,
+    setIsEraseMode,
+    brushStrokes,
+    currentStroke,
+    isDrawing,
+    isAnnotateMode,
+    setIsAnnotateMode,
+    annotationMode,
+    setAnnotationMode,
+    selectedShapeId,
+    handleUndo,
+    handleClearMask,
+    repositionHook.transform,
+    hasTransformChanges,
+    inpaintPanelPosition,
+    setInpaintPanelPosition,
+  ]);
+
+  // Build EditFormContext value
+  const editFormValue = useMemo<EditFormState>(() => ({
+    // Inpaint form
+    inpaintPrompt,
+    setInpaintPrompt,
+    inpaintNumGenerations,
+    setInpaintNumGenerations,
+
+    // Img2Img form
+    img2imgPrompt,
+    setImg2imgPrompt,
+    img2imgStrength,
+    setImg2imgStrength,
+    enablePromptExpansion,
+    setEnablePromptExpansion,
+
+    // LoRA mode
+    loraMode,
+    setLoraMode,
+    customLoraUrl,
+    setCustomLoraUrl,
+
+    // Generation options
+    createAsGeneration,
+    setCreateAsGeneration,
+
+    // Model selection
+    qwenEditModel: 'qwen-edit-2511',
+    setQwenEditModel: () => {},
+
+    // Advanced settings (not used in InlineEditView)
+    advancedSettings: {
+      enableHiresFix: false,
+      hiresFixScale: 1.5,
+      hiresFixDenoisingStrength: 0.4,
+      numSteps: 20,
+    },
+    setAdvancedSettings: () => {},
+
+    // Generation status
+    isGeneratingInpaint,
+    inpaintGenerateSuccess,
+    isGeneratingImg2Img,
+    img2imgGenerateSuccess,
+    isGeneratingReposition,
+    repositionGenerateSuccess,
+    isSavingAsVariant,
+    saveAsVariantSuccess,
+    isCreatingMagicEditTasks,
+    magicEditTasksCreated,
+  }), [
+    inpaintPrompt,
+    setInpaintPrompt,
+    inpaintNumGenerations,
+    setInpaintNumGenerations,
+    img2imgPrompt,
+    setImg2imgPrompt,
+    img2imgStrength,
+    setImg2imgStrength,
+    enablePromptExpansion,
+    setEnablePromptExpansion,
+    loraMode,
+    setLoraMode,
+    customLoraUrl,
+    setCustomLoraUrl,
+    createAsGeneration,
+    setCreateAsGeneration,
+    isGeneratingInpaint,
+    inpaintGenerateSuccess,
+    isGeneratingImg2Img,
+    img2imgGenerateSuccess,
+    isGeneratingReposition,
+    repositionGenerateSuccess,
+    isSavingAsVariant,
+    saveAsVariantSuccess,
+    isCreatingMagicEditTasks,
+    magicEditTasksCreated,
+  ]);
+
   if (isMobile) {
     return (
       <TooltipProvider delayDuration={500}>
-         <div className="w-full flex flex-col bg-transparent">
-            <div 
+        <div className="w-full flex flex-col bg-transparent">
+          <div 
               className="flex items-center justify-center relative bg-black w-full shrink-0 rounded-t-2xl overflow-hidden"
               style={{ height: '45dvh', touchAction: 'pan-y' }}
             >
@@ -523,91 +684,56 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
               )}
               style={{ minHeight: '55dvh' }}
             >
-               {isSpecialEditMode ? (
-                 <EditModePanel
-                   sourceGenerationData={sourceGenerationData}
-                   onOpenExternalGeneration={onNavigateToGeneration ? 
-                     async (id) => onNavigateToGeneration(id) : undefined
-                   }
-                   currentMediaId={media.id}
-                   editMode={editMode}
-                   setEditMode={setEditMode}
-                   setIsInpaintMode={setIsInpaintMode}
-                   inpaintPrompt={inpaintPrompt}
-                   setInpaintPrompt={setInpaintPrompt}
-                   inpaintNumGenerations={inpaintNumGenerations}
-                   setInpaintNumGenerations={setInpaintNumGenerations}
-                   loraMode={loraMode}
-                   setLoraMode={setLoraMode}
-                   customLoraUrl={customLoraUrl}
-                   setCustomLoraUrl={setCustomLoraUrl}
-                   isGeneratingInpaint={isGeneratingInpaint}
-                   inpaintGenerateSuccess={inpaintGenerateSuccess}
-                   isCreatingMagicEditTasks={isCreatingMagicEditTasks}
-                   magicEditTasksCreated={magicEditTasksCreated}
-                   brushStrokes={brushStrokes}
-                   handleExitMagicEditMode={handleExitMagicEditMode}
-                   handleUnifiedGenerate={handleUnifiedGenerate}
-                   handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
-                   handleGenerateReposition={handleGenerateReposition}
-                   isGeneratingReposition={isGeneratingReposition}
-                   repositionGenerateSuccess={repositionGenerateSuccess}
-                   hasTransformChanges={hasTransformChanges}
-                   handleSaveAsVariant={handleSaveAsVariant}
-                   isSavingAsVariant={isSavingAsVariant}
-                   saveAsVariantSuccess={saveAsVariantSuccess}
-                   derivedGenerations={derivedGenerations}
-                   paginatedDerived={paginatedDerived}
-                   derivedPage={derivedPage}
-                   derivedTotalPages={derivedTotalPages}
-                   setDerivedPage={setDerivedPage}
-                   onClose={onClose}
-                   variant="mobile"
-                   hideInfoEditToggle={true}
-                   createAsGeneration={createAsGeneration}
-                   onCreateAsGenerationChange={setCreateAsGeneration}
-                   // Img2Img props
-                   img2imgPrompt={img2imgPrompt}
-                   setImg2imgPrompt={setImg2imgPrompt}
-                   img2imgStrength={img2imgStrength}
-                   setImg2imgStrength={setImg2imgStrength}
-                   enablePromptExpansion={enablePromptExpansion}
-                   setEnablePromptExpansion={setEnablePromptExpansion}
-                   img2imgLoraManager={img2imgLoraManager}
-                   availableLoras={availableLoras}
-                   isGeneratingImg2Img={isGeneratingImg2Img}
-                   img2imgGenerateSuccess={img2imgGenerateSuccess}
-                   handleGenerateImg2Img={handleGenerateImg2Img}
-                 />
-               ) : (
-                 <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
-                     <h3 className="text-xl font-medium">Image Editor</h3>
-                     <p className="text-muted-foreground">Select an option to start editing</p>
-                     
-                     <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
-                       <Button onClick={() => {
-                           setIsInpaintMode(true);
-                           setEditMode('inpaint');
-                       }} className="w-full">
-                           Inpaint / Erase
-                       </Button>
-                       
-                       <Button onClick={handleEnterMagicEditMode} variant="secondary" className="w-full">
-                           Magic Edit
-                       </Button>
-                     </div>
-                 </div>
-               )}
-             </div>
-         </div>
-      </TooltipProvider>
+              {isSpecialEditMode ? (
+                <EditModePanel
+                  variant="mobile"
+                  hideInfoEditToggle={true}
+                  simplifiedHeader={true}
+                  sourceGenerationData={sourceGenerationData}
+                  onOpenExternalGeneration={onNavigateToGeneration ?
+                    async (id) => onNavigateToGeneration(id) : undefined
+                  }
+                  currentMediaId={media.id}
+                  handleUnifiedGenerate={handleUnifiedGenerate}
+                  handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
+                  handleGenerateReposition={handleGenerateReposition}
+                  handleSaveAsVariant={handleSaveAsVariant}
+                  handleGenerateImg2Img={handleGenerateImg2Img}
+                  img2imgLoraManager={img2imgLoraManager}
+                  availableLoras={availableLoras}
+                  coreState={{ onClose }}
+                  imageEditState={imageEditValue}
+                  editFormState={editFormValue}
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
+                  <h3 className="text-xl font-medium">Image Editor</h3>
+                  <p className="text-muted-foreground">Select an option to start editing</p>
+
+                  <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
+                    <Button onClick={() => {
+                      setIsInpaintMode(true);
+                      setEditMode('inpaint');
+                    }} className="w-full">
+                      Inpaint / Erase
+                    </Button>
+
+                    <Button onClick={handleEnterMagicEditMode} variant="secondary" className="w-full">
+                      Magic Edit
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </TooltipProvider>
     );
   }
 
   return (
     <TooltipProvider delayDuration={500}>
-       <div className="w-full h-full flex bg-transparent overflow-hidden">
-          <div 
+      <div className="w-full h-full flex bg-transparent overflow-hidden">
+        <div 
             className="flex-1 flex items-center justify-center relative bg-black rounded-l-xl overflow-hidden"
             style={{ width: '60%', height: '100%' }}
           >
@@ -755,84 +881,49 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
             )}
             style={{ width: '40%', height: '100%' }}
           >
-              {isSpecialEditMode ? (
-                <EditModePanel
-                  sourceGenerationData={sourceGenerationData}
-                  onOpenExternalGeneration={onNavigateToGeneration ? 
-                    async (id) => onNavigateToGeneration(id) : undefined
-                  }
-                  currentMediaId={media.id}
-                  editMode={editMode}
-                  setEditMode={setEditMode}
-                  setIsInpaintMode={setIsInpaintMode}
-                  inpaintPrompt={inpaintPrompt}
-                  setInpaintPrompt={setInpaintPrompt}
-                  inpaintNumGenerations={inpaintNumGenerations}
-                  setInpaintNumGenerations={setInpaintNumGenerations}
-                  loraMode={loraMode}
-                  setLoraMode={setLoraMode}
-                  customLoraUrl={customLoraUrl}
-                  setCustomLoraUrl={setCustomLoraUrl}
-                  isGeneratingInpaint={isGeneratingInpaint}
-                  inpaintGenerateSuccess={inpaintGenerateSuccess}
-                  isCreatingMagicEditTasks={isCreatingMagicEditTasks}
-                  magicEditTasksCreated={magicEditTasksCreated}
-                  brushStrokes={brushStrokes}
-                  handleExitMagicEditMode={handleExitMagicEditMode}
-                  handleUnifiedGenerate={handleUnifiedGenerate}
-                  handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
-                  handleGenerateReposition={handleGenerateReposition}
-                  isGeneratingReposition={isGeneratingReposition}
-                  repositionGenerateSuccess={repositionGenerateSuccess}
-                  hasTransformChanges={hasTransformChanges}
-                  handleSaveAsVariant={handleSaveAsVariant}
-                  isSavingAsVariant={isSavingAsVariant}
-                  saveAsVariantSuccess={saveAsVariantSuccess}
-                  derivedGenerations={derivedGenerations}
-                  paginatedDerived={paginatedDerived}
-                  derivedPage={derivedPage}
-                  derivedTotalPages={derivedTotalPages}
-                  setDerivedPage={setDerivedPage}
-                  onClose={onClose}
-                  variant="desktop"
-                  hideInfoEditToggle={true}
-                  createAsGeneration={createAsGeneration}
-                  onCreateAsGenerationChange={setCreateAsGeneration}
-                  // Img2Img props
-                  img2imgPrompt={img2imgPrompt}
-                  setImg2imgPrompt={setImg2imgPrompt}
-                  img2imgStrength={img2imgStrength}
-                  setImg2imgStrength={setImg2imgStrength}
-                  enablePromptExpansion={enablePromptExpansion}
-                  setEnablePromptExpansion={setEnablePromptExpansion}
-                  img2imgLoraManager={img2imgLoraManager}
-                  availableLoras={availableLoras}
-                  isGeneratingImg2Img={isGeneratingImg2Img}
-                  img2imgGenerateSuccess={img2imgGenerateSuccess}
-                  handleGenerateImg2Img={handleGenerateImg2Img}
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
-                    <h3 className="text-xl font-medium">Image Editor</h3>
-                    <p className="text-muted-foreground">Select an option to start editing</p>
-                    
-                    <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
-                      <Button onClick={() => {
-                          setIsInpaintMode(true);
-                          setEditMode('inpaint');
-                      }} className="w-full">
-                          Inpaint / Erase
-                      </Button>
-                      
-                      <Button onClick={handleEnterMagicEditMode} variant="secondary" className="w-full">
-                          Magic Edit
-                      </Button>
-                    </div>
+            {isSpecialEditMode ? (
+              <EditModePanel
+                variant="desktop"
+                hideInfoEditToggle={true}
+                simplifiedHeader={true}
+                sourceGenerationData={sourceGenerationData}
+                onOpenExternalGeneration={onNavigateToGeneration ?
+                  async (id) => onNavigateToGeneration(id) : undefined
+                }
+                currentMediaId={media.id}
+                handleUnifiedGenerate={handleUnifiedGenerate}
+                handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
+                handleGenerateReposition={handleGenerateReposition}
+                handleSaveAsVariant={handleSaveAsVariant}
+                handleGenerateImg2Img={handleGenerateImg2Img}
+                img2imgLoraManager={img2imgLoraManager}
+                availableLoras={availableLoras}
+                coreState={{ onClose }}
+                imageEditState={imageEditValue}
+                editFormState={editFormValue}
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-4">
+                <h3 className="text-xl font-medium">Image Editor</h3>
+                <p className="text-muted-foreground">Select an option to start editing</p>
+
+                <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
+                  <Button onClick={() => {
+                    setIsInpaintMode(true);
+                    setEditMode('inpaint');
+                  }} className="w-full">
+                    Inpaint / Erase
+                  </Button>
+
+                  <Button onClick={handleEnterMagicEditMode} variant="secondary" className="w-full">
+                    Magic Edit
+                  </Button>
                 </div>
-              )}
+              </div>
+            )}
           </div>
-       </div>
-    </TooltipProvider>
+        </div>
+      </TooltipProvider>
   );
 }
 

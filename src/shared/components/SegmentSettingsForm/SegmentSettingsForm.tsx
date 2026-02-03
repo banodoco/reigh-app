@@ -450,6 +450,11 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                   isSavingDefault={savingField === 'textBeforePrompts'}
                   className="min-h-0 h-8 text-xs resize-none py-1.5 overflow-hidden"
                   placeholder="Text to prepend..."
+                  voiceInput
+                  voiceContext="This is text to prepend before video prompts. Keep it brief - style keywords, quality tags, or consistent elements."
+                  onVoiceResult={(result) => {
+                    onChange({ textBeforePrompts: result.prompt || result.transcription });
+                  }}
                 />
                 <DefaultableTextarea
                   label="After:"
@@ -463,6 +468,11 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                   isSavingDefault={savingField === 'textAfterPrompts'}
                   className="min-h-0 h-8 text-xs resize-none py-1.5 overflow-hidden"
                   placeholder="Text to append..."
+                  voiceInput
+                  voiceContext="This is text to append after video prompts. Keep it brief - style keywords, quality tags, or consistent elements."
+                  onVoiceResult={(result) => {
+                    onChange({ textAfterPrompts: result.prompt || result.transcription });
+                  }}
                 />
               </div>
             )}

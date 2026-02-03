@@ -44,9 +44,12 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const showClear = clearable && onClear && hasValue
     const showVoice = voiceInput && onVoiceResult
     const hasActions = showClear || showVoice
-    
+
     // Show buttons when hovered, input mode is active, OR always on mobile
     const showButtons = (isMobile || isHovered || isAIInputActive) && !props.disabled && (showClear || showVoice)
+
+    // Detect if this is a short/single-line textarea (use horizontal layout)
+    const isShortTextarea = className?.includes('h-8') || className?.includes('min-h-0') || className?.includes('h-10')
     
     const handleClear = (e: React.MouseEvent) => {
       e.preventDefault()
@@ -72,7 +75,12 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           {...props}
         />
         {showButtons && (
-          <div className="absolute top-0 bottom-0 right-0 w-8 flex flex-col items-center justify-between py-1.5 z-10">
+          <div className={cn(
+            "absolute right-0 z-10",
+            isShortTextarea
+              ? "top-1/2 -translate-y-1/2 right-2 flex items-center gap-1"
+              : "top-0 bottom-0 w-8 flex flex-col items-center gap-1 py-1.5"
+          )}>
             {showVoice && (
               <AIInputButton
                 onResult={onVoiceResult}
@@ -83,6 +91,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 example={voiceExample}
                 existingValue={props.value?.toString() || props.defaultValue?.toString() || ""}
                 disabled={props.disabled}
+                className={isShortTextarea ? undefined : "flex-1 w-6 min-h-0"}
               />
             )}
             {showClear && (
@@ -91,7 +100,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                   <button
                     type="button"
                     onClick={handleClear}
-                    className="h-6 w-6 rounded-md bg-muted/80 hover:bg-muted flex items-center justify-center transition-colors"
+                    className="h-6 w-6 flex-shrink-0 rounded-md bg-muted/80 hover:bg-muted flex items-center justify-center transition-colors"
                     tabIndex={-1}
                   >
                     <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />

@@ -3,9 +3,9 @@ import { GenerationRow } from '@/types/shots';
 import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
-import { Loader2, Check, Plus, Trash2, Play, Pause } from 'lucide-react';
+import { Loader2, Check, Plus, Trash2, Play, Pause, Scissors, RefreshCw, X, Sparkles } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { TooltipProvider } from '@/shared/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { VideoPortionEditor } from './VideoPortionEditor';
 import { useEditVideoSettings } from '../hooks/useEditVideoSettings';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
@@ -20,6 +20,13 @@ import { generateUUID, generateRunId, createTask } from '@/shared/lib/taskCreati
 import { MultiPortionTimeline, formatTime, PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { SEGMENT_OVERLAY_COLORS } from '@/shared/lib/segmentColors';
 import { DEFAULT_VACE_PHASE_CONFIG, buildPhaseConfigWithLoras, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
+import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor';
+import { useVideoTrimming, useTrimSave } from '@/shared/components/VideoTrimEditor';
+import { ModeSelector } from '@/shared/components/MediaLightbox/components/ModeSelector';
+import { VideoEnhanceForm } from '@/shared/components/MediaLightbox/components/VideoEnhanceForm';
+import { useVideoEnhance } from '@/shared/components/MediaLightbox/hooks/useVideoEnhance';
+import { DEFAULT_ENHANCE_SETTINGS } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
+import type { VideoEnhanceSettings } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
 
 // PortionSelection is now imported from shared component
 
@@ -71,10 +78,10 @@ interface InlineEditVideoViewProps {
   onSegmentsChange?: (segments: PortionSelection[]) => void;
 }
 
-export function InlineEditVideoView({ 
-  media, 
-  onClose, 
-  onVideoSaved, 
+export function InlineEditVideoView({
+  media,
+  onClose,
+  onVideoSaved,
   onNavigateToGeneration,
   initialSegments,
   onSegmentsChange,
@@ -86,6 +93,12 @@ export function InlineEditVideoView({
   const useStackedLayout = isMobile || isTablet;
   const { selectedProjectId, projects } = useProject();
   const queryClient = useQueryClient();
+
+  // Video edit sub-mode state: 'trim', 'replace', or 'enhance'
+  const [videoEditSubMode, setVideoEditSubMode] = useState<'trim' | 'replace' | 'enhance'>('replace');
+
+  // Enhance settings state
+  const [enhanceSettings, setEnhanceSettings] = useState<VideoEnhanceSettings>(DEFAULT_ENHANCE_SETTINGS);
   
   // Get video URL
   const videoUrl = media.location || media.imageUrl;
@@ -101,7 +114,44 @@ export function InlineEditVideoView({
   // Progressive loading: show thumbnail first, then video when ready
   const [videoReady, setVideoReady] = useState(false);
   const thumbnailUrl = media.thumbnail_url || media.thumbUrl;
-  
+
+  // Trim mode state
+  const {
+    trimState,
+    setStartTrim,
+    setEndTrim,
+    resetTrim,
+    setVideoDuration: setTrimVideoDuration,
+    trimmedDuration,
+    hasTrimChanges,
+  } = useVideoTrimming();
+
+  const {
+    isSaving: isSavingTrim,
+    saveProgress: trimSaveProgress,
+    saveError: trimSaveError,
+    saveSuccess: trimSaveSuccess,
+    saveTrimmedVideo,
+  } = useTrimSave({
+    generationId: media.id,
+    projectId: selectedProjectId,
+    sourceVideoUrl: videoUrl,
+    trimState,
+    onSuccess: (newVariantId) => {
+      // Refresh the queries after trim save
+      queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
+    },
+  });
+
+  // Enhance mode state
+  const videoEnhance = useVideoEnhance({
+    projectId: selectedProjectId || undefined,
+    videoUrl: videoUrl || undefined,
+    generationId: media.id,
+    settings: enhanceSettings,
+    updateSettings: (updates) => setEnhanceSettings(prev => ({ ...prev, ...updates })),
+  });
+
   // Multiple portion selections - start at 10%-20% of video
   // Each selection can have its own gapFrameCount and prompt
   // Initialize from saved segments if provided, otherwise default to empty selection
@@ -228,6 +278,7 @@ export function InlineEditVideoView({
       const duration = videoRef.current.duration;
       if (Number.isFinite(duration) && duration > 0) {
         setVideoDuration(duration);
+        setTrimVideoDuration(duration); // Also set for trim mode
         // Initialize first selection to 10%-20% of video if not set
         setSelections(prev => {
           if (prev.length > 0 && prev[0].end === 0) {
@@ -818,11 +869,11 @@ export function InlineEditVideoView({
             </div>
           </div>
           
-          {/* Spacer between video and timeline on desktop */}
-          {!useStackedLayout && videoDuration > 0 && <div className="h-4 bg-zinc-900" />}
-          
-          {/* Timeline Section - Below video on both mobile and desktop */}
-          {videoDuration > 0 && (
+          {/* Spacer between video and timeline on desktop - only in replace mode */}
+          {!useStackedLayout && videoDuration > 0 && videoEditSubMode === 'replace' && <div className="h-4 bg-zinc-900" />}
+
+          {/* Timeline Section - Below video on both mobile and desktop - only in replace mode */}
+          {videoDuration > 0 && videoEditSubMode === 'replace' && (
             <div className={cn(
               "bg-zinc-900 select-none touch-manipulation flex-shrink-0",
               useStackedLayout ? "px-3 py-2" : "px-4 pt-2 pb-2 rounded-b-lg"
@@ -840,7 +891,7 @@ export function InlineEditVideoView({
                 fps={videoFps}
                 maxGapFrames={Math.max(1, 81 - (contextFrameCount * 2))}
               />
-              
+
               {/* Add button */}
               <div className="flex justify-center -mt-3 pb-2">
                 <Button
@@ -859,60 +910,143 @@ export function InlineEditVideoView({
         
         {/* Settings Panel */}
         <div className={cn(
-          "bg-background overflow-y-auto",
+          "bg-background overflow-y-auto flex flex-col",
           useStackedLayout ? "w-full border-t border-border" : "w-[40%] border-l border-border"
         )}>
-          <VideoPortionEditor
-            gapFrames={gapFrameCount}
-            setGapFrames={(val) => editSettings.updateField('gapFrameCount', val)}
-            contextFrames={contextFrameCount}
-            setContextFrames={(val) => {
-              const maxGap = Math.max(1, 81 - (val * 2));
-              const newGapFrames = gapFrameCount > maxGap ? maxGap : gapFrameCount;
-              editSettings.updateFields({
-                contextFrameCount: val,
-                gapFrameCount: newGapFrames
-              });
-            }}
-            maxContextFrames={maxContextFrames}
-            negativePrompt={negativePrompt}
-            setNegativePrompt={(val) => editSettings.updateField('negativePrompt', val)}
-            enhancePrompt={enhancePrompt}
-            setEnhancePrompt={(val) => editSettings.updateField('enhancePrompt', val)}
-            selections={selections}
-            onUpdateSelectionSettings={handleUpdateSelectionSettings}
-            onRemoveSelection={handleRemoveSelection}
-            onAddSelection={handleAddSelection}
-            videoUrl={videoUrl}
-            fps={videoFps}
-            availableLoras={availableLoras}
-            projectId={selectedProjectId}
-            loraManager={loraManager}
-            // Motion settings
-            motionMode={motionMode as 'basic' | 'advanced'}
-            onMotionModeChange={(mode) => editSettings.updateField('motionMode', mode)}
-            phaseConfig={savedPhaseConfig ?? DEFAULT_VACE_PHASE_CONFIG}
-            onPhaseConfigChange={(config) => editSettings.updateField('phaseConfig', config)}
-            randomSeed={randomSeed}
-            onRandomSeedChange={(val) => editSettings.updateField('randomSeed', val)}
-            selectedPhasePresetId={selectedPhasePresetId ?? BUILTIN_VACE_DEFAULT_ID}
-            onPhasePresetSelect={(presetId, config) => {
-              editSettings.updateFields({
-                selectedPhasePresetId: presetId,
-                phaseConfig: config,
-              });
-            }}
-            onPhasePresetRemove={() => {
-              editSettings.updateField('selectedPhasePresetId', null);
-            }}
-            // Actions
-            onGenerate={handleGenerate}
-            isGenerating={generateMutation.isPending}
-            generateSuccess={showSuccessState}
-            isGenerateDisabled={!isValidPortion}
-            validationErrors={portionValidation.errors}
-            onClose={onClose}
-          />
+          {/* Panel Header with Mode Selector and Close Button */}
+          <div className={cn(
+            "flex items-center justify-between border-b border-border bg-background flex-shrink-0",
+            isMobile ? "px-3 py-2 gap-2" : "p-4 gap-3"
+          )}>
+            {/* Mode Selector */}
+            <div className="flex-1">
+              <ModeSelector
+                items={[
+                  {
+                    id: 'trim',
+                    label: 'Trim',
+                    icon: <Scissors className="w-4 h-4" />,
+                    onClick: () => setVideoEditSubMode('trim'),
+                  },
+                  {
+                    id: 'replace',
+                    label: 'Replace',
+                    icon: <RefreshCw className="w-4 h-4" />,
+                    onClick: () => setVideoEditSubMode('replace'),
+                  },
+                  {
+                    id: 'enhance',
+                    label: 'Enhance',
+                    icon: <Sparkles className="w-4 h-4" />,
+                    onClick: () => setVideoEditSubMode('enhance'),
+                  },
+                ]}
+                activeId={videoEditSubMode}
+              />
+            </div>
+
+            {/* Close Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className={cn("p-0 hover:bg-muted flex-shrink-0", isMobile ? "h-7 w-7" : "h-8 w-8")}
+            >
+              <X className={cn(isMobile ? "h-3.5 w-3.5" : "h-4 w-4")} />
+            </Button>
+          </div>
+
+          {/* Panel Content - conditionally render based on mode */}
+          <div className="flex-1 overflow-y-auto">
+            {videoEditSubMode === 'trim' && (
+              <TrimControlsPanel
+                trimState={trimState}
+                onStartTrimChange={setStartTrim}
+                onEndTrimChange={setEndTrim}
+                onResetTrim={resetTrim}
+                trimmedDuration={trimmedDuration}
+                hasTrimChanges={hasTrimChanges}
+                onSave={saveTrimmedVideo}
+                isSaving={isSavingTrim}
+                saveProgress={trimSaveProgress}
+                saveError={trimSaveError}
+                saveSuccess={trimSaveSuccess}
+                onClose={onClose}
+                variant={isMobile ? 'mobile' : 'desktop'}
+                videoUrl={videoUrl || ''}
+                currentTime={currentVideoTime}
+                videoRef={videoRef}
+                hideHeader
+              />
+            )}
+            {videoEditSubMode === 'replace' && (
+              <VideoPortionEditor
+                gapFrames={gapFrameCount}
+                setGapFrames={(val) => editSettings.updateField('gapFrameCount', val)}
+                contextFrames={contextFrameCount}
+                setContextFrames={(val) => {
+                  const maxGap = Math.max(1, 81 - (val * 2));
+                  const newGapFrames = gapFrameCount > maxGap ? maxGap : gapFrameCount;
+                  editSettings.updateFields({
+                    contextFrameCount: val,
+                    gapFrameCount: newGapFrames
+                  });
+                }}
+                maxContextFrames={maxContextFrames}
+                negativePrompt={negativePrompt}
+                setNegativePrompt={(val) => editSettings.updateField('negativePrompt', val)}
+                enhancePrompt={enhancePrompt}
+                setEnhancePrompt={(val) => editSettings.updateField('enhancePrompt', val)}
+                selections={selections}
+                onUpdateSelectionSettings={handleUpdateSelectionSettings}
+                onRemoveSelection={handleRemoveSelection}
+                onAddSelection={handleAddSelection}
+                videoUrl={videoUrl}
+                fps={videoFps}
+                availableLoras={availableLoras}
+                projectId={selectedProjectId}
+                loraManager={loraManager}
+                // Motion settings
+                motionMode={motionMode as 'basic' | 'advanced'}
+                onMotionModeChange={(mode) => editSettings.updateField('motionMode', mode)}
+                phaseConfig={savedPhaseConfig ?? DEFAULT_VACE_PHASE_CONFIG}
+                onPhaseConfigChange={(config) => editSettings.updateField('phaseConfig', config)}
+                randomSeed={randomSeed}
+                onRandomSeedChange={(val) => editSettings.updateField('randomSeed', val)}
+                selectedPhasePresetId={selectedPhasePresetId ?? BUILTIN_VACE_DEFAULT_ID}
+                onPhasePresetSelect={(presetId, config) => {
+                  editSettings.updateFields({
+                    selectedPhasePresetId: presetId,
+                    phaseConfig: config,
+                  });
+                }}
+                onPhasePresetRemove={() => {
+                  editSettings.updateField('selectedPhasePresetId', null);
+                }}
+                // Actions
+                onGenerate={handleGenerate}
+                isGenerating={generateMutation.isPending}
+                generateSuccess={showSuccessState}
+                isGenerateDisabled={!isValidPortion}
+                validationErrors={portionValidation.errors}
+              />
+            )}
+            {videoEditSubMode === 'enhance' && (
+              <VideoEnhanceForm
+                settings={videoEnhance.settings}
+                onUpdateSetting={videoEnhance.updateSetting}
+                onGenerate={videoEnhance.handleGenerate}
+                isGenerating={videoEnhance.isGenerating}
+                generateSuccess={videoEnhance.generateSuccess}
+                canSubmit={videoEnhance.canSubmit}
+                variant={isMobile ? 'mobile' : 'desktop'}
+                videoUrl={videoUrl}
+              />
+            )}
+          </div>
         </div>
       </div>
     </TooltipProvider>

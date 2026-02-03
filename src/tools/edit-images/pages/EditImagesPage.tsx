@@ -413,8 +413,8 @@ export default function EditImagesPage() {
         <h1 className="text-3xl font-light tracking-tight text-foreground">Edit Images</h1>
       </div>
       
-      {/* Show skeleton when loading settings, loading persisted media, OR we have a stored ID but no media yet */}
-      {(isUISettingsLoading || isLoadingPersistedMedia || (uiSettings?.lastEditedMediaId && !selectedMedia)) && (
+      {/* Show skeleton when loading settings, loading persisted media, OR we have a stored ID but no media yet (and user didn't just close it) */}
+      {(isUISettingsLoading || isLoadingPersistedMedia || (uiSettings?.lastEditedMediaId && !selectedMedia && !userClosedEditor.current)) && (
         <div className="w-full px-4 overflow-y-auto" style={{ minHeight: 'calc(100dvh - 96px)' }}>
           <div className="max-w-7xl mx-auto relative">
             <div className={cn(
@@ -471,7 +471,7 @@ export default function EditImagesPage() {
         </div>
       )}
       
-      {!selectedMedia && !isUISettingsLoading && !isLoadingPersistedMedia && !uiSettings?.lastEditedMediaId && (
+      {!selectedMedia && !isUISettingsLoading && !isLoadingPersistedMedia && (!uiSettings?.lastEditedMediaId || userClosedEditor.current) && (
         <div className="w-full px-4 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             {/* Selection UI - reduced height */}
