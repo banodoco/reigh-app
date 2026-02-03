@@ -232,7 +232,7 @@ export const PromptsSection: React.FC<PromptsSectionProps> = ({
                   </Tooltip>
                 </TooltipProvider>
                 {/* Delete All button - hide when there's only one empty prompt */}
-                {onDeleteAllPrompts && !(prompts.length === 1 && actionablePromptsCount === 0) && (
+                {handleDeleteAllPrompts && !(prompts.length === 1 && actionablePromptsCount === 0) && (
                   <TooltipProvider delayDuration={300}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -242,7 +242,7 @@ export const PromptsSection: React.FC<PromptsSectionProps> = ({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDeleteAllPrompts();
+                            handleDeleteAllPrompts();
                           }}
                           disabled={isGenerating || !ready}
                           aria-label="Delete all prompts"
