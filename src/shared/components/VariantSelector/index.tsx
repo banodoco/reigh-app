@@ -17,7 +17,12 @@ import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useAsyncOperationMap } from '@/shared/hooks/useAsyncOperation';
 import { usePrefetchTaskData, usePrefetchTaskById } from '@/shared/hooks/useTaskPrefetch';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { LineageGifModal } from '@/shared/components/LineageGifModal';
+// Lazy load LineageGifModal since it's only opened on demand
+const LazyLineageGifModal = React.lazy(() =>
+  import('@/shared/components/LineageGifModal').then(module => ({
+    default: module.LineageGifModal
+  }))
+);
 import { getLineageDepth } from '@/shared/hooks/useLineageChain';
 import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
@@ -419,12 +424,14 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
       </div>
     </TooltipProvider>
 
-    {/* Lineage GIF Modal */}
-    <LineageGifModal
-      open={!!lineageGifVariantId}
-      onClose={() => setLineageGifVariantId(null)}
-      variantId={lineageGifVariantId}
-    />
+    {/* Lineage GIF Modal - lazy loaded since only opened on demand */}
+    <React.Suspense fallback={null}>
+      <LazyLineageGifModal
+        open={!!lineageGifVariantId}
+        onClose={() => setLineageGifVariantId(null)}
+        variantId={lineageGifVariantId}
+      />
+    </React.Suspense>
 
     {/* Mobile variant info modal */}
     {isMobile && mobileInfoVariant && (

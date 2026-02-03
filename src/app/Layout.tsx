@@ -20,8 +20,14 @@ import { OnboardingModal } from '@/shared/components/OnboardingModal';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePageVisibility } from '@/shared/hooks/usePageVisibility';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { ProductTour } from '@/shared/components/ProductTour';
 import { useProductTour } from '@/shared/hooks/useProductTour';
+
+// Lazy load ProductTour since it only shows during onboarding
+const LazyProductTour = React.lazy(() =>
+  import('@/shared/components/ProductTour').then(module => ({
+    default: module.ProductTour
+  }))
+);
 import '@/shared/lib/debugPolling';
 import { SocialIcons } from '@/shared/components/SocialIcons';
 import { AIInputModeProvider } from '@/shared/contexts/AIInputModeContext';
@@ -255,6 +261,17 @@ const Layout: React.FC = () => {
   // This prevents loading delays when users reach the generation method step
   useUserUIState('generationMethods', { onComputer: true, inCloud: true });
 
+  // Preload ProductTour chunk when onboarding is shown
+  // This ensures the tour loads instantly when user finishes onboarding
+  useEffect(() => {
+    if (showOnboardingModal) {
+      // Trigger the lazy import to preload the chunk
+      import('@/shared/components/ProductTour').catch(() => {
+        // Silently ignore preload failures - not critical
+      });
+    }
+  }, [showOnboardingModal]);
+
   // Listen for settings open event from welcome modal
   useEffect(() => {
     const handleOpenSettings = (event: CustomEvent) => {
@@ -387,8 +404,10 @@ const Layout: React.FC = () => {
           onClose={handleOnboardingClose}
         />
 
-        {/* Product Tour */}
-        <ProductTour />
+        {/* Product Tour - lazy loaded since only needed during onboarding */}
+        <React.Suspense fallback={null}>
+          <LazyProductTour />
+        </React.Suspense>
       </div>
     </AIInputModeProvider>
   );

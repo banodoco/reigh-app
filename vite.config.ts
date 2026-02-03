@@ -42,6 +42,39 @@ export default defineConfig(({ mode }: { mode: string }) => {
     build: {
       outDir: "dist",
       sourcemap: true,
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            // Vendor chunk splitting for better caching and parallel loading
+            if (id.includes('node_modules')) {
+              // React core - rarely changes
+              if (id.includes('react-dom') || id.includes('scheduler')) {
+                return 'vendor-react';
+              }
+              // TanStack Query - frequently used, benefits from caching
+              if (id.includes('@tanstack/react-query') || id.includes('@tanstack/query-core')) {
+                return 'vendor-query';
+              }
+              // Radix UI - large UI component library
+              if (id.includes('@radix-ui')) {
+                return 'vendor-radix';
+              }
+              // DnD Kit - drag and drop functionality
+              if (id.includes('@dnd-kit')) {
+                return 'vendor-dnd';
+              }
+              // Supabase client
+              if (id.includes('@supabase')) {
+                return 'vendor-supabase';
+              }
+              // Date utilities
+              if (id.includes('date-fns')) {
+                return 'vendor-date';
+              }
+            }
+          }
+        }
+      }
     },
     optimizeDeps: {
       exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
