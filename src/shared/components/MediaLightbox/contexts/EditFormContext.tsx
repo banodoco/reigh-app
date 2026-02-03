@@ -9,13 +9,21 @@
  */
 
 import React, { createContext, useContext } from 'react';
-import type { EditAdvancedSettings, QwenEditModel } from '../hooks/inpainting/types';
+
+// Import canonical types from single source of truth
+import {
+  type LoraMode,
+  type QwenEditModel,
+  type EditAdvancedSettings,
+  DEFAULT_ADVANCED_SETTINGS,
+} from '../hooks/editSettingsTypes';
+
+// Re-export for backwards compatibility
+export type { LoraMode };
 
 // ============================================================================
 // Types
 // ============================================================================
-
-export type LoraMode = 'none' | 'custom' | 'project';
 
 export interface EditFormState {
   // ========================================
@@ -37,7 +45,7 @@ export interface EditFormState {
   setEnablePromptExpansion: (value: boolean) => void;
 
   // ========================================
-  // LoRA mode (legacy)
+  // LoRA mode
   // ========================================
   loraMode: LoraMode;
   setLoraMode: (mode: LoraMode) => void;
@@ -81,12 +89,6 @@ export interface EditFormState {
 // Default Values
 // ============================================================================
 
-const DEFAULT_ADVANCED_SETTINGS: EditAdvancedSettings = {
-  hiresFixEnabled: false,
-  hiresFixScale: 1.5,
-  hiresFixDenoisingStrength: 0.4,
-};
-
 const EMPTY_EDIT_FORM: EditFormState = {
   // Inpaint form
   inpaintPrompt: '',
@@ -97,7 +99,7 @@ const EMPTY_EDIT_FORM: EditFormState = {
   // Img2Img form
   img2imgPrompt: '',
   setImg2imgPrompt: () => {},
-  img2imgStrength: 0.5,
+  img2imgStrength: 0.6,
   setImg2imgStrength: () => {},
   enablePromptExpansion: false,
   setEnablePromptExpansion: () => {},
@@ -113,7 +115,7 @@ const EMPTY_EDIT_FORM: EditFormState = {
   setCreateAsGeneration: () => {},
 
   // Model selection
-  qwenEditModel: 'qwen-edit',
+  qwenEditModel: 'qwen-edit-2511',
   setQwenEditModel: () => {},
 
   // Advanced settings

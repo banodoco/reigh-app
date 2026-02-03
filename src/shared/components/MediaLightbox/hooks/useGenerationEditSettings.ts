@@ -3,73 +3,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
-export type EditMode = 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img' | 'enhance';
-export type LoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
-export type QwenEditModel = 'qwen-edit' | 'qwen-edit-2509' | 'qwen-edit-2511';
+// Import canonical types from single source of truth
+import {
+  type EditMode,
+  type LoraMode,
+  type QwenEditModel,
+  type EditAdvancedSettings,
+  type VideoEnhanceSettings,
+  type GenerationEditSettings,
+  type SyncedEditSettings,
+  DEFAULT_EDIT_SETTINGS,
+  DEFAULT_ADVANCED_SETTINGS,
+  DEFAULT_ENHANCE_SETTINGS,
+} from './editSettingsTypes';
 
-/**
- * Advanced settings for image editing tasks (similar to HiresFixConfig from image generation)
- * Controls two-pass generation quality settings.
- */
-export interface EditAdvancedSettings {
-  /** Whether two-pass generation is enabled */
-  enabled: boolean;
-  /** Number of inference steps for single-pass generation (when two-pass disabled) */
-  num_inference_steps: number;
-  /** Scale factor for initial resolution (1.0-2.5x) */
-  resolution_scale: number;
-  /** Number of inference steps for base pass (when two-pass enabled) */
-  base_steps: number;
-  /** Upscale factor for hires pass (e.g., 1.1 = 10% upscale) */
-  hires_scale: number;
-  /** Number of steps for hires/refinement pass */
-  hires_steps: number;
-  /** Denoising strength for hires pass (0-1) */
-  hires_denoise: number;
-  /** Lightning LoRA strength for phase 1 (initial generation, 0-1) */
-  lightning_lora_strength_phase_1: number;
-  /** Lightning LoRA strength for phase 2 (hires/refinement pass, 0-1) */
-  lightning_lora_strength_phase_2: number;
-}
-
-export const DEFAULT_ADVANCED_SETTINGS: EditAdvancedSettings = {
-  enabled: false, // Disabled by default for edits (optional feature)
-  num_inference_steps: 12, // Default steps for single-pass generation
-  resolution_scale: 1.5,
-  base_steps: 8,
-  hires_scale: 1.1,
-  hires_steps: 8,
-  hires_denoise: 0.5, // Lower than image generation (0.55) for edits
-  lightning_lora_strength_phase_1: 0.9,
-  lightning_lora_strength_phase_2: 0.5,
-};
-
-/**
- * Video enhance settings for interpolation and upscaling
- */
-export interface VideoEnhanceSettings {
-  /** Enable frame interpolation (FILM) */
-  enableInterpolation: boolean;
-  /** Enable video upscaling (FlashVSR) */
-  enableUpscale: boolean;
-  /** Frames to add between each pair (1-4) */
-  numFrames: number;
-  /** Upscale factor (1-4) */
-  upscaleFactor: number;
-  /** Enable color correction for upscaling */
-  colorFix: boolean;
-  /** Output quality for upscaling */
-  outputQuality: 'low' | 'medium' | 'high' | 'maximum';
-}
-
-export const DEFAULT_ENHANCE_SETTINGS: VideoEnhanceSettings = {
-  enableInterpolation: false,
-  enableUpscale: true,
-  numFrames: 1,
-  upscaleFactor: 2,
-  colorFix: true,
-  outputQuality: 'maximum',
-};
+// Re-export types for backwards compatibility
+export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, VideoEnhanceSettings, GenerationEditSettings };
+export { DEFAULT_EDIT_SETTINGS, DEFAULT_ADVANCED_SETTINGS, DEFAULT_ENHANCE_SETTINGS };
 
 /**
  * Result type for convertToHiresFixApiParams - includes num_inference_steps for single-pass mode.
@@ -110,51 +60,6 @@ export function convertToHiresFixApiParams(settings: EditAdvancedSettings | unde
   };
 }
 
-/**
- * Settings stored per-generation in generations.params.ui.editSettings
- */
-export interface GenerationEditSettings {
-  editMode: EditMode;
-  loraMode: LoraMode;
-  customLoraUrl: string;
-  numGenerations: number;
-  prompt: string;
-  // Model selection for cloud mode
-  qwenEditModel: QwenEditModel;
-  // Img2Img specific settings
-  img2imgPrompt: string;
-  img2imgPromptHasBeenSet: boolean;
-  img2imgStrength: number;
-  img2imgEnablePromptExpansion: boolean;
-  // Advanced settings for two-pass generation
-  advancedSettings: EditAdvancedSettings;
-  // Video enhance settings
-  enhanceSettings: VideoEnhanceSettings;
-  // Generation options - whether to create as new generation (true) or variant (false)
-  createAsGeneration: boolean;
-}
-
-export const DEFAULT_EDIT_SETTINGS: GenerationEditSettings = {
-  editMode: 'text',
-  loraMode: 'none', // Default to no preset LoRA - use Add LoRA button instead
-  customLoraUrl: '',
-  numGenerations: 1,
-  prompt: '',
-  // Model selection for cloud mode
-  qwenEditModel: 'qwen-edit-2511',
-  // Img2Img defaults
-  img2imgPrompt: '',
-  img2imgPromptHasBeenSet: false,
-  img2imgStrength: 0.6,
-  img2imgEnablePromptExpansion: false,
-  // Advanced settings defaults
-  advancedSettings: DEFAULT_ADVANCED_SETTINGS,
-  // Video enhance defaults
-  enhanceSettings: DEFAULT_ENHANCE_SETTINGS,
-  // Generation options - default to creating as variant (false)
-  createAsGeneration: false,
-};
-
 export interface UseGenerationEditSettingsReturn {
   // Current settings
   settings: GenerationEditSettings;
@@ -185,7 +90,7 @@ export interface UseGenerationEditSettingsReturn {
   hasPersistedSettings: boolean;
 
   // For initialization from "last used"
-  initializeFromLastUsed: (lastUsed: Omit<GenerationEditSettings, 'prompt' | 'img2imgPrompt' | 'img2imgPromptHasBeenSet'>) => void;
+  initializeFromLastUsed: (lastUsed: SyncedEditSettings & { editMode: EditMode }) => void;
 }
 
 interface UseGenerationEditSettingsProps {
@@ -195,7 +100,7 @@ interface UseGenerationEditSettingsProps {
 
 /**
  * Hook for managing per-generation edit settings persistence
- * 
+ *
  * Saves to: generations.params.ui.editSettings
  * Pattern: Similar to useShotGenerationMetadata but for generations table
  */
@@ -204,24 +109,24 @@ export function useGenerationEditSettings({
   enabled = true,
 }: UseGenerationEditSettingsProps): UseGenerationEditSettingsReturn {
   const queryClient = useQueryClient();
-  
+
   // Local state
   const [settings, setSettings] = useState<GenerationEditSettings>(DEFAULT_EDIT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [hasPersistedSettings, setHasPersistedSettings] = useState(false);
-  
+
   // Track current generation to detect changes
   const currentGenerationIdRef = useRef<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitializedRef = useRef(false);
-  const pendingInitFromLastUsedRef = useRef<Omit<GenerationEditSettings, 'prompt' | 'img2imgPrompt' | 'img2imgPromptHasBeenSet'> | null>(null);
-  
+  const pendingInitFromLastUsedRef = useRef<(SyncedEditSettings & { editMode: EditMode }) | null>(null);
+
   // Load settings from database
   const loadSettings = useCallback(async (genId: string): Promise<GenerationEditSettings | null> => {
     try {
       console.log('[EDIT_DEBUG] 📥 LOAD: Fetching from generations.params.ui.editSettings');
       console.log('[EDIT_DEBUG] 📥 LOAD: generationId:', genId.substring(0, 8));
-      
+
       const { data, error } = await supabase
         .from('generations')
         .select('params')
@@ -237,7 +142,7 @@ export function useGenerationEditSettings({
         console.log('[EDIT_DEBUG] ⚠️ LOAD: Generation not found (may have been deleted)');
         return null;
       }
-      
+
       const savedSettings = (data?.params as Record<string, unknown>)?.ui as Record<string, unknown> | undefined;
       const editSettings = savedSettings?.editSettings as Partial<GenerationEditSettings> | undefined;
       if (editSettings) {
@@ -254,7 +159,7 @@ export function useGenerationEditSettings({
           ...editSettings,
         };
       }
-      
+
       console.log('[EDIT_DEBUG] ⚠️ LOAD: No persisted settings found for this generation');
       return null;
     } catch (err) {
@@ -262,7 +167,7 @@ export function useGenerationEditSettings({
       return null;
     }
   }, []);
-  
+
   // Save settings to database (debounced)
   const saveSettings = useCallback(async (genId: string, newSettings: GenerationEditSettings) => {
     try {
@@ -277,7 +182,7 @@ export function useGenerationEditSettings({
       console.log('[EDIT_DEBUG] 💾 SAVE: img2imgPromptHasBeenSet:', newSettings.img2imgPromptHasBeenSet);
       console.log('[EDIT_DEBUG] 💾 SAVE: img2imgStrength:', newSettings.img2imgStrength);
       console.log('[EDIT_DEBUG] 💾 SAVE: img2imgEnablePromptExpansion:', newSettings.img2imgEnablePromptExpansion);
-      
+
       // Fetch current params to merge
       const { data: current, error: fetchError } = await supabase
         .from('generations')
@@ -294,7 +199,7 @@ export function useGenerationEditSettings({
         console.warn('[EDIT_DEBUG] ⚠️ SAVE: Generation not found (may have been deleted), skipping save');
         return;
       }
-      
+
       // Merge with existing params
       const currentParams = (current?.params || {}) as Record<string, unknown>;
       const currentUi = (currentParams.ui || {}) as Record<string, unknown>;
@@ -307,17 +212,17 @@ export function useGenerationEditSettings({
           editMode: newSettings.editMode,
         }
       };
-      
+
       const { error: updateError } = await supabase
         .from('generations')
         .update({ params: updatedParams })
         .eq('id', genId);
-      
+
       if (updateError) {
         console.warn('[EDIT_DEBUG] ❌ SAVE FAILED:', updateError.message);
       } else {
         console.log('[EDIT_DEBUG] ✅ SAVE SUCCESS: Settings persisted to database');
-        
+
         // Invalidate generation queries
         queryClient.invalidateQueries({
           queryKey: queryKeys.generations.detail(genId)
@@ -327,54 +232,54 @@ export function useGenerationEditSettings({
       console.warn('[EDIT_DEBUG] ❌ SAVE ERROR:', err);
     }
   }, [queryClient]);
-  
+
   // Debounced save trigger
   const triggerSave = useCallback((newSettings: GenerationEditSettings) => {
     if (!generationId || !isInitializedRef.current) return;
-    
+
     // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    
+
     // Schedule debounced save
     saveTimeoutRef.current = setTimeout(() => {
       saveSettings(generationId, newSettings);
     }, 500); // 500ms debounce
   }, [generationId, saveSettings]);
-  
+
   // Load on mount / generation change
   useEffect(() => {
     if (!enabled || !generationId) {
       setIsLoading(false);
       return;
     }
-    
+
     // Detect generation change
     if (currentGenerationIdRef.current !== generationId) {
       console.log('[EDIT_DEBUG] 🔄 Generation changed - will load settings');
       console.log('[EDIT_DEBUG] 🔄 from:', currentGenerationIdRef.current?.substring(0, 8) || 'none');
       console.log('[EDIT_DEBUG] 🔄 to:', generationId.substring(0, 8));
-      
+
       currentGenerationIdRef.current = generationId;
       isInitializedRef.current = false;
       setIsLoading(true);
       setHasPersistedSettings(false);
-      
+
       // Clear pending save for old generation
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
     }
-    
+
     let cancelled = false;
-    
+
     const load = async () => {
       const loaded = await loadSettings(generationId);
-      
+
       if (cancelled) return;
-      
+
       if (loaded) {
         setSettings(loaded);
         setHasPersistedSettings(true);
@@ -398,18 +303,18 @@ export function useGenerationEditSettings({
         }
         setHasPersistedSettings(false);
       }
-      
+
       isInitializedRef.current = true;
       setIsLoading(false);
     };
-    
+
     load();
-    
-    return () => { 
-      cancelled = true; 
+
+    return () => {
+      cancelled = true;
     };
   }, [generationId, enabled, loadSettings]);
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -418,7 +323,7 @@ export function useGenerationEditSettings({
       }
     };
   }, []);
-  
+
   // Individual setters
   const setEditMode = useCallback((mode: EditMode) => {
     setSettings(prev => {
@@ -427,7 +332,7 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
   const setLoraMode = useCallback((mode: LoraMode) => {
     setSettings(prev => {
       const updated = { ...prev, loraMode: mode };
@@ -435,7 +340,7 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
   const setCustomLoraUrl = useCallback((url: string) => {
     setSettings(prev => {
       const updated = { ...prev, customLoraUrl: url };
@@ -443,7 +348,7 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
   const setNumGenerations = useCallback((num: number) => {
     setSettings(prev => {
       const updated = { ...prev, numGenerations: num };
@@ -451,7 +356,7 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
   const setPrompt = useCallback((prompt: string) => {
     setSettings(prev => {
       const updated = { ...prev, prompt };
@@ -484,7 +389,7 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
   const setImg2imgEnablePromptExpansion = useCallback((enabled: boolean) => {
     setSettings(prev => {
       const updated = { ...prev, img2imgEnablePromptExpansion: enabled };
@@ -492,7 +397,7 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
   // Advanced settings setter (merges with existing)
   const setAdvancedSettings = useCallback((updates: Partial<EditAdvancedSettings>) => {
     setSettings(prev => {
@@ -534,9 +439,9 @@ export function useGenerationEditSettings({
       return updated;
     });
   }, [triggerSave]);
-  
+
   // Initialize from "last used" - called when generation has no persisted settings
-  const initializeFromLastUsed = useCallback((lastUsed: Omit<GenerationEditSettings, 'prompt' | 'img2imgPrompt' | 'img2imgPromptHasBeenSet'>) => {
+  const initializeFromLastUsed = useCallback((lastUsed: SyncedEditSettings & { editMode: EditMode }) => {
     if (isLoading) {
       // Store for later application after load completes
       pendingInitFromLastUsedRef.current = lastUsed;
@@ -558,7 +463,7 @@ export function useGenerationEditSettings({
       console.log('[EDIT_DEBUG] ⏭️ INIT: Skipping "last used" - generation has persisted settings');
     }
   }, [isLoading, hasPersistedSettings]);
-  
+
   return {
     settings,
     setEditMode,
@@ -579,4 +484,3 @@ export function useGenerationEditSettings({
     initializeFromLastUsed,
   };
 }
-

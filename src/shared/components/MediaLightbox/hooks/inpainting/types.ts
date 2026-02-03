@@ -2,6 +2,12 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { GenerationRow } from '@/types/shots';
 import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
 
+// Import canonical types from single source of truth
+import type { EditAdvancedSettings, QwenEditModel } from '../editSettingsTypes';
+
+// Re-export for backwards compatibility
+export type { EditAdvancedSettings, QwenEditModel };
+
 // ============================================
 // Core Types
 // ============================================
@@ -28,18 +34,6 @@ export interface ImageDimensions {
   width: number;
   height: number;
 }
-
-// ============================================
-// Advanced Settings Types (from useGenerationEditSettings)
-// ============================================
-
-export interface EditAdvancedSettings {
-  hiresFixEnabled: boolean;
-  hiresFixScale: number;
-  hiresFixDenoisingStrength: number;
-}
-
-export type QwenEditModel = 'qwen-edit' | 'qwen-edit-v2';
 
 // ============================================
 // Hook Props & Return Types

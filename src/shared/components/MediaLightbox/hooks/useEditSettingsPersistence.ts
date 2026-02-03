@@ -1,22 +1,22 @@
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { useGenerationEditSettings } from './useGenerationEditSettings';
+import { useLastUsedEditSettings } from './useLastUsedEditSettings';
+
+// Import canonical types from single source of truth
 import {
-  useGenerationEditSettings,
-  type GenerationEditSettings,
   type EditMode,
   type LoraMode,
   type QwenEditModel,
   type EditAdvancedSettings,
   type VideoEnhanceSettings,
-  DEFAULT_EDIT_SETTINGS,
-  DEFAULT_ADVANCED_SETTINGS,
-  DEFAULT_ENHANCE_SETTINGS,
-} from './useGenerationEditSettings';
-import {
-  useLastUsedEditSettings,
+  type GenerationEditSettings,
   type LastUsedEditSettings,
   type VideoEditSubMode,
   type PanelMode,
-} from './useLastUsedEditSettings';
+  DEFAULT_EDIT_SETTINGS,
+  DEFAULT_ADVANCED_SETTINGS,
+  DEFAULT_ENHANCE_SETTINGS,
+} from './editSettingsTypes';
 
 export interface UseEditSettingsPersistenceProps {
   generationId: string | null;
@@ -71,11 +71,11 @@ export interface UseEditSettingsPersistenceReturn {
 
   // Computed LoRAs for task creation
   editModeLoRAs: Array<{ url: string; strength: number }> | undefined;
-  
+
   // Legacy compatibility
   isInSceneBoostEnabled: boolean;
   setIsInSceneBoostEnabled: (enabled: boolean) => void;
-  
+
   // State
   isLoading: boolean;
   isReady: boolean; // True when initialization is complete
@@ -90,15 +90,15 @@ const LORA_URLS = {
 
 /**
  * Unified edit settings persistence hook
- * 
+ *
  * Coordinates:
  * 1. Per-generation settings (generations.params.ui.editSettings)
  * 2. "Last used" settings (useToolSettings + localStorage)
- * 
+ *
  * Loading behavior:
  * - If generation has persisted settings → use those (including prompt)
  * - If no persisted settings → use "last used" (prompt = '')
- * 
+ *
  * Saving behavior:
  * - All changes save to generation
  * - Non-prompt changes also update "last used"
@@ -113,18 +113,18 @@ export function useEditSettingsPersistence({
     generationId,
     enabled,
   });
-  
+
   // "Last used" settings
   const lastUsedSettings = useLastUsedEditSettings({
     projectId,
     enabled,
   });
-  
+
   // Track initialization state
   const hasInitializedRef = useRef(false);
   const lastGenerationIdRef = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
-  
+
   // Reset initialization on generation change
   useEffect(() => {
     if (generationId !== lastGenerationIdRef.current) {
@@ -133,7 +133,7 @@ export function useEditSettingsPersistence({
       setIsReady(false);
     }
   }, [generationId]);
-  
+
   // Extract stable references for the initialization effect
   const { isLoading: genIsLoading, hasPersistedSettings, initializeFromLastUsed } = generationSettings;
   const { lastUsed } = lastUsedSettings;
@@ -150,7 +150,7 @@ export function useEditSettingsPersistence({
       setIsReady(true);
     }
   }, [generationId, genIsLoading, hasPersistedSettings, initializeFromLastUsed, lastUsed]);
-  
+
   // Compute effective values
   // editMode is ALWAYS from lastUsed (user-level, not per-generation) so it stays consistent across images/videos
   // Other settings like prompt, loraMode are per-generation
@@ -187,6 +187,7 @@ export function useEditSettingsPersistence({
         img2imgStrength: lastUsedSettings.lastUsed.img2imgStrength,
         img2imgEnablePromptExpansion: lastUsedSettings.lastUsed.img2imgEnablePromptExpansion,
         advancedSettings: lastUsedSettings.lastUsed.advancedSettings ?? DEFAULT_ADVANCED_SETTINGS,
+        createAsGeneration: lastUsedSettings.lastUsed.createAsGeneration,
       };
     }
 
@@ -202,7 +203,7 @@ export function useEditSettingsPersistence({
     generationSettings.settings,
     lastUsedSettings.lastUsed,
   ]);
-  
+
   // Extract stable function references to avoid recreating callbacks on every render
   // (the parent objects are recreated each render, but these functions are stable)
   const { updateLastUsed } = lastUsedSettings;
@@ -298,22 +299,22 @@ export function useEditSettingsPersistence({
   // Computed LoRAs based on mode (replaces useEditModeLoRAs logic)
   const editModeLoRAs = useMemo(() => {
     const { loraMode, customLoraUrl } = effectiveSettings;
-    
+
     switch (loraMode) {
       case 'in-scene':
         return [{ url: LORA_URLS['in-scene'], strength: 1.0 }];
       case 'next-scene':
         return [{ url: LORA_URLS['next-scene'], strength: 1.0 }];
       case 'custom':
-        return customLoraUrl.trim() 
-          ? [{ url: customLoraUrl.trim(), strength: 1.0 }] 
+        return customLoraUrl.trim()
+          ? [{ url: customLoraUrl.trim(), strength: 1.0 }]
           : undefined;
       case 'none':
       default:
         return undefined;
     }
   }, [effectiveSettings.loraMode, effectiveSettings.customLoraUrl]);
-  
+
   // Legacy compatibility
   const isInSceneBoostEnabled = effectiveSettings.loraMode !== 'none';
   const setIsInSceneBoostEnabled = (enabled: boolean) => {
@@ -367,11 +368,11 @@ export function useEditSettingsPersistence({
 
     // Computed
     editModeLoRAs,
-    
+
     // Legacy
     isInSceneBoostEnabled,
     setIsInSceneBoostEnabled,
-    
+
     // State
     isLoading: generationSettings.isLoading,
     isReady,
@@ -382,4 +383,3 @@ export function useEditSettingsPersistence({
 // Re-export types for convenience
 export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, VideoEnhanceSettings, GenerationEditSettings, LastUsedEditSettings, VideoEditSubMode, PanelMode };
 export { DEFAULT_EDIT_SETTINGS, DEFAULT_ADVANCED_SETTINGS, DEFAULT_ENHANCE_SETTINGS };
-
