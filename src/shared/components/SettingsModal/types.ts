@@ -56,6 +56,8 @@ export interface PreferencesSectionProps {
   privacyDefaults: { resourcesPublic: boolean; generationsPublic: boolean };
   updatePrivacyDefaults: (patch: { resourcesPublic?: boolean; generationsPublic?: boolean }) => void;
   isLoadingPrivacyDefaults: boolean;
+  aiInputMode: "voice" | "text";
+  setAIInputMode: (mode: "voice" | "text") => void;
 }
 
 interface TransactionsSectionProps {

@@ -29,7 +29,7 @@ export const AIInputButton = React.forwardRef<
   AIInputButtonProps
 >(({ onResult, onError, onActiveStateChange, task = "transcribe_and_write", context, example, existingValue = "", disabled = false, className }, ref) => {
   const isMobile = useIsMobile()
-  const { mode, toggleMode } = useAIInputMode()
+  const { mode } = useAIInputMode()
   
   // Voice recording state
   const { state: voiceState, audioLevel, remainingSeconds, isActive: isVoiceActive, toggleRecording, cancelRecording } = useVoiceRecording({
@@ -157,13 +157,6 @@ export const AIInputButton = React.forwardRef<
     }
   }
 
-  // Mode toggle handler
-  const handleModeToggle = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    toggleMode()
-  }
-
   // Get the appropriate icon for the main button
   const getMainIcon = () => {
     if (mode === "voice") {
@@ -230,35 +223,6 @@ export const AIInputButton = React.forwardRef<
     return "bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground"
   }
 
-  const modeToggleTooltipText = mode === "voice" ? "Switch to text edit" : "Switch to voice edit"
-  
-  // Track if hovering the mode toggle (to show its tooltip instead of the main button tooltip)
-  const [isHoveringModeToggle, setIsHoveringModeToggle] = React.useState(false)
-
-  // Mode toggle button (shows in top-right corner) - subtle styling, no nested tooltip
-  const modeToggleButton = (
-    <span
-      role="button"
-      onClick={handleModeToggle}
-      onMouseEnter={() => setIsHoveringModeToggle(true)}
-      onMouseLeave={() => setIsHoveringModeToggle(false)}
-      className={cn(
-        "absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full flex items-center justify-center cursor-pointer transition-all",
-        "bg-muted-foreground/40 hover:bg-muted-foreground/70 text-background"
-      )}
-    >
-      {mode === "voice" ? (
-        <Wand2 className="h-1.5 w-1.5" />
-      ) : (
-        <Mic className="h-1.5 w-1.5" />
-      )}
-    </span>
-  )
-
-  // Show mode toggle only when idle
-  const isIdle = mode === "voice" ? voiceState === "idle" : textState === "idle"
-  const showModeToggle = isIdle
-
   // Voice mode button content
   const voiceButtonContent = (
     <button
@@ -307,7 +271,7 @@ export const AIInputButton = React.forwardRef<
         </span>
       )}
       
-      {/* Cancel button - top right corner (replaces mode toggle during recording) */}
+      {/* Cancel button - top right corner */}
       {voiceState === "recording" && (
         <span
           role="button"
@@ -318,10 +282,7 @@ export const AIInputButton = React.forwardRef<
           <X className="h-2 w-2" />
         </span>
       )}
-      
-      {/* Mode toggle button (when idle) */}
-      {showModeToggle && modeToggleButton}
-      
+
       {getMainIcon()}
     </button>
   )
@@ -340,12 +301,9 @@ export const AIInputButton = React.forwardRef<
       )}
       tabIndex={-1}
     >
-      {/* Mode toggle button (when idle) */}
-      {showModeToggle && modeToggleButton}
       {getMainIcon()}
     </button>
   )
-
 
   // On mobile, skip the tooltip wrapper entirely but keep Popover for text mode
   if (isMobile) {
@@ -419,7 +377,7 @@ export const AIInputButton = React.forwardRef<
           {voiceButtonContent}
         </TooltipTrigger>
         <TooltipContent side="top" sideOffset={5}>
-          {isHoveringModeToggle ? modeToggleTooltipText : getTooltipText()}
+          {getTooltipText()}
         </TooltipContent>
       </Tooltip>
     )
@@ -490,7 +448,7 @@ export const AIInputButton = React.forwardRef<
         </PopoverContent>
       </Popover>
       <TooltipContent side="top" sideOffset={5}>
-        {isHoveringModeToggle ? modeToggleTooltipText : getTooltipText()}
+        {getTooltipText()}
       </TooltipContent>
     </Tooltip>
   )

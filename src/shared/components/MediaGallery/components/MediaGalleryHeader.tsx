@@ -20,6 +20,9 @@ interface MediaGalleryHeaderProps {
   hidePagination?: boolean;
   onPageChange: (newPage: number, direction: 'prev' | 'next', fromBottom?: boolean) => void;
 
+  // Layout props
+  isMobile?: boolean;
+
   // Filter props
   hideTopFilters?: boolean;
   hideMediaTypeFilter?: boolean;
@@ -62,6 +65,9 @@ export const MediaGalleryHeader: React.FC<MediaGalleryHeaderProps> = ({
   reducedSpacing = false,
   hidePagination = false,
   onPageChange,
+
+  // Layout props
+  isMobile = false,
 
   // Filter props
   hideTopFilters = false,
@@ -158,39 +164,41 @@ export const MediaGalleryHeader: React.FC<MediaGalleryHeaderProps> = ({
         </div>
       )}
 
-      {/* Row 2: Pagination (left) + Star filter (right) */}
-      <div data-pagination-top>
-        <MediaGalleryPagination
-          totalPages={totalPages}
-          currentPage={page}
-          isServerPagination={isServerPagination}
-          serverPage={serverPage}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          totalFilteredItems={totalFilteredItems}
-          loadingButton={loadingButton}
-          whiteText={whiteText}
-          reducedSpacing={reducedSpacing}
-          hidePagination={hidePagination}
-          onPageChange={onPageChange}
-          compact={true}
-          isBottom={false}
-          rightContent={!hideTopFilters ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`p-1 h-8 w-8 ${whiteText ? 'text-zinc-400 hover:text-white hover:bg-zinc-700' : 'text-muted-foreground hover:text-foreground'}`}
-              onClick={() => onStarredFilterChange?.(!showStarredOnly)}
-              aria-label={showStarredOnly ? "Show all items" : "Show only starred items"}
-            >
-              <Star className="h-5 w-5" fill={showStarredOnly ? 'currentColor' : 'none'} />
-            </Button>
-          ) : undefined}
-        />
-      </div>
+      {/* Row 2: Pagination (left) + Star filter (right) - hidden on mobile (shown in floating bottom bar) */}
+      {!isMobile && (
+        <div data-pagination-top>
+          <MediaGalleryPagination
+            totalPages={totalPages}
+            currentPage={page}
+            isServerPagination={isServerPagination}
+            serverPage={serverPage}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            totalFilteredItems={totalFilteredItems}
+            loadingButton={loadingButton}
+            whiteText={whiteText}
+            reducedSpacing={reducedSpacing}
+            hidePagination={hidePagination}
+            onPageChange={onPageChange}
+            compact={true}
+            isBottom={false}
+            rightContent={!hideTopFilters ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`p-1 h-8 w-8 ${whiteText ? 'text-zinc-400 hover:text-white hover:bg-zinc-700' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => onStarredFilterChange?.(!showStarredOnly)}
+                aria-label={showStarredOnly ? "Show all items" : "Show only starred items"}
+              >
+                <Star className="h-5 w-5" fill={showStarredOnly ? 'currentColor' : 'none'} />
+              </Button>
+            ) : undefined}
+          />
+        </div>
+      )}
 
-      {/* Single page display - only show when pagination is hidden but we have items */}
-      {totalPages === 1 && !hidePagination && !showShotFilter && (
+      {/* Single page display - only show when pagination is hidden but we have items (hidden on mobile) */}
+      {!isMobile && totalPages === 1 && !hidePagination && !showShotFilter && (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${whiteText ? 'text-white' : 'text-muted-foreground'}`}>
             Showing {rangeStart}-{rangeEnd} of {totalFilteredItems}

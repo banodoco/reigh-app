@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useCallback, useRef } from "react";
+import { Star } from "lucide-react";
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -8,6 +9,7 @@ import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTa
 import { useBackgroundThumbnailGenerator } from '@/shared/hooks/useBackgroundThumbnailGenerator';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
+import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 import { MediaGalleryPagination } from "@/shared/components/MediaGalleryPagination";
 import { handleError } from '@/shared/lib/errorHandler';
@@ -729,7 +731,8 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         ref={galleryContainerRef}
         className={cn(
           reducedSpacing ? 'space-y-6' : 'space-y-6',
-          reducedSpacing ? 'pb-0' : ((!hidePagination && !hideBottomPagination) ? 'pb-[62px]' : 'pb-0'),
+          // Add bottom padding: mobile gets extra padding for fixed bottom bar, desktop uses existing logic
+          isMobile && !hidePagination ? 'pb-16' : (reducedSpacing ? 'pb-0' : ((!hidePagination && !hideBottomPagination) ? 'pb-[62px]' : 'pb-0')),
           className
         )}
       >
@@ -749,6 +752,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
             reducedSpacing={reducedSpacing}
             hidePagination={hidePagination}
             onPageChange={paginationHook.handlePageChange}
+            isMobile={isMobile}
 
             // Filter props
             hideTopFilters={hideTopFilters}
@@ -968,6 +972,47 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         toolTypeOverride={currentToolType}
         setActiveLightboxIndex={handleSetActiveLightboxIndex}
       />
+
+      {/* Mobile floating bottom bar with pagination and star filter */}
+      {isMobile && !hidePagination && !stateHook.state.activeLightboxMedia && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t px-4 py-2 safe-area-pb">
+          <MediaGalleryPagination
+            totalPages={paginationHook.totalPages}
+            currentPage={paginationHook.page}
+            isServerPagination={paginationHook.isServerPagination}
+            serverPage={serverPage}
+            rangeStart={paginationHook.rangeStart}
+            rangeEnd={paginationHook.rangeEnd}
+            totalFilteredItems={paginationHook.totalFilteredItems}
+            loadingButton={paginationHook.loadingButton}
+            whiteText={whiteText}
+            reducedSpacing={true}
+            hidePagination={false}
+            onPageChange={paginationHook.handlePageChange}
+            compact={true}
+            isBottom={true}
+            rightContent={!hideTopFilters ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-1 h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  const next = !filtersHook.showStarredOnly;
+                  filtersHook.setShowStarredOnly(next);
+                  paginationHook.goToFirstPage();
+                  if (paginationHook.isServerPagination) {
+                    paginationHook.setIsGalleryLoading(true);
+                  }
+                  onStarredFilterChange?.(next);
+                }}
+                aria-label={filtersHook.showStarredOnly ? "Show all items" : "Show only starred items"}
+              >
+                <Star className="h-5 w-5" fill={filtersHook.showStarredOnly ? 'currentColor' : 'none'} />
+              </Button>
+            ) : undefined}
+          />
+        </div>
+      )}
     </TooltipProvider>
   );
 });

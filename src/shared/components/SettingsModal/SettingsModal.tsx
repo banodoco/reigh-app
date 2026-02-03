@@ -17,6 +17,7 @@ import { useScrollFade } from "@/shared/hooks/useScrollFade";
 import { useUserUIState } from "@/shared/hooks/useUserUIState";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useTextCase } from "@/shared/hooks/useTextCase";
+import { useAIInputMode } from "@/shared/contexts/AIInputModeContext";
 import { GenerationSection, PreferencesSection, TransactionsSection } from "./sections";
 import type { SettingsModalProps } from "./types";
 
@@ -91,6 +92,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Text case mode (whether to preserve user-inputted text casing)
   const { preserveUserText, setPreserveUserText } = useTextCase();
+
+  // AI input mode (voice vs text)
+  const { mode: aiInputMode, setMode: setAIInputMode } = useAIInputMode();
 
   // Generation method preferences (database-backed)
   const {
@@ -211,6 +215,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               privacyDefaults={privacyDefaults}
               updatePrivacyDefaults={updatePrivacyDefaults}
               isLoadingPrivacyDefaults={isLoadingPrivacyDefaults}
+              aiInputMode={aiInputMode}
+              setAIInputMode={setAIInputMode}
             />
           )}
 
