@@ -2,7 +2,7 @@
 
 Present-state reference. Describes how the codebase measures up against its quality principles, with every known exception and reasoning. Not a changelog — only current status matters.
 
-Last verified: 2026-02-03 (automated audit, 702 source files).
+Last verified: 2026-02-03 (932 source files).
 
 ---
 
@@ -12,13 +12,13 @@ Last verified: 2026-02-03 (automated audit, 702 source files).
 |-----------|--------|------------|
 | Dependency direction | ✅ Clean | Zero `shared/ → tools/` violations; ESLint enforced |
 | Data fetching | ✅ Clean | 3 query scopes; mutations separated. ~25 inline query keys |
-| Type safety | ✅ Clean | 98 `any` (17 `: any`, 81 `as any`), all justified |
-| File size | ⚠️ Acceptable | 6 files over 1,000 LOC; each documented |
+| Type safety | ✅ Clean | 94 `any` (17 `: any`, 81 `as any`), all justified |
+| File size | ⚠️ Acceptable | 11 files over 1,000 LOC; each documented |
 | Explicit contracts | ✅ Clean | 8 patterns encoded as constants/helpers/types |
 | Code duplication | ✅ Patterns exist | 4 shared patterns for repeated operations |
 | Naming | ✅ Clean | ~20 single-letter vars (`w`/`h`, `x`/`y`, `i`/`j`), all conventional |
-| Logging hygiene | ⚠️ Acceptable | 2,994 console statements / 341 files; tagged, stripped in prod |
-| Dead code | ✅ Mostly clean | 2 re-export barrels, 7 cross-tool SectionHeader imports |
+| Logging hygiene | ⚠️ Acceptable | 2,974 console statements / 342 files; tagged, stripped in prod |
+| Dead code | ✅ Mostly clean | 7 cross-tool SectionHeader imports |
 
 ---
 
@@ -44,7 +44,7 @@ Last verified: 2026-02-03 (automated audit, 702 source files).
 
 **Principle:** No unjustified `any`.
 
-**Status:** 98 total (17 `: any`, 81 `as any`). All in instrumentation/debug code — application logic is `any`-free.
+**Status:** 94 total (17 `: any`, 81 `as any`). All in instrumentation/debug code — application logic is `any`-free.
 
 | Category | Count | Justification |
 |----------|-------|---------------|
@@ -63,7 +63,7 @@ Heaviest files: `instrumentation/window` (27), `instrumentation/realtime` (11), 
 
 **Principle:** Orchestrators under 300 LOC. Extract hooks/components into directory structure when files grow.
 
-**Status:** 6 files over 1,000 LOC. Standard decomposition approach: directory with `components/` + `hooks/`, or extract focused modules. Reference pattern: `useRepositionMode` — 161-line orchestrator coordinating 5 focused hooks (`useRepositionCanvasSetup`, `useRepositionInteractions`, `useRepositionRendering`, `useRepositionState`, `useRepositionValidation`).
+**Status:** 11 files over 1,000 LOC. Standard decomposition approach: directory with `components/` + `hooks/`, or extract focused modules. Reference pattern: `useRepositionMode` — 161-line orchestrator coordinating 5 focused hooks (`useRepositionCanvasSetup`, `useRepositionInteractions`, `useRepositionRendering`, `useRepositionState`, `useRepositionValidation`).
 
 ### Remaining large files
 
@@ -71,10 +71,15 @@ Heaviest files: `instrumentation/window` (27), `instrumentation/realtime` (11), 
 |------|-------|-------------|
 | `JoinClipsSettingsForm.tsx` | 1,309 | Form sections share validation state; splitting adds prop drilling |
 | `ImageLightbox.tsx` | 1,296 | State aggregation — splitting requires a new context for no benefit |
-| `Timeline.tsx` | 1,227 | Hooks/components/utils already extracted; this is the orchestrator |
+| `Timeline.tsx` | 1,226 | Hooks/components/utils already extracted; this is the orchestrator |
 | `ShotEditor/index.tsx` | 1,200 | Already sectioned (Header/Timeline/Generation/Modals) |
+| `VideoGallery/index.tsx` | 1,181 | Video gallery orchestrator with segment output integration |
 | `ImageGenerationToolPage.tsx` | 1,170 | Uses extracted components; page-level orchestration |
+| `ImageGenerationForm.tsx` | 1,133 | Multi-model form with conditional sections; shared across tools |
+| `PhilosophyPane.tsx` | 1,113 | Marketing/content component; low churn |
 | `VideoLightbox.tsx` | 1,064 | Same pattern as ImageLightbox |
+| `MediaGallery/index.tsx` | 1,027 | Gallery orchestrator with filters, pagination, drag-and-drop |
+| `SegmentOutputStrip.tsx` | 1,003 | Timeline segment rendering with progress tracking |
 
 
 ---
@@ -115,7 +120,7 @@ Heaviest files: `instrumentation/window` (27), `instrumentation/realtime` (11), 
 
 **Principle:** Tagged debug logs, stripped in production, no sensitive data.
 
-**Status:** 2,994 console statements across 341 files. Production builds strip `console.log` via Vite. No sensitive data leaks (API keys masked, auth tokens never logged).
+**Status:** 2,974 console statements across 342 files. Production builds strip `console.log` via Vite. No sensitive data leaks (API keys masked, auth tokens never logged).
 
 Logs use bracket-prefix tags for filtering via `debug.py logs --tag <Tag>`. Top tags: `[ApplySettings]` (126), `[EDIT_DEBUG]` (82), `[VideoGalleryPreload]` (41), `[BasedOnNav]` (39), `[SimpleRealtime]` (35), `[DataTrace]` (35), `[AddWithoutPosDebug]` (31), `[VariantRelationship]` (30).
 
@@ -129,9 +134,7 @@ Top files: `applySettingsService.ts` (79), `PromptEditorModal.tsx` (53), `Simple
 
 **Status:** Mostly clean. Known residue:
 
-- **2 re-export barrels** — `ImageGenerationForm/hooks/index.ts` and `state/index.ts` re-export from `shared/` for backward compat (migration residue)
 - **7 SectionHeader imports** — Tools import from `@/tools/image-generation/...` instead of `@/shared/...` (wrong path, not architectural)
-- **`useAdjacentPagePreloading`** — Active (used in `ImageGenerationToolPage.tsx`, `GenerationsPane.tsx`), not deprecated
 
 ---
 
