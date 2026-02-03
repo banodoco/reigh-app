@@ -4,7 +4,7 @@
 - **Cross-cutting** = spans multiple tools, or touches core tables/storage/auth/billing.
 - Start at `structure.md` (links to sub-docs). Deep dives live in `docs/structure_detail/`.
 - **Read the relevant sub-doc before editing**:
-  - Settings/persistence → `settings_system.md` (+ `data_persistence.md`)
+  - Settings/persistence → `settings_system.md`
   - Performance → `performance_system.md`
   - Image loading → `image_loading_system.md`
   - Realtime → `realtime_system.md`
@@ -15,6 +15,10 @@
   - Payments/credits → `auto_topup_system.md`
   - Debugging/logs → `debugging.md` (CLI, `system_logs` table, frontend logging)
   - Error handling → `error_handling.md` (typed errors, `handleError()`, error boundary)
+  - Frontend patterns → `frontend_architecture.md` (contexts, hooks, state, components)
+  - Shared utilities → `shared_utilities.md` (ModalContainer, DataContainer, ConfirmDialog, createSafeContext)
+  - Data fetching/caching → `data_fetching.md` (query scopes, invalidation, cache sync)
+  - Code quality → `docs/code_quality_audit.md` (metrics, anti-patterns, known exceptions)
 - **Multiple docs apply?** Start with most specific (e.g., `image_loading` before `performance`).
 - **New feature?** Check `adding_new_tool.md` for tool pattern; `structure.md` for where things live.
 - **Debugging a flow?** Trace: UI → hook → task creation (`unified_task_creation.md`) → worker (`task_worker_lifecycle.md`) → `complete_task` edge function.
@@ -42,7 +46,8 @@
 
 ## Review discipline
 - After changes: ensure nothing out-of-scope was deleted/edited.
-- Flag briefly (don’t derail): duplication, giant components (>300 LOC), prop drilling (3+ levels), mixed concerns, inconsistent patterns, missing error handling.
+- Flag briefly (don't derail): duplication, giant components (>300 LOC), prop drilling (3+ levels), mixed concerns, inconsistent patterns, missing error handling.
+- Anti-patterns (see `docs/code_quality_audit.md`): no registry/capability patterns for ~5 tools, no React Query wrappers (`useSafeQuery`), no facade hooks with deprecation layers, no multi-week architecture overhauls. Every change should make the codebase smaller or more explicit.
 
 ## Debugging
 - **Server-side (tasks/workers)**: Use `system_logs` table (48h retention). Query via:
@@ -65,6 +70,7 @@
 - **Sub-docs** (`docs/structure_detail/`): Update when changing system patterns (triggers, RPCs, storage, shared hooks). Use routing table above.
 - **structure.md**: Update only when adding/removing sub-docs or changing top-level directory structure. It's an index, not implementation detail.
 - **Style**: Tables > prose; point to code; sub-docs under ~150 lines; include Purpose + Source of Truth + Key Invariants.
+- **Don't create catalog docs** (hook lists, component inventories, file trees). The typed source is the source of truth; catalogs drift.
 
 ## Git workflow (when pushing)
 - Before push: review `git diff`, update docs if system patterns changed, then `git add . && git commit -m "feat/fix: ..." && git push`.

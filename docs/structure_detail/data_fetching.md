@@ -1,8 +1,8 @@
 # Data Fetching System
 
-**Purpose**: Document which hooks own which data, how mutations invalidate caches, and when to use each hook.
+**Purpose**: Document which hooks own which data, how mutations invalidate caches, optimistic update patterns, and cache synchronization.
 
-**Source of Truth**: `src/shared/lib/queryKeys.ts` (all cache keys), `src/shared/hooks/invalidation/useGenerationInvalidation.ts` (invalidation patterns).
+**Source of Truth**: `src/shared/lib/queryKeys.ts` (all cache keys), `src/shared/hooks/invalidation/useGenerationInvalidation.ts` (invalidation patterns), `src/shared/lib/queryDefaults.ts` (query presets).
 
 ---
 
@@ -27,6 +27,27 @@ Three intentionally separate scopes for generation data. These are NOT duplicati
 
 ---
 
+## Cache Priming & Loading
+
+`useShotImages` uses a single query to `shot_generations` JOIN `generations` (no multi-phase loading). For instant display on shot navigation, `usePrimeShotGenerationsCache` seeds the cache from `ShotsContext` data before the network query completes.
+
+| Step | What happens | Source |
+|------|-------------|--------|
+| 1. Shot selected | Cache primed from `ShotsContext` (no metadata) | `usePrimeShotImagesCache` in `useShotImages.ts` |
+| 2. Selectors fire | `useTimelineImages` etc. immediately have data | Derived from primed cache |
+| 3. Network query | Full data with metadata replaces primed data | `useShotImages` queryFn |
+
+### Query Presets (`src/shared/lib/queryDefaults.ts`)
+
+| Preset | staleTime | Use Case |
+|--------|-----------|----------|
+| `realtimeBacked` | 30s | Data updated by realtime/mutations (generations, tasks, shots) |
+| `static` | 5min | Resources, presets, tool settings |
+| `immutable` | Infinity | Completed task results, historical data |
+| `userConfig` | 2min | User preferences, account settings |
+
+---
+
 ## Mutation Ownership
 
 Mutations live in `useGenerationMutations.ts` (re-exported from `useProjectGenerations.ts` for compatibility).
@@ -39,12 +60,37 @@ Mutations live in `useGenerationMutations.ts` (re-exported from `useProjectGener
 | `useCreateGeneration` | `generations` + `generation_variants` | None (caller invalidates) |
 | `useToggleGenerationStar` | `generations` | Optimistic update on `unified-generations`, `shots`, `all-shot-generations` |
 
-Variant mutations in `useVariants`:
+Shot-generation mutations in `useShotGenerationMutations.ts`:
+
+| Mutation | Table | Optimistic? | Invalidation |
+|----------|-------|-------------|-------------|
+| `useAddImageToShot` | `shot_generations` | Yes (temp ID, cache update) | shots list, meta, unified |
+| `useRemoveImageFromShot` | `shot_generations` | Yes (set frame null) | segment queries |
+| `useUpdateShotImageOrder` | `shot_generations` | Yes (reorder frames) | meta, source-slot |
+| `useDuplicateAsNewGeneration` | `generations` + `shot_generations` | No | shots, generations, segments |
+
+Variant mutations in `useVariants.ts`:
 
 | Mutation | Table | Invalidation |
 |----------|-------|-------------|
-| `setPrimaryVariant` | `generation_variants` | `invalidateVariantChange()` — variants, detail, badges, all shot-generations, unified |
+| `setPrimaryVariant` | `generation_variants` | `invalidateVariantChange()` |
 | `deleteVariant` | `generation_variants` | `invalidateVariantChange()` |
+
+---
+
+## Optimistic Update Pattern
+
+Used by shot-generation mutations (`useShotGenerationMutations.ts`). All follow the same structure:
+
+```
+onMutate:  cancel queries -> snapshot previous -> update cache (mark _optimistic)
+onError:   rollback from snapshot
+onSuccess: replace temp IDs with real IDs -> scoped invalidation
+```
+
+Cache utilities (`src/shared/hooks/shots/cacheUtils.ts`) provide helpers: `cancelShotsQueries`, `updateAllShotsCaches`, `rollbackShotsCaches`, `updateShotGenerationsCache`, `rollbackShotGenerationsCache`.
+
+Stable callbacks: use refs to prevent recreation storms (avoid `addMutation` in deps).
 
 ---
 
@@ -54,22 +100,22 @@ Variant mutations in `useVariants`:
 
 | Function | When to Use | What It Invalidates |
 |----------|------------|-------------------|
-| `useInvalidateGenerations()(shotId, opts)` | After shot-scoped changes (reorder, add/remove from shot) | `all-shot-generations`, `segment-live-timeline`, `shot-generations-meta`, `unpositioned-count` (scoped by `opts.scope`) |
+| `useInvalidateGenerations()(shotId, opts)` | After shot-scoped changes | `all-shot-generations`, `segment-live-timeline`, `shot-generations-meta`, `unpositioned-count` (scoped by `opts.scope`) |
 | `invalidateVariantChange(qc, opts)` | After variant create/update/set-primary | Variants, detail, badges, all shot-generations (broad), unified, derived, segment children/sources |
 | `invalidateGenerationUpdate(qc, opts)` | After generation data change (not variant) | Detail, unified, derived, segment children/parents |
 | `invalidateAllShotGenerations(qc, reason)` | Global fallback (avoid if possible) | All `all-shot-generations` queries via predicate |
 
-### Realtime: `SimpleRealtimeProvider`
+Scopes for `useInvalidateGenerations`: `'all'` | `'images'` | `'metadata'` | `'counts'`.
 
-Listens to Supabase realtime events, dispatches batched custom events, invalidates caches:
+### Realtime: `SimpleRealtimeProvider`
 
 | Event | Triggers | Invalidation |
 |-------|----------|-------------|
 | `realtime:task-update-batch` | Task status changes | `tasks.*`, and if Complete: `unified`, `all-shot-generations`, segments |
-| `realtime:task-new-batch` | New tasks created | `tasks.*` only (no generation data yet) |
-| `realtime:shot-generation-change-batch` | `shot_generations` INSERT/UPDATE/DELETE | `all-shot-generations` per shot (skips for INSERT-only to avoid flicker) |
-| `realtime:generation-update-batch` | `generations` UPDATE (location, upscale) | `unified`, `all-shot-generations` (broad), `shots`, detail |
-| `realtime:generation-insert-batch` | `generations` INSERT (new children) | `unified`, `all-shot-generations` (broad), detail |
+| `realtime:task-new-batch` | New tasks created | `tasks.*` only |
+| `realtime:shot-generation-change-batch` | `shot_generations` INSERT/UPDATE/DELETE | `all-shot-generations` per shot (skips INSERT-only to avoid flicker) |
+| `realtime:generation-update-batch` | `generations` UPDATE | `unified`, `all-shot-generations` (broad), `shots`, detail |
+| `realtime:generation-insert-batch` | `generations` INSERT | `unified`, `all-shot-generations` (broad), detail |
 | `realtime:variant-change-batch` | `generation_variants` changes | Per-generation variants + badges, `unified`, `all-shot-generations` (broad) |
 
 ### Smart Polling (fallback)
@@ -90,6 +136,7 @@ Listens to Supabase realtime events, dispatches batched custom events, invalidat
 | Show/switch variants in lightbox | `useVariants({ generationId })` |
 | Show edits/children of a generation | `useDerivedItems(generationId)` |
 | Delete/star/create generations | Import from `useGenerationMutations` |
+| Add/remove/reorder images in a shot | Import from `useShotGenerationMutations` |
 | Invalidate after shot-scoped changes | `useInvalidateGenerations()` |
 | Invalidate after variant changes | `invalidateVariantChange()` |
 
@@ -97,9 +144,10 @@ Listens to Supabase realtime events, dispatches batched custom events, invalidat
 
 ## Key Invariants
 
-1. **Three scopes, three hooks** — project, shot, variant. Don't merge them.
-2. **Mutations in `useGenerationMutations.ts`** — not in query hooks.
-3. **All query keys in `queryKeys` registry** — no hardcoded strings.
-4. **Optimistic updates only in `useToggleGenerationStar`** — other mutations rely on invalidation.
-5. **Realtime → invalidation, not direct cache updates** — keeps cache consistent with DB.
-6. **Smart polling is fallback** — primary freshness comes from realtime events.
+1. **Three scopes, three hooks** -- project, shot, variant. Don't merge them.
+2. **Mutations in dedicated files** -- `useGenerationMutations.ts` and `useShotGenerationMutations.ts`, not in query hooks.
+3. **All query keys in `queryKeys` registry** -- no hardcoded strings.
+4. **Optimistic updates use snapshot + rollback** -- cancel queries first, snapshot for rollback, replace temp IDs on success.
+5. **Realtime -> invalidation, not direct cache updates** -- keeps cache consistent with DB.
+6. **Smart polling is fallback** -- primary freshness from realtime events.
+7. **Cache priming for instant navigation** -- `usePrimeShotGenerationsCache` seeds from context; full data arrives via network query.

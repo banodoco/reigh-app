@@ -1,368 +1,16 @@
-# 🎬 Video Travel Tool
+# Video Travel Tool
 
-> **Status**: ✅ Active | **Path**: `/tools/travel-between-images`
-
-*Frame-accurate video generation with timeline-based shot editing*
+> **Path**: `src/tools/travel-between-images/` | Frame-accurate video generation with timeline-based shot editing
 
 ---
 
-## 📁 File Structure
+## Key Invariants
 
-```
-src/tools/travel-between-images/
-├── pages/
-│   └── VideoTravelToolPage.tsx        # Main tool UI
-├── components/
-│   ├── ShotEditor/                    # Core editing environment (modular)
-│   │   ├── index.tsx                  # ShotSettingsEditor component
-│   │   ├── state/                     # State management (reducer)
-│   │   ├── hooks/                     # Extracted hooks
-│   │   ├── ui/                        # Sub-components
-│   │   └── services/                  # Video generation service
-│   ├── Timeline/                      # Frame-accurate timeline (refactored)
-│   │   ├── index.tsx                  # Main Timeline component
-│   │   ├── TimelineItem.tsx           # Individual timeline items
-│   │   ├── TimelineControls.tsx       # Zoom & context controls
-│   │   ├── TimelineRuler.tsx          # Frame ruler display
-│   │   ├── DropIndicator.tsx          # File drop visual feedback
-│   │   ├── PairRegion.tsx             # Video pair visualization
-│   │   ├── GuidanceVideoUploader.tsx  # Structure video upload UI
-│   │   ├── GuidanceVideoStrip.tsx     # Structure video display with hover scrubbing
-│   │   ├── hooks/
-│   │   │   ├── useFileDrop.ts         # File drag/drop logic
-│   │   │   ├── useFramePositions.ts   # Frame position management
-│   │   │   ├── useTimelineDrag.ts     # Timeline drag interactions
-│   │   │   └── useZoom.ts             # Zoom & pan functionality
-│   │   └── utils/
-│   │       └── timeline-utils.ts      # Timeline calculations
-│   ├── BatchSettingsForm.tsx          # Video generation settings
-│   ├── MotionControl.tsx              # Main motion settings component (tabs: Basic/Presets/Advanced)
-│   ├── PresetsSelector.tsx            # Phase config preset browser and loader
-│   ├── PhaseConfigVertical.tsx        # Advanced phase configuration (vertical layout)
-│   ├── VideoOutputsGallery.tsx        # Generated video display
-│   ├── SimpleVideoPlayer.tsx          # Lightweight player
-│   ├── TaskDetailsModal.tsx           # Generation parameters
-│   ├── VideoShotDisplay.tsx           # Shot preview card
-│   ├── ShotListDisplay.tsx            # Shot grid view with drag-and-drop reordering
-│   └── SortableShotItem.tsx           # Draggable shot card wrapper
-└── settings.ts                        # Tool configuration
-```
-
----
-
-## 🔧 Key Components
-
-### `VideoTravelToolPage.tsx`
-**Main tool interface**
-- Lists project shots with `ShotListDisplay`
-- Creates new shots via Supabase
-- Hosts the main `ShotSettingsEditor`
-- Manages LoRA state filtering for "Wan 2.1 14b" models
-- Handles shot selection and navigation
-
-### `ShotListDisplay.tsx` & `SortableShotItem.tsx`
-**Shot reordering system with progressive loading**
-- **Drag-and-Drop Interface**: Shots can be reordered by dragging the grip handle (⋮⋮)
-- **Integrated Button Design**: Grip handle appears as the first action button, styled consistently
-- **Database Integration**: Auto-saves new order using position field with `useReorderShots` hook
-- **Optimistic Updates**: Immediate visual feedback with no jumping, reverts only on error
-- **Visual Feedback**: Dragged items become semi-transparent, disabling during save operations
-- **Touch Support**: Configured for mobile with delay/tolerance for drag activation
-- **Error Handling**: Toast notifications for failed reorder operations
-
-**Progressive Loading Performance**
-- **Priority Batching**: First 3 shots load immediately, then batches of 3 every 500ms
-- **Browser Cache Detection**: `checkIfImageCached()` detects images already loaded in ShotsPane
-- **Smart Loading**: Cached images appear instantly, bypassing priority queue
-- **Loading States**: Skeleton animations with spinning indicators during image loading
-- **Staggered Animations**: Images reveal with 0.1s delays for smooth visual progression
-
-### `ShotSettingsEditor` (ShotEditor/)
-**Core editing environment (modular architecture)**
-- Positions `FinalVideoSection` above for selected output visibility
-- Orchestrates all editing components via extracted hooks
-- Includes LoRA selector with strength controls and project presets
-- Validates OpenAI API key when *Enhance Prompt* enabled
-- Offers "Crop to project size" helper
-- Manages shot state via reducer pattern (`useShotEditorState`)
-- **Extracted Hooks**:
-  - `useOutputSelection`: Persisted output selection state
-  - `useModeReadiness`: Mode loading and transitions
-  - `useNameEditing`: Inline shot name editing
-  - `useLoraSync`: LoRA management with project presets
-  - `useGenerationActions`: Timeline mutations
-
-### `Timeline/` (Modular Timeline System)
-**Frame-accurate timeline component (refactored into modular architecture)**
-- **Main Component** (`index.tsx`):
-  - Orchestrates all timeline functionality
-  - Integrates drag/drop, zoom, and positioning logic
-  - Manages frame validation and constraints
-- **Sub-Components**:
-  - `TimelineItem.tsx`: Individual draggable image items with visual feedback
-  - `TimelineControls.tsx`: Context frames slider & zoom controls
-  - `TimelineRuler.tsx`: Frame number ruler display
-  - `DropIndicator.tsx`: Visual feedback for file drop targeting
-  - `PairRegion.tsx`: Video pair visualization with context frames
-- **Custom Hooks**:
-  - `useFileDrop.ts`: File drag/drop validation and positioning
-  - `useFramePositions.ts`: Frame position state management
-  - `useTimelineDrag.ts`: Complex drag interactions with modifier key support
-  - `useZoom.ts`: Zoom and pan functionality
-- **Utilities**: `timeline-utils.ts` for frame calculations and constraints
-- **Features**:
-  - Drag-and-drop image positioning with modifier key support (⌘/⌥)
-  - External image file dropping with frame-specific positioning
-  - Gap validation between frames with visual feedback
-  - Zoomable ruler overlay with pan support
-  - `MediaLightbox` preview on click
-  - Persistent position storage
-- **File Support**: JPEG, PNG, WebP images via drag and drop
-- **Drop Targeting**: Visual indicator shows exact frame position during drag
-- **Precision**: Frame-level accuracy for video timing
-
-### `BatchSettingsForm.tsx`
-**Video generation settings**
-- **Inputs**:
-  - Batch prompts
-  - Frame count & duration
-  - Generation parameters (model, seed, turbo mode)
-
-### `MotionControl.tsx`
-**Unified motion settings component with three modes**
-- **Tabbed Interface**: Basic, Presets, and Advanced modes
-- **Basic Mode**: Shows "Amount of Motion" slider + active LoRAs display
-- **Presets Mode**: Browse and load saved phase configuration presets
-- **Advanced Mode**: Full phase configuration with Global Settings + per-phase controls
-- **Conditional Rendering**: Adapts UI based on selected mode and turbo mode state
-- **Props Integration**: Receives and passes motion-related props from ShotEditor
-
-### `PresetsSelector.tsx`
-**Phase configuration preset browser**
-- **Preset Loading**: Browse and load saved phase configurations from database
-- **Empty State**: Shows message when no preset selected
-- **Preset Info Card**: Displays name, description, phase count, and video preview when preset is active
-- **Edit Action**: Button to switch to Advanced mode for manual editing
-- **Modal Integration**: Opens `PhaseConfigSelectorModal` for preset selection
-
-### `PhaseConfigVertical.tsx`
-**Advanced phase configuration editor (vertical layout)**
-- **Two-Column Layout**: 
-  - Global Settings split between left (phases, solver) and right (flow shift, random seed)
-  - Phase cards split 1/3 (steps, guidance) and 2/3 (LoRAs)
-- **Action Buttons**: Load Preset (icon-only), Save As Preset, Restore Defaults
-- **Corner Labels**: Absolute-positioned title boxes in top-left corner
-- **Phase Management**: Configure 2-3 phases with per-phase steps, guidance scale, and LoRAs
-- **LoRA Integration**: Search and utility dropdowns for quick LoRA selection
-- **Preset Integration**: Can load/save configurations as reusable presets
-- **Features**:
-  - *Enhance prompt* checkbox (requires OpenAI)
-  - Mutually-exclusive LoRA toggles
-  - Settings validation
-
-### `VideoOutputsGallery.tsx`
-**Generated video display with server-side pagination**
-- Modular architecture with extracted hooks and components in `VideoGallery/` subdirectory
-- **Server-side pagination**: Fetches only current page (6-8 videos) instead of all videos
-- **Performance at scale**: Efficiently handles shots with hundreds/thousands of generations
-- **Database-level operations**: Sorting and filtering handled by PostgreSQL for optimal speed
-- Responsive grid layout adapting to project aspect ratio
-- Lightbox preview with task details integration
-- Download, delete, and sharing actions
-- Real-time update integration
-- Thumbnail-first display with smooth video transitions
-
-### `SimpleVideoPlayer.tsx`
-**Video playback controls**
-- Speed options: -2×, -1×, 1×, 2×
-- Lightweight player implementation
-- Replaces hover-scrub in lightbox
-- Frame-by-frame navigation
-
-### `TaskDetailsModal.tsx`
-**Generation parameter viewer**
-- Shows complete generation settings
-- *Use These Settings* button
-- Applies parameters to `BatchSettingsForm`
-- Deduplicates prompts automatically
-- Expands array parameters
-
----
-
-## 🔄 Video Generation Workflow
-
-```mermaid
-graph TD
-    A[Create/Select Shot] --> B[Add Images to Timeline]
-    B --> C[Position Images on Frames]
-    C --> D[Configure Batch Settings]
-    D --> E[Select LoRAs]
-    E --> F[Generate Video]
-    F --> G[View in Gallery]
-    G --> H[Download/Share]
-```
-
----
-
-## ⚙️ Settings Schema
-
-```typescript
-{
-  id: 'travel-between-images',
-  scope: ['project', 'shot'],
-  defaults: {
-    framesPerVideo: 30,
-    fps: 10,
-    enhancePrompt: false,
-    selectedLoRAs: [],
-    batchSize: 1,
-    interpolationSteps: 4
-  }
-}
-```
-
----
-
-## 🎯 Timeline Features
-
-### Image Positioning
-- Drag images to specific frames
-- Automatic gap detection
-- Visual feedback for invalid positions
-- Snap-to-frame functionality
-
-### Zoom & Navigation
-- Mouse wheel zoom
-- Pan with drag
-- Frame ruler with labels
-- Current position indicator
-
----
-
-## 💡 Pro Tips
-
-1. **Frame Spacing**: Leave 3-5 frames between images for smooth transitions
-2. **LoRA Selection**: Use causvid for motion, LightI2X for style
-3. **Prompt Enhancement**: Enable for more creative variations
-4. **Batch Size**: Start with 1-2 videos to test settings
-
----
-
-## Implementation Details
-
-### Navigation & State Management
-
-The Video Travel tool uses a universal navigation pattern via `useShotNavigation()`:
-
-```typescript
-const { navigateToShot, navigateToNextShot, navigateToPreviousShot } = useShotNavigation();
-
-// Previous/Next buttons in ShotEditor
-const handleNextShot = () => {
-  if (shots && selectedShot) {
-    navigateToNextShot(shots, selectedShot);
-  }
-};
-```
-
-**URL Hash Synchronization**: The tool maintains shot selection via URL hash (`#shotId`) with automatic synchronization between:
-- URL changes (browser back/forward, direct links)
-- Programmatic navigation (Previous/Next buttons)
-- Shot selection from other components (ShotsPane, ShotGroup)
-
-### Scalability Optimizations
-
-**Client-Side Batch Fetching**: Handles projects with 1000+ generations by fetching `shot_generations` in batches:
-```typescript
-// useListShots implements batching for large datasets
-const BATCH_SIZE = 1000;
-while (hasMore) {
-  const batch = await supabase
-    .from('shot_generations')
-    .select('*, generation:generations(*)')
-    .range(offset, offset + BATCH_SIZE - 1);
-  // Concatenate and continue...
-}
-```
-
-**Database Optimizations**:
-- `count_unpositioned_generations()` SQL function for efficient counts
-- Performance indexes on `shot_id`, `position`, and `created_at`
-- Client-side sorting instead of database ordering for flexibility
-
-**Optimistic Updates**: ShotEditor uses optimistic state updates with conflict resolution to prevent UI flickering during reordering and editing operations.
-
----
-
-## 🎥 Structure Video (ControlNet)
-
-> **Status**: ✅ Implemented | **Added**: 2025-10
-
-The timeline supports uploading a **structure video** (also called guidance video) to control motion during generation. This feature enables precise control over camera movement and object motion by providing a reference video that guides the generation process.
-
-### Components
-
-**GuidanceVideoUploader** (`Timeline/GuidanceVideoUploader.tsx`)
-- Upload interface with file validation (MP4, WebM, MOV, max 200MB)
-- Treatment mode selector: `adjust` (stretch/compress) or `clip` (use frames in range)
-- Motion strength slider: 0.0 (no motion) to 2.0 (amplified), default 1.0
-- Uses `videoUploader.ts` utility (follows `imageUploader.ts` pattern)
-
-**GuidanceVideoStrip** (`Timeline/GuidanceVideoStrip.tsx`)
-- Displays video above timeline with canvas-based rendering
-- Hover-to-scrub functionality for frame-accurate preview
-- Real-time frame mapping based on treatment mode
-- Visual indicators for playback speed and motion strength
-
-### Treatment Modes
-
-**Adjust Mode** (Default)
-- Time-stretches video to match timeline duration
-- Slows down or speeds up playback to align with timeline frames
-- Server handles actual frame interpolation during generation
-- Client-side display is visual-only, no image deletion
-
-**Clip Mode**
-- Direct 1:1 frame mapping between timeline and video
-- Shows frames in range, clips overflow or indicates gaps
-- Useful when video duration matches timeline exactly
-
-### Task Integration
-
-Structure video parameters are added to `TravelBetweenImagesTaskParams`:
-```typescript
-{
-  structure_video_path?: string | null;              // S3/Storage URL
-  structure_video_treatment?: 'adjust' | 'clip';     // Frame mismatch handling
-  structure_video_motion_strength?: number;          // 0.0-2.0, motion influence
-}
-```
-
-**Storage**: Videos uploaded to `image_uploads` bucket at path `guidance-videos/{projectId}/{timestamp}-{random}.{ext}`
-
-**State Management**: Per-shot state in `ShotEditor`, passed down through `ShotImagesEditor` → `Timeline` → `TimelineContainer` → `TimelineControls` and `GuidanceVideoStrip`
-
-**Video Metadata Extraction**: Uses HTML5 Video API to extract duration, estimated frame rate (30fps default), dimensions, and file size
-
-### Implementation Notes
-
-- Structure video state resets when switching shots (not persisted across navigation)
-- Metadata extraction happens client-side before upload
-- Frame calculation uses `TIMELINE_HORIZONTAL_PADDING` constant for accurate positioning
-- Canvas rendering optimizes hover scrubbing performance
-- Seek debouncing prevents excessive video seek operations
-
----
-
-## 🔧 Individual Segment Regeneration
+### Phase Config Placement Hierarchy (Segment Regeneration)
 
 > **Source of Truth**: `src/shared/lib/tasks/individualTravelSegment.ts`
 
-Individual segments can be regenerated via `SegmentSettingsModal` (timeline) or `SegmentRegenerateForm` (lightbox).
-
-### Phase Config Placement Hierarchy
-
-Phase config appears in task params at multiple levels. GPU worker checks them in priority order:
+GPU worker checks phase config at three levels in priority order:
 
 | Priority | Location | Purpose |
 |----------|----------|---------|
@@ -370,28 +18,25 @@ Phase config appears in task params at multiple levels. GPU worker checks them i
 | 2nd | `orchestrator_details.phase_config` | Original batch settings (inherited) |
 | 3rd | Default computed | `buildBasicModePhaseConfig()` fallback |
 
-**Key Invariant**: Individual segment tasks should place phase_config in `individual_segment_params`, NOT at top level. This allows per-segment overrides while preserving original batch settings.
+**Invariant**: Individual segment tasks place phase_config in `individual_segment_params`, NOT at top level. This allows per-segment overrides while preserving original batch settings.
 
-### Shared Utilities
+### `buildBasicModePhaseConfig` — Shared Between Batch & Individual
 
-Phase config building logic is centralized in `src/tools/travel-between-images/settings.ts`:
+Centralized in `src/tools/travel-between-images/settings.ts`. Used by both:
+- Batch generation (`generateVideoService.ts`)
+- Individual segment regeneration (`individualTravelSegment.ts`)
 
 ```typescript
 import { buildBasicModePhaseConfig, MOTION_LORA_URL } from '@/tools/travel-between-images/settings';
 
-// Build phase config with user LoRAs for basic mode
 const phaseConfig = buildBasicModePhaseConfig(
-  useVaceModel,      // boolean: true for VACE, false for I2V
-  amountOfMotion,    // number 0-1: motion strength
-  userLoras          // Array<{ path, strength, lowNoisePath?, isMultiStage? }>
+  useVaceModel,   // boolean: true for VACE, false for I2V
+  amountOfMotion,  // number 0-1: motion strength
+  userLoras        // Array<{ path, strength, lowNoisePath?, isMultiStage? }>
 );
 ```
 
-This function is used by both batch generation (`generateVideoService.ts`) and individual segment regeneration (`individualTravelSegment.ts`).
-
-### Task Creation Result
-
-All task creation functions return `TaskCreationResult`:
+### TaskCreationResult — Check `task_id`, Not `success`
 
 ```typescript
 interface TaskCreationResult {
@@ -401,14 +46,72 @@ interface TaskCreationResult {
 }
 ```
 
-Check `result.task_id` for success, NOT `result.success`.
+Check `result.task_id` for success. There is no `result.success` field.
 
 ---
 
-<div align="center">
+## Structure Video (ControlNet)
 
-**🔗 Related Documentation**
+Structure video controls motion during generation by providing a reference video.
+
+### Treatment Modes
+
+| Mode | Behavior | Use When |
+|------|----------|----------|
+| **Adjust** (default) | Time-stretches video to match timeline duration; server handles frame interpolation | Video duration differs from timeline |
+| **Clip** | Direct 1:1 frame mapping; clips overflow or indicates gaps | Video duration matches timeline |
+
+Client-side display in GuidanceVideoStrip is visual-only (no frame deletion).
+
+### Task Params
+
+```typescript
+{
+  structure_video_path?: string | null;           // Storage URL
+  structure_video_treatment?: 'adjust' | 'clip';  // Frame mismatch handling
+  structure_video_motion_strength?: number;        // 0.0-2.0
+}
+```
+
+**Storage path**: `image_uploads` bucket at `guidance-videos/{projectId}/{timestamp}-{random}.{ext}`
+
+### Gotchas
+
+- Structure video state resets when switching shots (not persisted across navigation)
+- Metadata extraction (duration, fps, dimensions) happens client-side before upload
+- Canvas rendering + seek debouncing needed for hover-scrub performance
+
+---
+
+## URL Hash Synchronization
+
+Shot selection syncs via URL hash (`#shotId`). Three sources stay in sync:
+- URL changes (browser back/forward, direct links)
+- Programmatic navigation (Previous/Next via `useShotNavigation()`)
+- Shot selection from other components (ShotsPane, ShotGroup)
+
+---
+
+## Scalability Notes
+
+| Concern | Solution | Location |
+|---------|----------|----------|
+| 1000+ generations per shot | `shot_generations` fetched in batches of 1000 | `useListShots` |
+| Unpositioned generation counts | `count_unpositioned_generations()` SQL function | DB |
+| Video gallery pagination | Server-side pagination (6-8 per page) | `VideoOutputsGallery` |
+| Shot reordering | Optimistic updates with conflict resolution | `useReorderShots` |
+
+---
+
+## Cross-Cutting References
+
+| Concern | See |
+|---------|-----|
+| Task creation flow | `unified_task_creation.md` |
+| Settings persistence | `settings_system.md` |
+| LoRA filtering | `VideoTravelToolPage` filters by model (Wan 2.1 14b) |
+| MotionControl modes | Basic (slider) / Presets (saved configs) / Advanced (per-phase) |
+
+---
 
 [Back to Structure](../../structure.md)
-
-</div> 

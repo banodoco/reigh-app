@@ -14,9 +14,9 @@ Last verified: 2026-02-03 (automated audit, 702 source files).
 | Data fetching | ✅ Clean | 3 query scopes; mutations separated. ~25 inline query keys |
 | Type safety | ✅ Clean | 98 `any` (17 `: any`, 81 `as any`), all justified |
 | File size | ⚠️ Acceptable | 6 files over 1,000 LOC; each documented |
-| Explicit contracts | ✅ Clean | 8 implicit patterns replaced with constants/helpers |
+| Explicit contracts | ✅ Clean | 8 patterns encoded as constants/helpers/types |
 | Code duplication | ✅ Patterns exist | 4 shared patterns for repeated operations |
-| Naming | ✅ Clean | ~20 single-letter vars remain (`w`/`h`, `x`/`y`, `i`/`j`), all conventional |
+| Naming | ✅ Clean | ~20 single-letter vars (`w`/`h`, `x`/`y`, `i`/`j`), all conventional |
 | Logging hygiene | ⚠️ Acceptable | 2,994 console statements / 341 files; tagged, stripped in prod |
 | Dead code | ✅ Mostly clean | 2 re-export barrels, 7 cross-tool SectionHeader imports |
 
@@ -63,7 +63,7 @@ Heaviest files: `instrumentation/window` (27), `instrumentation/realtime` (11), 
 
 **Principle:** Orchestrators under 300 LOC. Extract hooks/components into directory structure when files grow.
 
-**Status:** 6 files over 1,000 LOC. Standard decomposition approach: directory with `components/` + `hooks/`, or extract focused modules. Reference pattern: `useRepositionMode` — 859 lines became 161-line orchestrator + 5 hooks (`useRepositionCanvasSetup`, `useRepositionInteractions`, `useRepositionRendering`, `useRepositionState`, `useRepositionValidation`).
+**Status:** 6 files over 1,000 LOC. Standard decomposition approach: directory with `components/` + `hooks/`, or extract focused modules. Reference pattern: `useRepositionMode` — 161-line orchestrator coordinating 5 focused hooks (`useRepositionCanvasSetup`, `useRepositionInteractions`, `useRepositionRendering`, `useRepositionState`, `useRepositionValidation`).
 
 ### Remaining large files
 
@@ -83,18 +83,18 @@ Heaviest files: `instrumentation/window` (27), `instrumentation/realtime` (11), 
 
 **Principle:** No magic strings, no head-knowledge contracts. Encode rules in constants, helpers, or types.
 
-**Status:** All 8 identified implicit contracts replaced.
+**Status:** Clean. 8 patterns encoded explicitly.
 
-| Was (implicit) | Now (explicit) |
-|----------------|----------------|
-| `'no-shot'` magic filter string | `SHOT_FILTER.NO_SHOT` constant |
-| `PGRST116` error code check | `isNotFoundError()` helper |
-| `columnsPerRow=5` meaning "dynamic" | `columnsPerRow='auto'` literal type |
-| `variant_type` string literals | `VARIANT_TYPE.ORIGINAL`, `.INPAINT`, etc. |
-| `generation_id \|\| id` fallback | `getGenerationId()` helper |
-| Task params as string OR object | Centralized in `taskParamsUtils.ts` |
-| Settings merge order | Documented in code + `settings_system.md` |
-| Variant `source_task_id` naming | `getSourceTaskId()` helper |
+| Domain rule | How it's encoded |
+|-------------|-----------------|
+| Shot filter "no shot" value | `SHOT_FILTER.NO_SHOT` constant |
+| Supabase "not found" error detection | `isNotFoundError()` helper |
+| Dynamic column layout | `columnsPerRow='auto'` literal type |
+| Variant type discrimination | `VARIANT_TYPE.ORIGINAL`, `.INPAINT`, etc. |
+| Generation ID resolution (variants, metadata, null) | `getGenerationId()` helper |
+| Task params parsing (string or object) | `taskParamsUtils.ts` |
+| Settings merge order (project → shot → segment) | Documented in code + `settings_system.md` |
+| Variant source task lookup | `getSourceTaskId()` helper |
 
 ---
 

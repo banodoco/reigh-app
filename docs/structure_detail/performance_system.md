@@ -1,307 +1,87 @@
 # Performance System
 
-## Overview
+## Purpose
 
-Maintain 60fps (16ms frame budget) with monitoring tools, optimization utilities, and adaptive strategies.
+Maintain 60fps (16ms frame budget) with monitoring, time-slicing, and adaptive image loading.
 
-**Core Goal:** All operations within 16ms. Gracefully degrade on low-end devices.
+## Source Files
 
-## Key Components
+| File | Purpose |
+|------|---------|
+| `src/shared/lib/performanceUtils.ts` | Frame budget monitoring, `PerformanceBudget`, `processArrayTimeSliced`, `measureAsync` |
+| `src/shared/lib/imageLoadingPriority.ts` | Device-adaptive progressive loading, perf tracking |
+| `src/shared/lib/debugConfig.ts` | Performance debug categories (`reactProfiler`, `renderLogging`, `progressiveImage`, `imageLoading`) |
+| `src/shared/lib/queryDefaults.ts` | `QUERY_PRESETS` (e.g. `realtimeBacked` = 30s staleTime) |
+| `src/shared/hooks/useGenerationInvalidation.ts` | Scoped React Query invalidation |
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| **performanceUtils** | `src/shared/lib/performanceUtils.ts` | Frame budget monitoring, time-slicing, measurement |
-| **imageLoadingPriority** | `src/shared/lib/imageLoadingPriority.ts` | Device-adaptive progressive loading |
-| **debugConfig** | `src/shared/lib/debugConfig.ts` | Performance debug categories |
-| **mobilePerformanceUtils** | `src/shared/lib/mobilePerformanceUtils.ts` | Mobile-specific optimizations |
+## Frame Budget Breakdown (16ms)
 
-## Frame Budget (16ms Rule)
+| Layer | Cost | Notes |
+|-------|------|-------|
+| Browser rendering | 3-5ms | Layout, paint, composite |
+| React reconciliation | 2-4ms | Diffing, commit |
+| **Your code** | **8-10ms** | Everything else must fit here |
 
-For 60fps, operations must complete within ~16.67ms:
-- Browser rendering: ~3-5ms
-- React reconciliation: ~2-4ms
-- **Your code: ~8-10ms available**
+Use `PerformanceBudget` or `processArrayTimeSliced` when processing >50 items to stay within budget.
 
-### Monitored Timeouts
-```typescript
-import { performanceMonitoredTimeout } from '@/shared/lib/performanceUtils';
+## Image Load Performance Auto-Adjustment
 
-performanceMonitoredTimeout(() => {
-  heavyOperation();
-}, 100, 'UpdateList');
-// Warns if callback exceeds 16ms
-```
+`trackImageLoadTime()` records actual load times and auto-adjusts future stagger delays:
 
-### Performance Budget Class
-```typescript
-import { PerformanceBudget } from '@/shared/lib/performanceUtils';
+| Condition | Action |
+|-----------|--------|
+| Avg load time **>500ms** | Increase delays (up to 2.0x) |
+| Avg load time **<200ms** | Decrease delays (down to 0.5x) |
 
-async function processLargeDataset(items: Item[]) {
-  const budget = new PerformanceBudget(16, 'ProcessDataset');
-  
-  for (const item of items) {
-    await processItem(item);
-    await budget.checkAndYield(); // Yields if exceeded
-  }
-  
-  budget.complete(); // Logs total time
-}
-```
+This is automatic -- no manual tuning needed. See `imageLoadingPriority.ts`.
 
-### Time-Sliced Array Processing
-```typescript
-import { processArrayTimeSliced } from '@/shared/lib/performanceUtils';
+## Key Invariants
 
-processArrayTimeSliced(largeArray, (item) => process(item), {
-  batchSize: 10,
-  maxBatchTime: 8,
-  onProgress: (done, total) => setProgress(done / total),
-  onComplete: () => console.log('Done!')
-});
-```
+### Ref pattern for stable callbacks (non-obvious)
 
-### Async Measurement
-```typescript
-import { measureAsync } from '@/shared/lib/performanceUtils';
-
-const data = await measureAsync(
-  async () => await fetch(),
-  'FetchData',
-  100 // Warn if >100ms
-);
-```
-
-## Image Loading Optimization
-
-### Progressive Loading Strategy
-```typescript
-import { getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
-
-const strategy = getImageLoadingStrategy(index, {
-  isMobile,
-  totalImages: 50,
-  isPreloaded: false
-});
-// { shouldLoadInInitialBatch, progressiveDelay, batchGroup }
-```
-
-### Device-Adaptive Batching
-
-| Device Type | Initial Batch | Stagger Delay | Max Delay |
-|-------------|---------------|---------------|-----------|
-| Very Low-End Mobile | 2 images | 60ms | 150ms |
-| Low-End / Mobile | 3 images | 40-50ms | 120ms |
-| Desktop / High-End | 4 images | 25ms | 100ms |
-
-### Performance Tracking
-```typescript
-import { trackImageLoadTime } from '@/shared/lib/imageLoadingPriority';
-
-img.onload = () => {
-  trackImageLoadTime(performance.now() - startTime);
-  // Auto-adjusts future delays (0.5x-2.0x)
-};
-```
-
-**Adjustment:** Avg >500ms → increase delays. Avg <200ms → decrease delays.
-
-## Debug Configuration
+React Query data and mutations change identity frequently. Putting them in `useCallback` deps causes cascade re-renders. Instead, stash in refs:
 
 ```typescript
-import { debugConfig } from '@/shared/lib/debugConfig';
-
-// Enable performance categories
-debugConfig.enable('reactProfiler');
-debugConfig.enable('imageLoading');
-
-// Presets
-debugConfig.setQuietMode();
-debugConfig.setDevelopmentMode();
-
-// Runtime control
-window.debugConfig.status();
-```
-
-**Performance Categories:** `reactProfiler`, `renderLogging`, `progressiveImage`, `imageLoading`
-
-### Conditional Logging
-```typescript
-import { conditionalLog, throttledLog } from '@/shared/lib/debugConfig';
-
-conditionalLog('renderLogging', 'MyComponent', data);
-throttledLog('imageLoading', 'Load', 1000, msg); // Max 1/sec
-```
-
-## Preventing Callback Recreation
-
-**Problem:** Callbacks recreate → cascade re-renders
-
-```typescript
-// ❌ Bad: Recreates every render
-const handleClick = useCallback(() => {
-  doSomething(queryData, mutation);
-}, [queryData, mutation]); // Change frequently!
-
-// ✅ Good: Stable
 const dataRef = useRef(queryData);
 dataRef.current = queryData;
-const mutationRef = useRef(mutation);
-mutationRef.current = mutation;
 
 const handleClick = useCallback(() => {
-  doSomething(dataRef.current, mutationRef.current);
+  doSomething(dataRef.current);
 }, []); // Never recreates
 ```
 
-## React Query Performance
+This is the standard pattern in this codebase for any callback that reads React Query state.
 
-### Use Presets
+### Scoped invalidation
+
+Never broad-invalidate when you can scope. `useInvalidateGenerations` supports a `scope` field:
+
 ```typescript
-import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';
-
-useQuery({
-  ...QUERY_PRESETS.realtimeBacked,  // staleTime: 30s
-  queryKey: ['data', id],
-  queryFn: fetch
-});
+invalidate(shotId, { reason: 'metadata-update', scope: 'metadata' });
 ```
 
-### Prevent Cancellation Storms
+Only `'metadata'` queries refetch, not all generation data. Always prefer the narrowest scope.
+
+### Cancel before optimistic update
+
+In mutation `onMutate`, always cancel outstanding queries **before** setting optimistic data, otherwise the in-flight query can overwrite your optimistic value when it resolves:
+
 ```typescript
-onMutate: async (vars) => {
-  await queryClient.cancelQueries({ queryKey: ['data'] }); // Cancel FIRST
-  const prev = queryClient.getQueryData(['data']);
-  queryClient.setQueryData(['data'], optimistic);
-  return { prev };
+onMutate: async () => {
+  await queryClient.cancelQueries({ queryKey: ['data'] });
+  // then set optimistic data
 }
-```
-
-### Scoped Invalidation
-```typescript
-import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
-
-invalidate(shotId, {
-  reason: 'metadata-update',
-  scope: 'metadata'  // Only metadata, not all
-});
-```
-
-## Common Patterns
-
-### Heavy Component Mount
-```typescript
-// ❌ Bad
-useEffect(() => {
-  setResults(computeExpensive(data));
-}, [data]);
-
-// ✅ Good
-useEffect(() => {
-  setLoading(true);
-  processArrayTimeSliced(data, process, {
-    onComplete: () => setLoading(false)
-  });
-}, [data]);
-```
-
-### Debounced Input
-```typescript
-import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
-
-const [text, setText] = useState('');
-const debounced = useDebouncedValue(text, 300);
-
-useEffect(() => {
-  expensiveSearch(debounced);
-}, [debounced]);
-```
-
-### Memoized Calculations
-```typescript
-// ❌ Bad
-const sorted = items.sort(expensive);
-
-// ✅ Good
-const sorted = useMemo(() => items.sort(expensive), [items]);
-```
-
-### Lazy Components
-```typescript
-import { lazy, Suspense } from 'react';
-
-const Heavy = lazy(() => import('./Heavy'));
-
-<Suspense fallback={<Loading />}>
-  {show && <Heavy />}
-</Suspense>
-```
-
-## Mobile Optimizations
-
-### Device Detection
-```typescript
-import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
-
-const isMobile = useIsMobile();
-const { isTablet, isPhone } = useDeviceDetection();
-```
-
-### Reduced Motion
-```typescript
-const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-```
-
-### Touch Thresholds
-```typescript
-const dragThreshold = isMobile ? 10 : 5;
-const longPress = isMobile ? 200 : 150;
 ```
 
 ## Troubleshooting
 
-| Problem | Check | Solution |
-|---------|-------|----------|
-| Jank on scroll | Rendering on scroll? | Debounce handlers, use transforms, virtualize lists |
-| Slow mount | Heavy computation in body? | `processArrayTimeSliced`, show skeleton, lazy load |
-| Callback cascade | Unstable deps in callbacks? | Use refs for query data/mutations |
-| Memory leak | Cleanup event listeners? | Return cleanup in `useEffect` |
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| Scroll jank | Rendering in scroll handler | Debounce, use transforms, virtualize |
+| Slow mount | Heavy computation in render body | `processArrayTimeSliced` + skeleton |
+| Callback cascade | Unstable deps from React Query | Ref pattern (see above) |
+| Memory leak | Missing effect cleanup | Return cleanup in `useEffect` |
 
-## Best Practices
+## Debug
 
-1. **Monitor frame budget** - Use `performanceMonitoredTimeout`
-2. **Time-slice >50 items** - Use `processArrayTimeSliced`
-3. **Stabilize callbacks** - Use refs for React Query data
-4. **Debounce input** - 300ms text, 100ms sliders
-5. **Use query presets** - Consistent staleTime
-6. **Scope invalidation** - Only invalidate what changed
-7. **Memoize expensive** - Use `useMemo`
-8. **Lazy load heavy** - Use `React.lazy` + `Suspense`
-
-## API Reference
-
-```typescript
-// Performance monitoring
-performanceMonitoredTimeout(callback: () => void, delay: number, context: string): NodeJS.Timeout
-
-processArrayTimeSliced<T>(array: T[], processor: (item: T, index: number) => void, options?: {
-  batchSize?: number; maxBatchTime?: number; onComplete?: () => void;
-  onProgress?: (done: number, total: number) => void;
-}): void
-
-class PerformanceBudget {
-  constructor(budgetMs: number, context: string)
-  isWithinBudget(): boolean
-  getRemainingTime(): number
-  checkAndYield(): Promise<void>
-  complete(): void
-}
-
-measureAsync<T>(operation: () => Promise<T>, context: string, warnThreshold?: number): Promise<T>
-adaptiveTimeout(callback: () => void, delay: number, priority?: 'high' | 'low'): void
-
-// Image loading
-getImageLoadingStrategy(index: number, config: LoadingConfig): ImageLoadingStrategy
-getUnifiedBatchConfig(isMobile: boolean): { initialBatchSize; staggerDelay; maxStaggerDelay; }
-trackImageLoadTime(loadTimeMs: number): void
-```
+Enable perf categories at runtime: `window.debugConfig.enable('imageLoading')`. Use `throttledLog` (from `debugConfig.ts`) to cap noisy logs to 1/sec.

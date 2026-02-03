@@ -18,27 +18,25 @@
 | **Development Setup** | [README.md](README.md) | Local environment, commands, troubleshooting |
 | **Database & Storage** | [db_and_storage.md](docs/structure_detail/db_and_storage.md) | Schema, migrations, RLS, storage buckets, upload paths |
 | **Deployment** | [deployment_and_migration_guide.md](docs/structure_detail/deployment_and_migration_guide.md) | Safe migrations and Edge Function deployment |
-| **Settings System** | [settings_system.md](docs/structure_detail/settings_system.md) | Settings priority (shot→project→user→defaults), inheritance |
-| **Data Persistence** | [data_persistence.md](docs/structure_detail/data_persistence.md) | State management patterns, storage layers |
-| **Data Fetching** | [data_fetching.md](docs/structure_detail/data_fetching.md) | Query scopes, mutation ownership, invalidation patterns |
-| **Shot Data Flow** | [shot_generation_data_flow.md](docs/structure_detail/shot_generation_data_flow.md) | Types, hooks, caching patterns for shot images |
+| **Settings System** | [settings_system.md](docs/structure_detail/settings_system.md) | Settings resolution, storage layers, hooks, write queue |
+| **Data Fetching** | [data_fetching.md](docs/structure_detail/data_fetching.md) | Query scopes, mutations, optimistic updates, invalidation, cache sync |
 | **Task System** | [task_worker_lifecycle.md](docs/structure_detail/task_worker_lifecycle.md) | Async task queue, worker polling |
 | **Task Creation** | [unified_task_creation.md](docs/structure_detail/unified_task_creation.md) | Client-side task creation pattern |
 | **Edge Functions** | [edge_functions.md](docs/structure_detail/edge_functions.md) | Serverless function reference |
 | **Realtime System** | [realtime_system.md](docs/structure_detail/realtime_system.md) | Unified realtime + smart polling |
 | **Performance** | [performance_system.md](docs/structure_detail/performance_system.md) | Frame budgets, time-slicing, image loading |
 | **Image Loading** | [image_loading_system.md](docs/structure_detail/image_loading_system.md) | Progressive loading, device-adaptive batching |
-| **Shared Code** | [shared_hooks_contexts.md](docs/structure_detail/shared_hooks_contexts.md) | Hooks, contexts, components catalog |
+| **Frontend Architecture** | [frontend_architecture.md](docs/structure_detail/frontend_architecture.md) | Contexts, hooks, components, state management patterns |
+| **Shared Utilities** | [shared_utilities.md](docs/structure_detail/shared_utilities.md) | ModalContainer, DataContainer, ConfirmDialog, createSafeContext |
 | **Adding Tools** | [adding_new_tool.md](docs/structure_detail/adding_new_tool.md) | Step-by-step new tool guide |
-| **Design Standards** | [design_motion_guidelines.md](docs/structure_detail/design_motion_guidelines.md) | UI/UX patterns, motion, accessibility |
-| **Modal System** | [modal_styling_system.md](docs/structure_detail/modal_styling_system.md) | Responsive modals, positioning |
+| **Design Standards** | [design_motion_guidelines.md](docs/structure_detail/design_motion_guidelines.md) | UI/UX patterns, motion, modals, accessibility |
 | **Debugging** | [debugging.md](docs/structure_detail/debugging.md) | CLI, `system_logs`, frontend logging |
 | **Error Handling** | [error_handling.md](docs/structure_detail/error_handling.md) | Typed errors, `handleError()`, error boundary |
 | **Refactoring** | [refactoring_patterns.md](docs/structure_detail/refactoring_patterns.md) | Splitting hooks/components, checklists |
-| **Tool: Image Gen** | [tool_image_generation.md](docs/structure_detail/tool_image_generation.md) | Multi-model generation, LoRA, style references |
 | **Tool: Video Travel** | [tool_video_travel.md](docs/structure_detail/tool_video_travel.md) | Timeline workflow, batch processing |
 | **Payments** | [auto_topup_system.md](docs/structure_detail/auto_topup_system.md) | Credits, auto-top-up, Stripe |
 | **Referrals** | [referral_system.md](docs/structure_detail/referral_system.md) | Username-based referral tracking |
+| **Code Quality** | [code_quality_audit.md](docs/code_quality_audit.md) | Quality metrics, anti-patterns, known exceptions |
 
 ---
 
@@ -81,7 +79,7 @@ Tools live in `/src/tools/{tool-name}/` following a consistent structure. See [a
 - **Generations** = gallery items (images/videos produced by AI tasks)
 - **Shots** = containers that organize generations into a timeline
 - **`shot_generations`** = join table with position + metadata (pair prompts, timeline frame)
-- Data access: `useShotImages(shotId)` → see [shot_generation_data_flow.md](docs/structure_detail/shot_generation_data_flow.md)
+- Data access: `useShotImages(shotId)` → see [data_fetching.md](docs/structure_detail/data_fetching.md)
 
 ### Settings Resolution
 Priority: **shot → project → user → defaults**. See [settings_system.md](docs/structure_detail/settings_system.md).
@@ -100,16 +98,19 @@ See [realtime_system.md](docs/structure_detail/realtime_system.md).
 
 | System | Location | Purpose |
 |--------|----------|---------|
+| **queryKeys** | `lib/queryKeys.ts` | Central registry for all React Query cache keys |
 | **errors** | `lib/errors.ts` | Typed error classes (`NetworkError`, `AuthError`, `ValidationError`, etc.) |
 | **errorHandler** | `lib/errorHandler.ts` | Centralized `handleError()` with logging + toast |
 | **AppErrorBoundary** | `components/AppErrorBoundary.tsx` | App-level crash recovery UI |
+| **createSafeContext** | `lib/createSafeContext.ts` | Context factory with strict/safe/hasProvider hooks |
+| **ModalContainer** | `components/ModalContainer.tsx` | Unified responsive modal with header/footer/scroll |
+| **DataContainer** | `components/DataContainer.tsx` | Loading/error/empty/data state wrapper |
+| **ConfirmDialog** | `components/ConfirmDialog.tsx` | Promise-based confirmation dialogs with presets |
 | **settingsResolution** | `lib/settingsResolution.ts` | Resolve settings across scopes |
 | **settingsWriteQueue** | `lib/settingsWriteQueue.ts` | Global queue for settings writes (prevents network flooding) |
 | **debugConfig** | `lib/debugConfig.ts` | Runtime debug logging (`window.debugConfig`) |
-| **toastThrottle** | `lib/toastThrottle.ts` | Prevent notification spam |
 | **taskConfig** | `lib/taskConfig.ts` | Task visibility & display names |
 | **performanceUtils** | `lib/performanceUtils.ts` | Frame budget monitoring |
-| **imageLoadingPriority** | `lib/imageLoadingPriority.ts` | Progressive image loading |
 
 Instrumentation lives in `src/integrations/supabase/instrumentation/` — see its [README](src/integrations/supabase/instrumentation/README.md).
 

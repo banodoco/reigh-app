@@ -1,66 +1,25 @@
 # Settings System
 
-## Overview
+## Purpose
 
-Settings cascade from most specific to most general: **shot → project → user → defaults**
+Single system for persisting and resolving tool/UI settings across shots, projects, and users. Covers both **cascade resolution** (which scope wins) and **storage layers** (where data lives).
 
-This is the single source of truth, implemented in `settingsResolution.ts`.
+## Source of Truth
 
-## Architecture
+| What | File |
+|------|------|
+| Priority resolution | `src/shared/lib/settingsResolution.ts` |
+| Write queue (network protection) | `src/shared/lib/settingsWriteQueue.ts` |
+| New-shot inheritance | `src/shared/lib/shotSettingsInheritance.ts` |
+| Low-level DB hook | `src/shared/hooks/useToolSettings.ts` |
+| Auto-save hook (recommended) | `src/shared/hooks/useAutoSaveSettings.ts` |
+| Bind-to-useState hook | `src/shared/hooks/usePersistentToolState.ts` |
+| Generic persistent state | `src/shared/hooks/usePersistentState.ts` |
+| User UI preferences | `src/shared/hooks/useUserUIState.ts` |
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| **settingsResolution** | `src/shared/lib/settingsResolution.ts` | Priority resolution |
-| **settingsWriteQueue** | `src/shared/lib/settingsWriteQueue.ts` | Global write queue (prevents network flooding) |
-| **shotSettingsInheritance** | `src/shared/lib/shotSettingsInheritance.ts` | New shot inheritance |
-| **useToolSettings** | `src/shared/hooks/useToolSettings.ts` | Low-level DB access |
-| **useAutoSaveSettings** | `src/shared/hooks/useAutoSaveSettings.ts` | Self-contained per-shot/project settings |
-| **usePersistentToolState** | `src/shared/hooks/usePersistentToolState.ts` | Binds useState to DB |
+## Cascade Resolution
 
-## Write Queue (Network Protection)
-
-All settings writes go through a global queue that prevents `ERR_INSUFFICIENT_RESOURCES`:
-
-- **Global concurrency limit**: 1 in-flight write at a time
-- **Per-target debouncing**: 300ms window coalesces rapid updates  
-- **Merge-on-write**: Multiple patches to same target merge into one write
-- **Best-effort flush**: Pending writes flush on page unload
-
-```typescript
-// Writes are automatically queued and debounced
-await updateToolSettingsSupabase({ scope, id, toolId, patch });
-
-// Force immediate flush (e.g., on unmount)
-await updateToolSettingsSupabase({ scope, id, toolId, patch }, undefined, 'immediate');
-
-// Flush pending writes for a target
-flushToolSettingsTarget(scope, entityId, toolId);
-```
-
-## Persistence Layers
-
-### Database (Primary)
-JSONB columns: `shots.settings`, `projects.settings`, `users.settings`
-
-```typescript
-{
-  "travel-between-images": {
-    "batchVideoPrompt": "A cinematic scene",
-    "generationMode": "timeline",
-    "selectedLoras": [...]
-  }
-}
-```
-
-### localStorage (Fast Access)
-- `last-active-shot-settings-${projectId}` - Recent shot settings (project-scoped)
-- `global-last-active-shot-settings` - Cross-project fallback (first shot in new project)
-- `last-active-ui-settings-${projectId}` - UI preferences (project-scoped)
-
-### sessionStorage (Temporary Transfer)
-- `apply-project-defaults-${shotId}` - For inheritance handoff
-
-## Settings Resolution
+Priority (highest wins): **shot > project > user > defaults**
 
 ```typescript
 import { resolveSettingField } from '@/shared/lib/settingsResolution';
@@ -69,173 +28,141 @@ const value = resolveSettingField<string>('prompt', {
   defaults: { prompt: 'default' },
   user: {},
   project: { prompt: 'project default' },
-  shot: { prompt: 'shot specific' }  // ← Wins
+  shot: { prompt: 'shot specific' }  // wins
 });
 
-// Generation mode has normalization
+// Generation mode has normalization ('by-pair' -> 'batch', undefined -> 'timeline')
 import { resolveGenerationMode } from '@/shared/lib/settingsResolution';
 const mode = resolveGenerationMode(sources); // 'batch' | 'timeline'
-// 'by-pair' → 'batch', undefined → 'timeline'
 ```
 
-## Shot Inheritance
+`useToolSettings` performs this merge automatically via `deepMerge(defaults, user, project, shot)`.
 
-**Priority:** localStorage (project) → localStorage (global) → DB (latest shot) → DB (project)
+## Storage Layers
 
-```typescript
-import { inheritSettingsForNewShot } from '@/shared/lib/shotSettingsInheritance';
+| Layer | Scope | Hook / API | Use Case |
+|-------|-------|------------|----------|
+| **Postgres JSONB** | Cross-device | `useToolSettings`, `useAutoSaveSettings` | Tool settings, synced across devices |
+| **localStorage** | Device-only | `usePersistentState` (from `storageKeys.ts`) | Collapsed panels, active tabs, last-active-shot cache |
+| **sessionStorage** | Tab-only | Direct access | Inheritance handoff (`apply-project-defaults-${shotId}`) |
+| **Supabase Storage** | Assets | `imageUploader`, `useResources` | Images, videos, LoRAs |
 
-await inheritSettingsForNewShot({
-  newShotId: shot.id,
-  projectId: project.id,
-  shots: existingShots
-});
-// Saves to sessionStorage for useShotSettings to pick up
+### Database Schema
+
+JSONB columns `shots.settings`, `projects.settings`, `users.settings` store settings keyed by tool ID:
+
+```json
+{
+  "travel-between-images": { "batchVideoPrompt": "...", "generationMode": "timeline" },
+  "join-segments": { "generateMode": "join", "contextFrameCount": 15 },
+  "ui": { "paneLocks": { "shots": false }, "theme": { "darkMode": true } }
+}
 ```
 
-**What's Inherited:** All settings + LoRAs + UI preferences
+### localStorage Keys (Device-Specific)
 
-## Using Settings Hooks
+| Key pattern | Purpose |
+|-------------|---------|
+| `last-active-shot-settings-${projectId}` | Recent shot settings (project-scoped) |
+| `global-last-active-shot-settings` | Cross-project fallback (first shot in new project) |
+| `last-active-ui-settings-${projectId}` | UI preferences (project-scoped) |
 
-> **Adding a new tool?** See [Adding a New Tool](./adding_new_tool.md) for a step-by-step guide.
+## Hook Reference
 
-### useToolSettings (Low-Level)
-```typescript
-const { settings, update, isLoading } = useToolSettings('my-tool', {
-  projectId,
-  shotId,
-  enabled: true
-});
-
-// Update specific scope
-update('shot', { myField: 'new value' });
-update('project', { myField: 'new default' });
-```
+| Hook | Best For | Scope | Auto-Save |
+|------|----------|-------|-----------|
+| `useAutoSaveSettings` | Per-shot/project settings (recommended) | shot or project | Yes (debounced) |
+| `usePersistentToolState` | Binding existing `useState` to DB | project (default) | Yes (on interaction) |
+| `useToolSettings` | Manual control, complex structures | any | No (call `update()`) |
+| `usePersistentState` | Generic load/save (non-settings data) | custom | Yes (debounced) |
+| `useUserUIState` | User-scoped UI prefs (theme, pane locks) | user | Yes (debounced) |
 
 ### useAutoSaveSettings (Recommended)
+
 ```typescript
 const settings = useAutoSaveSettings({
   toolId: 'my-tool',
   shotId: currentShotId,
   scope: 'shot',
-  defaults: { prompt: '' }
+  defaults: { prompt: '', mode: 'basic' }
 });
 
 if (settings.status !== 'ready') return <Loading />;
-
-// Read & update
-const prompt = settings.settings.prompt;
-settings.updateField('prompt', 'new');
+settings.updateField('prompt', 'new');       // auto-saves after 300ms
 settings.updateFields({ prompt: 'new', mode: 'advanced' });
-
-// Check dirty
-if (settings.isDirty) { /* unsaved changes */ }
 ```
 
-### usePersistentToolState (For Existing useState)
+### usePersistentToolState
+
 ```typescript
 const [prompt, setPrompt] = useState('');
-const [mode, setMode] = useState('basic');
-
-const { ready } = usePersistentToolState(
-  'my-tool',
-  { projectId, shotId },
-  {
-    prompt: [prompt, setPrompt],
-    mode: [mode, setMode]
-  }
-);
-```
-
-## Common Patterns
-
-### Tool Settings with Inheritance
-```typescript
-const { settings: shotSettings } = useToolSettings('tool', { shotId });
-const { settings: projectSettings } = useToolSettings('tool', { projectId });
-
-const effective = resolveSettingField('field', {
-  defaults: DEFAULTS,
-  project: projectSettings,
-  shot: shotSettings
+const { ready } = usePersistentToolState('my-tool', { projectId, shotId }, {
+  prompt: [prompt, setPrompt],
 });
 ```
 
-### Saving to Specific Scope
+### useToolSettings (Low-Level)
+
 ```typescript
-await update('shot', { field: value });     // shot override
-await update('project', { field: value });  // project default
+const { settings, update, isLoading } = useToolSettings('my-tool', { projectId, shotId });
+update('shot', { myField: 'value' });     // shot override
+update('project', { myField: 'default' }); // project default
 ```
 
-### Cross-Project Inheritance
-First shot in new project automatically inherits from global localStorage - no special handling needed!
+## Write Queue
+
+All DB writes go through `settingsWriteQueue.ts` to prevent `ERR_INSUFFICIENT_RESOURCES`:
+
+- **Global concurrency**: 1 in-flight write at a time
+- **Per-target debounce**: 300ms coalesces rapid updates
+- **Merge-on-write**: Multiple patches to same `scope:entityId:toolId` merge into one write
+- **Best-effort flush**: Pending writes flush on `beforeunload` and component unmount
+- **Atomic DB update**: Uses `update_tool_settings_atomic` RPC (single DB operation)
+
+```typescript
+// Normal (debounced) - used by hooks
+await updateToolSettingsSupabase({ scope, id, toolId, patch });
+
+// Immediate (flush on unmount/navigation)
+await updateToolSettingsSupabase({ scope, id, toolId, patch }, undefined, 'immediate');
+```
+
+## Shot Inheritance
+
+When a new shot is created, settings are inherited via `shotSettingsInheritance.ts`:
+
+**Priority:** localStorage (project) > localStorage (global) > DB (latest shot) > DB (project)
+
+Inherited: all settings + LoRAs (`selectedLoras` field) + UI preferences + join-segments settings.
+
+## Key Invariants
+
+1. **Single priority order** -- `shot > project > user > defaults` everywhere; never implement manually.
+2. **One tool ID per form** -- each `toolId` maps to one JSONB key; don't split a form across IDs.
+3. **Multiple tool IDs per page are OK** when they represent distinct persisted forms (e.g., `travel-between-images` + `join-segments`).
+4. **Wait for ready** -- always gate on `isLoading` / `status !== 'ready'` before reading settings.
+5. **Write queue is global** -- all paths (`useAutoSaveSettings`, `useToolSettings.update`, direct calls) go through the same queue.
+6. **Scope explicitly** -- `update('shot', ...)` vs `update('project', ...)`.
+7. **Don't duplicate storage** -- if a field is in `useAutoSaveSettings`, don't also persist it via `usePersistentToolState` with a different tool ID.
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Settings not saving | Check `enabled: true`, correct scope in `update()`, network tab for PATCH request |
-| Settings reset on shot switch | Use project scope for cross-shot settings, check inheritance is running |
-| Updates during loading lost | Use `useAutoSaveSettings` - it has loading gates |
-| Old shot settings in new shot | Intentional! Inheritance ensures sensible defaults |
+| Settings not saving | Check `enabled: true`, correct scope in `update()`, network tab for PATCH |
+| Settings reset on shot switch | Use project scope for cross-shot settings |
+| Updates lost during loading | Use `useAutoSaveSettings` (has loading gates + pending-edit protection) |
+| Old settings in new shot | Intentional -- inheritance ensures sensible defaults |
 
 ## Migration Guide
 
-### From Map Pattern
 ```typescript
-// ❌ Old
-const [map, setMap] = useState(new Map());
-setMap(prev => new Map(prev).set(shotId, settings));
+// From Map pattern -> useAutoSaveSettings
+// OLD: const [map, setMap] = useState(new Map());
+const settings = useAutoSaveSettings({ toolId: 'my-tool', shotId, scope: 'shot', defaults: DEFAULTS });
 
-// ✅ New
-const settings = useAutoSaveSettings({
-  toolId: 'my-tool',
-  shotId,
-  scope: 'shot',
-  defaults: DEFAULTS
-});
-```
-
-### From localStorage-only
-```typescript
-// ❌ Old
-localStorage.setItem(key, JSON.stringify(value));
-
-// ✅ New
-const { settings, update } = useToolSettings('my-tool', { shotId });
+// From localStorage-only -> useToolSettings
+// OLD: localStorage.setItem(key, JSON.stringify(value));
+const { update } = useToolSettings('my-tool', { shotId });
 update('shot', newValue);
-```
-
-## Best Practices
-
-1. Always use `settingsResolution` functions - don't implement priority manually
-2. Specify scope explicitly: `update('shot', ...)` or `update('project', ...)`
-3. Wait for `isLoading` or `status !== 'ready'` before reading
-4. Use `useAutoSaveSettings` for per-shot, `useToolSettings` for manual control
-5. Use project scope for defaults, shot scope for overrides
-6. Check `isDirty` before navigation to warn about unsaved changes
-
-## API Reference
-
-```typescript
-// Resolution
-resolveSettingField<T>(field: string, sources: SettingsSources): T | undefined
-resolveGenerationMode(sources: SettingsSources): 'batch' | 'timeline'
-normalizeGenerationMode(mode: GenerationModeRaw): GenerationModeNormalized
-extractToolSettings(settings: Record<string, any>, toolId: string): Record<string, any>
-
-// Inheritance
-inheritSettingsForNewShot(params: InheritSettingsParams): Promise<void>
-getInheritedSettings(params: InheritSettingsParams): Promise<InheritedSettings>
-
-// Hooks
-useToolSettings<T>(toolId: string, options: {
-  projectId?: string; shotId?: string; enabled?: boolean;
-}): { settings: T | undefined; isLoading: boolean; error: Error | null; update: (scope, value) => Promise<void>; isUpdating: boolean; }
-
-useAutoSaveSettings<T>(options: {
-  toolId: string; shotId?: string; scope: 'shot' | 'project'; defaults: T;
-}): { settings: T; updateField/updateFields; status; isDirty; }
-
-usePersistentToolState<T>(toolId, options, fieldBindings): { ready; isSaving; }
 ```
