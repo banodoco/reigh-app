@@ -4,8 +4,8 @@ import { SliderWithValue } from '@/shared/components/ui/slider-with-value';
 import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/label';
 import { RotateCcw } from 'lucide-react';
-import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/useGenerationEditSettings';
-import { DEFAULT_ADVANCED_SETTINGS } from '../hooks/useGenerationEditSettings';
+import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/editSettingsTypes';
+import { DEFAULT_ADVANCED_SETTINGS } from '../hooks/editSettingsTypes';
 
 interface EditAdvancedSettingsProps {
   /** Current advanced settings configuration */

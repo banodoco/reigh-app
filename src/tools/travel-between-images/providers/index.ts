@@ -4,7 +4,6 @@
 
 export {
   VideoTravelSettingsProvider,
-  VideoTravelSettingsContext,
   useVideoTravelSettings,
   usePromptSettings,
   useMotionSettings,
@@ -17,3 +16,5 @@ export {
 } from './VideoTravelSettingsProvider';
 
 export type { VideoTravelSettings, PhaseConfig } from './VideoTravelSettingsProvider';
+
+// Note: VideoTravelSettingsContext is available but rarely needed directly - use hooks instead

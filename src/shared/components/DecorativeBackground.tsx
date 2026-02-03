@@ -1,12 +1,9 @@
 import React from 'react';
 
 /**
- * Decorative background component with animated gradients, floating particles,
- * and geometric shapes using the app's color palette.
+ * Decorative background component (currently renders nothing).
+ * Kept for potential future use.
  */
 export const DecorativeBackground: React.FC = () => {
   return null;
 };
-
-// Keep backward compatibility alias
-export const WesAndersonBackground = DecorativeBackground;

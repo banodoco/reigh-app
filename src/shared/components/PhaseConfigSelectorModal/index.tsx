@@ -13,7 +13,4 @@ export type {
 export type { BrowsePresetsTabProps } from './components/BrowsePresetsTab';
 export type { AddNewTabProps } from './components/AddNewPresetTab';
 
-// Re-export sub-components
-export { MediaPreview } from './components/MediaPreview';
-export { CopyIdButton } from './components/CopyIdButton';
-
+// Note: MediaPreview and CopyIdButton are internal sub-components - not exported

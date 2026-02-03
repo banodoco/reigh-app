@@ -158,4 +158,4 @@ export function useMarkVariantViewed() {
   };
 }
 
-export default useMarkVariantViewed;
+// NOTE: Default export removed - use named export { useMarkVariantViewed } instead

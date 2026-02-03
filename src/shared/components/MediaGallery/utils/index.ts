@@ -1,4 +1,4 @@
-export { deriveInputImages, formatMetadataForDisplay } from './mediaGallery-utils';
+export { deriveInputImages } from './mediaGallery-utils';
 export {
   DEFAULT_ITEMS_PER_PAGE,
   DEFAULT_ROWS_PER_PAGE,

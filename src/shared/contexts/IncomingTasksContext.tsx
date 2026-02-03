@@ -128,4 +128,5 @@ export const useIncomingTasks = (): IncomingTasksContextValue => {
   return context;
 };
 
-export default IncomingTasksContext;
+// NOTE: Default export removed - was not used anywhere.
+// The context is accessed via useIncomingTasks() hook.

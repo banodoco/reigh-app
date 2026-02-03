@@ -72,17 +72,19 @@ export const useContentResponsive = (): ContentBreakpoints => {
 
 /**
  * Helper to get responsive values based on content width
- * 
+ *
+ * @internal Currently unused - kept for potential future use
+ *
  * @example
  * ```tsx
  * const columns = useContentResponsiveValue({
  *   base: 1,      // < 640px content width
- *   sm: 2,        // >= 640px content width  
+ *   sm: 2,        // >= 640px content width
  *   lg: 3,        // >= 1024px content width
  * });
  * ```
  */
-export const useContentResponsiveValue = <T>(values: {
+const useContentResponsiveValue = <T>(values: {
   base: T;
   sm?: T;
   md?: T;
@@ -91,19 +93,24 @@ export const useContentResponsiveValue = <T>(values: {
   '2xl'?: T;
 }): T => {
   const { isSm, isMd, isLg, isXl, is2Xl } = useContentResponsive();
-  
+
   if (is2Xl && values['2xl'] !== undefined) return values['2xl'];
   if (isXl && values.xl !== undefined) return values.xl;
   if (isLg && values.lg !== undefined) return values.lg;
   if (isMd && values.md !== undefined) return values.md;
   if (isSm && values.sm !== undefined) return values.sm;
-  
+
   return values.base;
 };
 
+// Keep for potential future use
+void useContentResponsiveValue;
+
 /**
  * Helper to get responsive grid columns based on content width
- * 
+ *
+ * @internal Currently unused - kept for potential future use
+ *
  * @example
  * ```tsx
  * const gridCols = useContentResponsiveColumns({
@@ -111,7 +118,7 @@ export const useContentResponsiveValue = <T>(values: {
  *   sm: 2,
  *   lg: 3,
  * });
- * 
+ *
  * return (
  *   <div style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
  *     {items.map(item => <Item key={item.id} />)}
@@ -119,7 +126,7 @@ export const useContentResponsiveValue = <T>(values: {
  * );
  * ```
  */
-export const useContentResponsiveColumns = (columns: {
+const useContentResponsiveColumns = (columns: {
   base: number;
   sm?: number;
   md?: number;
@@ -130,20 +137,25 @@ export const useContentResponsiveColumns = (columns: {
   return useContentResponsiveValue(columns);
 };
 
+// Keep for potential future use
+void useContentResponsiveColumns;
+
 /**
  * Helper to determine layout direction based on content width
- * 
+ *
+ * @internal Currently unused - kept for potential future use
+ *
  * @example
  * ```tsx
  * const direction = useContentResponsiveDirection({
  *   base: 'column',
  *   lg: 'row',
  * });
- * 
+ *
  * return <div style={{ flexDirection: direction }}>...</div>;
  * ```
  */
-export const useContentResponsiveDirection = (directions: {
+const useContentResponsiveDirection = (directions: {
   base: 'row' | 'column';
   sm?: 'row' | 'column';
   md?: 'row' | 'column';
@@ -152,4 +164,7 @@ export const useContentResponsiveDirection = (directions: {
   '2xl'?: 'row' | 'column';
 }): 'row' | 'column' => {
   return useContentResponsiveValue(directions);
-}; 
+};
+
+// Keep for potential future use
+void useContentResponsiveDirection; 

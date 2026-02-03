@@ -71,8 +71,11 @@ function performSettingsInvalidation(
 /**
  * Hook that returns a stable settings invalidation function.
  * Use this in React components/hooks.
+ *
+ * @internal Not exported - currently unused. If needed in the future,
+ * add export back and update the barrel file.
  */
-export function useInvalidateSettings() {
+function useInvalidateSettings() {
   const queryClient = useQueryClient();
 
   return useCallback((options: SettingsInvalidationOptions) => {
@@ -80,13 +83,22 @@ export function useInvalidateSettings() {
   }, [queryClient]);
 }
 
+// Keep for potential future use
+void useInvalidateSettings;
+
 /**
  * Non-hook version for use outside React components.
  * Requires passing in the queryClient.
+ *
+ * @internal Not exported - currently unused. If needed in the future,
+ * add export back and update the barrel file.
  */
-export function invalidateSettingsSync(
+function invalidateSettingsSync(
   queryClient: QueryClient,
   options: SettingsInvalidationOptions
 ): void {
   performSettingsInvalidation(queryClient, options);
 }
+
+// Keep for potential future use
+void invalidateSettingsSync;

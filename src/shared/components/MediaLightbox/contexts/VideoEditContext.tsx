@@ -166,17 +166,6 @@ export const VideoEditProvider: React.FC<VideoEditProviderProps> = ({
 // ============================================================================
 
 /**
- * Access video edit state. Throws if used outside VideoEditProvider.
- */
-export function useVideoEdit(): VideoEditState {
-  const context = useContext(VideoEditContext);
-  if (!context) {
-    throw new Error('useVideoEdit must be used within a VideoEditProvider');
-  }
-  return context;
-}
-
-/**
  * Safe version that returns defaults when used outside provider.
  * Use this for components that may render in both image and video lightbox.
  */
@@ -185,12 +174,7 @@ export function useVideoEditSafe(): VideoEditState {
   return context ?? EMPTY_VIDEO_EDIT;
 }
 
-/**
- * Check if we're inside a VideoEditProvider.
- */
-export function useIsVideoLightbox(): boolean {
-  const context = useContext(VideoEditContext);
-  return context !== null;
-}
+// Note: useVideoEdit and useIsVideoLightbox are not exported as they are not used.
+// All internal consumers use useVideoEditSafe for safe operation outside the provider.
 
-export default VideoEditContext;
+// Note: Default export removed as it was not used externally.

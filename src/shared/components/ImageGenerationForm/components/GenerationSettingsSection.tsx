@@ -272,5 +272,3 @@ export const GenerationSettingsSection: React.FC<GenerationSettingsSectionProps>
     </CollapsibleSection>
   );
 };
-
-export default GenerationSettingsSection;

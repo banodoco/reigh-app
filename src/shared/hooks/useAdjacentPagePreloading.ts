@@ -120,8 +120,9 @@ export const smartPreloadImages = (
 
 /**
  * @deprecated Use useImagePreloading hook instead
+ * @internal Currently unused - kept for backwards compatibility
  */
-export const useAdjacentPagePreloading = ({
+const useAdjacentPagePreloading = ({
   enabled = true,
   isServerPagination = false,
   page,
@@ -224,3 +225,6 @@ export const useAdjacentPagePreloading = ({
 
   return { cancelAllPreloads };
 };
+
+// Keep for potential future use
+void useAdjacentPagePreloading;

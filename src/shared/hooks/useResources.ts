@@ -410,36 +410,6 @@ export const usePublicLoras = () => {
     return { ...query, data };
 };
 
-/** Fetch current user's LoRAs with metadata extracted */
-export const useMyLoras = () => {
-    const query = useListResources('lora');
-    const data = useMemo(
-        () => (query.data || []).map(r => r.metadata || {}) as LoraModel[],
-        [query.data]
-    );
-    return { ...query, data };
-};
-
-/** Fetch all public phase configs with metadata extracted */
-export const usePublicPhaseConfigs = () => {
-    const query = useListPublicResources('phase-config');
-    const data = useMemo(
-        () => (query.data || []).map(r => r.metadata || {}) as PhaseConfigMetadata[],
-        [query.data]
-    );
-    return { ...query, data };
-};
-
-/** Fetch current user's phase configs with metadata extracted */
-export const useMyPhaseConfigs = () => {
-    const query = useListResources('phase-config');
-    const data = useMemo(
-        () => (query.data || []).map(r => r.metadata || {}) as PhaseConfigMetadata[],
-        [query.data]
-    );
-    return { ...query, data };
-};
-
 /** Fetch all public style references with metadata extracted */
 export const usePublicStyleReferences = () => {
     const query = useListPublicResources('style-reference');
@@ -460,8 +430,45 @@ export const useMyStyleReferences = () => {
     return { ...query, data };
 };
 
-/** Fetch all public structure videos with metadata extracted */
-export const usePublicStructureVideos = () => {
+// =============================================================================
+// Unused convenience hooks - kept as internal for potential future use
+// =============================================================================
+
+/** Fetch current user's LoRAs with metadata extracted - currently unused */
+const useMyLoras = () => {
+    const query = useListResources('lora');
+    const data = useMemo(
+        () => (query.data || []).map(r => r.metadata || {}) as LoraModel[],
+        [query.data]
+    );
+    return { ...query, data };
+};
+void useMyLoras;
+
+/** Fetch all public phase configs with metadata extracted - currently unused */
+const usePublicPhaseConfigs = () => {
+    const query = useListPublicResources('phase-config');
+    const data = useMemo(
+        () => (query.data || []).map(r => r.metadata || {}) as PhaseConfigMetadata[],
+        [query.data]
+    );
+    return { ...query, data };
+};
+void usePublicPhaseConfigs;
+
+/** Fetch current user's phase configs with metadata extracted - currently unused */
+const useMyPhaseConfigs = () => {
+    const query = useListResources('phase-config');
+    const data = useMemo(
+        () => (query.data || []).map(r => r.metadata || {}) as PhaseConfigMetadata[],
+        [query.data]
+    );
+    return { ...query, data };
+};
+void useMyPhaseConfigs;
+
+/** Fetch all public structure videos with metadata extracted - currently unused */
+const usePublicStructureVideos = () => {
     const query = useListPublicResources('structure-video');
     const data = useMemo(
         () => (query.data || []).map(r => r.metadata || {}) as StructureVideoMetadata[],
@@ -469,13 +476,15 @@ export const usePublicStructureVideos = () => {
     );
     return { ...query, data };
 };
+void usePublicStructureVideos;
 
-/** Fetch current user's structure videos with metadata extracted */
-export const useMyStructureVideos = () => {
+/** Fetch current user's structure videos with metadata extracted - currently unused */
+const useMyStructureVideos = () => {
     const query = useListResources('structure-video');
     const data = useMemo(
         () => (query.data || []).map(r => r.metadata || {}) as StructureVideoMetadata[],
         [query.data]
     );
     return { ...query, data };
-}; 
+};
+void useMyStructureVideos; 

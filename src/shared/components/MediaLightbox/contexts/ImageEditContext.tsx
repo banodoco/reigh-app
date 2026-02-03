@@ -167,17 +167,6 @@ export const ImageEditProvider: React.FC<ImageEditProviderProps> = ({
 // ============================================================================
 
 /**
- * Access image edit state. Throws if used outside ImageEditProvider.
- */
-export function useImageEdit(): ImageEditState {
-  const context = useContext(ImageEditContext);
-  if (!context) {
-    throw new Error('useImageEdit must be used within an ImageEditProvider');
-  }
-  return context;
-}
-
-/**
  * Safe version that returns defaults when used outside provider.
  * Use this for components that may render in both image and video lightbox.
  */
@@ -186,12 +175,7 @@ export function useImageEditSafe(): ImageEditState {
   return context ?? EMPTY_IMAGE_EDIT;
 }
 
-/**
- * Check if we're inside an ImageEditProvider.
- */
-export function useIsImageLightbox(): boolean {
-  const context = useContext(ImageEditContext);
-  return context !== null;
-}
+// Note: useImageEdit and useIsImageLightbox are not exported as they are not used.
+// All internal consumers use useImageEditSafe for safe operation outside the provider.
 
-export default ImageEditContext;
+// Note: Default export removed as it was not used externally.

@@ -20,7 +20,7 @@ import {
 
 // Re-export types for backwards compatibility
 export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, VideoEnhanceSettings, GenerationEditSettings };
-export { DEFAULT_EDIT_SETTINGS, DEFAULT_ADVANCED_SETTINGS, DEFAULT_ENHANCE_SETTINGS };
+// Defaults are internal-only - import from editSettingsTypes directly if needed
 
 /**
  * Result type for convertToHiresFixApiParams - includes num_inference_steps for single-pass mode.

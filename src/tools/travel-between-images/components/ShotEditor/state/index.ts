@@ -2,6 +2,7 @@
  * ShotEditor state management barrel file
  */
 
-export { useShotEditorState } from './useShotEditorState';
-export type { ShotEditorActions } from './useShotEditorState';
+// Types are used externally (by providers, hooks)
 export * from './types';
+
+// Note: useShotEditorState is internal to ShotEditor

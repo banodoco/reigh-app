@@ -7,10 +7,35 @@
  * - Proper scoping of invalidations
  *
  * Usage:
- *   import { useInvalidateGenerations, useInvalidateShots } from '@/shared/hooks/invalidation';
+ *   import { useInvalidateGenerations, invalidateGenerationsSync } from '@/shared/hooks/invalidation';
  */
 
-export * from './useGenerationInvalidation';
-export * from './useShotInvalidation';
-export * from './useTaskInvalidation';
-export * from './useSettingsInvalidation';
+// Generation invalidation - only export what's actually used
+export {
+  useInvalidateGenerations,
+  invalidateGenerationsSync,
+  invalidateAllShotGenerations,
+  invalidateVariantChange,
+  type InvalidationScope,
+  type InvalidationOptions,
+  type VariantInvalidationOptions,
+  type GenerationUpdateOptions,
+} from './useGenerationInvalidation';
+
+// Shot invalidation - types only (no hooks currently used)
+export type {
+  ShotInvalidationScope,
+  ShotInvalidationOptions,
+} from './useShotInvalidation';
+
+// Task invalidation - types only (no hooks currently used)
+export type {
+  TaskInvalidationScope,
+  TaskInvalidationOptions,
+} from './useTaskInvalidation';
+
+// Settings invalidation - types only (no hooks currently used)
+export type {
+  SettingsInvalidationScope,
+  SettingsInvalidationOptions,
+} from './useSettingsInvalidation';

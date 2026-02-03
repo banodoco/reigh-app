@@ -1,11 +1,10 @@
 /**
  * VideoTrimEditor Components
  *
- * Re-exports all components for easy importing.
+ * Re-exports components for external usage.
  */
 
-export { TrimTimelineBar } from './TrimTimelineBar';
 export { TrimControlsPanel } from './TrimControlsPanel';
 
-// Re-export VariantSelector from shared (canonical location)
-export { VariantSelector } from '@/shared/components/VariantSelector';
+// Note: TrimTimelineBar is internal - used by TrimControlsPanel
+// Note: VariantSelector is available from @/shared/components/VariantSelector

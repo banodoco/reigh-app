@@ -76,8 +76,11 @@ function performTaskInvalidation(
 /**
  * Hook that returns a stable task invalidation function.
  * Use this in React components/hooks.
+ *
+ * @internal Not exported - currently unused. If needed in the future,
+ * add export back and update the barrel file.
  */
-export function useInvalidateTasks() {
+function useInvalidateTasks() {
   const queryClient = useQueryClient();
 
   return useCallback((options: TaskInvalidationOptions) => {
@@ -85,13 +88,22 @@ export function useInvalidateTasks() {
   }, [queryClient]);
 }
 
+// Keep for potential future use
+void useInvalidateTasks;
+
 /**
  * Non-hook version for use outside React components.
  * Requires passing in the queryClient.
+ *
+ * @internal Not exported - currently unused. If needed in the future,
+ * add export back and update the barrel file.
  */
-export function invalidateTasksSync(
+function invalidateTasksSync(
   queryClient: QueryClient,
   options: TaskInvalidationOptions
 ): void {
   performTaskInvalidation(queryClient, options);
 }
+
+// Keep for potential future use
+void invalidateTasksSync;

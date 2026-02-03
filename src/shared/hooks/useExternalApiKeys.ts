@@ -84,8 +84,11 @@ async function deleteExternalApiKey(service: ExternalService): Promise<void> {
 
 /**
  * Hook to manage external API keys for third-party services
+ *
+ * @internal Used by useHuggingFaceToken - not directly exported.
+ * If you need this for another service, add a specific hook like useHuggingFaceToken.
  */
-export function useExternalApiKey(service: ExternalService) {
+function useExternalApiKey(service: ExternalService) {
   const queryClient = useQueryClient();
   const queryKey = ['externalApiKey', service];
 

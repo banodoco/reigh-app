@@ -169,7 +169,3 @@ export const GenerationDetails: React.FC<GenerationDetailsProps> = ({
   );
 };
 
-// Re-export for convenience
-export { useGenerationDetails } from './useGenerationDetails';
-
-export default GenerationDetails;

@@ -424,7 +424,7 @@ export const usePrimeShotGenerationsCache = (
 };
 
 // ============================================================================
-// NEW NAMES (preferred) - Use these in new code
+// EXPORTED NAMES - Use these in code
 // ============================================================================
 
 /**
@@ -441,10 +441,6 @@ export const useShotImages = useAllShotGenerations;
  */
 export const usePrimeShotImagesCache = usePrimeShotGenerationsCache;
 
-// ============================================================================
-// BACKWARDS COMPATIBILITY ALIASES
-// These are deprecated - use the new names above in new code
-// ============================================================================
-
-/** @deprecated Use `useShotImages` instead */
-// useAllShotGenerations is exported above as the implementation
+// NOTE: useAllShotGenerations and usePrimeShotGenerationsCache are the implementation
+// functions above. We only export the preferred names (useShotImages, usePrimeShotImagesCache)
+// to avoid duplicate exports and confusion.

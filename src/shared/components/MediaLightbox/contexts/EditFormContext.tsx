@@ -166,17 +166,6 @@ export const EditFormProvider: React.FC<EditFormProviderProps> = ({
 // ============================================================================
 
 /**
- * Access edit form state. Throws if used outside EditFormProvider.
- */
-export function useEditForm(): EditFormState {
-  const context = useContext(EditFormContext);
-  if (!context) {
-    throw new Error('useEditForm must be used within an EditFormProvider');
-  }
-  return context;
-}
-
-/**
  * Safe version that returns defaults when used outside provider.
  * Use this for components that may render in both image and video lightbox.
  */
@@ -185,12 +174,7 @@ export function useEditFormSafe(): EditFormState {
   return context ?? EMPTY_EDIT_FORM;
 }
 
-/**
- * Check if we're inside an EditFormProvider.
- */
-export function useHasEditForm(): boolean {
-  const context = useContext(EditFormContext);
-  return context !== null;
-}
+// Note: useEditForm and useHasEditForm are not exported as they are not used.
+// All internal consumers use useEditFormSafe for safe operation outside the provider.
 
-export default EditFormContext;
+// Note: Default export removed as it was not used externally.

@@ -6,8 +6,8 @@
  *
  * Usage:
  * ```tsx
- * import { useVariants, useVideoTrimming, useTrimSave } from '@/shared/components/VideoTrimEditor/hooks';
- * import { TrimControlsPanel, VariantSelector, TrimTimelineBar } from '@/shared/components/VideoTrimEditor/components';
+ * import { useVideoTrimming, useTrimSave } from '@/shared/components/VideoTrimEditor';
+ * import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor';
  * ```
  */
 

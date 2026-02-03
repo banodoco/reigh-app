@@ -119,7 +119,7 @@ export interface SyncedEditSettings {
   createAsGeneration: boolean;
 }
 
-export const DEFAULT_SYNCED_SETTINGS: SyncedEditSettings = {
+const DEFAULT_SYNCED_SETTINGS: SyncedEditSettings = {
   loraMode: 'none',
   customLoraUrl: '',
   numGenerations: 1,
@@ -141,7 +141,7 @@ export interface PerGenerationOnlySettings {
   enhanceSettings: VideoEnhanceSettings;
 }
 
-export const DEFAULT_PER_GENERATION_SETTINGS: PerGenerationOnlySettings = {
+const DEFAULT_PER_GENERATION_SETTINGS: PerGenerationOnlySettings = {
   prompt: '',
   img2imgPrompt: '',
   img2imgPromptHasBeenSet: false,
@@ -159,7 +159,7 @@ export interface UserPreferenceSettings {
   panelMode: PanelMode;
 }
 
-export const DEFAULT_USER_PREFERENCE_SETTINGS: UserPreferenceSettings = {
+const DEFAULT_USER_PREFERENCE_SETTINGS: UserPreferenceSettings = {
   editMode: 'text',
   videoEditSubMode: 'trim',
   panelMode: 'info',

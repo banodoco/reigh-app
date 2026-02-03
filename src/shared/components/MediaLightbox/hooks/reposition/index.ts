@@ -4,7 +4,7 @@ export type {
   UseRepositionModeProps,
   UseRepositionModeReturn,
 } from './types';
-export { DEFAULT_TRANSFORM } from './types';
+// DEFAULT_TRANSFORM is internal-only, used by useImageTransform
 
 // Individual hooks
 export { useImageTransform } from './useImageTransform';

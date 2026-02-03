@@ -67,7 +67,10 @@ interface SmartPollingResult {
   };
 }
 
-export function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
+/**
+ * @internal Used by useSmartPollingConfig - not directly exported.
+ */
+function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
   const {
     queryKey,
     minInterval = 5 * 60 * 1000, // 5 minutes default

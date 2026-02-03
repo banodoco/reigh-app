@@ -69,13 +69,18 @@ export const useSpecificResources = (resourceIds: string[]) => {
 /**
  * Hook to invalidate cache for a specific resource
  * Call this when a resource is deleted to clean up its cache entry
+ *
+ * @internal Currently unused - kept for potential future use
  */
-export const useInvalidateResource = () => {
+const useInvalidateResource = () => {
   const queryClient = useQueryClient();
-  
+
   return useCallback((resourceId: string) => {
     queryClient.removeQueries({ queryKey: queryKeys.resources.detail(resourceId) });
   }, [queryClient]);
 };
+
+// Keep for potential future use
+void useInvalidateResource;
 
 

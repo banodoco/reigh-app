@@ -382,4 +382,3 @@ export function useEditSettingsPersistence({
 
 // Re-export types for convenience
 export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, VideoEnhanceSettings, GenerationEditSettings, LastUsedEditSettings, VideoEditSubMode, PanelMode };
-export { DEFAULT_EDIT_SETTINGS, DEFAULT_ADVANCED_SETTINGS, DEFAULT_ENHANCE_SETTINGS };

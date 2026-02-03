@@ -9,14 +9,18 @@ import { queryKeys } from '@/shared/lib/queryKeys';
  * - 0: unlimited images (ShotsContext)
  * - 2: sidebar preview
  * - 5: compact view
+ *
+ * @internal Used only within cacheUtils.ts
  */
-export const SHOTS_CACHE_VARIANTS = [undefined, 0, 2, 5] as const;
+const SHOTS_CACHE_VARIANTS = [undefined, 0, 2, 5] as const;
 
 /**
  * Get all cache key variants for a project's shots.
  * Use this to ensure all cache entries are updated consistently.
+ *
+ * @internal Used only within cacheUtils.ts
  */
-export function getShotsCacheKeys(projectId: string): readonly (string | number | undefined)[][] {
+function getShotsCacheKeys(projectId: string): readonly (string | number | undefined)[][] {
   return SHOTS_CACHE_VARIANTS.map(variant =>
     variant === undefined
       ? [...queryKeys.shots.all, projectId] as const

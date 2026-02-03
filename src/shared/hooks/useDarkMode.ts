@@ -29,5 +29,5 @@ export function useDarkMode() {
   return { darkMode, setDarkMode, toggle };
 }
 
-export default useDarkMode;
+// NOTE: Default export removed - use named export { useDarkMode } instead
 

@@ -235,5 +235,3 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
   );
 };
 
-export default ImageGenerationModal;
-

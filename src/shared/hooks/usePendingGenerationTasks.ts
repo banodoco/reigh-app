@@ -140,4 +140,4 @@ export function usePendingGenerationTasks(
   return result;
 }
 
-export default usePendingGenerationTasks;
+// NOTE: Default export removed - use named export { usePendingGenerationTasks } instead

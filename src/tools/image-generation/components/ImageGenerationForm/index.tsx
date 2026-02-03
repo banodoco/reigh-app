@@ -9,46 +9,9 @@
  */
 
 // Main component
-export { ImageGenerationForm, ImageGenerationForm as default } from '@/shared/components/ImageGenerationForm';
+export { ImageGenerationForm } from '@/shared/components/ImageGenerationForm';
 
-// Sub-components used elsewhere
-export { PromptInputRow } from '@/shared/components/ImageGenerationForm';
+// Types used by this tool
+export type { PromptEntry } from '@/shared/components/ImageGenerationForm';
 
-// Types
-export type {
-  PromptInputRowProps,
-  PromptEntry,
-  ImageGenerationFormHandles,
-  GenerationMode,
-  PromptMode,
-  ReferenceMode,
-  HiresFixConfig,
-  GenerationSource,
-  TextToImageModel,
-} from '@/shared/components/ImageGenerationForm';
-
-// Context (for sections that need to pull from context)
-export {
-  ImageGenerationFormProvider,
-  useImageGenerationFormContext,
-  useFormUIContext,
-  useFormCoreContext,
-  useFormPromptsContext,
-  useFormReferencesContext,
-  useFormLorasContext,
-  useContextValue,
-} from '@/shared/components/ImageGenerationForm';
-export type {
-  ImageGenerationFormContextValue,
-  FormCoreState,
-  FormPromptState,
-  FormPromptHandlers,
-  FormReferenceState,
-  FormReferenceHandlers,
-  FormLoraState,
-  FormLoraHandlers,
-} from '@/shared/components/ImageGenerationForm';
-
-// State (for advanced usage)
-export { useFormUIState } from '@/shared/components/ImageGenerationForm';
-export type { FormUIActions, ImageGenerationFormUIState } from '@/shared/components/ImageGenerationForm';
+// Note: Other exports (context hooks, sub-components) moved to shared - import from there directly

@@ -202,4 +202,4 @@ export const useQuickShotCreate = ({
   };
 };
 
-export default useQuickShotCreate;
+// NOTE: Default export removed - use named export { useQuickShotCreate } instead

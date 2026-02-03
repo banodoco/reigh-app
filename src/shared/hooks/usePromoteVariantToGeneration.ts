@@ -156,4 +156,4 @@ export const usePromoteVariantToGeneration = () => {
   });
 };
 
-export default usePromoteVariantToGeneration;
+// NOTE: Default export removed - use named export { usePromoteVariantToGeneration } instead

@@ -135,4 +135,4 @@ export async function getLineageDepth(variantId: string): Promise<number> {
   return depth;
 }
 
-export default useLineageChain;
+// NOTE: Default export removed - use named export { useLineageChain } instead

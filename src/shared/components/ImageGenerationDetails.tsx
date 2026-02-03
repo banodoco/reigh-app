@@ -460,7 +460,3 @@ export const ImageGenerationDetails: React.FC<ImageGenerationDetailsProps> = ({
   );
 };
 
-// Backward compatibility alias
-export const SharedMetadataDetails = ImageGenerationDetails;
-
-export default ImageGenerationDetails;

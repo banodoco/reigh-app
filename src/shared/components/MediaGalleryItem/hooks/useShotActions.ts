@@ -3,8 +3,9 @@ import { useToast } from "@/shared/hooks/use-toast";
 
 /**
  * Check if an error is retryable (network-related but not auth/server errors)
+ * @internal - only used within this file
  */
-export function isRetryableNetworkError(err: unknown): boolean {
+function isRetryableNetworkError(err: unknown): boolean {
   const message = (err as Error)?.message?.toLowerCase() || '';
   const status = (err instanceof Object && 'status' in err) ? (err as { status: unknown }).status : undefined;
 
@@ -40,8 +41,9 @@ interface UseAddToShotWithRetryOptions {
 
 /**
  * Execute an add-to-shot operation with retry logic for network failures
+ * @internal - only used within this file
  */
-export async function executeWithRetry(
+async function executeWithRetry(
   options: UseAddToShotWithRetryOptions,
   toast: ReturnType<typeof useToast>['toast']
 ): Promise<void> {

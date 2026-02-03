@@ -171,5 +171,3 @@ export const DefaultableTextarea: React.FC<DefaultableTextareaProps> = ({
     </div>
   );
 };
-
-export default DefaultableTextarea;

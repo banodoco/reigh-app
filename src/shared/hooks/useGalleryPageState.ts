@@ -50,7 +50,10 @@ interface UseGenerationsPageLogicOptions {
   enableDataLoading?: boolean;
 }
 
-export function useGenerationsPageLogic({
+/**
+ * @internal Use `useGalleryPageState` instead (exported alias below).
+ */
+function useGenerationsPageLogic({
   itemsPerPage = 45,
   mediaType = 'image',
   toolType,

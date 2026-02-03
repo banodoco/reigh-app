@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
-import ImageGenerationForm, { PromptEntry } from "../components/ImageGenerationForm";
+import { ImageGenerationForm, PromptEntry } from "../components/ImageGenerationForm";
 import { ImageGenerationFormHandles } from "../components/ImageGenerationForm/types";
 import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from "@/shared/lib/tasks/imageGeneration";
 import { MediaGallery, GeneratedImageWithMetadata, DisplayableMetadata, MetadataLora } from "@/shared/components/MediaGallery";

@@ -10,13 +10,6 @@
  */
 
 export { default } from './TimelineContainer';
-export { default as TimelineContainer } from './TimelineContainer';
 export type { TimelineContainerProps, PairData } from './types';
 
-// Re-export sub-components for external use if needed
-export { ZoomControls } from './components';
-export { GuidanceVideoControls } from './components';
-export { TimelineBottomControls } from './components';
-export { TimelineSkeletonItem } from './components';
-export { PendingFrameMarker } from './components';
-export { AddAudioButton } from './components';
+// Note: Sub-components (ZoomControls, GuidanceVideoControls, etc.) are internal

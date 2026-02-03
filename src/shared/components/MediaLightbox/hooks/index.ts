@@ -28,19 +28,17 @@ export { useSourceGeneration } from './useSourceGeneration';
 export { useLayoutMode } from './useLayoutMode';
 export { useMagicEditMode } from './useMagicEditMode';
 
-// New edit settings persistence hooks
-export { useGenerationEditSettings } from './useGenerationEditSettings';
+// Edit settings persistence hooks - internal use only, not re-exported
+// useGenerationEditSettings and useLastUsedEditSettings are used internally
+// by useEditSettingsPersistence. Types are re-exported for consumers.
 export type {
   GenerationEditSettings,
-  UseGenerationEditSettingsReturn,
   EditMode,
   QwenEditModel,
 } from './useGenerationEditSettings';
 
-export { useLastUsedEditSettings } from './useLastUsedEditSettings';
 export type {
   LastUsedEditSettings,
-  UseLastUsedEditSettingsReturn,
   VideoEditSubMode,
   PanelMode,
 } from './useLastUsedEditSettings';
@@ -51,9 +49,8 @@ export type {
   UseEditSettingsPersistenceReturn,
 } from './useEditSettingsPersistence';
 
-export { useVideoEditing } from './useVideoEditing';
-export type { 
-  UseVideoEditingProps, 
+// useVideoEditing is internal-only, used by useLightboxVideoMode
+export type {
   UseVideoEditingReturn,
 } from './useVideoEditing';
 
@@ -78,14 +75,8 @@ export type {
   UseImg2ImgModeReturn,
 } from './useImg2ImgMode';
 
-// New extracted hooks
-export { useVideoEditModeHandlers } from './useVideoEditModeHandlers';
-export type {
-  UseVideoEditModeHandlersProps,
-  UseVideoEditModeHandlersReturn,
-  VideoEditSubMode,
-} from './useVideoEditModeHandlers';
-export { useSegmentSlotMode } from './useSegmentSlotMode';
+// useVideoEditModeHandlers is internal-only, used by useLightboxVideoMode
+// useSegmentSlotMode is dead code - VideoLightbox uses props directly
 
 // Media and task details hooks
 export { useEffectiveMedia } from './useEffectiveMedia';

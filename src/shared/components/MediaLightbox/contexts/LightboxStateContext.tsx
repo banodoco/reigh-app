@@ -137,61 +137,12 @@ export const LightboxStateProvider: React.FC<LightboxStateProviderProps> = ({
 };
 
 // ============================================================================
-// Consumer Hooks
+// Consumer Hooks - Safe versions only (return defaults outside provider)
 // ============================================================================
 
-/**
- * Access the full lightbox state context.
- * Prefer the domain-specific hooks (useLightboxCore, useLightboxMedia, etc.)
- * for better code clarity.
- */
-export function useLightboxState(): LightboxStateValue {
-  const context = useContext(LightboxStateContext);
-  if (!context) {
-    throw new Error('useLightboxState must be used within a LightboxStateProvider');
-  }
-  return context;
-}
-
-/**
- * Access core lightbox state: onClose, readOnly, device info, project.
- */
-export function useLightboxCore(): LightboxCoreState {
-  const { core } = useLightboxState();
-  return core;
-}
-
-/**
- * Access media state: current media, URLs, dimensions.
- */
-export function useLightboxMedia(): LightboxMediaState {
-  const { media } = useLightboxState();
-  return media;
-}
-
-/**
- * Access variant state: variants list, active/primary variants, actions.
- */
-export function useLightboxVariants(): LightboxVariantState {
-  const { variants } = useLightboxState();
-  return variants;
-}
-
-/**
- * Access navigation state: has next/previous, handlers.
- */
-export function useLightboxNavigation(): LightboxNavigationState {
-  const { navigation } = useLightboxState();
-  return navigation;
-}
-
-/**
- * Access edit state: edit mode, inpaint mode, etc.
- */
-export function useLightboxEdit(): LightboxEditState {
-  const { edit } = useLightboxState();
-  return edit;
-}
+// Note: Non-safe versions (useLightboxState, useLightboxCore, etc.) are not
+// exported as they are not used. All internal consumers use the Safe versions
+// for safe operation outside the provider.
 
 // ============================================================================
 // Safe Hooks (for use outside provider - returns defaults)
@@ -313,4 +264,4 @@ export type {
   LightboxEditState,
 };
 
-export default LightboxStateContext;
+// Note: Default export removed as it was not used externally.

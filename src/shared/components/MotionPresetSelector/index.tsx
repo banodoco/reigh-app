@@ -329,6 +329,4 @@ export const MotionPresetSelector: React.FC<MotionPresetSelectorProps> = ({
   );
 };
 
-// Also export sub-components and hooks for granular usage
-export { SelectedPresetCard } from './SelectedPresetCard';
-export { useMotionPresets } from './useMotionPresets';
+// Note: SelectedPresetCard and useMotionPresets are internal - not exported

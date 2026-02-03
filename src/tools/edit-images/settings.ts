@@ -6,5 +6,4 @@ export const editImagesSettings = {
   },
 };
 
-export type EditImagesSettings = typeof editImagesSettings.defaults;
-
+// Type is inferred from defaults, not exported since unused

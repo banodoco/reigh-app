@@ -458,4 +458,4 @@ export function useShotCreation(): UseShotCreationReturn {
   };
 }
 
-export default useShotCreation;
+// NOTE: Default export removed - use named export { useShotCreation } instead

@@ -7,13 +7,21 @@ interface ToolPageHeaderContextType {
 
 const ToolPageHeaderContext = createContext<ToolPageHeaderContextType | undefined>(undefined);
 
-export const useToolPageHeader = () => {
+/**
+ * Hook to access ToolPageHeader context (setHeader, clearHeader).
+ *
+ * @internal Currently unused - use useHeaderState for read-only access to header.
+ */
+const useToolPageHeader = () => {
   const context = useContext(ToolPageHeaderContext);
   if (!context) {
     throw new Error('useToolPageHeader must be used within a ToolPageHeaderProvider');
   }
   return context;
 };
+
+// Keep for potential future use
+void useToolPageHeader;
 
 interface ToolPageHeaderProviderProps {
   children: ReactNode;

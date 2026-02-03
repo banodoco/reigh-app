@@ -42,5 +42,3 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   );
 };
 
-export default SectionHeader;
-

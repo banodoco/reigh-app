@@ -61,8 +61,11 @@ function performShotInvalidation(
 /**
  * Hook that returns a stable shot invalidation function.
  * Use this in React components/hooks.
+ *
+ * @internal Not exported - currently unused. If needed in the future,
+ * add export back and update the barrel file.
  */
-export function useInvalidateShots() {
+function useInvalidateShots() {
   const queryClient = useQueryClient();
 
   return useCallback((options: ShotInvalidationOptions) => {
@@ -70,13 +73,22 @@ export function useInvalidateShots() {
   }, [queryClient]);
 }
 
+// Keep for potential future use - referenced in barrel file docs
+void useInvalidateShots;
+
 /**
  * Non-hook version for use outside React components.
  * Requires passing in the queryClient.
+ *
+ * @internal Not exported - currently unused. If needed in the future,
+ * add export back and update the barrel file.
  */
-export function invalidateShotsSync(
+function invalidateShotsSync(
   queryClient: QueryClient,
   options: ShotInvalidationOptions
 ): void {
   performShotInvalidation(queryClient, options);
 }
+
+// Keep for potential future use
+void invalidateShotsSync;

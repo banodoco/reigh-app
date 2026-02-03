@@ -1,79 +1,33 @@
-export { NavigationButtons } from './NavigationButtons';
-export type { NavigationButtonsProps } from './NavigationButtons';
-
-export { MediaDisplay } from './MediaDisplay';
-export type { MediaDisplayProps } from './MediaDisplay';
-
-export { TaskDetailsSection } from './TaskDetailsSection';
-export type { TaskDetailsSectionProps } from './TaskDetailsSection';
-
-export { MediaControls } from './MediaControls';
-export type { MediaControlsProps } from './MediaControls';
-
-export { WorkflowControls } from './WorkflowControls';
-export type { WorkflowControlsProps } from './WorkflowControls';
-
+// ============================================================================
+// External exports (used by InlineEditView and ShotImagesEditor)
+// ============================================================================
 export { MediaDisplayWithCanvas } from './MediaDisplayWithCanvas';
-export { SourceGenerationDisplay } from './SourceGenerationDisplay';
-
-export { FloatingToolControls } from './FloatingToolControls';
-export type { FloatingToolControlsProps } from './FloatingToolControls';
-
 export { TopRightControls, BottomLeftControls, BottomRightControls } from './ButtonGroups';
-
-export { ActiveVariantDisplay } from './ActiveVariantDisplay';
-export type { VariantInfo } from './TaskDetailsPanelWrapper';
-
 export { EditModePanel } from './EditModePanel';
 export type { EditModePanelProps } from './EditModePanel';
-
-export { ShotSelectorControls } from './ShotSelectorControls';
-export type { ShotSelectorControlsProps } from './ShotSelectorControls';
-
-export { WorkflowControlsBar } from './WorkflowControlsBar';
-export type { WorkflowControlsBarProps } from './WorkflowControlsBar';
-
-export { NavigationArrows } from './NavigationArrows';
-export type { NavigationArrowsProps } from './NavigationArrows';
-
-export { OpenEditModeButton } from './OpenEditModeButton';
-export type { OpenEditModeButtonProps } from './OpenEditModeButton';
-
-export { TaskDetailsPanelWrapper } from './TaskDetailsPanelWrapper';
-export type { TaskDetailsPanelWrapperProps } from './TaskDetailsPanelWrapper';
-
-export { VideoEditPanel } from './VideoEditPanel';
-export type { VideoEditPanelProps } from './VideoEditPanel';
-
-export { InfoPanel } from './InfoPanel';
-export type { InfoPanelProps } from './InfoPanel';
-
-export { ControlsPanel } from './ControlsPanel';
-export type { ControlsPanelProps } from './ControlsPanel';
-
-export { VideoEditModeDisplay } from './VideoEditModeDisplay';
-export type { VideoEditModeDisplayProps } from './VideoEditModeDisplay';
-
-export { VideoTrimModeDisplay } from './VideoTrimModeDisplay';
-export type { VideoTrimModeDisplayProps, TrimState } from './VideoTrimModeDisplay';
-
-export { SegmentRegenerateForm } from './SegmentRegenerateForm';
-export type { SegmentRegenerateFormProps } from './SegmentRegenerateForm';
-
-export { SegmentSlotFormView } from './SegmentSlotFormView';
-export type { SegmentSlotFormViewProps } from './SegmentSlotFormView';
-
+export { FloatingToolControls } from './FloatingToolControls';
+export type { FloatingToolControlsProps } from './FloatingToolControls';
 export { SegmentEditorModal } from './SegmentEditorModal';
 export type { SegmentEditorModalProps } from './SegmentEditorModal';
 
+// ============================================================================
+// Internal exports (used by ImageLightbox/VideoLightbox orchestrators)
+// ============================================================================
 export { LightboxShell } from './LightboxShell';
 export type { LightboxShellProps } from './LightboxShell';
-
 export { LightboxProviders } from './LightboxProviders';
-
-// Content components (extracted for orchestrator size reduction)
 export { ImageLightboxContent } from './image';
 export type { ImageLightboxContentProps } from './image';
-
 export { VideoLightboxContent } from './video';
 export type { VideoLightboxContentProps } from './video';
+
+// ============================================================================
+// Note: The following components are NOT exported from the barrel file:
+// - NavigationButtons, MediaDisplay, TaskDetailsSection, MediaControls,
+//   WorkflowControls, SourceGenerationDisplay, ActiveVariantDisplay,
+//   ShotSelectorControls, WorkflowControlsBar, NavigationArrows,
+//   OpenEditModeButton, TaskDetailsPanelWrapper, VideoEditPanel, InfoPanel,
+//   ControlsPanel, VideoEditModeDisplay, VideoTrimModeDisplay,
+//   SegmentRegenerateForm, SegmentSlotFormView
+// These are internal-only, imported directly by layout components.
+// ============================================================================

@@ -1,11 +1,5 @@
 /**
- * ImageGenerationForm state barrel
+ * ImageGenerationForm state barrel (internal use only)
  */
 
 export { useFormUIState } from './useFormUIState';
-export type { FormUIActions, UseFormUIStateReturn } from './useFormUIState';
-export type {
-  ImageGenerationFormUIState,
-  ImageGenerationFormUIAction,
-} from './types';
-export { createInitialUIState } from './types';

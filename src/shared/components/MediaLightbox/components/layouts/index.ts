@@ -1,34 +1,17 @@
-export { FlexContainer } from './FlexContainer';
-export { MediaWrapper } from './MediaWrapper';
-
-// Shared layout sub-components
-export { MediaContentDisplay } from './MediaContentDisplay';
-export { VariantOverlayBadge } from './VariantOverlayBadge';
-export { NewImageOverlayButton } from './NewImageOverlayButton';
-export { AnnotationOverlayControls } from './AnnotationOverlayControls';
-export { AdjacentSegmentNavigation } from './AdjacentSegmentNavigation';
-
-// Layout components
+// Layout components (used by ImageLightboxContent/VideoLightboxContent)
 export { DesktopSidePanelLayout } from './DesktopSidePanelLayout';
 export { MobileStackedLayout } from './MobileStackedLayout';
 export { CenteredLayout } from './CenteredLayout';
 
-// Types
+// Types (used by ImageLightboxContent/VideoLightboxContent)
 export type {
-  // Core layout props
-  LayoutCoreProps,
-  LayoutMediaProps,
-  LayoutVariantProps,
-  LayoutVideoEditProps,
-  LayoutEditModeProps,
-  LayoutNavigationProps,
-  LayoutButtonGroupProps,
-  LayoutWorkflowBarProps,
-  LayoutFloatingToolProps,
-  LayoutPanelProps,
-  // Composite layout props
   SidePanelLayoutProps,
   CenteredLayoutProps,
-  // Re-exported
-  ControlsPanelProps,
 } from './types';
+
+// ============================================================================
+// Note: The following components are NOT exported from the barrel file:
+// - FlexContainer, MediaWrapper, MediaContentDisplay, VariantOverlayBadge,
+//   NewImageOverlayButton, AnnotationOverlayControls, AdjacentSegmentNavigation
+// These are internal-only, imported directly by layout components.
+// ============================================================================

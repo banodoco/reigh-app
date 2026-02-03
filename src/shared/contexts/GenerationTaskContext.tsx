@@ -91,8 +91,10 @@ function useGenerationTaskContext() {
 
 /**
  * Hook that automatically preloads task data for a list of generations
+ *
+ * @internal Currently unused - kept for potential future use
  */
-export function useGenerationTaskPreloader(generations: GenerationRow[], enabled = true) {
+function useGenerationTaskPreloader(generations: GenerationRow[], enabled = true) {
   const { preloadTaskMappings } = useGenerationTaskContext();
 
   useEffect(() => {
@@ -103,14 +105,22 @@ export function useGenerationTaskPreloader(generations: GenerationRow[], enabled
   }, [generations, preloadTaskMappings, enabled]);
 }
 
+// Keep for potential future use
+void useGenerationTaskPreloader;
+
 /**
  * Hook that provides enhanced generations with task data from cache
+ *
+ * @internal Currently unused - kept for potential future use
  */
-export function useEnhancedGenerations(generations: GenerationRow[]) {
+function useEnhancedGenerations(generations: GenerationRow[]) {
   const { enhanceWithTaskData } = useGenerationTaskContext();
-  
+
   return React.useMemo(() => {
     return enhanceWithTaskData(generations);
   }, [generations, enhanceWithTaskData]);
 }
+
+// Keep for potential future use
+void useEnhancedGenerations;
 

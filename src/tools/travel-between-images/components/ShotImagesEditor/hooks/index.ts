@@ -2,13 +2,6 @@
  * ShotImagesEditor hooks barrel.
  */
 
-// Pure computation hooks
-export { usePairData } from './usePairData';
-export type { UsePairDataProps, UsePairDataReturn } from './usePairData';
-
-export { useFrameCountUpdater } from './useFrameCountUpdater';
-export type { UseFrameCountUpdaterProps, UseFrameCountUpdaterReturn } from './useFrameCountUpdater';
-
 // UI state hooks
 export { useLightboxTransition } from './useLightboxTransition';
 export type { UseLightboxTransitionReturn } from './useLightboxTransition';
@@ -28,3 +21,5 @@ export { useDownloadImages } from './useDownloadImages';
 export type { UseDownloadImagesReturn } from './useDownloadImages';
 
 export { useSmoothContinuations } from './useSmoothContinuations';
+
+// Note: usePairData and useFrameCountUpdater are internal - used by useSegmentSlotMode

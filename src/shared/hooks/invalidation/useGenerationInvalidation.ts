@@ -288,25 +288,28 @@ export async function invalidateVariantChange(
 
 /**
  * Invalidate caches after a generation is updated (non-variant changes).
- * 
+ *
  * Use this when:
  * - Generation's location/thumbnail is directly updated
  * - Generation's metadata is cleared/changed
  * - Generation is deleted
- * 
+ *
  * This is lighter-weight than invalidateVariantChange - it doesn't
  * touch shot-generations caches since the generation-shot relationship
  * isn't changing.
- * 
+ *
  * @param queryClient - React Query client
  * @param options - Invalidation options including generationId and reason
+ *
+ * @internal Not exported - currently unused. If needed in the future,
+ * add export back and update the barrel file.
  */
-export function invalidateGenerationUpdate(
+function invalidateGenerationUpdate(
   queryClient: QueryClient,
   options: GenerationUpdateOptions
 ): void {
   const { reason, generationId, projectId } = options;
-  
+
   if (debugConfig.isEnabled('invalidation')) {
     console.log(`[Invalidation] Generation update: ${reason}`, {
       generationId: generationId.substring(0, 8),
@@ -314,7 +317,7 @@ export function invalidateGenerationUpdate(
       timestamp: Date.now()
     });
   }
-  
+
   // 1. Invalidate the specific generation
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.detail(generationId) });
 
@@ -341,3 +344,6 @@ export function invalidateGenerationUpdate(
     predicate: (query) => query.queryKey[0] === queryKeys.segments.parentsAll[0]
   });
 }
+
+// Keep for potential future use - referenced in docs
+void invalidateGenerationUpdate;

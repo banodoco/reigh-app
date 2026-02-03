@@ -201,4 +201,4 @@ export function usePendingSegmentTasks(
   };
 }
 
-export default usePendingSegmentTasks;
+// NOTE: Default export removed - use named export { usePendingSegmentTasks } instead
