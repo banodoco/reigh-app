@@ -104,8 +104,7 @@ export const ShotActions: React.FC<ShotActionsProps> = ({
 
   return (
     <div className={cn(
-      "absolute top-1.5 flex flex-col items-start gap-1 transition-opacity z-20",
-      isMobile ? "left-1.5 right-1.5" : "left-1.5",
+      "absolute top-1.5 left-1.5 right-1.5 flex flex-col items-start gap-1 transition-opacity z-20",
       isShotSelectorOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
     )}>
       {!isVideoContent && (
@@ -117,10 +116,10 @@ export const ShotActions: React.FC<ShotActionsProps> = ({
           }}
           shots={simplifiedShotOptions}
           placeholder="Shot..."
-          className={isMobile ? "w-full" : ""}
+          className="w-full"
           triggerClassName={isMobile
             ? "h-8 px-3 py-1 rounded-md bg-black/50 hover:bg-black/70 text-white text-sm w-full truncate focus:ring-0 focus:ring-offset-0"
-            : "h-7 px-2 py-1 rounded-md bg-black/50 hover:bg-black/70 text-white text-xs min-w-[70px] max-w-[90px] truncate focus:ring-0 focus:ring-offset-0"
+            : "h-7 px-2 py-1 rounded-md bg-black/50 hover:bg-black/70 text-white text-xs w-full truncate focus:ring-0 focus:ring-offset-0"
           }
           showAddShot={!!onCreateShot}
           onCreateShot={handleQuickCreateAndAdd}

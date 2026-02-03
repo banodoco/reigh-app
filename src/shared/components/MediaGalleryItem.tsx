@@ -707,7 +707,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
           {/* Action buttons - Top Right (Info & Variants) - below shot selector on mobile */}
           <div className={cn(
             "absolute right-1.5 flex flex-col items-end gap-1.5 z-20",
-            isMobile ? "top-12" : "top-1.5 mt-7"
+            isMobile ? "top-12" : "top-1.5 mt-8"
           )}>
               {/* Info Button + Variant Count + NEW badge Row (for non-video content) */}
               <div className="flex flex-row items-center gap-1.5">
