@@ -39,7 +39,7 @@ export const JoinModeContent: React.FC<JoinModeContentProps> = ({
     gapFrameCount: joinGapFrames = 23,
     replaceMode: joinReplaceMode = true,
     keepBridgingImages: joinKeepBridgingImages = false,
-    enhancePrompt: joinEnhancePrompt = true,
+    enhancePrompt: joinEnhancePrompt = false,
     motionMode: joinMotionMode = 'basic',
     phaseConfig: joinPhaseConfig,
     selectedPhasePresetId: joinSelectedPhasePresetId,
