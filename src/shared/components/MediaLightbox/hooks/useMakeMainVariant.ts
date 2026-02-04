@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidation';
+import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import type { GenerationRow } from '@/types/shots';
 
 export interface UseMakeMainVariantProps {
@@ -104,7 +105,9 @@ export function useMakeMainVariant({
           variant_type: 'child_promoted',
           name: null,
           params: {
-            source_generation_id: media.id,
+            // Use getGenerationId to get actual generations.id
+            // media.id from shot queries is shot_generations.id, not generations.id
+            source_generation_id: getGenerationId(media),
             promoted_at: new Date().toISOString()
           }
         })

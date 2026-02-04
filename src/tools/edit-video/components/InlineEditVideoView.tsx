@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { GenerationRow } from '@/types/shots';
+import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
@@ -683,7 +684,9 @@ export function InlineEditVideoView({
         selected_phase_preset_id: selectedPhasePresetId,
         
         // Parent generation for tracking
-        parent_generation_id: media.id,
+        // Use getGenerationId to get actual generations.id
+        // media.id from shot queries is shot_generations.id, not generations.id
+        parent_generation_id: getGenerationId(media),
       };
 
       // Add LoRAs if provided
@@ -706,7 +709,7 @@ export function InlineEditVideoView({
         params: {
           orchestrator_details: orchestratorDetails,
           tool_type: 'edit-video', // Top level for complete_task variant creation
-          parent_generation_id: media.id, // Top level for complete_task variant creation
+          parent_generation_id: getGenerationId(media), // Top level for complete_task variant creation
         },
       });
       
