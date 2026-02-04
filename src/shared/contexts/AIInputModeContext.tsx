@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useUserUIState } from "@/shared/hooks/useUserUIState"
 
-type InputMode = "voice" | "text"
+type InputMode = "voice" | "text" | "none"
 
 interface AIInputModeContextValue {
   mode: InputMode

@@ -4,6 +4,7 @@ import { cn } from "@/shared/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 import { AIInputButton } from "./ai-input-button"
 import { useIsMobile } from "@/shared/hooks/use-mobile"
+import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -39,10 +40,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const [isHovered, setIsHovered] = React.useState(false)
     const [isAIInputActive, setIsAIInputActive] = React.useState(false)
     const isMobile = useIsMobile()
-    
+    const { mode: aiInputMode } = useAIInputMode()
+
     const hasValue = (props.value?.toString() || props.defaultValue?.toString() || "").length > 0
     const showClear = clearable && onClear && hasValue
-    const showVoice = voiceInput && onVoiceResult
+    const showVoice = voiceInput && onVoiceResult && aiInputMode !== "none"
     const hasActions = showClear || showVoice
 
     // Show buttons when hovered, input mode is active, OR always on mobile

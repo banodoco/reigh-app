@@ -315,10 +315,10 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
       icon: <Wand2 />,
       onClick: () => { setIsInpaintMode(true); setEditMode('img2img'); },
     },
-    // Upscale mode - only shown when cloud mode is enabled
+    // Enhance mode (upscale) - only shown when cloud mode is enabled
     ...(isCloudMode && handleUpscale ? [{
       id: 'upscale',
-      label: 'Upscale',
+      label: 'Enhance',
       icon: <ArrowUp />,
       onClick: () => { setIsInpaintMode(false); setEditMode('upscale'); },
     }] : []),
