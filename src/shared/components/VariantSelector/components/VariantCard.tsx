@@ -4,20 +4,23 @@
  * Renders an individual variant thumbnail with:
  * - Clickable thumbnail with status rings (active, primary, parent, child)
  * - NEW badge or time-ago indicator
- * - Desktop: Info button in bottom-right corner (appears on hover) with tooltip showing generation details
+ * - Desktop: Info button in bottom-right corner (appears on card hover) with HoverCard showing
+ *   full details and actions (Make Primary, Load Settings, Delete, Copy ID, Lineage GIF)
  * - Mobile: plain button (info shown via MobileInfoModal on re-tap)
  */
 
 import React from 'react';
-import { Check, ArrowDown, ArrowUp, Info } from 'lucide-react';
+import { Check, ArrowDown, ArrowUp, Info, Loader2, Trash2, GitBranch, Star, Download } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
+import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/shared/components/ui/hover-card';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import { getVariantIcon, getVariantLabel, isNewVariant, getTimeAgo } from '../utils';
+import { getVariantIcon, getVariantLabel, isNewVariant, getTimeAgo, hasLoadableSettings } from '../utils';
 
 // --- VariantHoverDetails (fetches real task data for hover tooltip) ---
 
@@ -209,30 +212,180 @@ export const VariantCard: React.FC<VariantCardProps> = ({
         {/* Info button - bottom right, shows on hover (desktop only) */}
         {!isMobile && variant.params && variant.variant_type !== 'trimmed' && (
           <div className="absolute bottom-0.5 right-0.5 opacity-0 group-hover/variant:opacity-100 transition-opacity pointer-events-auto">
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
+            <HoverCard openDelay={0} closeDelay={0}>
+              <HoverCardTrigger asChild>
                 <div
                   className="h-5 w-5 rounded-full bg-black/50 flex items-center justify-center cursor-pointer hover:bg-black/70"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Info className="h-3 w-3 text-white" strokeWidth={2.5} />
                 </div>
-              </TooltipTrigger>
-              <TooltipContent
+              </HoverCardTrigger>
+              <HoverCardContent
                 side="top"
                 align="end"
-                className="max-w-md p-0 border-0 bg-background/95 backdrop-blur-sm z-[100001] data-[state=closed]:duration-0"
+                usePortal
+                className="z-[100001] max-w-md p-0 w-auto"
                 sideOffset={4}
-                collisionPadding={10}
               >
-                <div className="p-2">
-                  <VariantHoverDetails
-                    variant={variant}
-                    availableLoras={availableLoras}
-                  />
+                <div className="p-2 space-y-2">
+                  {/* Header with label, status badges, id copy, delete button */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm">{label}</p>
+                      {isPrimary && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                          Primary
+                        </span>
+                      )}
+                      {isActive && !isPrimary && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                          Viewing
+                        </span>
+                      )}
+                      {isParent && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                          Parent of current
+                        </span>
+                      )}
+                      {isChild && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                          Child of current
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      {/* Copy ID button */}
+                      {variant.variant_type !== 'trimmed' && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onCopyId(variant.id);
+                              }}
+                              className={cn(
+                                "px-1.5 py-0.5 rounded text-[10px] transition-all duration-150",
+                                copiedVariantId === variant.id
+                                  ? "text-green-400 bg-green-400/10"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/80 active:scale-95"
+                              )}
+                            >
+                              {copiedVariantId === variant.id ? 'copied' : 'id'}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs">
+                            Copy ID
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {/* Lineage GIF button */}
+                      {lineageDepth >= 5 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onShowLineageGif(variant.id);
+                              }}
+                              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-150 active:scale-95 animate-in fade-in slide-in-from-left-1 duration-300"
+                            >
+                              <GitBranch className="w-3.5 h-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs">
+                            View evolution ({lineageDepth} generations)
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {/* Delete button */}
+                      {!readOnly && onDeleteVariant && !isPrimary && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteVariant(variant.id);
+                              }}
+                              disabled={isDeleteLoading}
+                              className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-150 active:scale-95 disabled:opacity-50"
+                            >
+                              {isDeleteLoading ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs">
+                            Delete
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Full task details */}
+                  <div className="border-t border-border/50 pt-2">
+                    <VariantHoverDetails
+                      variant={variant}
+                      availableLoras={availableLoras}
+                    />
+                  </div>
+
+                  {/* Action buttons row */}
+                  {!readOnly && ((!isPrimary && onMakePrimary) || (onLoadVariantSettings && hasLoadableSettings(variant))) && (
+                    <div className="flex gap-1.5">
+                      {!isPrimary && onMakePrimary && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onVariantSelect(variant.id);
+                            setTimeout(() => onMakePrimary(variant.id), 50);
+                          }}
+                          className={cn(
+                            "h-6 text-xs gap-1",
+                            onLoadVariantSettings && hasLoadableSettings(variant) ? "flex-1" : "w-full"
+                          )}
+                        >
+                          <Star className="w-3 h-3" />
+                          Make Primary
+                        </Button>
+                      )}
+                      {onLoadVariantSettings && hasLoadableSettings(variant) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onLoadSettings(variant);
+                          }}
+                          className={cn(
+                            "h-6 text-xs gap-1",
+                            !isPrimary && onMakePrimary ? "flex-1" : "w-full",
+                            loadedSettingsVariantId === variant.id && "bg-green-500/20 border-green-500/50 text-green-400"
+                          )}
+                        >
+                          {loadedSettingsVariantId === variant.id ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              Loaded!
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3 h-3" />
+                              Load Settings
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </TooltipContent>
-            </Tooltip>
+              </HoverCardContent>
+            </HoverCard>
           </div>
         )}
       </div>

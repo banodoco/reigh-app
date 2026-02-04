@@ -251,9 +251,27 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
     // If processing, do nothing
   }, [state, startRecording, stopRecording]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount - ensure recording stops and microphone is released
   useEffect(() => {
     return () => {
+      // Stop MediaRecorder if still recording
+      if (mediaRecorderRef.current) {
+        // Remove onstop handler to prevent processing after unmount
+        mediaRecorderRef.current.onstop = null;
+
+        if (mediaRecorderRef.current.state === "recording") {
+          mediaRecorderRef.current.stop();
+        }
+
+        // Stop all microphone tracks
+        mediaRecorderRef.current.stream?.getTracks().forEach((track) => track.stop());
+        mediaRecorderRef.current = null;
+      }
+
+      // Clear chunks
+      chunksRef.current = [];
+
+      // Cleanup audio analysis (AudioContext, animation frames, timers)
       cleanupAudioAnalysis();
     };
   }, [cleanupAudioAnalysis]);
