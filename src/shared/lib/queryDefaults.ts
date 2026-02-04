@@ -14,6 +14,7 @@
 
 import { UseQueryOptions } from '@tanstack/react-query';
 import { isErrorWithCode, isErrorWithStatus, SUPABASE_ERROR } from '@/shared/lib/errorUtils';
+import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 
 /**
  * For queries backed by Supabase realtime subscriptions.
@@ -148,28 +149,144 @@ export const QUERY_PRESETS = {
 export type QueryPresetKey = keyof typeof QUERY_PRESETS;
 
 /**
- * Standard retry configuration for most queries.
- * Don't retry aborted/cancelled requests or client errors.
+ * Classify an error to determine retry strategy
  */
-export const STANDARD_RETRY = (failureCount: number, error: Error) => {
-  // Don't retry aborts or cancelled requests
-  if (error?.message?.includes('abort') ||
-      error?.message?.includes('Request was cancelled')) {
-    return false;
+export const classifyNetworkError = (error: Error): {
+  type: 'transient' | 'client' | 'server' | 'auth' | 'abort';
+  shouldRetry: boolean;
+  maxRetries: number;
+} => {
+  const message = error?.message?.toLowerCase() || '';
+
+  // Aborted/cancelled - never retry
+  if (message.includes('abort') || message.includes('cancelled') || message.includes('request was cancelled')) {
+    return { type: 'abort', shouldRetry: false, maxRetries: 0 };
   }
-  // Don't retry client errors (4xx)
+
+  // Auth errors - don't retry, needs re-auth
+  if (message.includes('401') || message.includes('unauthorized') || message.includes('jwt')) {
+    return { type: 'auth', shouldRetry: false, maxRetries: 0 };
+  }
+
+  // Client errors (4xx except auth) - don't retry
   if ((isErrorWithCode(error) && error.code === SUPABASE_ERROR.NOT_FOUND) ||
-      error?.message?.includes('Invalid') ||
+      message.includes('invalid') ||
+      message.includes('not found') ||
       (isErrorWithStatus(error) && error.status !== undefined && error.status >= 400 && error.status < 500)) {
-    return false;
+    return { type: 'client', shouldRetry: false, maxRetries: 0 };
   }
-  // Retry up to 2 times for other errors
-  return failureCount < 2;
+
+  // Transient network errors - retry aggressively
+  if (message.includes('connection_closed') ||
+      message.includes('err_connection_closed') ||
+      message.includes('failed to fetch') ||
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('timed out') ||
+      message.includes('econnreset') ||
+      message.includes('socket hang up')) {
+    return { type: 'transient', shouldRetry: true, maxRetries: 4 }; // Up to 4 retries for network issues
+  }
+
+  // Server errors (5xx) - retry with caution
+  if (message.includes('503') || message.includes('502') || message.includes('500') ||
+      message.includes('service unavailable') ||
+      (isErrorWithStatus(error) && error.status !== undefined && error.status >= 500)) {
+    return { type: 'server', shouldRetry: true, maxRetries: 3 }; // Up to 3 retries for server errors
+  }
+
+  // Unknown errors - retry conservatively
+  return { type: 'server', shouldRetry: true, maxRetries: 2 };
 };
 
 /**
- * Standard retry delay with exponential backoff (capped at 3s)
+ * Standard retry configuration for most queries.
+ * Uses smart error classification to determine retry behavior.
  */
-export const STANDARD_RETRY_DELAY = (attemptIndex: number) => 
-  Math.min(1000 * Math.pow(2, attemptIndex), 3000);
+export const STANDARD_RETRY = (failureCount: number, error: Error) => {
+  const classification = classifyNetworkError(error);
 
+  if (!classification.shouldRetry) {
+    return false;
+  }
+
+  // Log retry attempts for debugging
+  if (failureCount > 0) {
+    console.log(`[QueryRetry] Attempt ${failureCount + 1}/${classification.maxRetries + 1} for ${classification.type} error:`, {
+      errorType: classification.type,
+      message: error?.message?.substring(0, 100),
+      willRetry: failureCount < classification.maxRetries
+    });
+  }
+
+  return failureCount < classification.maxRetries;
+};
+
+/**
+ * Standard retry delay with exponential backoff
+ * - Transient errors: faster initial retry, then back off
+ * - Server errors: slower to give server time to recover
+ */
+export const STANDARD_RETRY_DELAY = (attemptIndex: number, error?: Error) => {
+  const classification = error ? classifyNetworkError(error) : { type: 'server' as const };
+
+  // Base delays by error type
+  const baseDelay = classification.type === 'transient' ? 500 : 1000;
+  const maxDelay = classification.type === 'transient' ? 5000 : 10000;
+
+  // Exponential backoff with jitter to prevent thundering herd
+  const exponentialDelay = baseDelay * Math.pow(2, attemptIndex);
+  const jitter = Math.random() * 500; // 0-500ms jitter
+
+  return Math.min(exponentialDelay + jitter, maxDelay);
+};
+
+/**
+ * Wraps a query function with circuit breaker tracking.
+ * Reports successes and failures to DataFreshnessManager for smart polling decisions.
+ *
+ * @example
+ * useQuery({
+ *   queryKey: ['my-query', id],
+ *   queryFn: withCircuitBreaker(['my-query', id], async () => {
+ *     return await supabase.from('table').select('*');
+ *   }),
+ * })
+ */
+export function withCircuitBreaker<T>(
+  queryKey: string[],
+  queryFn: () => Promise<T>
+): () => Promise<T> {
+  return async () => {
+    try {
+      const result = await queryFn();
+      dataFreshnessManager.onFetchSuccess(queryKey);
+      return result;
+    } catch (error) {
+      dataFreshnessManager.onFetchFailure(queryKey, error as Error);
+      throw error;
+    }
+  };
+}
+
+/**
+ * Creates React Query options with circuit breaker integration.
+ * Use this for queries that should participate in smart polling.
+ *
+ * @example
+ * useQuery({
+ *   queryKey: ['my-query', id],
+ *   queryFn: myQueryFn,
+ *   ...createQueryOptionsWithCircuitBreaker(['my-query', id]),
+ * })
+ */
+export function createQueryOptionsWithCircuitBreaker(queryKey: string[]) {
+  return {
+    retry: STANDARD_RETRY,
+    retryDelay: STANDARD_RETRY_DELAY,
+    // Use meta to track the query key for error handling
+    meta: {
+      circuitBreakerKey: queryKey,
+    },
+  };
+}

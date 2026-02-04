@@ -7,8 +7,9 @@ import { useProject } from '../contexts/ProjectContext';
 import { filterVisibleTasks, isTaskVisible, getTaskDisplayName, getTaskConfig, getVisibleTaskTypes } from '@/shared/lib/taskConfig';
 // Removed invalidationRouter - DataFreshnessManager handles all invalidation logic
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
-import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';
+import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 
 // Pagination configuration constants
 const PAGINATION_CONFIG = {
@@ -266,12 +267,19 @@ export const usePaginatedTasks = (params: PaginatedTasksParams) => {
       
       if (countError) {
         console.error('[TaskPollingDebug] Count query failed:', countError);
+        // Track failure for circuit breaker
+        dataFreshnessManager.onFetchFailure(queryKeys.tasks.paginated(effectiveProjectId), countError as Error);
         throw countError;
       }
       if (dataError) {
         console.error('[TaskPollingDebug] Data query failed:', dataError);
+        // Track failure for circuit breaker
+        dataFreshnessManager.onFetchFailure(queryKeys.tasks.paginated(effectiveProjectId), dataError as Error);
         throw dataError;
       }
+
+      // Track success for circuit breaker
+      dataFreshnessManager.onFetchSuccess(queryKeys.tasks.paginated(effectiveProjectId));
       
       // Apply client-side filtering and sorting
       const allTasks = (data || []).map(mapDbTaskToTask);
@@ -326,7 +334,10 @@ export const usePaginatedTasks = (params: PaginatedTasksParams) => {
     ...QUERY_PRESETS.realtimeBacked,
     // 🎯 SMART POLLING: Intelligent polling based on realtime health
     ...smartPollingConfig,
-    refetchIntervalInBackground: true // Enable background polling
+    refetchIntervalInBackground: true, // Enable background polling
+    // Enhanced retry logic for transient network errors
+    retry: STANDARD_RETRY,
+    retryDelay: STANDARD_RETRY_DELAY,
   });
   
   // [TasksPaneCountMismatch] CRITICAL DEBUG: Log the actual query state to catch cache/stale issues
@@ -738,13 +749,34 @@ export const useTaskStatusCounts = (projectId: string | null) => {
         failureStatus: failureResult.status,
         timestamp: Date.now()
       });
-      
+
+      // Track circuit breaker - if any query failed, record failure; otherwise record success
+      const anyFailed = processingResult.status === 'rejected' ||
+                        successResult.status === 'rejected' ||
+                        failureResult.status === 'rejected' ||
+                        (processingResult.status === 'fulfilled' && processingResult.value.error) ||
+                        (successResult.status === 'fulfilled' && successResult.value.error) ||
+                        (failureResult.status === 'fulfilled' && failureResult.value.error);
+
+      if (anyFailed) {
+        const errorReason = processingResult.status === 'rejected' ? processingResult.reason :
+                           successResult.status === 'rejected' ? successResult.reason :
+                           failureResult.status === 'rejected' ? failureResult.reason :
+                           new Error('Query returned error');
+        dataFreshnessManager.onFetchFailure(queryKeys.tasks.statusCounts(projectId), errorReason as Error);
+      } else {
+        dataFreshnessManager.onFetchSuccess(queryKeys.tasks.statusCounts(projectId));
+      }
+
       return result;
     },
     enabled: !!projectId,
     // 🎯 SMART POLLING: Intelligent polling based on realtime health
     ...smartPollingConfig,
     refetchIntervalInBackground: true, // Enable background polling like the gallery
+    // Enhanced retry logic for transient network errors
+    retry: STANDARD_RETRY,
+    retryDelay: STANDARD_RETRY_DELAY,
   });
 };
 

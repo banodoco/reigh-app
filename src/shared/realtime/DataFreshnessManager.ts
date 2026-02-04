@@ -16,16 +16,23 @@ interface DataFreshnessState {
   realtimeStatus: RealtimeStatus;
   lastEventTimes: Map<string, number>;
   lastStatusChange: number;
+  /** Track consecutive fetch failures per query for circuit breaker */
+  fetchFailures: Map<string, { count: number; lastFailure: number }>;
 }
 
 class DataFreshnessManager {
   private state: DataFreshnessState = {
     realtimeStatus: 'disconnected',
     lastEventTimes: new Map(),
-    lastStatusChange: Date.now()
+    lastStatusChange: Date.now(),
+    fetchFailures: new Map()
   };
 
   private subscribers = new Set<() => void>();
+
+  // Circuit breaker settings
+  private readonly CIRCUIT_BREAKER_THRESHOLD = 3; // failures before backing off
+  private readonly CIRCUIT_BREAKER_RESET_MS = 60_000; // 1 minute to reset failure count
 
   /**
    * Report realtime connection status change
@@ -136,12 +143,129 @@ class DataFreshnessManager {
       }
     }
 
-    // If realtime is disconnected or errored, use aggressive polling
-    console.log('[DataFreshness:Polling] 🔴 Realtime not connected, aggressive polling', {
+    // If realtime is disconnected or errored, use GRADUATED backoff polling
+    // to prevent thundering herd and connection overload
+    const disconnectedDuration = now - this.state.lastStatusChange;
+
+    // Check circuit breaker - if this query has had many failures, back off more
+    const failureInfo = this.state.fetchFailures.get(key);
+    const hasRecentFailures = failureInfo &&
+      (now - failureInfo.lastFailure) < this.CIRCUIT_BREAKER_RESET_MS &&
+      failureInfo.count >= this.CIRCUIT_BREAKER_THRESHOLD;
+
+    let pollingInterval: number;
+    let reason: string;
+
+    if (hasRecentFailures) {
+      // Circuit breaker triggered - use much longer interval
+      pollingInterval = 60_000; // 60 seconds
+      reason = `Circuit breaker active (${failureInfo!.count} failures)`;
+    } else if (disconnectedDuration < 30_000) {
+      // First 30 seconds: 15s polling (give realtime time to reconnect)
+      pollingInterval = 15_000;
+      reason = 'Recently disconnected, moderate polling';
+    } else if (disconnectedDuration < 2 * 60_000) {
+      // 30s - 2 minutes: 30s polling
+      pollingInterval = 30_000;
+      reason = 'Disconnected 30s-2m, backing off';
+    } else if (disconnectedDuration < 5 * 60_000) {
+      // 2-5 minutes: 45s polling
+      pollingInterval = 45_000;
+      reason = 'Disconnected 2-5m, further backoff';
+    } else {
+      // >5 minutes: 60s polling (realtime probably has issues)
+      pollingInterval = 60_000;
+      reason = 'Disconnected >5m, maximum backoff';
+    }
+
+    console.log('[DataFreshness:Polling] 🔴 Realtime not connected, graduated polling', {
       queryKey: queryKey[0],
-      realtimeStatus: this.state.realtimeStatus
+      realtimeStatus: this.state.realtimeStatus,
+      disconnectedFor: Math.round(disconnectedDuration / 1000) + 's',
+      pollingInterval: pollingInterval + 'ms',
+      reason,
+      failureCount: failureInfo?.count || 0
     });
-    return 5000; // 5 seconds - aggressive fallback
+
+    return pollingInterval;
+  }
+
+  /**
+   * Report a fetch failure for circuit breaker tracking
+   */
+  onFetchFailure(queryKey: string[], error: Error) {
+    const key = JSON.stringify(queryKey);
+    const now = Date.now();
+    const existing = this.state.fetchFailures.get(key);
+
+    // Reset count if last failure was too long ago
+    const shouldReset = existing && (now - existing.lastFailure) > this.CIRCUIT_BREAKER_RESET_MS;
+
+    const newCount = shouldReset ? 1 : (existing?.count || 0) + 1;
+    this.state.fetchFailures.set(key, { count: newCount, lastFailure: now });
+
+    const isCircuitBreakerTriggered = newCount >= this.CIRCUIT_BREAKER_THRESHOLD;
+
+    console.log(`[DataFreshness:Error] ${isCircuitBreakerTriggered ? '🔴 CIRCUIT BREAKER' : '⚠️'} Fetch failure`, {
+      queryKey: queryKey[0],
+      errorMessage: error.message,
+      errorType: this.classifyError(error),
+      failureCount: newCount,
+      circuitBreakerTriggered: isCircuitBreakerTriggered,
+      timestamp: now
+    });
+
+    // Notify subscribers so polling intervals can adjust
+    if (isCircuitBreakerTriggered) {
+      this.notifySubscribers();
+    }
+  }
+
+  /**
+   * Report a successful fetch (resets circuit breaker)
+   */
+  onFetchSuccess(queryKey: string[]) {
+    const key = JSON.stringify(queryKey);
+    const existing = this.state.fetchFailures.get(key);
+
+    if (existing && existing.count > 0) {
+      // Reset failure count on success
+      this.state.fetchFailures.delete(key);
+      console.log('[DataFreshness:Success] ✅ Fetch succeeded, resetting failure count', {
+        queryKey: queryKey[0],
+        previousFailureCount: existing.count
+      });
+    }
+  }
+
+  /**
+   * Classify error type for better logging and handling
+   */
+  private classifyError(error: Error): string {
+    const message = error.message?.toLowerCase() || '';
+
+    if (message.includes('connection_closed') || message.includes('err_connection_closed')) {
+      return 'CONNECTION_CLOSED';
+    }
+    if (message.includes('failed to fetch') || message.includes('network')) {
+      return 'NETWORK_ERROR';
+    }
+    if (message.includes('timeout') || message.includes('timed out')) {
+      return 'TIMEOUT';
+    }
+    if (message.includes('abort')) {
+      return 'ABORTED';
+    }
+    if (message.includes('401') || message.includes('unauthorized')) {
+      return 'AUTH_ERROR';
+    }
+    if (message.includes('429') || message.includes('rate limit')) {
+      return 'RATE_LIMITED';
+    }
+    if (message.includes('503') || message.includes('service unavailable')) {
+      return 'SERVICE_UNAVAILABLE';
+    }
+    return 'UNKNOWN';
   }
 
   /**
@@ -191,8 +315,9 @@ class DataFreshnessManager {
    * Clear all event history (useful for testing or project changes)
    */
   reset() {
-    console.log(`[DataFreshness] 🔄 Resetting state (had ${this.state.lastEventTimes.size} tracked queries)`);
+    console.log(`[DataFreshness] 🔄 Resetting state (had ${this.state.lastEventTimes.size} tracked queries, ${this.state.fetchFailures.size} failure records)`);
     this.state.lastEventTimes.clear();
+    this.state.fetchFailures.clear();
     this.state.realtimeStatus = 'disconnected';
     this.state.lastStatusChange = Date.now();
     this.notifySubscribers();
