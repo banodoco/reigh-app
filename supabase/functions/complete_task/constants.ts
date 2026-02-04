@@ -65,28 +65,6 @@ export const TASK_CATEGORIES = {
 
 export type TaskCategory = typeof TASK_CATEGORIES[keyof typeof TASK_CATEGORIES];
 
-// ===== VARIANT TYPES =====
-
-/**
- * Variant type identifiers for generation_variants table
- */
-export const VARIANT_TYPES = {
-  EDIT: 'edit',
-  INPAINT: 'inpaint',
-  ANNOTATED_EDIT: 'annotated_edit',
-  MAGIC_EDIT: 'magic_edit',
-  UPSCALED: 'upscaled',
-  REGENERATED: 'regenerated',
-  TRAVEL_SEGMENT: 'travel_segment',
-  TRAVEL_STITCH: 'travel_stitch',
-  JOIN_CLIPS_SEGMENT: 'join_clips_segment',
-  CLIP_JOIN: 'clip_join',
-  JOIN_FINAL_STITCH: 'join_final_stitch',
-  INDIVIDUAL_SEGMENT: 'individual_segment',
-} as const;
-
-export type VariantType = typeof VARIANT_TYPES[keyof typeof VARIANT_TYPES];
-
 // ===== COMPLETION BEHAVIOR =====
 
 /**
@@ -109,12 +87,11 @@ export type SingleItemBehavior = 'variant_only' | 'variant_and_child';
 
 /**
  * Configuration for how a task type's output should be stored as generations/variants
+ * NOTE: variant_type is now stored in task_types table, not here
  */
 export interface TaskCompletionConfig {
   /** How the completed task output is stored */
   completionBehavior: CompletionBehavior;
-  /** Variant type when creating variants */
-  variantType: VariantType;
   /** Tool type to associate with the generation/variant */
   toolType: ToolType;
   /** For child_generation: which param field determines child_order */
@@ -152,12 +129,10 @@ export const TASK_COMPLETION_CONFIG: Partial<Record<TaskType, TaskCompletionConf
   // ─────────────────────────────────────────────────────────────────────────────
   [TASK_TYPES.TRAVEL_STITCH]: {
     completionBehavior: 'variant_on_parent',
-    variantType: VARIANT_TYPES.TRAVEL_STITCH,
     toolType: TOOL_TYPES.TRAVEL_BETWEEN_IMAGES,
   },
   [TASK_TYPES.JOIN_FINAL_STITCH]: {
     completionBehavior: 'variant_on_parent',
-    variantType: VARIANT_TYPES.JOIN_FINAL_STITCH,
     toolType: TOOL_TYPES.JOIN_CLIPS,
   },
 
@@ -166,27 +141,25 @@ export const TASK_COMPLETION_CONFIG: Partial<Record<TaskType, TaskCompletionConf
   // ─────────────────────────────────────────────────────────────────────────────
   [TASK_TYPES.TRAVEL_SEGMENT]: {
     completionBehavior: 'child_generation',
-    variantType: VARIANT_TYPES.TRAVEL_SEGMENT,
     toolType: TOOL_TYPES.TRAVEL_BETWEEN_IMAGES,
     childOrderField: 'segment_index',
-    checkExistingAtPosition: true, // Check for existing gen at same segment position
+    checkExistingAtPosition: true,
     singleItemDetection: {
       countField: 'num_new_segments_to_generate',
       expectedCount: 1,
-      behavior: 'variant_and_child', // Create variant on parent AND child generation
+      behavior: 'variant_and_child',
       extraParams: { is_single_segment: true },
     },
   },
 
   [TASK_TYPES.JOIN_CLIPS_SEGMENT]: {
     completionBehavior: 'child_generation',
-    variantType: VARIANT_TYPES.JOIN_CLIPS_SEGMENT,
     toolType: TOOL_TYPES.JOIN_CLIPS,
     childOrderField: 'join_index',
     singleItemFlags: {
       firstFlag: 'is_first_join',
       lastFlag: 'is_last_join',
-      behavior: 'variant_only', // Only create variant on parent (no child generation)
+      behavior: 'variant_only',
       extraParams: { is_single_join: true },
     },
   },
@@ -195,13 +168,10 @@ export const TASK_COMPLETION_CONFIG: Partial<Record<TaskType, TaskCompletionConf
   // INDIVIDUAL SEGMENT - dual behavior based on params
   // ─────────────────────────────────────────────────────────────────────────────
   [TASK_TYPES.INDIVIDUAL_TRAVEL_SEGMENT]: {
-    completionBehavior: 'variant_on_child', // When child_generation_id exists
-    variantType: VARIANT_TYPES.INDIVIDUAL_SEGMENT,
+    completionBehavior: 'variant_on_child',
     toolType: TOOL_TYPES.TRAVEL_BETWEEN_IMAGES,
     childOrderField: 'segment_index',
     checkExistingAtPosition: true,
-    // Single-segment detection: when generating the only segment in a shot,
-    // propagate to parent so the main generation updates automatically
     singleItemDetection: {
       countField: 'num_new_segments_to_generate',
       expectedCount: 1,
@@ -221,7 +191,6 @@ export function getCompletionConfig(taskType: string): TaskCompletionConfig {
   // Default: standalone generation
   return {
     completionBehavior: 'standalone_generation',
-    variantType: 'original' as VariantType,
     toolType: TOOL_TYPES.IMAGE_GENERATION,
   };
 }
@@ -295,22 +264,4 @@ export function isEditType(taskType: string): boolean {
          taskType === TASK_TYPES.MAGIC_EDIT ||
          taskType === TASK_TYPES.QWEN_IMAGE_EDIT ||
          taskType === TASK_TYPES.ANNOTATED_IMAGE_EDIT;
-}
-
-/**
- * Get the variant type for an edit task
- */
-export function getEditVariantType(taskType: string): VariantType {
-  switch (taskType) {
-    case TASK_TYPES.IMAGE_INPAINT:
-      return VARIANT_TYPES.INPAINT;
-    case TASK_TYPES.ANNOTATED_IMAGE_EDIT:
-      return VARIANT_TYPES.ANNOTATED_EDIT;
-    case TASK_TYPES.QWEN_IMAGE_EDIT:
-    case TASK_TYPES.IMAGE_EDIT:
-    case TASK_TYPES.MAGIC_EDIT:
-      return VARIANT_TYPES.MAGIC_EDIT;
-    default:
-      return VARIANT_TYPES.EDIT;
-  }
 }

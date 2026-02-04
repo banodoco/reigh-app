@@ -41,7 +41,6 @@ import {
 
 import {
   handleVariantCreation,
-  handleUpscaleVariant,
 } from './generation-variants.ts';
 
 import {
@@ -69,7 +68,6 @@ export {
   extractSegmentSpecificParams,
   // From generation-variants.ts
   handleVariantCreation,
-  handleUpscaleVariant,
   // From generation-handlers.ts
   handleVariantOnParent,
   handleVariantOnChild,

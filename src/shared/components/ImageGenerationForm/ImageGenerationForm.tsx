@@ -29,7 +29,7 @@ import { ShotSelector } from "./components/ShotSelector";
 import { ModelSection } from "./components/ModelSection";
 import { GenerateControls } from "./components/GenerateControls";
 import { GenerationSettingsSection } from "./components/GenerationSettingsSection";
-import { DynamicImportErrorBoundary } from "./DynamicImportErrorBoundary";
+import { ChunkLoadErrorBoundary } from "@/shared/components/ChunkLoadErrorBoundary";
 
 // Import extracted hooks
 import {
@@ -1078,35 +1078,31 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
         })()}
       </form>
 
-      <Suspense fallback={<div className="sr-only">Loading...</div>}>
-        <LazyLoraSelectorModal
-          isOpen={loraManager.isLoraModalOpen}
-          onClose={() => loraManager.setIsLoraModalOpen(false)}
-          loras={availableLoras}
-          onAddLora={handleAddLora}
-          onRemoveLora={handleRemoveLora}
-          onUpdateLoraStrength={handleLoraStrengthChange}
-          selectedLoras={loraManager.selectedLoras.map(lora => {
-            const fullLora = availableLoras.find(loraModel => loraModel['Model ID'] === lora.id);
-            return {
-              ...fullLora,
-              "Model ID": lora.id,
-              Name: lora.name,
-              strength: lora.strength,
-            } as LoraModel & { strength: number };
-          })}
-          lora_type={generationSource === 'just-text' ? getLoraTypeForModel(selectedTextModel) : BY_REFERENCE_LORA_TYPE}
-        />
-      </Suspense>
-        
-      <Suspense fallback={<div className="sr-only">Loading...</div>}>
-        <DynamicImportErrorBoundary
-          fallback={() => (
-            <div className="sr-only">
-              Modal loading error - please refresh if needed
-            </div>
-          )}
-        >
+      <ChunkLoadErrorBoundary>
+        <Suspense fallback={<div className="sr-only">Loading...</div>}>
+          <LazyLoraSelectorModal
+            isOpen={loraManager.isLoraModalOpen}
+            onClose={() => loraManager.setIsLoraModalOpen(false)}
+            loras={availableLoras}
+            onAddLora={handleAddLora}
+            onRemoveLora={handleRemoveLora}
+            onUpdateLoraStrength={handleLoraStrengthChange}
+            selectedLoras={loraManager.selectedLoras.map(lora => {
+              const fullLora = availableLoras.find(loraModel => loraModel['Model ID'] === lora.id);
+              return {
+                ...fullLora,
+                "Model ID": lora.id,
+                Name: lora.name,
+                strength: lora.strength,
+              } as LoraModel & { strength: number };
+            })}
+            lora_type={generationSource === 'just-text' ? getLoraTypeForModel(selectedTextModel) : BY_REFERENCE_LORA_TYPE}
+          />
+        </Suspense>
+      </ChunkLoadErrorBoundary>
+
+      <ChunkLoadErrorBoundary>
+        <Suspense fallback={<div className="sr-only">Loading...</div>}>
           <LazyPromptEditorModal
             isOpen={uiState.isPromptModalOpen}
             onClose={() => uiActions.closePromptModal()}
@@ -1117,8 +1113,8 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
             openWithAIExpanded={uiState.openPromptModalWithAIExpanded}
             onGenerateAndQueue={handleGenerateAndQueue}
           />
-        </DynamicImportErrorBoundary>
-      </Suspense>
+        </Suspense>
+      </ChunkLoadErrorBoundary>
 
       <CreateShotModal
         isOpen={uiState.isCreateShotModalOpen}

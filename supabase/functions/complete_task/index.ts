@@ -9,17 +9,17 @@ import { SystemLogger } from "../_shared/systemLogger.ts";
 // Import from refactored modules
 import { parseCompleteTaskRequest, validateStoragePathSecurity } from './request.ts';
 import { handleStorageOperations, verifyFileExists, cleanupFile } from './storage.ts';
-import { 
-  extractOrchestratorTaskId, 
-  extractBasedOn, 
+import {
+  extractOrchestratorTaskId,
+  extractBasedOn,
+  extractParentGenerationId,
   setThumbnailInParams,
-  getContentType 
+  getContentType
 } from './params.ts';
-import { 
-  resolveToolType, 
-  createGenerationFromTask, 
+import {
+  resolveToolType,
+  createGenerationFromTask,
   handleVariantCreation,
-  handleUpscaleVariant 
 } from './generation.ts';
 import { checkOrchestratorCompletion } from './orchestrator.ts';
 import { validateAndCleanupShotId } from './shotValidation.ts';
@@ -42,6 +42,7 @@ export interface TaskContext {
   tool_type: string;
   category: string;
   content_type: 'image' | 'video';
+  variant_type: string | null;
 }
 
 /**
@@ -65,11 +66,11 @@ async function fetchTaskContext(
   }
 
   // Fetch task_types metadata separately (no FK relationship exists)
-  let taskTypeInfo: { tool_type?: string; category?: string; content_type?: string } = {};
+  let taskTypeInfo: { tool_type?: string; category?: string; content_type?: string; variant_type?: string | null } = {};
   if (task.task_type) {
     const { data: typeData } = await supabase
       .from("task_types")
-      .select("tool_type, category, content_type")
+      .select("tool_type, category, content_type, variant_type")
       .eq("name", task.task_type)
       .single();
     if (typeData) {
@@ -85,6 +86,7 @@ async function fetchTaskContext(
     tool_type: taskTypeInfo?.tool_type || 'unknown',
     category: taskTypeInfo?.category || 'unknown',
     content_type: taskTypeInfo?.content_type || 'image',
+    variant_type: taskTypeInfo?.variant_type || null,
   };
 }
 
@@ -365,6 +367,11 @@ if ((import.meta as any).main) {
 /**
  * Handle generation creation based on task type
  * Uses pre-fetched TaskContext to avoid duplicate DB queries
+ *
+ * THREE OUTPUT MODES (determined by params):
+ * 1. VARIANT: based_on present → variant on that generation
+ * 2. CHILD: parent_generation_id present → child generation under parent
+ * 3. STANDALONE: neither → new generation
  */
 async function handleGenerationCreation(
   supabase: any,
@@ -374,13 +381,22 @@ async function handleGenerationCreation(
   logger?: any
 ): Promise<void> {
   const taskId = taskContext.id;
-  logger?.debug("Checking if task should create generation", {
+  const params = taskContext.params;
+
+  // Extract all lineage params - these determine output mode
+  const basedOn = extractBasedOn(params);
+  const parentGenerationId = extractParentGenerationId(params);
+  const createAsGeneration = params?.create_as_generation === true;
+
+  logger?.debug("Output mode routing", {
+    task_id: taskId,
     task_type: taskContext.task_type,
-    category: taskContext.category,
-    tool_type: taskContext.tool_type,
-    content_type: taskContext.content_type
+    based_on: basedOn,
+    parent_generation_id: parentGenerationId,
+    create_as_generation: createAsGeneration,
+    is_primary: params?.is_primary,
   });
-  console.log(`[GenMigration] Task ${taskId}: category=${taskContext.category}, tool_type=${taskContext.tool_type}, content_type=${taskContext.content_type}`);
+  console.log(`[GenMigration] Task ${taskId}: based_on=${basedOn || 'none'}, parent_generation_id=${parentGenerationId || 'none'}, is_primary=${params?.is_primary || false}`);
 
   // Build combined task data object expected by generation functions
   const combinedTaskData = {
@@ -389,52 +405,30 @@ async function handleGenerationCreation(
     project_id: taskContext.project_id,
     params: taskContext.params,
     tool_type: taskContext.tool_type,
-    content_type: taskContext.content_type
+    content_type: taskContext.content_type,
+    variant_type: taskContext.variant_type,
   };
 
-  // Check for based_on (edit/inpaint tasks)
-  const basedOnGenerationId = extractBasedOn(taskContext.params);
-  const createAsGeneration = taskContext.params?.create_as_generation === true;
-  const isSubTask = extractOrchestratorTaskId(taskContext.params, 'GenMigration');
-
-  // Skip generic variant creation for upscale tasks - they use handleUpscaleVariant below
-  // which correctly sets variant_type='upscaled' and is_primary=true
-  const isUpscaleCategory = taskContext.category === 'upscale';
-  if (basedOnGenerationId && !isSubTask && !createAsGeneration && !isUpscaleCategory) {
-    // Create variant on source generation
+  // ========== 1. VARIANT PATH ==========
+  // Task is editing/transforming an existing generation
+  if (basedOn && !createAsGeneration) {
+    console.log(`[GenMigration] VARIANT: Task ${taskId} on ${basedOn}`);
     const success = await handleVariantCreation(
-      supabase, taskId, combinedTaskData, basedOnGenerationId, publicUrl, thumbnailUrl
+      supabase, taskId, combinedTaskData, basedOn, publicUrl, thumbnailUrl
     );
     if (success) return;
+    console.log(`[GenMigration] Variant creation failed, falling back to generation`);
   }
 
-  // Handle different categories
-  const taskCategory = taskContext.category;
-  const contentType = taskContext.content_type;
-
-  if (taskCategory === 'generation' ||
-      (taskCategory === 'processing' && isSubTask) ||
-      (taskCategory === 'processing' && contentType === 'image') ||
-      (taskCategory === 'upscale' && contentType === 'image')) {
-
-    if (createAsGeneration && basedOnGenerationId) {
-      console.log(`[GenMigration] Task ${taskId} has create_as_generation=true`);
-    }
-
-    try {
-      await createGenerationFromTask(supabase, taskId, combinedTaskData, publicUrl, thumbnailUrl, logger);
-    } catch (genError: any) {
-      console.error(`[GenMigration] Error creating generation for task ${taskId}:`, genError);
-      // Preserve atomic semantics: bubble up so the main handler can fail the request
-      throw genError;
-    }
-
-  } else if (taskCategory === 'upscale') {
-    // Video upscale - creates variant only
-    await handleUpscaleVariant(supabase, taskId, combinedTaskData, publicUrl, thumbnailUrl);
-
-  } else {
-    console.log(`[GenMigration] Skipping generation creation for task ${taskId} - category is '${taskCategory}'`);
+  // ========== 2. GENERATION PATH ==========
+  // Config-based routing handles child vs standalone
+  // Skip orchestration tasks (they coordinate, don't produce output)
+  if (taskContext.category === 'orchestration') {
+    console.log(`[GenMigration] SKIP: Task ${taskId} is orchestration`);
+    return;
   }
+
+  console.log(`[GenMigration] GENERATION: Task ${taskId}`);
+  await createGenerationFromTask(supabase, taskId, combinedTaskData, publicUrl, thumbnailUrl, logger);
 }
 

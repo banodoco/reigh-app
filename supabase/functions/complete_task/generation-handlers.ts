@@ -12,7 +12,6 @@ import {
   TaskCompletionConfig,
   TASK_TYPES,
   TOOL_TYPES,
-  VARIANT_TYPES,
 } from './constants.ts';
 
 import {
@@ -86,6 +85,9 @@ export async function handleVariantOnParent(ctx: HandlerContext): Promise<any | 
     action: "create_variant_on_parent"
   });
 
+  // Prefer variant_type from task_types table, fall back to config
+  const variantType = taskData.variant_type || 'edit';
+
   const result = await createVariantOnParent(
     supabase,
     parentGen.id,
@@ -93,7 +95,7 @@ export async function handleVariantOnParent(ctx: HandlerContext): Promise<any | 
     thumbnailUrl,
     taskData,
     taskId,
-    config.variantType,
+    variantType,
     {
       tool_type: config.toolType,
       created_from: `${taskData.task_type}_completion`,
@@ -208,6 +210,9 @@ export async function handleVariantOnChild(ctx: HandlerContext): Promise<any | n
   // For the child variant, only auto-view if makePrimary is true
   const childViewedAt = makePrimary ? singleSegmentViewedAt : null;
 
+  // Prefer variant_type from task_types table, fall back to config
+  const variantType = taskData.variant_type || 'edit';
+
   await createVariant(
     supabase,
     childGen.id,
@@ -215,7 +220,7 @@ export async function handleVariantOnChild(ctx: HandlerContext): Promise<any | n
     thumbnailUrl,
     variantParams,
     makePrimary,
-    config.variantType,
+    variantType,
     null,
     childViewedAt
   );
@@ -255,7 +260,7 @@ export async function handleVariantOnChild(ctx: HandlerContext): Promise<any | n
         created_from: 'single_segment_propagation',
       },
       makeParentPrimary,
-      VARIANT_TYPES.TRAVEL_SEGMENT,
+      variantType, // Use same variant_type as child
       null
     );
     console.log(`[GenHandler] Successfully propagated to parent generation`);
@@ -388,9 +393,12 @@ export async function handleChildGeneration(
         child_order: childOrder,
       });
 
+      // Prefer variant_type from task_types table, fall back to config
+      const variantTypeForExisting = taskData.variant_type || 'edit';
+
       const variantResult = await createVariantOnParent(
         supabase, existingGenId, publicUrl, thumbnailUrl, taskData, taskId,
-        config.variantType,
+        variantTypeForExisting,
         {
           tool_type: config.toolType,
           created_from: 'segment_variant_at_position',
@@ -488,9 +496,12 @@ async function createSingleItemVariant(
   const childOrderField = config.childOrderField || 'segment_index';
   const childOrderValue = taskData.params?.[childOrderField] ?? 0;
 
+  // Prefer variant_type from task_types table, fall back to config
+  const variantType = taskData.variant_type || 'edit';
+
   const result = await createVariantOnParent(
     supabase, parentGenerationId, publicUrl, thumbnailUrl, taskData, taskId,
-    config.variantType,
+    variantType,
     {
       tool_type: toolType,
       created_from: 'single_item_completion',

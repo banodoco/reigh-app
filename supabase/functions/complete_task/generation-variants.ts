@@ -1,13 +1,16 @@
 /**
- * Variant handlers for specific task types
- * Handles edit/inpaint variants and upscale variants
+ * Variant creation handler
+ * All variant behavior is determined by task params:
+ * - based_on: which generation to create variant on
+ * - is_primary: whether this becomes the main variant (default false)
+ * - variant_type: label for the variant (from task_types table)
  */
 
-import { getEditVariantType } from './constants.ts';
 import { createVariant } from './generation-core.ts';
 
 /**
- * Handle inpaint/edit tasks - create variant on source generation
+ * Create variant on source generation
+ * Reads is_primary and variant_type from task data
  */
 export async function handleVariantCreation(
   supabase: any,
@@ -17,7 +20,10 @@ export async function handleVariantCreation(
   publicUrl: string,
   thumbnailUrl: string | null
 ): Promise<boolean> {
-  console.log(`[ImageEdit] Task ${taskId} has based_on=${basedOnGenerationId} - creating variant`);
+  const isPrimary = taskData.params?.is_primary === true;
+  const variantType = taskData.variant_type || 'edit';
+
+  console.log(`[Variant] Task ${taskId} creating ${variantType} variant on ${basedOnGenerationId} (is_primary=${isPrimary})`);
 
   try {
     const { data: sourceGen, error: fetchError } = await supabase
@@ -27,7 +33,7 @@ export async function handleVariantCreation(
       .single();
 
     if (fetchError || !sourceGen) {
-      console.error(`[ImageEdit] Source generation ${basedOnGenerationId} not found:`, fetchError);
+      console.error(`[Variant] Source generation ${basedOnGenerationId} not found:`, fetchError);
       return false;
     }
 
@@ -40,80 +46,24 @@ export async function handleVariantCreation(
       content_type: taskData.content_type,
     };
 
-    const variantType = getEditVariantType(taskData.task_type);
-
     await createVariant(
       supabase,
       basedOnGenerationId,
       publicUrl,
       thumbnailUrl,
       variantParams,
-      false,
+      isPrimary,
       variantType,
-      null // Don't auto-generate variant name - let user name it if desired
+      null
     );
 
-    console.log(`[ImageEdit] Successfully created ${variantType} variant on generation ${basedOnGenerationId}`);
+    console.log(`[Variant] Successfully created ${variantType} variant on ${basedOnGenerationId} (is_primary=${isPrimary})`);
 
     await supabase.from('tasks').update({ generation_created: true }).eq('id', taskId);
     return true;
 
   } catch (variantErr) {
-    console.error(`[ImageEdit] Error creating variant for task ${taskId}:`, variantErr);
+    console.error(`[Variant] Error creating variant for task ${taskId}:`, variantErr);
     return false;
-  }
-}
-
-/**
- * Handle upscale tasks - create primary variant
- */
-export async function handleUpscaleVariant(
-  supabase: any,
-  taskId: string,
-  taskData: any,
-  publicUrl: string,
-  thumbnailUrl: string | null
-): Promise<void> {
-  console.log(`[ImageUpscale] Processing upscale task ${taskId}`);
-
-  const generationId = taskData.params?.generation_id;
-  if (!generationId) {
-    console.log(`[ImageUpscale] No generation_id in task params, skipping`);
-    return;
-  }
-
-  try {
-    const { data: sourceGen, error: fetchError } = await supabase
-      .from('generations')
-      .select('params, thumbnail_url')
-      .eq('id', generationId)
-      .single();
-
-    if (fetchError) {
-      console.error(`[ImageUpscale] Error fetching source generation:`, fetchError);
-    }
-
-    const upscaleParams = {
-      ...(sourceGen?.params || {}),
-      upscale_task_id: taskId,
-      upscaled_from: taskData.params?.image || null,
-      upscale_model: taskData.params?.model || 'unknown',
-      tool_type: sourceGen?.params?.tool_type || 'image-generation'
-    };
-
-    await createVariant(
-      supabase,
-      generationId,
-      publicUrl,
-      thumbnailUrl || sourceGen?.thumbnail_url || null,
-      upscaleParams,
-      true,
-      'upscaled',
-      null // Don't auto-generate variant name
-    );
-
-    console.log(`[ImageUpscale] Successfully created upscaled variant for generation ${generationId}`);
-  } catch (updateErr) {
-    console.error(`[ImageUpscale] Exception creating upscaled variant:`, updateErr);
   }
 }

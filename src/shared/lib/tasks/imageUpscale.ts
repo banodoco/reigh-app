@@ -59,9 +59,11 @@ function buildImageUpscaleTaskParams(
 
   // Add generation_id to task params so the worker knows which generation to update
   // Also add based_on for lineage tracking (same as inpaint and other edit tasks)
+  // is_primary=true makes the upscaled version the main display variant
   if (params.generation_id) {
     taskParams.generation_id = params.generation_id;
-    taskParams.based_on = params.generation_id; // For lineage tracking
+    taskParams.based_on = params.generation_id;
+    taskParams.is_primary = true;
   }
 
   // Add shot_id if provided (for linking result to shot)

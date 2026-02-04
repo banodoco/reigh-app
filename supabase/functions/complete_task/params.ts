@@ -128,6 +128,25 @@ export function extractBasedOn(params: any): string | null {
 }
 
 /**
+ * Extract parent_generation_id from task params
+ * Used by orchestrator sub-tasks to identify the parent generation for child segments
+ */
+export function extractParentGenerationId(params: any): string | null {
+  return extractFromParams(
+    params,
+    'parent_generation_id',
+    [
+      ['parent_generation_id'],                          // Direct field
+      ['orchestrator_details', 'parent_generation_id'],
+      ['full_orchestrator_payload', 'parent_generation_id'],
+      ['originalParams', 'parent_generation_id'],
+      ['originalParams', 'orchestrator_details', 'parent_generation_id']
+    ],
+    'ParentGenId'
+  );
+}
+
+/**
  * Extract shot_id and add_in_position from task params
  * Supports multiple param shapes as per current DB trigger logic
  */

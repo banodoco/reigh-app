@@ -191,6 +191,8 @@ function buildVideoEnhancePayload(
   // based_on tells complete_task to create a variant on the source generation
   if (params.based_on) {
     payload.based_on = params.based_on;
+    // is_primary=true makes the enhanced version the main display variant
+    payload.is_primary = true;
   }
   // source_variant_id tracks which variant was enhanced (for UI display)
   if (params.source_variant_id) {

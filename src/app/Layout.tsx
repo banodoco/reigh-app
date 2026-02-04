@@ -21,6 +21,7 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePageVisibility } from '@/shared/hooks/usePageVisibility';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useProductTour } from '@/shared/hooks/useProductTour';
+import { ChunkLoadErrorBoundary } from '@/shared/components/ChunkLoadErrorBoundary';
 
 // Lazy load ProductTour since it only shows during onboarding
 const LazyProductTour = React.lazy(() =>
@@ -405,9 +406,11 @@ const Layout: React.FC = () => {
         />
 
         {/* Product Tour - lazy loaded since only needed during onboarding */}
-        <React.Suspense fallback={null}>
-          <LazyProductTour />
-        </React.Suspense>
+        <ChunkLoadErrorBoundary>
+          <React.Suspense fallback={null}>
+            <LazyProductTour />
+          </React.Suspense>
+        </ChunkLoadErrorBoundary>
       </div>
     </AIInputModeProvider>
   );
