@@ -55,8 +55,10 @@ function buildImageUpscaleTaskParams(
   };
 
   // Add generation_id to task params so the worker knows which generation to update
+  // Also add based_on for lineage tracking (same as inpaint and other edit tasks)
   if (params.generation_id) {
     taskParams.generation_id = params.generation_id;
+    taskParams.based_on = params.generation_id; // For lineage tracking
   }
 
   return taskParams;
