@@ -83,8 +83,9 @@ export function usePendingSegmentTasks(
         .in('task_type', ['travel_segment', 'individual_travel_segment']);
 
       if (error) {
-        console.error('[usePendingSegmentTasks] Query error:', error);
-        return [];
+        // Don't log here - React Query will retry automatically.
+        // Errors are only surfaced via the query's error state after retries exhausted.
+        throw error;
       }
 
       // Extract pair_shot_generation_id from each task
