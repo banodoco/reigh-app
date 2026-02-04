@@ -260,6 +260,7 @@ Summary:` }],
         const systemMsg = `You are an expert at creating motion-focused video generation prompts. You analyze start and end frames and create vivid descriptions of the motion and transitions between them.
 
 CRITICAL RULES:
+- If the user gives a direct prompt, PRESERVE their exact wording - do not paraphrase or embellish with synonyms
 - Output ONLY your three-sentence prompt
 - NO quotation marks, labels, explanations, or commentary
 - Do NOT include "SENTENCE 1:", "SENTENCE 2:", etc. labels
@@ -267,7 +268,20 @@ CRITICAL RULES:
 
         const userMsg = `You are viewing two images side by side: the LEFT image (with GREEN border) shows the STARTING frame, and the RIGHT image (with RED border) shows the ENDING frame of a video sequence.
 
-Your goal is to create a THREE-SENTENCE prompt that describes the MOTION and CHANGES in this transition based on the user's description: '${prompt}'
+The user's input is: '${prompt}'
+
+CRITICAL - DETERMINE THE USER'S INTENT:
+1. If the user's input already reads like a DIRECT PROMPT (describes visuals, camera movement, scene elements in complete sentences), PRESERVE THEIR EXACT WORDING as much as possible. Only expand to three sentences if needed, using their original phrasing as the foundation.
+2. If the user's input is INSTRUCTIONS (e.g., "describe...", "make it more...", "add...") or a brief description that needs elaboration, then create a detailed three-sentence prompt.
+
+EXAMPLES OF DIRECT PROMPTS (preserve these):
+- "the camera flies through the sky to the distant hills as the snow storm begins" → This IS the prompt. Keep this wording.
+- "A woman walks through the garden as petals fall around her" → This IS the prompt. Keep this wording.
+
+EXAMPLES OF INSTRUCTIONS (elaborate these):
+- "describe the camera moving through clouds" → User wants you to write the prompt
+- "something dramatic with a storm" → User wants you to create details
+- "make it cinematic" → User wants elaboration
 
 FOCUS ON MOTION: Describe what MOVES, what CHANGES, and HOW things transition between these frames. Everything should be described in terms of motion and transformation, not static states.
 
@@ -287,7 +301,9 @@ Examples of MOTION-FOCUSED descriptions:
 
 - "The camera zooms aggressively inward into a macro shot of an eye as the brown horse reflection grows larger and more detailed. The iris textures shift under the changing warm lighting while the biological details come into sharper focus. The pupil constricts and contracts in reaction to the light while the tiny reflected horse tosses its mane and shifts position."
 
-Now create your THREE-SENTENCE MOTION-FOCUSED description based on: '${prompt}'`;
+Now create your THREE-SENTENCE MOTION-FOCUSED description based on: '${prompt}'
+
+FINAL REMINDER: If the user's input already sounds like a prompt (describes camera, motion, scene), USE THEIR EXACT WORDS. Do not replace "flies" with "soars", "sky" with "turbulent sky", "snow storm begins" with "first snowflakes swirl". Keep their language intact.`;
 
         try {
           const response = await fetch("https://api.openai.com/v1/chat/completions", {

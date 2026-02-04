@@ -192,33 +192,41 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   const { enhancedPrompt } = formProps;
 
   // Enhance prompt toggle state - tracks user's current choice for this session
-  // We initialize from persisted value when available
+  // null = not yet initialized, boolean = user's explicit choice (or loaded from DB)
   const [enhancePromptEnabled, setEnhancePromptEnabled] = useState<boolean | null>(null);
+
+  // Track whether the user has made an explicit choice this session
+  // Once true, we NEVER change enhancePromptEnabled unless the pair changes
+  const userHasExplicitlyChosen = useRef(false);
 
   // Track previous pair to detect actual pair changes (not just re-renders)
   const prevPairRef = useRef<string | undefined>(undefined);
-  const hasInitializedFromPersisted = useRef(false);
 
   // Default: false if enhanced prompt exists, true if not
-  // This default is ONLY used if there's no persisted preference
-  const defaultEnhanceEnabled = useMemo(() => !enhancedPrompt?.trim(), [enhancedPrompt]);
+  // This default is ONLY used on initial load if there's no persisted preference
+  const defaultEnhanceEnabled = !enhancedPrompt?.trim();
 
   // Initialize from persisted preference when switching pairs or on first load
+  // IMPORTANT: This effect does NOT depend on defaultEnhanceEnabled - once initialized,
+  // the value should never change due to enhancedPrompt changes
   useEffect(() => {
-    // Only initialize once per pair
-    if (hasInitializedFromPersisted.current && prevPairRef.current === pairShotGenerationId) {
+    // If user has made an explicit choice, never re-initialize
+    if (userHasExplicitlyChosen.current && prevPairRef.current === pairShotGenerationId) {
       return;
     }
 
     if (pairShotGenerationId) {
-      hasInitializedFromPersisted.current = true;
-      // Use persisted preference if available, otherwise use default based on enhanced prompt
+      // Use persisted preference if available, otherwise use default
+      // Note: we read defaultEnhanceEnabled here but don't depend on it in the effect
       const initialValue = persistedEnhancePromptEnabled !== undefined
         ? persistedEnhancePromptEnabled
         : defaultEnhanceEnabled;
       setEnhancePromptEnabled(initialValue);
+      // Mark as having a value, but not as "user explicitly chose"
+      // (the user hasn't interacted yet, this is just initialization)
     }
-  }, [pairShotGenerationId, persistedEnhancePromptEnabled, defaultEnhanceEnabled]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- defaultEnhanceEnabled intentionally omitted: once initialized, value should never change due to enhancedPrompt changes
+  }, [pairShotGenerationId, persistedEnhancePromptEnabled]);
 
   // Compute effective enhance state (user's explicit choice, or default)
   const effectiveEnhanceEnabled = enhancePromptEnabled ?? defaultEnhanceEnabled;
@@ -233,6 +241,8 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   const handleEnhancePromptChange = useCallback((value: boolean) => {
     effectiveEnhanceEnabledRef.current = value; // Update ref immediately
     setEnhancePromptEnabled(value); // Then schedule React state update
+    // Mark that user has explicitly chosen - this prevents any future re-initialization
+    userHasExplicitlyChosen.current = true;
     // Persist the preference so it's remembered for this pair
     saveEnhancePromptEnabled(value);
   }, [saveEnhancePromptEnabled]);
@@ -242,7 +252,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     if (prevPairRef.current !== undefined && prevPairRef.current !== pairShotGenerationId) {
       // Pair actually changed - reset for new pair
       setEnhancePromptEnabled(null);
-      hasInitializedFromPersisted.current = false;
+      userHasExplicitlyChosen.current = false;
     }
     prevPairRef.current = pairShotGenerationId;
   }, [pairShotGenerationId]);

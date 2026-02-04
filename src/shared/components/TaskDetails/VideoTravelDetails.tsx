@@ -135,7 +135,6 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
   const frames = isSegmentTask
     ? (individualSegmentParams?.num_frames || parsedParams?.num_frames || parsedParams?.segment_frames_target)
     : (orchestratorDetails?.segment_frames_expanded?.[0] || orchestratorPayload?.segment_frames_expanded?.[0] || parsedParams?.segment_frames_expanded);
-  const amountOfMotion = individualSegmentParams?.amount_of_motion ?? orchestratorDetails?.amount_of_motion ?? orchestratorPayload?.amount_of_motion ?? parsedParams?.amount_of_motion;
 
   const formatModelName = (name: string) => {
     return name
@@ -269,10 +268,6 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
             <div className="space-y-1">
               <p className={`${config.textSize} font-medium text-muted-foreground`}>{isSegmentTask ? 'Frames' : 'Frames / Segment'}</p>
               <p className={`${config.textSize} ${config.fontWeight}`}>{frames || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className={`${config.textSize} font-medium text-muted-foreground`}>Amount of Motion</p>
-              <p className={`${config.textSize} ${config.fontWeight}`}>{amountOfMotion != null ? `${Math.round(amountOfMotion * 100)}%` : 'N/A'}</p>
             </div>
           </div>
         )}
