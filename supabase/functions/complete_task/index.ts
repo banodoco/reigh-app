@@ -409,10 +409,11 @@ async function handleGenerationCreation(
   const taskCategory = taskContext.category;
   const contentType = taskContext.content_type;
 
-  if (taskCategory === 'generation' || 
+  if (taskCategory === 'generation' ||
       (taskCategory === 'processing' && isSubTask) ||
-      (taskCategory === 'processing' && contentType === 'image')) {
-    
+      (taskCategory === 'processing' && contentType === 'image') ||
+      (taskCategory === 'upscale' && contentType === 'image')) {
+
     if (createAsGeneration && basedOnGenerationId) {
       console.log(`[GenMigration] Task ${taskId} has create_as_generation=true`);
     }
@@ -426,6 +427,7 @@ async function handleGenerationCreation(
     }
 
   } else if (taskCategory === 'upscale') {
+    // Video upscale - creates variant only
     await handleUpscaleVariant(supabase, taskId, combinedTaskData, publicUrl, thumbnailUrl);
 
   } else {
