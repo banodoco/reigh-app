@@ -646,10 +646,10 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
                 onMarkAllViewed={handleMarkAllVariantsViewed}
               />
 
-              {/* Shot Navigation Button */}
+              {/* Shot Navigation Button - only shows on hover */}
               {image.shot_id && simplifiedShotOptions.length > 0 && (
                 <button
-                    className="px-2 py-1 rounded-md bg-black/40 hover:bg-black/60 text-white/90 hover:text-white text-xs font-normal transition-all backdrop-blur-sm flex items-center gap-1.5 preserve-case"
+                    className="px-2 py-1 rounded-md bg-black/40 hover:bg-black/60 text-white/90 hover:text-white text-xs font-normal transition-all backdrop-blur-sm flex items-center gap-1.5 preserve-case opacity-0 group-hover:opacity-100"
                     onClick={() => {
                         const targetShot = simplifiedShotOptions.find(s => s.id === image.shot_id);
                         if (targetShot) {
