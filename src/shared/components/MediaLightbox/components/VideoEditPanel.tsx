@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Scissors, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
+import { Scissors, RefreshCw, RotateCcw, ArrowUp } from 'lucide-react';
 
 // Import video editing components
 import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor';
@@ -191,7 +191,7 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
     ...(isCloudMode ? [{
       id: 'enhance',
       label: 'Enhance',
-      icon: <Sparkles />,
+      icon: <ArrowUp />,
       onClick: onEnterEnhanceMode,
     }] : []),
   ];

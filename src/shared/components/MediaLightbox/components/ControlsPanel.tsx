@@ -83,6 +83,12 @@ export interface ControlsPanelProps {
   handleGenerateReposition: EditModePanelProps['handleGenerateReposition'];
   handleSaveAsVariant: EditModePanelProps['handleSaveAsVariant'];
   handleGenerateImg2Img?: EditModePanelProps['handleGenerateImg2Img'];
+  // Image upscale props (cloud mode only)
+  isCloudMode?: EditModePanelProps['isCloudMode'];
+  handleUpscale?: EditModePanelProps['handleUpscale'];
+  isUpscaling?: EditModePanelProps['isUpscaling'];
+  isPendingUpscale?: EditModePanelProps['isPendingUpscale'];
+  hasUpscaledVersion?: EditModePanelProps['hasUpscaledVersion'];
   // Specialized managers
   img2imgLoraManager?: EditModePanelProps['img2imgLoraManager'];
   editLoraManager?: EditModePanelProps['editLoraManager'];
@@ -156,6 +162,12 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
     handleGenerateReposition,
     handleSaveAsVariant,
     handleGenerateImg2Img,
+    // Image upscale props
+    isCloudMode,
+    handleUpscale,
+    isUpscaling,
+    isPendingUpscale,
+    hasUpscaledVersion,
     img2imgLoraManager,
     editLoraManager,
     availableLoras,
@@ -248,6 +260,12 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = (props) => {
         handleGenerateReposition={handleGenerateReposition}
         handleSaveAsVariant={handleSaveAsVariant}
         handleGenerateImg2Img={handleGenerateImg2Img}
+        // Image upscale props (cloud mode only)
+        isCloudMode={isCloudMode}
+        handleUpscale={handleUpscale}
+        isUpscaling={isUpscaling}
+        isPendingUpscale={isPendingUpscale}
+        hasUpscaledVersion={hasUpscaledVersion}
         // Specialized managers
         img2imgLoraManager={img2imgLoraManager}
         editLoraManager={editLoraManager}

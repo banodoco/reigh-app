@@ -1096,6 +1096,11 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     isEnhancing: false,
     enhanceSuccess: false,
     canEnhance: false,
+    // Image upscale
+    handleUpscale,
+    isUpscaling,
+    isPendingUpscale,
+    hasUpscaledVersion,
     // Edit mode
     isInpaintMode,
     isAnnotateMode,

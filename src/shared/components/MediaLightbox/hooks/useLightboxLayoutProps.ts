@@ -106,6 +106,11 @@ export interface UseLightboxLayoutPropsInput {
   isEnhancing: boolean;
   enhanceSuccess: boolean;
   canEnhance: boolean;
+  // Image upscale (cloud mode only)
+  handleUpscale?: () => Promise<void>;
+  isUpscaling?: boolean;
+  isPendingUpscale?: boolean;
+  hasUpscaledVersion?: boolean;
 
   // Edit mode
   isInpaintMode: boolean;
@@ -324,6 +329,11 @@ export function useLightboxLayoutProps(
     isEnhancing: input.isEnhancing,
     enhanceSuccess: input.enhanceSuccess,
     canEnhance: input.canEnhance,
+    // Image upscale mode (cloud only)
+    handleUpscale: input.handleUpscale,
+    isUpscaling: input.isUpscaling,
+    isPendingUpscale: input.isPendingUpscale,
+    hasUpscaledVersion: input.hasUpscaledVersion,
 
     // ========================================
     // EditModePanel specialized props
@@ -379,6 +389,7 @@ export function useLightboxLayoutProps(
     input.trimSaveSuccess, input.effectiveVideoUrl, input.trimCurrentTime, input.trimVideoRef,
     input.videoEditing, input.selectedProjectId, input.enhanceSettings, input.onUpdateEnhanceSetting,
     input.onEnhanceGenerate, input.isEnhancing, input.enhanceSuccess, input.canEnhance,
+    input.handleUpscale, input.isUpscaling, input.isPendingUpscale, input.hasUpscaledVersion,
     // EditModePanel deps
     input.sourceGenerationData, input.onOpenExternalGeneration, input.allShots,
     input.isAlreadyPositionedInSelectedShot, input.handleReplaceInShot, input.sourcePrimaryVariant,

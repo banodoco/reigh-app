@@ -5,7 +5,7 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
-import { CheckCircle, Loader2, Move, Paintbrush, Pencil, Save, Sparkles, Type, XCircle, Layers, Wand2, Plus } from 'lucide-react';
+import { CheckCircle, Loader2, Move, Paintbrush, Pencil, Save, Sparkles, Type, XCircle, Layers, Wand2, Plus, ArrowUp } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { SourceGenerationDisplay } from './SourceGenerationDisplay';
 import { GenerationRow } from '@/types/shots';
@@ -17,6 +17,7 @@ import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
 import { EditAdvancedSettings } from './EditAdvancedSettings';
 import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/useGenerationEditSettings';
 import { EditPanelLayout } from './EditPanelLayout';
+import { ImageUpscaleForm } from './ImageUpscaleForm';
 import { ModeSelector } from './ModeSelector';
 import { useLightboxCoreSafe, useLightboxVariantsSafe, type LightboxCoreState, type LightboxVariantState } from '../contexts/LightboxStateContext';
 import { useImageEditSafe, type ImageEditState } from '../contexts/ImageEditContext';
@@ -56,6 +57,13 @@ export interface EditModePanelProps {
   handleGenerateReposition?: () => void;
   handleSaveAsVariant?: () => void;
   handleGenerateImg2Img?: () => void;
+
+  // Upscale mode props (cloud mode only)
+  isCloudMode?: boolean;
+  handleUpscale?: () => Promise<void>;
+  isUpscaling?: boolean;
+  isPendingUpscale?: boolean;
+  hasUpscaledVersion?: boolean;
 
   // Specialized managers (complex objects with methods)
   img2imgLoraManager?: UseLoraManagerReturn;
@@ -126,6 +134,12 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   handleGenerateReposition,
   handleSaveAsVariant,
   handleGenerateImg2Img,
+  // Upscale mode props (cloud mode only)
+  isCloudMode,
+  handleUpscale,
+  isUpscaling,
+  isPendingUpscale,
+  hasUpscaledVersion,
   // Specialized managers
   img2imgLoraManager,
   editLoraManager,
@@ -301,6 +315,13 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
       icon: <Wand2 />,
       onClick: () => { setIsInpaintMode(true); setEditMode('img2img'); },
     },
+    // Upscale mode - only shown when cloud mode is enabled
+    ...(isCloudMode && handleUpscale ? [{
+      id: 'upscale',
+      label: 'Upscale',
+      icon: <ArrowUp />,
+      onClick: () => { setIsInpaintMode(false); setEditMode('upscale'); },
+    }] : []),
   ];
 
   const modeSelector = (
@@ -515,8 +536,19 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
             </div>
           )}
 
+          {/* Upscale Mode - Shows ImageUpscaleForm */}
+          {editMode === 'upscale' && handleUpscale && (
+            <ImageUpscaleForm
+              onUpscale={handleUpscale}
+              isUpscaling={isUpscaling ?? false}
+              isPendingUpscale={isPendingUpscale ?? false}
+              hasUpscaledVersion={hasUpscaledVersion ?? false}
+              variant={variant}
+            />
+          )}
+
           {/* Legacy LoRA Selector - Fallback for when editLoraManager is not provided */}
-          {editMode !== 'img2img' && !editLoraManager && (
+          {editMode !== 'img2img' && editMode !== 'upscale' && !editLoraManager && (
           <div>
             <SectionLabel>Style LoRA</SectionLabel>
             <div className="flex items-center gap-2">
@@ -643,7 +675,8 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
           )}
 
           {/* Reposition Mode Buttons - Two options: Save or Generate with AI */}
-          {editMode === 'reposition' ? (
+          {/* Skip buttons for upscale mode - ImageUpscaleForm has its own button */}
+          {editMode !== 'upscale' && (editMode === 'reposition' ? (
             <div className={cn("flex gap-2", isMobile && "flex-row")}>
               {/* Save as Variant Button */}
               <Button
@@ -805,7 +838,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
                 </>
               )}
             </Button>
-          )}
+          ))}
       </EditPanelLayout>
 
       {/* Img2Img LoRA Selector Modal */}

@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { Loader2, Check, Sparkles, Film, Maximize2 } from 'lucide-react';
+import { Loader2, Check, Sparkles, Film, ArrowUp } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import type { VideoEnhanceSettings } from '../hooks/useGenerationEditSettings';
 
@@ -205,7 +205,7 @@ export const VideoEnhanceForm: React.FC<VideoEnhanceFormProps> = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Maximize2 className="h-4 w-4 text-muted-foreground" />
+            <ArrowUp className="h-4 w-4 text-muted-foreground" />
             <Label htmlFor="enable-upscale" className="font-medium">
               Upscale Resolution
             </Label>
