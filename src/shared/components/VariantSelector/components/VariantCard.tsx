@@ -121,7 +121,9 @@ export const VariantCard: React.FC<VariantCardProps> = ({
   const label = getVariantLabel(variant);
 
   const buttonContent = (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
         if (isMobile && isActive) {
@@ -129,6 +131,12 @@ export const VariantCard: React.FC<VariantCardProps> = ({
           return;
         }
         onVariantSelect(variant.id);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onVariantSelect(variant.id);
+        }
       }}
       onTouchEnd={(e) => {
         if (isMobile) {
@@ -142,7 +150,7 @@ export const VariantCard: React.FC<VariantCardProps> = ({
       }}
       onMouseEnter={() => onMouseEnter(variant)}
       className={cn(
-        'relative block p-0.5 rounded transition-all w-full touch-manipulation group/variant',
+        'relative p-0.5 rounded transition-all w-full touch-manipulation group/variant overflow-hidden cursor-pointer',
         'hover:bg-muted/80',
         isPrimary && !isActive && 'ring-2 ring-green-500 bg-green-500/10',
         isActive
@@ -213,8 +221,8 @@ export const VariantCard: React.FC<VariantCardProps> = ({
               <TooltipContent
                 side="top"
                 align="end"
-                className="max-w-md p-0 border-0 bg-background/95 backdrop-blur-sm z-[100001]"
-                sideOffset={8}
+                className="max-w-md p-0 border-0 bg-background/95 backdrop-blur-sm z-[100001] data-[state=closed]:duration-0"
+                sideOffset={4}
                 collisionPadding={10}
               >
                 <div className="p-2">
@@ -228,7 +236,7 @@ export const VariantCard: React.FC<VariantCardProps> = ({
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 
   // Both mobile and desktop now render the same buttonContent
