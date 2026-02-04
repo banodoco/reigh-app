@@ -1,12 +1,11 @@
 import * as React from "react"
 import { useUserUIState } from "@/shared/hooks/useUserUIState"
 
-type InputMode = "voice" | "text" | "none"
+export type AIInputMode = "voice" | "text" | "none"
 
 interface AIInputModeContextValue {
-  mode: InputMode
-  setMode: (mode: InputMode) => void
-  toggleMode: () => void
+  mode: AIInputMode
+  setMode: (mode: AIInputMode) => void
   isLoading: boolean
 }
 
@@ -14,23 +13,18 @@ const AIInputModeContext = React.createContext<AIInputModeContextValue | null>(n
 
 export function AIInputModeProvider({ children }: { children: React.ReactNode }) {
   const { value, update, isLoading } = useUserUIState('aiInputMode', { mode: 'voice' })
-  
-  const setMode = React.useCallback((mode: InputMode) => {
+
+  const setMode = React.useCallback((mode: AIInputMode) => {
     update({ mode })
   }, [update])
-  
-  const toggleMode = React.useCallback(() => {
-    update({ mode: value.mode === 'voice' ? 'text' : 'voice' })
-  }, [update, value.mode])
-  
+
   // Memoize context value to prevent unnecessary re-renders of consumers
-  const contextValue = React.useMemo(() => ({ 
-    mode: value.mode, 
-    setMode, 
-    toggleMode,
-    isLoading 
-  }), [value.mode, setMode, toggleMode, isLoading])
-  
+  const contextValue = React.useMemo(() => ({
+    mode: value.mode,
+    setMode,
+    isLoading
+  }), [value.mode, setMode, isLoading])
+
   return (
     <AIInputModeContext.Provider value={contextValue}>
       {children}
@@ -43,9 +37,8 @@ export function useAIInputMode() {
   if (!context) {
     // Return default values if not wrapped in provider (graceful fallback)
     return {
-      mode: 'voice' as InputMode,
+      mode: 'voice' as AIInputMode,
       setMode: () => {},
-      toggleMode: () => {},
       isLoading: false
     }
   }

@@ -397,7 +397,10 @@ async function handleGenerationCreation(
   const createAsGeneration = taskContext.params?.create_as_generation === true;
   const isSubTask = extractOrchestratorTaskId(taskContext.params, 'GenMigration');
 
-  if (basedOnGenerationId && !isSubTask && !createAsGeneration) {
+  // Skip generic variant creation for upscale tasks - they use handleUpscaleVariant below
+  // which correctly sets variant_type='upscaled' and is_primary=true
+  const isUpscaleCategory = taskContext.category === 'upscale';
+  if (basedOnGenerationId && !isSubTask && !createAsGeneration && !isUpscaleCategory) {
     // Create variant on source generation
     const success = await handleVariantCreation(
       supabase, taskId, combinedTaskData, basedOnGenerationId, publicUrl, thumbnailUrl

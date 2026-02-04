@@ -1,3 +1,5 @@
+import type { AIInputMode } from "@/shared/contexts/AIInputModeContext"
+
 // Types for SettingsModal components
 
 export interface SettingsModalProps {
@@ -56,8 +58,8 @@ export interface PreferencesSectionProps {
   privacyDefaults: { resourcesPublic: boolean; generationsPublic: boolean };
   updatePrivacyDefaults: (patch: { resourcesPublic?: boolean; generationsPublic?: boolean }) => void;
   isLoadingPrivacyDefaults: boolean;
-  aiInputMode: "voice" | "text" | "none";
-  setAIInputMode: (mode: "voice" | "text" | "none") => void;
+  aiInputMode: AIInputMode;
+  setAIInputMode: (mode: AIInputMode) => void;
 }
 
 interface TransactionsSectionProps {
