@@ -14,7 +14,7 @@ interface UseVoiceRecordingOptions {
   existingValue?: string;
 }
 
-const MAX_RECORDING_SECONDS = 10;
+const MAX_RECORDING_SECONDS = 15;
 
 export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
   const { onResult, onError, task = "transcribe_and_write", context = "", example = "", existingValue = "" } = options;
