@@ -21,7 +21,8 @@ interface MediaGalleryHeaderProps {
   onPageChange: (newPage: number, direction: 'prev' | 'next', fromBottom?: boolean) => void;
 
   // Layout props
-  isMobile?: boolean;
+  /** Phone only (not iPad) - hides top pagination when true (shown in floating bottom bar instead) */
+  isPhoneOnly?: boolean;
 
   // Filter props
   hideTopFilters?: boolean;
@@ -67,7 +68,7 @@ export const MediaGalleryHeader: React.FC<MediaGalleryHeaderProps> = ({
   onPageChange,
 
   // Layout props
-  isMobile = false,
+  isPhoneOnly = false,
 
   // Filter props
   hideTopFilters = false,
@@ -164,8 +165,8 @@ export const MediaGalleryHeader: React.FC<MediaGalleryHeaderProps> = ({
         </div>
       )}
 
-      {/* Row 2: Pagination (left) + Star filter (right) - hidden on mobile (shown in floating bottom bar) */}
-      {!isMobile && (
+      {/* Row 2: Pagination (left) + Star filter (right) - hidden on phones (shown in floating bottom bar) */}
+      {!isPhoneOnly && (
         <div data-pagination-top>
           <MediaGalleryPagination
             totalPages={totalPages}
@@ -198,7 +199,7 @@ export const MediaGalleryHeader: React.FC<MediaGalleryHeaderProps> = ({
       )}
 
       {/* Single page display - only show when pagination is hidden but we have items (hidden on mobile) */}
-      {!isMobile && totalPages === 1 && !hidePagination && !showShotFilter && (
+      {!isPhoneOnly && totalPages === 1 && !hidePagination && !showShotFilter && (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${whiteText ? 'text-white' : 'text-muted-foreground'}`}>
             Showing {rangeStart}-{rangeEnd} of {totalFilteredItems}

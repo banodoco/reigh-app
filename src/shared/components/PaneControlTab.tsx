@@ -5,6 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { PANE_CONFIG, PaneSide, PanePosition } from '@/shared/config/panes';
 import { usePositionStrategy } from '@/shared/hooks/pane-positioning/usePositionStrategy';
+import { safeAreaCalc } from '@/shared/lib/safeArea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 
 // Icon type for pane controls
@@ -327,13 +328,10 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
 
   // Add safe area margin for iOS home indicator on touch devices
   // Only when the pane is NOT visible - when visible, the control sits on the pane, not at screen edge
-  // env(safe-area-inset-bottom) returns the correct value for each device:
-  // - Face ID iPads/iPhones: non-zero (has home indicator)
-  // - Home button devices: zero (no home indicator)
   const needsSafeAreaMargin = isMobile && isBottom && !isVisible;
   const mobileStyle = needsSafeAreaMargin ? {
     ...dynamicStyle,
-    marginBottom: 'calc(env(safe-area-inset-bottom, 0px) * 0.5)',
+    marginBottom: safeAreaCalc.marginBottom(0.5),
   } : dynamicStyle;
 
   const content = (

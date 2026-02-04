@@ -1,4 +1,5 @@
 import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { safeAreaCalc } from "@/shared/lib/safeArea";
 
 export type ModalSize = 'small' | 'medium' | 'large' | 'extra-large';
 
@@ -36,11 +37,11 @@ export const useModal = (size: ModalSize = 'medium'): ModalStyling => {
   const mobileStyle = isMobile && size !== 'small' ? {
     width: 'calc(100vw - 2rem)', // 16px edges
     maxHeight: (size === 'large' || size === 'extra-large')
-      ? 'min(80vh, calc(100vh - env(safe-area-inset-top, 20px) - env(safe-area-inset-bottom, 20px) - 80px))'
-      : 'min(90vh, calc(100vh - env(safe-area-inset-top, 20px) - env(safe-area-inset-bottom, 20px) - 64px))',
+      ? safeAreaCalc.maxHeight('80px', '80vh')
+      : safeAreaCalc.maxHeight('64px', '90vh'),
     // Position modal lower on mobile to account for safe area at top
-    top: (size === 'large' || size === 'extra-large') 
-      ? 'calc(50% + env(safe-area-inset-top, 0px) / 2)' 
+    top: (size === 'large' || size === 'extra-large')
+      ? safeAreaCalc.verticalCenter()
       : undefined,
   } : {};
 
