@@ -346,3 +346,35 @@ function handleVariantsChanged(queryClient: QueryClient, event: VariantsChangedE
   });
   dataFreshnessManager.onRealtimeEvent('variants-changed', affectedQueries);
 }
+
+function handleVariantsDeleted(queryClient: QueryClient, event: VariantsDeletedEvent): void {
+  console.log('[RealtimeInvalidation] Variants deleted:', {
+    count: event.variants.length,
+    affectedGenerations: event.affectedGenerationIds.length,
+  });
+
+  // Invalidate variant queries for affected generations
+  event.affectedGenerationIds.forEach((generationId) => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.generations.variants(generationId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.generations.detail(generationId) });
+  });
+
+  // Invalidate variant badges
+  queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantBadges });
+
+  // A deleted variant may affect which variant is displayed
+  queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
+  invalidateAllShotGenerations(queryClient, 'variants-deleted');
+
+  // Report to freshness manager
+  const affectedQueries: string[][] = [
+    queryKeys.unified.all,
+    queryKeys.generations.all,
+    queryKeys.generations.variantBadges,
+  ];
+  event.affectedGenerationIds.forEach((generationId) => {
+    affectedQueries.push(queryKeys.generations.variants(generationId));
+  });
+  dataFreshnessManager.onRealtimeEvent('variants-deleted', affectedQueries);
+}

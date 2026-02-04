@@ -10,7 +10,7 @@ Keeps the UI in sync with backend changes using Supabase Realtime, React Query i
 │  - Supabase WebSocket lifecycle                             │
 │  - State machine: disconnected → connecting → connected     │
 │                                  ↔ reconnecting → failed    │
-│  - Exponential backoff reconnection (max 5 attempts)        │
+│  - Exponential backoff (1s-10s, max 5 attempts)             │
 └─────────────────────────────────────────────────────────────┘
                               │
                               │ raw events
@@ -18,8 +18,7 @@ Keeps the UI in sync with backend changes using Supabase Realtime, React Query i
 ┌─────────────────────────────────────────────────────────────┐
 │                  RealtimeEventProcessor                      │
 │  - Batches events within 100ms window                       │
-│  - Normalizes payload shapes                                │
-│  - Groups by event type                                     │
+│  - Normalizes payloads, groups by table:eventType           │
 └─────────────────────────────────────────────────────────────┘
                               │
                               │ processed events
@@ -27,15 +26,14 @@ Keeps the UI in sync with backend changes using Supabase Realtime, React Query i
 ┌─────────────────────────────────────────────────────────────┐
 │              useRealtimeInvalidation (hook)                  │
 │  - All invalidation logic in one place                      │
-│  - Decides what to invalidate based on event type           │
+│  - Reports affected queries to DataFreshnessManager         │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  DataFreshnessManager                        │
-│  - Tracks query freshness                                   │
+│  - Tracks per-query freshness from realtime events          │
 │  - Controls polling intervals via useSmartPolling           │
-│  - Fallback: 5s polling when realtime is down               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,6 +48,40 @@ Keeps the UI in sync with backend changes using Supabase Realtime, React Query i
 | `src/shared/hooks/useRealtimeInvalidation.ts` | React Query invalidation logic |
 | `src/shared/providers/RealtimeProvider.tsx` | Wires components, exposes status |
 
+## Database Subscriptions
+
+| Table | Events | Filter |
+|-------|--------|--------|
+| `tasks` | INSERT, UPDATE | `project_id=eq.${projectId}` |
+| `generations` | INSERT, UPDATE, DELETE | `project_id=eq.${projectId}` |
+| `shot_generations` | INSERT, UPDATE, DELETE | None (cross-project) |
+| `generation_variants` | INSERT, UPDATE, DELETE | None (cross-project) |
+
+## Processed Events
+
+| Event Type | Triggers Invalidation When |
+|------------|---------------------------|
+| `tasks-created` | Always |
+| `tasks-updated` | Always; + generation queries if task completed |
+| `generations-inserted` | Always |
+| `generations-updated` | Only if location, thumbnail, or starred changed (skips shot-sync-only updates) |
+| `generations-deleted` | Always |
+| `shot-generations-changed` | Always; INSERT-only batches use minimal invalidation |
+| `variants-changed` | Always |
+| `variants-deleted` | Always |
+
+## Polling Fallback
+
+DataFreshnessManager decides polling intervals per-query:
+
+| Condition | Polling Interval |
+|-----------|------------------|
+| Recent realtime event (<1 min) | **Disabled** |
+| Older event (1-3 min) | 60s |
+| Realtime stable >5 min, no events | **Disabled** (idle is normal) |
+| Realtime stable 30s-5min | 60s safety net |
+| Realtime disconnected/failed | 5s aggressive fallback |
+
 ## Connection States
 
 ```typescript
@@ -60,26 +92,6 @@ type ConnectionStatus =
   | 'reconnecting'   // Failed, retrying with backoff
   | 'failed';        // Exhausted retries, polling fallback active
 ```
-
-## Database Events
-
-| Table | Events | Filter |
-|-------|--------|--------|
-| `tasks` | INSERT, UPDATE | `project_id=eq.${projectId}` |
-| `generations` | INSERT, UPDATE | `project_id=eq.${projectId}` |
-| `shot_generations` | INSERT, UPDATE | None |
-| `generation_variants` | INSERT, UPDATE | None |
-
-## Processed Events
-
-| Event Type | Invalidates |
-|------------|-------------|
-| `tasks-created` | tasks, task-status-counts |
-| `tasks-updated` | tasks, + generations if complete |
-| `generations-inserted` | unified, generations, shot-generations |
-| `generations-updated` | unified, generations (if meaningful) |
-| `shot-generations-changed` | shot-specific queries |
-| `variants-changed` | variant queries, shot-generations |
 
 ## Usage
 
