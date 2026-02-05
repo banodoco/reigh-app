@@ -112,8 +112,8 @@ const VideoTravelToolPage: React.FC = () => {
     setCurrentShotId,
   });
 
-  // Loading state
-  const isLoading = shotsLoading || initializingFromHash;
+  // Loading state (include projectUISettings to avoid sort-mode flash)
+  const isLoading = shotsLoading || initializingFromHash || (!!selectedProjectId && projectUISettings === undefined);
   const showStableSkeleton = useStableSkeletonVisibility(isLoading);
 
   // Stop navigation timers once page mounts

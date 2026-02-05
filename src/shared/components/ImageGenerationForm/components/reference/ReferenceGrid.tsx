@@ -95,7 +95,7 @@ export const ReferenceGrid: React.FC<ReferenceGridProps> = ({
   };
 
   const skeletonCount = getSkeletonCount();
-  const showOnlySkeletons = references.length === 0 && skeletonCount > 0;
+  const showOnlySkeletons = isLoadingReferenceData && skeletonCount > 0;
 
   return (
     <div className="space-y-3">
