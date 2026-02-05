@@ -102,7 +102,7 @@ export default function HomePage() {
     };
 
     const img = new Image();
-    img.src = '/brush-paintbrush-icon.webp';
+    img.src = '/apple-touch-icon.png';
     img.onload = markLoaded;
     img.onerror = markLoaded;
 
