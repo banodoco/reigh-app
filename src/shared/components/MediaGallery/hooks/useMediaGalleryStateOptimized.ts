@@ -484,9 +484,13 @@ export const useMediaGalleryStateOptimized = ({
       // and deep equality check on key properties to avoid unnecessary render cycles
       if (updatedImage && updatedImage !== state.activeLightboxMedia) {
         // Check if relevant fields actually changed to prevent loop
+        // activeLightboxMedia may be a mapped GenerationRow (imageUrl/location) or a raw
+        // GeneratedImageWithMetadata (url) — check all possible URL fields for comparison
         const nameChanged = updatedImage.name !== state.activeLightboxMedia.name;
         const starredChanged = updatedImage.starred !== state.activeLightboxMedia.starred;
-        const urlChanged = updatedImage.url !== (state.activeLightboxMedia as GeneratedImageWithMetadata).url;
+        const currentMedia = state.activeLightboxMedia as GeneratedImageWithMetadata & { imageUrl?: string; location?: string };
+        const currentUrl = currentMedia.imageUrl || currentMedia.location || currentMedia.url;
+        const urlChanged = updatedImage.url !== currentUrl;
 
         if (nameChanged || starredChanged || urlChanged) {
           console.log('[LightboxSync] 🔄 Updating active media from list:', {
@@ -497,7 +501,14 @@ export const useMediaGalleryStateOptimized = ({
             starredChanged,
             urlChanged
           });
-          actions.setActiveLightboxMedia(updatedImage);
+          // Merge updated fields into the existing media object to preserve
+          // imageUrl/location mapping from handleOpenLightbox
+          actions.setActiveLightboxMedia({
+            ...state.activeLightboxMedia,
+            name: updatedImage.name,
+            starred: updatedImage.starred,
+            ...(urlChanged ? { imageUrl: updatedImage.url, location: updatedImage.url, url: updatedImage.url } : {}),
+          } as GenerationRow);
         }
       }
     }
