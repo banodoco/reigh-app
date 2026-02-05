@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { uploadVideoToStorage, extractVideoMetadata } from '@/shared/lib/videoUploader';
 import { supabase } from '@/integrations/supabase/client';

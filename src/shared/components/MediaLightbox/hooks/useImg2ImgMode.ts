@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { GenerationRow } from '@/types/shots';
 import { createBatchZImageTurboI2ITasks, ZImageLoraConfig } from '@/shared/lib/tasks/zImageTurboI2I';

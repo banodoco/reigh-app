@@ -13,7 +13,7 @@ import { realtimeEventProcessor } from '@/shared/realtime/RealtimeEventProcessor
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 import { invalidateGenerationsSync, invalidateAllShotGenerations } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { preloadingService } from '@/shared/services/PreloadingService';
+import { preloadingService } from '@/shared/lib/preloading';
 import type {
   ProcessedEvent,
   TasksUpdatedEvent,

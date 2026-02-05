@@ -26,7 +26,7 @@ import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 
 import {
@@ -584,7 +584,7 @@ const GenerationsPaneComponent: React.FC = () => {
                   id="exclude-positioned-generations-pane"
                   checked={excludePositioned}
                   onCheckedChange={(checked) => setExcludePositioned(!!checked)}
-                  className="border-zinc-600 data-[state=checked]:bg-zinc-600"
+                  className="border-zinc-600 data-[checked]:bg-zinc-600"
                 />
                 <Label
                   htmlFor="exclude-positioned-generations-pane"

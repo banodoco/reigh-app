@@ -564,7 +564,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         </style>
         <style>{`
           /* Hide the built-in close button from Dialog component */
-          button[data-radix-dialog-close] {
+          button[data-dialog-close] {
             display: none !important;
           }
         `}</style>

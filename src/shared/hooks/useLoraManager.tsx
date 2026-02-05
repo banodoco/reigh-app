@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { useToolSettings } from './useToolSettings';
 import { handleError } from '@/shared/lib/errorHandler';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';

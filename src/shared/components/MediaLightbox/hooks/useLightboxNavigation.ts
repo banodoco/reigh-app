@@ -78,7 +78,7 @@ export const useLightboxNavigation = ({
   useEffect(() => {
     const handleWindowKeyDown = (e: KeyboardEvent) => {
       // Check if another dialog/modal is open on top by looking for higher z-index dialog overlays
-      const dialogOverlays = document.querySelectorAll('[data-radix-dialog-overlay]');
+      const dialogOverlays = document.querySelectorAll('[data-dialog-backdrop]');
       const hasHigherZIndexDialog = Array.from(dialogOverlays).some((overlay) => {
         const zIndex = parseInt(window.getComputedStyle(overlay as Element).zIndex || '0', 10);
         // MediaLightbox uses z-[100000], check if any higher z-index dialogs are open

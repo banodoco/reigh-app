@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { getRandomDummyName } from '../lib/dummyNames';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';

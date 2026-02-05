@@ -9,12 +9,13 @@
  * - Concurrent request limiting
  * - Cancellation support
  * - Promise-based API
+ * - Returns loaded HTMLImageElement for ref storage
  */
 
 interface QueueItem {
   url: string;
   priority: number;
-  resolve: () => void;
+  resolve: (element: HTMLImageElement) => void;
   reject: (err: Error) => void;
   aborted: boolean;
 }
@@ -30,12 +31,12 @@ export class PreloadQueue {
 
   /**
    * Add a URL to the preload queue.
-   * Returns a promise that resolves when the image is loaded.
+   * Returns a promise that resolves with the loaded HTMLImageElement.
    *
    * @param url - The image URL to preload
    * @param priority - Higher numbers load first (default: 0)
    */
-  add(url: string, priority = 0): Promise<void> {
+  add(url: string, priority = 0): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const item: QueueItem = {
         url,
@@ -98,9 +99,9 @@ export class PreloadQueue {
     this.active++;
 
     try {
-      await this.loadImage(item.url);
+      const element = await this.loadImage(item.url);
       if (!item.aborted) {
-        item.resolve();
+        item.resolve(element);
       }
     } catch (err) {
       if (!item.aborted) {
@@ -113,14 +114,14 @@ export class PreloadQueue {
     }
   }
 
-  private loadImage(url: string): Promise<void> {
+  private loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
 
       img.onload = () => {
         img.onload = null;
         img.onerror = null;
-        resolve();
+        resolve(img);
       };
 
       img.onerror = () => {

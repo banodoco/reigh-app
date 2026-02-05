@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';

@@ -16,7 +16,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "@base-ui-components/react/dialog";
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
 
@@ -59,7 +59,8 @@ interface LightboxShellProps {
  * Helper to check if a higher z-index dialog is open
  */
 function hasHigherZIndexDialog(): boolean {
-  const dialogOverlays = document.querySelectorAll('[data-radix-dialog-overlay]');
+  // Query for our custom compat attribute on dialog overlays/backdrops
+  const dialogOverlays = document.querySelectorAll('[data-dialog-backdrop]');
   return Array.from(dialogOverlays).some((overlay) => {
     const zIndex = parseInt(window.getComputedStyle(overlay as Element).zIndex || '0', 10);
     return zIndex > 100000;
@@ -126,10 +127,10 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
   const touchStartedOnOverlayRef = useRef<boolean>(false);
 
   // Lock body scroll when lightbox is open on desktop
-  // (On mobile, Radix's modal={true} handles this, but on desktop we use modal={false}
+  // (On mobile, modal={true} handles this, but on desktop we use modal={false}
   // to allow TasksPane interaction, so we need manual scroll locking)
   useEffect(() => {
-    if (isMobile) return; // Radix handles mobile
+    if (isMobile) return; // modal={true} handles mobile
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -298,9 +299,10 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
 
   const handleContentPointerDown = (e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
-    const isRadixPortal = target.closest('[data-radix-popper-content-wrapper]') !== null;
+    // Don't stop propagation for floating UI content (selects, popovers, menus)
+    const isFloatingContent = target.closest('[role="listbox"], [role="menu"], [data-side], [data-popup]') !== null;
 
-    if (isRadixPortal) {
+    if (isFloatingContent) {
       return;
     }
 
@@ -365,56 +367,10 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
     }
   };
 
-  const handlePointerDownOutside = (event: CustomEvent<{ originalEvent: PointerEvent }>) => {
-    const target = event.target as Element;
-
-    // Don't close if clicking inside the TasksPane
-    if (target.closest('[data-tasks-pane]')) {
-      event.preventDefault();
-      return;
-    }
-
-    // Don't close if clicking inside Radix portals
-    if (
-      target.closest('[data-radix-select-content]') ||
-      target.closest('[data-radix-select-viewport]') ||
-      target.closest('[data-radix-select-item]') ||
-      target.closest('[data-radix-popover-content]') ||
-      target.closest('[data-radix-dropdown-menu-content]') ||
-      target.closest('[data-shot-selector-header]') ||
-      target.closest('[data-radix-select-trigger]')
-    ) {
-      event.preventDefault();
-      return;
-    }
-
-    // Don't close if Select is open
-    if (isSelectOpen) {
-      event.preventDefault();
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (typeof event.stopImmediatePropagation === 'function') {
-      event.stopImmediatePropagation();
-    }
-
-    // Don't close if in inpaint mode to prevent accidental data loss
-    if (isInpaintMode) {
-      return;
-    }
-
-    // Close the lightbox
-    if (isMobile) {
-      setTimeout(() => {
-        onClose();
-      }, 0);
-    } else {
-      onClose();
-    }
-  };
+  // Focus the content element on mount (replaces Radix's onOpenAutoFocus)
+  useEffect(() => {
+    contentRef.current?.focus();
+  }, [contentRef]);
 
   // ========================================
   // OVERLAY STYLES
@@ -470,10 +426,11 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
         }}
       >
         <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay
+          <DialogPrimitive.Backdrop
+            data-dialog-backdrop
             className={cn(
-              "fixed z-[100000] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-              isMobile ? "" : "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+              "fixed z-[100000] bg-black/80 data-[open]:animate-in data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[open]:fade-in-0",
+              isMobile ? "" : "duration-200 data-[open]:animate-in data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[open]:fade-in-0",
               "p-0 border-none shadow-none"
             )}
             onPointerDown={handleOverlayPointerDown}
@@ -491,16 +448,9 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
               is now visible above the lightbox at z-[100001] and handles all pane controls.
               The overlay correctly accounts for the pane via shouldAccountForTasksPane. */}
 
-          <DialogPrimitive.Content
+          <DialogPrimitive.Popup
             ref={contentRef}
             tabIndex={-1}
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              contentRef.current?.focus();
-            }}
-            onEscapeKeyDown={(event) => {
-              event.preventDefault();
-            }}
             onPointerDown={handleContentPointerDown}
             onClick={handleContentClick}
             onTouchStart={handleContentTouchStart}
@@ -511,14 +461,13 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
               "fixed z-[100000]",
               isMobile
                 ? ""
-                : "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+                : "duration-200 data-[open]:animate-in data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[open]:fade-in-0 data-[ending-style]:zoom-out-95 data-[open]:zoom-in-95",
               "p-0 border-none bg-transparent shadow-none",
               needsFullscreenLayout
                 ? "inset-0 w-full h-full"
-                : "left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-auto h-auto data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+                : "left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-auto h-auto data-[ending-style]:slide-out-to-left-1/2 data-[ending-style]:slide-out-to-top-[48%] data-[open]:slide-in-from-left-1/2 data-[open]:slide-in-from-top-[48%]"
             )}
             style={contentStyle}
-            onPointerDownOutside={handlePointerDownOutside}
           >
             {/* Accessibility: Hidden dialog title for screen readers */}
             <DialogPrimitive.Title className="sr-only">
@@ -529,7 +478,7 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
             </DialogPrimitive.Description>
 
             {children}
-          </DialogPrimitive.Content>
+          </DialogPrimitive.Popup>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
     </TooltipProvider>

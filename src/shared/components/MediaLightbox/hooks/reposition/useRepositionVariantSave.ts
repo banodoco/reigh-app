@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { useQueryClient } from '@tanstack/react-query';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';

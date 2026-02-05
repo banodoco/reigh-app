@@ -15,7 +15,7 @@
  */
 
 import React, { useEffect, useCallback } from 'react';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Dialog as DialogPrimitive } from '@base-ui-components/react/dialog';
 import type { SegmentSlotModeData } from '../types';
 import { SegmentSlotFormView } from './SegmentSlotFormView';
 
@@ -67,8 +67,8 @@ export const SegmentEditorModal: React.FC<SegmentEditorModalProps> = ({
   return (
     <DialogPrimitive.Root open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[99999] bg-black/80" />
-        <DialogPrimitive.Content
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-[99999] bg-black/80" />
+        <DialogPrimitive.Popup
           className="fixed inset-0 z-[100000] focus:outline-none"
           aria-describedby={undefined}
         >
@@ -88,7 +88,7 @@ export const SegmentEditorModal: React.FC<SegmentEditorModalProps> = ({
             hasNext={hasNext}
             readOnly={readOnly}
           />
-        </DialogPrimitive.Content>
+        </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );

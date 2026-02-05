@@ -10,10 +10,16 @@
  * - Progressive loading: checks if image was preloaded to skip animation delay
  */
 
-// Tracker size limits based on device capabilities
-const getTrackerConfig = () => {
+import type { TrackableImage, TrackerLimits } from './types';
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const getTrackerConfig = (): TrackerLimits => {
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-  const hasLowMemory = typeof navigator !== 'undefined' &&
+  const hasLowMemory =
+    typeof navigator !== 'undefined' &&
     'deviceMemory' in navigator &&
     (navigator as { deviceMemory?: number }).deviceMemory !== undefined &&
     (navigator as { deviceMemory: number }).deviceMemory <= 4;
@@ -24,27 +30,49 @@ const getTrackerConfig = () => {
   return { maxImages: 300, maxUrls: 500 };
 };
 
+// =============================================================================
+// STATE
+// =============================================================================
+
 // Track loaded images by ID
 const loadedImagesById = new Map<string, boolean>();
 
 // Track loaded images by URL (for progressive loading)
-const loadedImagesByUrl = new Map<string, { loadedAt: number; width?: number; height?: number }>();
+// Also stores element refs to prevent browser cache eviction
+const loadedImagesByUrl = new Map<
+  string,
+  { loadedAt: number; width?: number; height?: number; element?: HTMLImageElement }
+>();
+
+// =============================================================================
+// HELPERS
+// =============================================================================
 
 /**
  * Evict oldest entries from a Map until it's under the limit.
  * Maps maintain insertion order, so we delete from the beginning.
  */
-const evictOldestEntries = <K, V>(map: Map<K, V>, maxSize: number, name: string): number => {
+const evictOldestEntries = <K, V>(
+  map: Map<K, V>,
+  maxSize: number,
+  name: string
+): number => {
   if (map.size <= maxSize) return 0;
 
   const toEvict = map.size - maxSize;
   const keys = Array.from(map.keys()).slice(0, toEvict);
 
-  keys.forEach(key => map.delete(key));
+  keys.forEach((key) => map.delete(key));
 
-  console.log(`[ImageLoadTracker] Evicted ${toEvict} oldest entries from ${name}, new size: ${map.size}`);
+  console.log(
+    `[ImageLoadTracker] Evicted ${toEvict} oldest entries from ${name}, new size: ${map.size}`
+  );
   return toEvict;
 };
+
+// =============================================================================
+// PUBLIC API
+// =============================================================================
 
 /**
  * Enforce tracker limits - call this periodically or after adding entries
@@ -55,16 +83,13 @@ export const enforceLoadTrackerLimits = (): void => {
   evictOldestEntries(loadedImagesByUrl, config.maxUrls, 'loadedImagesByUrl');
 };
 
-/** Image with an id property */
-interface TrackableImage {
-  id: string;
-  __memoryCached?: boolean; // Legacy field, kept for backwards compatibility
-}
-
 /**
  * Mark an image as loaded or not loaded
  */
-export const setImageLoadStatus = (image: TrackableImage, isLoaded: boolean = true): void => {
+export const setImageLoadStatus = (
+  image: TrackableImage,
+  isLoaded: boolean = true
+): void => {
   const imageId = image.id;
   if (!imageId) {
     console.warn('[ImageLoadTracker] Cannot track image without ID:', image);
@@ -89,7 +114,7 @@ export const setImageLoadStatus = (image: TrackableImage, isLoaded: boolean = tr
 const removeLoadedImages = (imageIds: string[]): number => {
   let removedCount = 0;
 
-  imageIds.forEach(imageId => {
+  imageIds.forEach((imageId) => {
     if (loadedImagesById.has(imageId)) {
       loadedImagesById.delete(imageId);
       removedCount++;
@@ -103,9 +128,7 @@ const removeLoadedImages = (imageIds: string[]): number => {
  * Clear load status for a set of images (used when evicting pages from cache)
  */
 export const clearLoadedImages = (images: Array<{ id: string }>): number => {
-  const imageIds = images
-    .map(img => img.id)
-    .filter(id => id);
+  const imageIds = images.map((img) => img.id).filter((id) => id);
 
   return removeLoadedImages(imageIds);
 };
@@ -113,11 +136,16 @@ export const clearLoadedImages = (images: Array<{ id: string }>): number => {
 /**
  * Clear all tracked images (used on project switch)
  */
-export const clearAllLoadedImages = (reason: string = 'project switch'): number => {
+export const clearAllLoadedImages = (
+  reason: string = 'project switch'
+): number => {
   const prevSize = loadedImagesById.size;
   loadedImagesById.clear();
+  loadedImagesByUrl.clear();
 
-  console.log(`[ImageLoadTracker] Cleared all for ${reason}, removed ${prevSize} entries`);
+  console.log(
+    `[ImageLoadTracker] Cleared all for ${reason}, removed ${prevSize} entries`
+  );
   return prevSize;
 };
 
@@ -148,16 +176,17 @@ export const hasLoadedImage = (urlOrImage: string | TrackableImage): boolean => 
 
 /**
  * Mark an image as loaded (by URL or image object)
+ * Optionally stores the HTMLImageElement ref to prevent browser cache eviction.
  */
 export const markImageLoaded = (
   urlOrImage: string | TrackableImage,
-  metadata?: { width?: number; height?: number }
+  metadata?: { width?: number; height?: number; element?: HTMLImageElement }
 ): void => {
   // URL string
   if (typeof urlOrImage === 'string') {
     loadedImagesByUrl.set(urlOrImage, {
       loadedAt: Date.now(),
-      ...metadata
+      ...metadata,
     });
     // Enforce limits after adding (debounced check - only every 50 entries)
     if (loadedImagesByUrl.size % 50 === 0) {
@@ -176,7 +205,7 @@ export const markImageLoaded = (
 export const getLoadTrackerStats = (): {
   byId: number;
   byUrl: number;
-  limits: { maxImages: number; maxUrls: number };
+  limits: TrackerLimits;
 } => {
   const config = getTrackerConfig();
   return {
@@ -186,28 +215,11 @@ export const getLoadTrackerStats = (): {
   };
 };
 
-// =============================================================================
-// LEGACY ALIASES (for backwards compatibility during migration)
-// These will be removed once all imports are updated
-// =============================================================================
+/**
+ * Get the stored HTMLImageElement for a URL (if available).
+ * Used to verify browser cache status without creating a new Image.
+ */
+export const getImageElement = (url: string): HTMLImageElement | undefined => {
+  return loadedImagesByUrl.get(url)?.element;
+};
 
-/** @deprecated Use setImageLoadStatus */
-export const setImageCacheStatus = setImageLoadStatus;
-
-/** @deprecated Use hasLoadedImage */
-export const isImageCached = hasLoadedImage;
-
-/** @deprecated Use markImageLoaded */
-export const markImageAsCached = markImageLoaded;
-
-/** @deprecated Use clearLoadedImages */
-export const clearCacheForImages = clearLoadedImages;
-
-/** @deprecated Use clearAllLoadedImages */
-export const clearCacheForProjectSwitch = clearAllLoadedImages;
-
-/** @deprecated Use enforceLoadTrackerLimits */
-export const enforceCacheLimits = enforceLoadTrackerLimits;
-
-/** @deprecated Use getLoadTrackerStats */
-export const getCacheStats = getLoadTrackerStats;

@@ -4,7 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { X, UploadCloud, ImagePlus, VideoIcon, FileText, Loader2, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/shared/components/ui/tooltip";
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { cropFilename } from "@/shared/lib/utils";
 
 interface FileInputProps {

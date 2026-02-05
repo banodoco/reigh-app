@@ -2,17 +2,17 @@
  * Image Preloader
  *
  * Core preloading logic - takes images and loads them via the queue.
- * Marks images as cached when they complete.
+ * Marks images as loaded when they complete.
  */
 
-import { PreloadableImage, PreloadConfig } from './types';
-import { PreloadQueue } from './PreloadQueue';
-import { setImageLoadStatus, hasLoadedImage } from '@/shared/lib/imageLoadTracker';
+import type { PreloadableImage, PreloadConfig } from './types';
+import { PreloadQueue } from './queue';
+import { setImageLoadStatus, hasLoadedImage, markImageLoaded } from './tracker';
 import { getDisplayUrl } from '@/shared/lib/utils';
 
 /**
  * Preload a batch of images using the provided queue.
- * Marks images as cached in the cache manager when they complete.
+ * Marks images as loaded in the tracker when they complete.
  *
  * @param images - Images to preload
  * @param queue - The preload queue to use
@@ -29,7 +29,7 @@ export async function preloadImages(
   const limitedImages = images.slice(0, config.maxImagesPerPage);
 
   // Filter out already-loaded images
-  const toPreload = limitedImages.filter((img) => !hasLoadedImage(img));
+  const toPreload = limitedImages.filter((img) => !hasLoadedImage(img as { id: string }));
 
   if (toPreload.length === 0) {
     return;
@@ -50,8 +50,15 @@ export async function preloadImages(
 
     try {
       // Slightly decrease priority for later images in the batch
-      await queue.add(url, priority - idx);
-      setImageLoadStatus(img, true);
+      const element = await queue.add(url, priority - idx);
+
+      // Track by ID if available
+      if (img.id) {
+        setImageLoadStatus(img as { id: string }, true);
+      }
+
+      // Track by URL with element ref (for browser cache persistence)
+      markImageLoaded(url, { element });
     } catch {
       // Preloading is best-effort - don't throw on failure
     }
@@ -62,27 +69,10 @@ export async function preloadImages(
 }
 
 /**
- * Get images for a specific page from a full list.
- */
-export function getPageImages(
-  allImages: PreloadableImage[],
-  page: number,
-  itemsPerPage: number
-): PreloadableImage[] {
-  const start = page * itemsPerPage;
-  return allImages.slice(start, start + itemsPerPage);
-}
-
-/**
  * Get the URL to preload for an image (thumbnail or full based on config)
  */
-function getImageUrl(
-  img: PreloadableImage,
-  thumbnailOnly: boolean
-): string | null {
-  const rawUrl = thumbnailOnly
-    ? (img.thumbUrl || img.url)
-    : img.url;
+function getImageUrl(img: PreloadableImage, thumbnailOnly: boolean): string | null {
+  const rawUrl = thumbnailOnly ? img.thumbUrl || img.url : img.url;
 
   if (!rawUrl) {
     return null;

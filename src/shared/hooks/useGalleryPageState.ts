@@ -38,7 +38,7 @@ import { useAddImageToShot, useAddImageToShotWithoutPosition, usePositionExistin
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { SHOT_FILTER } from '@/shared/constants/filterConstants';
 import { useGalleryFilterState } from '@/shared/hooks/gallery/useGalleryFilterState';

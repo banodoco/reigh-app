@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import {
   useSensor,
   useSensors,

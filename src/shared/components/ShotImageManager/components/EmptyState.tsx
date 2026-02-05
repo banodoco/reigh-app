@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Image, Upload } from 'lucide-react';
 import { ImageUploadActions } from '@/shared/components/ImageUploadActions';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 
 interface EmptyStateProps {

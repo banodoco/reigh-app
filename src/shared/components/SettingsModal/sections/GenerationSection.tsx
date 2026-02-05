@@ -403,13 +403,13 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                       <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 mb-3 h-9 p-1">
                         <TabsTrigger
                           value="need-install"
-                          className="data-[state=active]:bg-card data-[state=active]:dark:bg-gray-700 data-[state=active]:shadow-sm data-[state=active]:text-foreground text-sm py-0 h-full leading-none"
+                          className="data-[active]:bg-card data-[active]:dark:bg-gray-700 data-[active]:shadow-sm data-[active]:text-foreground text-sm py-0 h-full leading-none"
                         >
                           Install
                         </TabsTrigger>
                         <TabsTrigger
                           value="already-installed"
-                          className="data-[state=active]:bg-card data-[state=active]:dark:bg-gray-700 data-[state=active]:shadow-sm data-[state=active]:text-foreground text-sm py-0 h-full leading-none"
+                          className="data-[active]:bg-card data-[active]:dark:bg-gray-700 data-[active]:shadow-sm data-[active]:text-foreground text-sm py-0 h-full leading-none"
                         >
                           Run
                         </TabsTrigger>

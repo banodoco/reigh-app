@@ -109,15 +109,12 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
         return; // allow event to proceed
       }
 
-      // Ignore clicks on Radix UI portal elements (Select, Popover, Dialog, etc.)
+      // Ignore clicks on floating UI portal elements (Select, Popover, Dialog, etc.)
       // These are rendered outside the pane but should be considered "inside" for interaction purposes
       if (
-        targetEl.closest('[data-radix-select-content]') ||
-        targetEl.closest('[data-radix-select-viewport]') ||
-        targetEl.closest('[data-radix-popper-content-wrapper]') ||
-        targetEl.closest('[data-radix-popover-content]') ||
-        targetEl.closest('[data-radix-dialog-content]') ||
-        targetEl.closest('[role="listbox"]') // fallback for select dropdowns
+        targetEl.closest('[role="listbox"]') ||
+        targetEl.closest('[data-popup]') ||
+        targetEl.closest('[data-dialog-content]')
       ) {
         return; // allow event to proceed, don't close pane
       }

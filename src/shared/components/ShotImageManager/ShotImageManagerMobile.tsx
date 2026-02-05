@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { Button } from '@/shared/components/ui/button';
 import { ArrowDown, Trash2, Loader2, FolderPlus, ExternalLink } from 'lucide-react';
 import { handleError } from '@/shared/lib/errorHandler';

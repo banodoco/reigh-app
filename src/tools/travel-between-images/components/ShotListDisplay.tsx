@@ -25,7 +25,7 @@ import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useCurrentProject } from '@/shared/hooks/useCurrentProject';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { cn } from '@/shared/lib/utils';
 import { handleError } from '@/shared/lib/errorHandler';
 import { Plus, Upload, Loader2 } from 'lucide-react';

@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useContext } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { Shot } from '@/types/shots';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';

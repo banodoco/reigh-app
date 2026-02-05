@@ -316,9 +316,9 @@
     overflow-x: hidden;
   }
 
-  /* Fix Radix UI scroll lock interfering with Select scroll on mobile */
-  /* When Radix locks body scroll, it can prevent scrolling within Select dropdowns */
-  body[data-scroll-locked] [data-radix-select-viewport] {
+  /* Fix scroll lock interfering with Select scroll on mobile */
+  /* When body scroll is locked, it can prevent scrolling within Select dropdowns */
+  body[data-scroll-locked] [role="listbox"] {
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     touch-action: pan-y !important;
@@ -728,9 +728,8 @@
   }
   
   /* Elevated cards (popovers, modals, dropdowns) */
-  .dark [data-radix-popper-content-wrapper] > *,
-  .dark [data-radix-dialog-content],
-  .dark [data-radix-select-content] {
+  .dark [data-popup],
+  .dark [data-dialog-content] {
     box-shadow: 
       0 8px 30px -8px hsl(0 0% 0% / 0.5),
       inset 0 1px 0 hsl(45 30% 65% / 0.08),
@@ -2907,31 +2906,31 @@
 }
 
 /* Custom override for modal inputs */
-[data-radix-dialog-content] input,
-[data-radix-dialog-content] textarea,
-[data-radix-dialog-content] [data-radix-select-trigger] {
+[data-dialog-content] input,
+[data-dialog-content] textarea,
+[data-dialog-content] [data-select-trigger] {
   --input: #faf9f7;
   --ring: hsl(var(--ring));
   border-color: #f5f3f0;
 }
 
-.dark [data-radix-dialog-content] input,
-.dark [data-radix-dialog-content] textarea,
-.dark [data-radix-dialog-content] [data-radix-select-trigger] {
+.dark [data-dialog-content] input,
+.dark [data-dialog-content] textarea,
+.dark [data-dialog-content] [data-select-trigger] {
   --input: #4a453f;
   --ring: hsl(var(--ring));
   border-color: #3d3831;
 }
 
 /* Special styling for main prompt text fields in PromptInputRow */
-[data-radix-dialog-content] textarea[id^="fullPrompt-"] {
+[data-dialog-content] textarea[id^="fullPrompt-"] {
   --input: #f0f8ff !important;
   --ring: var(--theme-cat-secondary) !important;
   border-color: #e6f3ff !important;
   background-color: #f0f8ff !important;
 }
 
-.dark [data-radix-dialog-content] textarea[id^="fullPrompt-"] {
+.dark [data-dialog-content] textarea[id^="fullPrompt-"] {
   --input: #2a3441 !important;
   --ring: var(--theme-cat-secondary) !important;
   border-color: #1e2834 !important;
@@ -3010,8 +3009,8 @@ body.lightbox-transitioning::before {
 }
 
 /* Also disable animations on the dialogs during transition for instant close/open */
-body.lightbox-transitioning [data-radix-dialog-overlay],
-body.lightbox-transitioning [data-radix-dialog-content] {
+body.lightbox-transitioning [data-dialog-backdrop],
+body.lightbox-transitioning [data-dialog-content] {
   animation: none !important;
   transition: none !important;
 }

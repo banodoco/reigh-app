@@ -2,56 +2,32 @@
  * PreloadingService - Unified coordinator for all image preloading
  *
  * This is the single source of truth for:
- * 1. Image load tracking (what's been preloaded)
- * 2. Preload queue management (network concurrency)
- * 3. Lifecycle coordination (project switch, deletions, connection changes)
+ * 1. Preload queue management (network concurrency)
+ * 2. Lifecycle coordination (project switch, deletions, connection changes)
  *
- * Components use hooks that delegate to this service, ensuring:
- * - No duplicate preloading across different components
- * - Proper cleanup on project switch
- * - Realtime deletion handling
- * - Observable state for debugging
+ * The tracker (tracker.ts) is the source of truth for what's been loaded.
+ * This service coordinates preloading and lifecycle events.
  */
 
-import {
-  PreloadQueue,
-  getPreloadConfig,
-  preloadImages,
-  PRIORITY_VALUES,
-  type PreloadConfig,
-  type PreloadableImage,
-} from '@/shared/lib/imagePreloading';
+import { PreloadQueue } from './queue';
+import { getPreloadConfig } from './config';
+import { preloadImages } from './preloader';
 import {
   clearAllLoadedImages,
   clearLoadedImages,
-  getLoadTrackerStats,
   hasLoadedImage,
   setImageLoadStatus,
-} from '@/shared/lib/imageLoadTracker';
+  getLoadTrackerStats,
+} from './tracker';
+import { PRIORITY } from './types';
+import type {
+  PreloadConfig,
+  PreloadableImage,
+  PreloadingServiceState,
+  PreloadingEvent,
+  PreloadingSubscriber,
+} from './types';
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-interface PreloadingServiceState {
-  currentProjectId: string | null;
-  isConnected: boolean;
-  isPaused: boolean;
-}
-
-type PreloadingEventType =
-  | 'project-changed'
-  | 'generations-deleted'
-  | 'connection-changed'
-  | 'queue-updated';
-
-interface PreloadingEvent {
-  type: PreloadingEventType;
-  data?: unknown;
-}
-
-type PreloadingSubscriber = (event: PreloadingEvent) => void;
 
 // =============================================================================
 // SERVICE
@@ -67,9 +43,6 @@ class PreloadingService {
   private queue: PreloadQueue;
   private config: PreloadConfig;
   private subscribers = new Set<PreloadingSubscriber>();
-
-  // Track loaded images by ID (for deletion cleanup)
-  private loadedImageIds = new Set<string>();
 
   // Singleton
   private static instance: PreloadingService | null = null;
@@ -134,21 +107,8 @@ class PreloadingService {
     // Clear queue
     this.queue.clear();
 
-    // Clear load tracker
+    // Clear load tracker (single source of truth for what's loaded)
     const clearedCount = clearAllLoadedImages('project switch');
-
-    // Clear our internal tracking
-    this.loadedImageIds.clear();
-
-    // Clear legacy video gallery cache if it exists
-    if (typeof window !== 'undefined' && window.videoGalleryPreloaderCache) {
-      const cache = window.videoGalleryPreloaderCache;
-      cache.preloadedUrlSetByProject = {};
-      cache.preloadedPagesByShot = {};
-      cache.hasStartedPreloadForProject = {};
-      cache.preloadedImageRefs.clear();
-      console.log('[PreloadingService] Cleared legacy video gallery cache');
-    }
 
     this.state.currentProjectId = projectId;
 
@@ -165,12 +125,7 @@ class PreloadingService {
   onGenerationsDeleted(generationIds: string[]): void {
     if (generationIds.length === 0) return;
 
-    // Remove from our tracking
-    generationIds.forEach((id) => {
-      this.loadedImageIds.delete(id);
-    });
-
-    // Remove from load tracker
+    // Remove from load tracker (the source of truth)
     const clearedCount = clearLoadedImages(
       generationIds.map((id) => ({ id }))
     );
@@ -239,18 +194,11 @@ class PreloadingService {
    */
   async preloadImages(
     images: PreloadableImage[],
-    priority: number = PRIORITY_VALUES.normal
+    priority: number = PRIORITY.normal
   ): Promise<void> {
     if (this.state.isPaused || !this.state.isConnected) {
       return;
     }
-
-    // Track which images we're loading
-    images.forEach((img) => {
-      if (img.id) {
-        this.loadedImageIds.add(img.id);
-      }
-    });
 
     await preloadImages(images, this.queue, this.config, priority);
 
@@ -259,19 +207,21 @@ class PreloadingService {
 
   /**
    * Check if an image has been loaded.
+   * Delegates to the tracker (single source of truth).
    */
   isImageLoaded(image: PreloadableImage): boolean {
-    return hasLoadedImage(image);
+    if (!image.id) return false;
+    return hasLoadedImage(image as { id: string });
   }
 
   /**
    * Mark an image as loaded (for images loaded by components, not preloader).
+   * Delegates to the tracker.
    */
   markImageLoaded(image: PreloadableImage): void {
     if (image.id) {
-      this.loadedImageIds.add(image.id);
+      setImageLoadStatus(image as { id: string }, true);
     }
-    setImageLoadStatus(image, true);
   }
 
   /**
@@ -338,8 +288,6 @@ class PreloadingService {
     state: PreloadingServiceState;
     queue: { size: number; active: number };
     tracker: ReturnType<typeof getLoadTrackerStats>;
-    loadedImageIds: number;
-    legacyVideoCache: number | null;
   } {
     return {
       state: { ...this.state },
@@ -348,15 +296,6 @@ class PreloadingService {
         active: this.queue.activeCount,
       },
       tracker: getLoadTrackerStats(),
-      loadedImageIds: this.loadedImageIds.size,
-      legacyVideoCache:
-        this.state.currentProjectId &&
-        typeof window !== 'undefined' &&
-        window.videoGalleryPreloaderCache
-          ? window.videoGalleryPreloaderCache.preloadedUrlSetByProject[
-              this.state.currentProjectId
-            ]?.size || 0
-          : null,
     };
   }
 }
@@ -371,37 +310,4 @@ export const preloadingService = PreloadingService.getInstance();
 if (typeof window !== 'undefined') {
   (window as unknown as { __PRELOADING_SERVICE__: PreloadingService }).__PRELOADING_SERVICE__ =
     preloadingService;
-}
-
-// =============================================================================
-// REACT HOOK
-// =============================================================================
-
-import { useEffect, useCallback, useSyncExternalStore } from 'react';
-
-/**
- * Hook to access the PreloadingService in React components.
- */
-export function usePreloadingService() {
-  // Subscribe to service updates
-  const subscribe = useCallback((callback: () => void) => {
-    return preloadingService.subscribe(() => callback());
-  }, []);
-
-  const getSnapshot = useCallback(() => {
-    return preloadingService.getDiagnostics();
-  }, []);
-
-  const diagnostics = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-
-  return {
-    service: preloadingService,
-    diagnostics,
-    preloadImages: preloadingService.preloadImages.bind(preloadingService),
-    isImageLoaded: preloadingService.isImageLoaded.bind(preloadingService),
-    markImageLoaded: preloadingService.markImageLoaded.bind(preloadingService),
-    clearQueue: preloadingService.clearQueue.bind(preloadingService),
-    pause: preloadingService.pause.bind(preloadingService),
-    resume: preloadingService.resume.bind(preloadingService),
-  };
 }

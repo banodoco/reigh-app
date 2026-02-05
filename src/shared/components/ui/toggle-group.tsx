@@ -1,5 +1,6 @@
 import * as React from "react"
-import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"
+import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui-components/react/toggle-group"
+import { Toggle as TogglePrimitive } from "@base-ui-components/react/toggle"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/shared/lib/utils"
@@ -29,10 +30,10 @@ const toggleGroupItemVariants = cva(
   {
     variants: {
       variant: {
-        default: "rounded-md bg-transparent hover:bg-muted hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",
-        retro: "bg-transparent text-[#5a7a7a] dark:text-[#c8c4bb] font-heading tracking-wide hover:bg-[#d8d4cb] dark:hover:bg-[#4a5a5a] data-[state=on]:bg-[#5a7a7a] data-[state=on]:dark:bg-[#6a8a8a] data-[state=on]:text-[#f5f3ed] data-[state=on]:dark:text-[#2d3d3d] data-[state=on]:shadow-sm",
-        "retro-dark": "bg-transparent text-[#c8c4bb] font-heading tracking-wide hover:bg-[#4a5a5a] data-[state=on]:bg-[#6a8a8a] data-[state=on]:text-[#2d3d3d] data-[state=on]:shadow-sm",
-        zinc: "bg-transparent text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 data-[state=on]:bg-zinc-600 data-[state=on]:text-zinc-100",
+        default: "rounded-md bg-transparent hover:bg-muted hover:text-muted-foreground data-[pressed]:bg-accent data-[pressed]:text-accent-foreground",
+        retro: "bg-transparent text-[#5a7a7a] dark:text-[#c8c4bb] font-heading tracking-wide hover:bg-[#d8d4cb] dark:hover:bg-[#4a5a5a] data-[pressed]:bg-[#5a7a7a] data-[pressed]:dark:bg-[#6a8a8a] data-[pressed]:text-[#f5f3ed] data-[pressed]:dark:text-[#2d3d3d] data-[pressed]:shadow-sm",
+        "retro-dark": "bg-transparent text-[#c8c4bb] font-heading tracking-wide hover:bg-[#4a5a5a] data-[pressed]:bg-[#6a8a8a] data-[pressed]:text-[#2d3d3d] data-[pressed]:shadow-sm",
+        zinc: "bg-transparent text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 data-[pressed]:bg-zinc-600 data-[pressed]:text-zinc-100",
       },
       size: {
         default: "h-10 px-3",
@@ -58,42 +59,70 @@ const ToggleGroupContext = React.createContext<ToggleGroupContextValue>({
 })
 
 export interface ToggleGroupProps
-  extends React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root>,
+  extends Omit<React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive>, 'value' | 'defaultValue' | 'onValueChange'>,
     VariantProps<typeof toggleGroupVariants> {
   size?: VariantProps<typeof toggleVariants>["size"]
+  type?: "single" | "multiple"
+  value?: string | string[]
+  defaultValue?: string | string[]
+  onValueChange?: (value: string | string[]) => void
 }
 
 const ToggleGroup = React.forwardRef<
-  React.ElementRef<typeof ToggleGroupPrimitive.Root>,
+  HTMLDivElement,
   ToggleGroupProps
->(({ className, variant, size, children, ...props }, ref) => (
-  <ToggleGroupPrimitive.Root
-    ref={ref}
-    className={cn(toggleGroupVariants({ variant }), className)}
-    {...props}
-  >
-    <ToggleGroupContext.Provider value={{ variant: variant as VariantProps<typeof toggleVariants>["variant"], size, groupVariant: variant }}>
-      {children}
-    </ToggleGroupContext.Provider>
-  </ToggleGroupPrimitive.Root>
-))
+>(({ className, variant, size, children, type = "single", value, defaultValue, onValueChange, ...props }, ref) => {
+  // Adapt Radix-style single/multiple API to Base UI's array-based API
+  const multiple = type === "multiple"
+  const baseValue = value !== undefined
+    ? (Array.isArray(value) ? value : value ? [value] : [])
+    : undefined
+  const baseDefaultValue = defaultValue !== undefined
+    ? (Array.isArray(defaultValue) ? defaultValue : defaultValue ? [defaultValue] : [])
+    : undefined
 
-ToggleGroup.displayName = ToggleGroupPrimitive.Root.displayName
+  const handleValueChange = React.useCallback((newValue: any[]) => {
+    if (!onValueChange) return
+    if (multiple) {
+      onValueChange(newValue as string[])
+    } else {
+      onValueChange(newValue[0] ?? "")
+    }
+  }, [onValueChange, multiple])
+
+  return (
+    <ToggleGroupPrimitive
+      ref={ref}
+      className={cn(toggleGroupVariants({ variant }), className)}
+      multiple={multiple}
+      value={baseValue}
+      defaultValue={baseDefaultValue}
+      onValueChange={handleValueChange}
+      {...props}
+    >
+      <ToggleGroupContext.Provider value={{ variant: variant as VariantProps<typeof toggleVariants>["variant"], size, groupVariant: variant }}>
+        {children}
+      </ToggleGroupContext.Provider>
+    </ToggleGroupPrimitive>
+  )
+})
+
+ToggleGroup.displayName = "ToggleGroup"
 
 const ToggleGroupItem = React.forwardRef<
-  React.ElementRef<typeof ToggleGroupPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item> &
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<typeof TogglePrimitive> &
     VariantProps<typeof toggleVariants>
 >(({ className, children, variant, size, ...props }, ref) => {
   const context = React.useContext(ToggleGroupContext)
   const groupVariant = context.groupVariant
-  
+
   // Use group item variants when inside a styled group, otherwise use regular toggle variants
   const isStyledGroup = groupVariant === "retro" || groupVariant === "retro-dark" || groupVariant === "zinc"
-  
+
   if (isStyledGroup) {
     return (
-      <ToggleGroupPrimitive.Item
+      <TogglePrimitive
         ref={ref}
         className={cn(
           toggleGroupItemVariants({
@@ -105,12 +134,12 @@ const ToggleGroupItem = React.forwardRef<
         {...props}
       >
         {children}
-      </ToggleGroupPrimitive.Item>
+      </TogglePrimitive>
     )
   }
 
   return (
-    <ToggleGroupPrimitive.Item
+    <TogglePrimitive
       ref={ref}
       className={cn(
         toggleVariants({
@@ -122,10 +151,10 @@ const ToggleGroupItem = React.forwardRef<
       {...props}
     >
       {children}
-    </ToggleGroupPrimitive.Item>
+    </TogglePrimitive>
   )
 })
 
-ToggleGroupItem.displayName = ToggleGroupPrimitive.Item.displayName
+ToggleGroupItem.displayName = "ToggleGroupItem"
 
 export { ToggleGroup, ToggleGroupItem, toggleGroupVariants, toggleGroupItemVariants }

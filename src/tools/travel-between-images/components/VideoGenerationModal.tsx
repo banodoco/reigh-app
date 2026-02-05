@@ -9,7 +9,7 @@ import { Button } from '@/shared/components/ui/button';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { Shot } from '@/types/shots';
 import { ExternalLink } from 'lucide-react';
 import { getDisplayUrl } from '@/shared/lib/utils';

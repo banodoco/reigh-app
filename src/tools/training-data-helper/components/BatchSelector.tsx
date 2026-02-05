@@ -8,7 +8,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from '../hooks/useTrainingData';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { formatDistanceToNow, isValid } from 'date-fns';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
 import { handleError } from '@/shared/lib/errorHandler';

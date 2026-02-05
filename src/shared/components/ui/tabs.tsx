@@ -1,5 +1,5 @@
 import * as React from "react"
-import * as TabsPrimitive from "@radix-ui/react-tabs"
+import { Tabs as TabsPrimitive } from "@base-ui-components/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/shared/lib/utils"
 
@@ -28,10 +28,10 @@ const tabsTriggerVariants = cva(
   {
     variants: {
       variant: {
-        default: "rounded-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
-        retro: "rounded-sm font-heading tracking-wide data-[state=active]:bg-[#f5f3ed] data-[state=active]:dark:bg-[#4a5a5a] data-[state=active]:text-[#4a6a6a] data-[state=active]:dark:text-[#e8e4db] data-[state=active]:shadow-sm hover:text-[#5a7a7a] dark:hover:text-[#c8c4bb]",
-        "retro-dark": "rounded-sm font-heading tracking-wide data-[state=active]:bg-[#4a5a5a] data-[state=active]:text-[#e8e4db] data-[state=active]:shadow-sm hover:text-[#c8c4bb]",
-        zinc: "rounded-sm data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 data-[state=active]:shadow-sm hover:text-zinc-300",
+        default: "rounded-sm data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm",
+        retro: "rounded-sm font-heading tracking-wide data-[active]:bg-[#f5f3ed] data-[active]:dark:bg-[#4a5a5a] data-[active]:text-[#4a6a6a] data-[active]:dark:text-[#e8e4db] data-[active]:shadow-sm hover:text-[#5a7a7a] dark:hover:text-[#c8c4bb]",
+        "retro-dark": "rounded-sm font-heading tracking-wide data-[active]:bg-[#4a5a5a] data-[active]:text-[#e8e4db] data-[active]:shadow-sm hover:text-[#c8c4bb]",
+        zinc: "rounded-sm data-[active]:bg-zinc-700 data-[active]:text-zinc-100 data-[active]:shadow-sm hover:text-zinc-300",
       },
     },
     defaultVariants: {
@@ -51,7 +51,7 @@ export interface TabsListProps
     VariantProps<typeof tabsListVariants> {}
 
 const TabsList = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.List>,
+  HTMLDivElement,
   TabsListProps
 >(({ className, variant, children, ...props }, ref) => (
   <TabsPrimitive.List
@@ -64,34 +64,34 @@ const TabsList = React.forwardRef<
     </TabsListContext.Provider>
   </TabsPrimitive.List>
 ))
-TabsList.displayName = TabsPrimitive.List.displayName
+TabsList.displayName = "TabsList"
 
 export interface TabsTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>,
+  extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Tab>,
     VariantProps<typeof tabsTriggerVariants> {}
 
 const TabsTrigger = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Trigger>,
+  HTMLButtonElement,
   TabsTriggerProps
 >(({ className, variant: itemVariant, ...props }, ref) => {
   const context = React.useContext(TabsListContext)
   const variant = itemVariant ?? context.variant ?? "default"
-  
+
   return (
-    <TabsPrimitive.Trigger
+    <TabsPrimitive.Tab
       ref={ref}
       className={cn(tabsTriggerVariants({ variant }), className)}
       {...props}
     />
   )
 })
-TabsTrigger.displayName = TabsPrimitive.Trigger.displayName
+TabsTrigger.displayName = "TabsTrigger"
 
 const TabsContent = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Panel>
 >(({ className, ...props }, ref) => (
-  <TabsPrimitive.Content
+  <TabsPrimitive.Panel
     ref={ref}
     className={cn(
       "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
@@ -100,6 +100,6 @@ const TabsContent = React.forwardRef<
     {...props}
   />
 ))
-TabsContent.displayName = TabsPrimitive.Content.displayName
+TabsContent.displayName = "TabsContent"
 
 export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants, tabsTriggerVariants }

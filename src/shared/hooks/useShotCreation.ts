@@ -28,7 +28,7 @@ import {
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { inheritSettingsForNewShot } from '@/shared/lib/shotSettingsInheritance';
 import { GenerationRow, Shot } from '@/types/shots';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 

@@ -4,7 +4,7 @@ import { useUpdateShotName, useDeleteShot, useDuplicateShot } from '../../../sha
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
 import { Pencil, Trash2, Check, X, Copy, GripVertical, Loader2, Video, ChevronDown, ChevronUp } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { getDisplayUrl, cn } from '@/shared/lib/utils';
 import { handleError } from '@/shared/lib/errorHandler';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';

@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { nanoid } from 'nanoid';
 import { supabase } from '@/integrations/supabase/client';
 import { fileToDataURL, dataURLtoFile } from '@/shared/lib/utils';

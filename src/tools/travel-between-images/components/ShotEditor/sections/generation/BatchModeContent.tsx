@@ -291,7 +291,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
                     <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors group">
                       <Settings className="w-4 h-4" />
                       <span>Settings</span>
-                      <ChevronDown className="w-3 h-3 transition-transform group-data-[state=open]:rotate-180" />
+                      <ChevronDown className="w-3 h-3 transition-transform group-data-[panel-open]:rotate-180" />
                     </CollapsibleTrigger>
                   </div>
                   <CollapsibleContent className="mt-4 pt-4 border-t">

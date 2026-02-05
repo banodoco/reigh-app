@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { hasLoadedImage } from '@/shared/lib/imageLoadTracker';
+import { hasLoadedImage } from '@/shared/lib/preloading';
 import { getUnifiedBatchConfig, getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
 
 interface ImageWithId {

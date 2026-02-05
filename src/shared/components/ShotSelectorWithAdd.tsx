@@ -174,7 +174,7 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
           "h-7 px-2 py-1 rounded-md bg-black/50 hover:bg-black/70 text-white text-xs min-w-[70px] max-w-[90px] truncate focus:ring-0 focus:ring-offset-0",
           selectorClassName
         )}
-        contentClassName="w-[var(--radix-select-trigger-width)]"
+        contentClassName="w-[var(--anchor-width)]"
         showAddShot={showCreateShot}
         onCreateShot={handleQuickCreateAndAdd}
         isCreatingShot={isCreatingShot}

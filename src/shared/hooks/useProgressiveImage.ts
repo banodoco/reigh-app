@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { hasLoadedImage, markImageLoaded } from '@/shared/lib/imageLoadTracker';
+import { hasLoadedImage, markImageLoaded } from '@/shared/lib/preloading';
 
 type ImagePhase = 'idle' | 'thumb' | 'loadingFull' | 'full' | 'error';
 

@@ -1,30 +1,36 @@
 import * as React from "react"
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
+import { ScrollArea as ScrollAreaPrimitive } from "@base-ui-components/react/scroll-area"
 import { cn } from "@/shared/lib/utils"
 
 const ScrollArea = React.forwardRef<
-  React.ElementRef<typeof ScrollAreaPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
+    className?: string
+  }
 >(({ className, children, ...props }, ref) => (
   <ScrollAreaPrimitive.Root
     ref={ref}
     className={cn("relative overflow-hidden", className)}
     {...props}
   >
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
-      {children}
+    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]" data-scroll-area-viewport>
+      <ScrollAreaPrimitive.Content>
+        {children}
+      </ScrollAreaPrimitive.Content>
     </ScrollAreaPrimitive.Viewport>
     <ScrollBar />
     <ScrollAreaPrimitive.Corner />
   </ScrollAreaPrimitive.Root>
 ))
-ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
+ScrollArea.displayName = "ScrollArea"
 
 const ScrollBar = React.forwardRef<
-  React.ElementRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>,
-  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Scrollbar> & {
+    orientation?: "vertical" | "horizontal"
+  }
 >(({ className, orientation = "vertical", ...props }, ref) => (
-  <ScrollAreaPrimitive.ScrollAreaScrollbar
+  <ScrollAreaPrimitive.Scrollbar
     ref={ref}
     orientation={orientation}
     className={cn(
@@ -37,9 +43,9 @@ const ScrollBar = React.forwardRef<
     )}
     {...props}
   >
-    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
-  </ScrollAreaPrimitive.ScrollAreaScrollbar>
+    <ScrollAreaPrimitive.Thumb className="relative flex-1 rounded-full bg-border" />
+  </ScrollAreaPrimitive.Scrollbar>
 ))
-ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
+ScrollBar.displayName = "ScrollBar"
 
 export { ScrollArea, ScrollBar }

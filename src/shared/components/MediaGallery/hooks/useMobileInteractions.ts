@@ -96,7 +96,7 @@ export const useMobileInteractions = ({
     const handleClickOutside = (event: MouseEvent) => {
       // Close if clicking outside any popover content
       const target = event.target as Element;
-      if (!target.closest('[data-radix-popover-content]')) {
+      if (!target.closest('[data-popup]')) {
         setMobilePopoverOpenImageId(null);
       }
     };

@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { handleError } from '@/shared/lib/errorHandler';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';

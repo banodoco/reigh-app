@@ -1,5 +1,5 @@
 import * as React from "react"
-import * as SelectPrimitive from "@radix-ui/react-select"
+import { Select as SelectPrimitive } from "@base-ui-components/react/select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/shared/lib/utils"
@@ -8,7 +8,19 @@ const Select = SelectPrimitive.Root
 
 const SelectGroup = SelectPrimitive.Group
 
-const SelectValue = SelectPrimitive.Value
+// Wrapper around Base UI's SelectValue to support the Radix-style `placeholder` prop.
+// Base UI uses a render function children pattern instead of a dedicated placeholder prop.
+const SelectValue = React.forwardRef<
+  HTMLSpanElement,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value> & {
+    placeholder?: string
+  }
+>(({ placeholder, children, ...props }, ref) => (
+  <SelectPrimitive.Value ref={ref} {...props}>
+    {children ?? ((value: any) => value ?? placeholder ?? "")}
+  </SelectPrimitive.Value>
+))
+SelectValue.displayName = "SelectValue"
 
 const selectTriggerVariants = cva(
   "flex w-full items-center justify-between rounded-md px-3 py-2 text-base lg:text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 relative preserve-case",
@@ -50,39 +62,41 @@ const selectTriggerVariants = cva(
 )
 
 export interface SelectTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
+  extends Omit<React.ComponentPropsWithoutRef<"button">, "className">,
     VariantProps<typeof selectTriggerVariants> {
   hideIcon?: boolean;
+  className?: string;
 }
 
 const SelectTrigger = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Trigger>,
+  HTMLButtonElement,
   SelectTriggerProps
 >(({ className, children, variant, size, colorScheme, hideIcon, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
+    data-select-trigger
     className={cn(selectTriggerVariants({ variant, size, colorScheme, className }))}
     {...props}
   >
     {children}
     {!hideIcon && !(variant === "retro" || variant === "retro-dark") && (
-      <SelectPrimitive.Icon asChild>
-        <ChevronDown 
+      <SelectPrimitive.Icon>
+        <ChevronDown
           className={cn(
             "h-4 w-4 opacity-50"
-          )} 
+          )}
         />
       </SelectPrimitive.Icon>
     )}
   </SelectPrimitive.Trigger>
 ))
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
+SelectTrigger.displayName = "SelectTrigger"
 
 const SelectScrollUpButton = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpArrow>
 >(({ className, ...props }, ref) => (
-  <SelectPrimitive.ScrollUpButton
+  <SelectPrimitive.ScrollUpArrow
     ref={ref}
     className={cn(
       "flex cursor-default items-center justify-center py-2",
@@ -91,19 +105,19 @@ const SelectScrollUpButton = React.forwardRef<
     // Custom attribute for detection in global click handlers
     data-select-scroll-button="up"
     // Only stop click propagation, not pointer/touch events
-    onClick={(e) => e.stopPropagation()}
+    onClick={(e: React.MouseEvent) => e.stopPropagation()}
     {...props}
   >
     <ChevronUp className="h-4 w-4" />
-  </SelectPrimitive.ScrollUpButton>
+  </SelectPrimitive.ScrollUpArrow>
 ))
-SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName
+SelectScrollUpButton.displayName = "SelectScrollUpButton"
 
 const SelectScrollDownButton = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownArrow>
 >(({ className, ...props }, ref) => (
-  <SelectPrimitive.ScrollDownButton
+  <SelectPrimitive.ScrollDownArrow
     ref={ref}
     className={cn(
       "flex cursor-default items-center justify-center py-2",
@@ -112,17 +126,16 @@ const SelectScrollDownButton = React.forwardRef<
     // Custom attribute for detection in global click handlers
     data-select-scroll-button="down"
     // Only stop click propagation, not pointer/touch events
-    onClick={(e) => e.stopPropagation()}
+    onClick={(e: React.MouseEvent) => e.stopPropagation()}
     {...props}
   >
     <ChevronDown className="h-4 w-4" />
-  </SelectPrimitive.ScrollDownButton>
+  </SelectPrimitive.ScrollDownArrow>
 ))
-SelectScrollDownButton.displayName =
-  SelectPrimitive.ScrollDownButton.displayName
+SelectScrollDownButton.displayName = "SelectScrollDownButton"
 
 const selectContentVariants = cva(
-  "relative z-[100004] max-h-96 min-w-[8rem] overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+  "relative max-h-96 min-w-[8rem] overflow-hidden data-[open]:animate-in data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[open]:fade-in-0 data-[ending-style]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
   {
     variants: {
       variant: {
@@ -140,84 +153,97 @@ const selectContentVariants = cva(
 )
 
 export interface SelectContentProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>,
+  extends Omit<React.ComponentPropsWithoutRef<"div">, "className">,
     VariantProps<typeof selectContentVariants> {
   header?: React.ReactNode;
   container?: HTMLElement | null;
   onCloseAutoFocus?: (event: Event) => void;
+  position?: "popper" | "item-aligned";
+  side?: "top" | "bottom" | "left" | "right";
+  sideOffset?: number;
+  align?: "start" | "center" | "end";
+  className?: string;
 }
 
 const SelectContent = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Content>,
+  HTMLDivElement,
   SelectContentProps
->(({ className, children, position = "popper", header, container, onPointerDownOutside, variant, ...props }, ref) => {
+>(({ className, children, position = "popper", header, container, variant, side = "bottom", sideOffset = 0, align, ...props }, ref) => {
   const isCompact = variant === "retro" || variant === "retro-dark" || variant === "zinc";
-  
+  const isPopper = position === "popper";
+
   return (
   <SelectPrimitive.Portal container={container ?? undefined}>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        selectContentVariants({ variant }),
-        position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-        className
-      )}
-      position={position}
-      onPointerDownOutside={onPointerDownOutside}
-      // NOTE: Don't stop propagation on pointerdown - it interferes with touch scroll gestures on mobile
-      onClick={(e) => e.stopPropagation()}
-      {...props}
+    <SelectPrimitive.Positioner
+      side={side}
+      sideOffset={sideOffset}
+      align={align}
+      // When position="popper", disable the native-select-style item alignment
+      alignItemWithTrigger={!isPopper}
+      className="z-[100004]"
     >
-      {header}
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
+      <SelectPrimitive.Popup
+        ref={ref}
         className={cn(
-          isCompact ? "py-1" : "p-1",
-          position === "popper" &&
-            "h-full w-full min-w-[var(--radix-select-trigger-width)] max-h-[var(--radix-select-content-available-height)]",
-          // Enable touch scrolling on mobile - touch-action tells browser to handle scrolling natively
-          "overflow-y-auto overscroll-contain"
+          selectContentVariants({ variant }),
+          isPopper &&
+            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          className
         )}
-        style={{ 
-          WebkitOverflowScrolling: 'touch',
-          // Critical for mobile scroll: let browser handle vertical pan gestures
-          touchAction: 'pan-y',
-        }}
-        // Prevent viewport click from passing through, but allow scroll gestures
-        onClick={(e) => e.stopPropagation()}
+        // NOTE: Don't stop propagation on pointerdown - it interferes with touch scroll gestures on mobile
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        {...props}
       >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
-    </SelectPrimitive.Content>
+        {header}
+        <SelectScrollUpButton />
+        <SelectPrimitive.List
+          className={cn(
+            isCompact ? "py-1" : "p-1",
+            isPopper &&
+              "h-full w-full min-w-[var(--anchor-width)] max-h-[var(--available-height)]",
+            // Enable touch scrolling on mobile - touch-action tells browser to handle scrolling natively
+            "overflow-y-auto overscroll-contain"
+          )}
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            // Critical for mobile scroll: let browser handle vertical pan gestures
+            touchAction: 'pan-y',
+          }}
+          // Prevent list click from passing through, but allow scroll gestures
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          {children}
+        </SelectPrimitive.List>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Popup>
+    </SelectPrimitive.Positioner>
   </SelectPrimitive.Portal>
   );
 })
-SelectContent.displayName = SelectPrimitive.Content.displayName
+SelectContent.displayName = "SelectContent"
 
 const SelectLabel = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Label>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.GroupLabel>
 >(({ className, ...props }, ref) => (
-  <SelectPrimitive.Label
+  <SelectPrimitive.GroupLabel
     ref={ref}
     className={cn("py-1.5 pl-8 pr-2 text-sm font-light", className)}
     {...props}
   />
 ))
-SelectLabel.displayName = SelectPrimitive.Label.displayName
+SelectLabel.displayName = "SelectLabel"
 
 const selectItemVariants = cva(
   "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 preserve-case",
   {
     variants: {
       variant: {
-        default: "pl-8 pr-2 focus:bg-accent focus:text-accent-foreground data-[state=checked]:bg-accent/50 data-[state=checked]:font-medium",
-        retro: "px-2 focus:bg-[#e8e4db] dark:focus:bg-[#3d4d4d] focus:text-[#4a6a6a] dark:focus:text-[#e8e4db] font-heading font-light data-[state=checked]:bg-[#d8d4cb] dark:data-[state=checked]:bg-[#4a5a5a] data-[state=checked]:font-normal",
-        "retro-dark": "px-2 focus:bg-[#4a5a5a] focus:text-[#e8e4db] font-heading font-light text-[#d8d4cb] data-[state=checked]:bg-[#5a6a6a] data-[state=checked]:font-normal",
+        default: "pl-8 pr-2 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[selected]:bg-accent/50 data-[selected]:font-medium",
+        retro: "px-2 data-[highlighted]:bg-[#e8e4db] dark:data-[highlighted]:bg-[#3d4d4d] data-[highlighted]:text-[#4a6a6a] dark:data-[highlighted]:text-[#e8e4db] font-heading font-light data-[selected]:bg-[#d8d4cb] dark:data-[selected]:bg-[#4a5a5a] data-[selected]:font-normal",
+        "retro-dark": "px-2 data-[highlighted]:bg-[#4a5a5a] data-[highlighted]:text-[#e8e4db] font-heading font-light text-[#d8d4cb] data-[selected]:bg-[#5a6a6a] data-[selected]:font-normal",
         // Zinc variant for dark panes
-        zinc: "px-2 text-zinc-300 focus:bg-zinc-700 focus:text-zinc-100 data-[state=checked]:bg-zinc-600 data-[state=checked]:text-zinc-100",
+        zinc: "px-2 text-zinc-300 data-[highlighted]:bg-zinc-700 data-[highlighted]:text-zinc-100 data-[selected]:bg-zinc-600 data-[selected]:text-zinc-100",
       },
     },
     defaultVariants: {
@@ -227,28 +253,35 @@ const selectItemVariants = cva(
 )
 
 export interface SelectItemProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>,
+  extends Omit<React.ComponentPropsWithoutRef<"div">, "className" | "value">,
     VariantProps<typeof selectItemVariants> {
   onTouchStart?: React.TouchEventHandler;
   onTouchEnd?: React.TouchEventHandler;
+  value: any;
+  disabled?: boolean;
+  className?: string;
+  label?: string;
 }
 
 const SelectItem = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Item>,
+  HTMLDivElement,
   SelectItemProps
->(({ className, children, onPointerDown, onClick, onTouchStart, onTouchEnd, variant, ...props }, ref) => {
+>(({ className, children, onPointerDown, onClick, onTouchStart, onTouchEnd, variant, value, disabled, label, ...props }, ref) => {
   const isCompact = variant === "retro" || variant === "retro-dark" || variant === "zinc";
-  
+
   return (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(selectItemVariants({ variant, className }))}
+    value={value}
+    disabled={disabled}
+    label={label}
     // NOTE: Don't stop propagation on pointerDown/touchStart - it breaks scroll gestures on mobile
     // Only stop propagation on click (final selection) to prevent it bubbling to elements behind
     onPointerDown={onPointerDown}
-    onClick={(e) => {
+    onClick={(e: React.MouseEvent) => {
       e.stopPropagation();
-      onClick?.(e);
+      onClick?.(e as any);
     }}
     onTouchStart={onTouchStart}
     onTouchEnd={onTouchEnd}
@@ -267,19 +300,19 @@ const SelectItem = React.forwardRef<
   </SelectPrimitive.Item>
   );
 })
-SelectItem.displayName = SelectPrimitive.Item.displayName
+SelectItem.displayName = "SelectItem"
 
 const SelectSeparator = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Separator>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<"div">
 >(({ className, ...props }, ref) => (
-  <SelectPrimitive.Separator
+  <div
     ref={ref}
     className={cn("-mx-1 my-1 h-px bg-muted", className)}
     {...props}
   />
 ))
-SelectSeparator.displayName = SelectPrimitive.Separator.displayName
+SelectSeparator.displayName = "SelectSeparator"
 
 export {
   Select,

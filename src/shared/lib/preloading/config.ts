@@ -5,7 +5,7 @@
  * No side effects, no state - just returns a config object.
  */
 
-import { PreloadConfig } from './types';
+import type { PreloadConfig } from './types';
 
 /**
  * Detect device capabilities and return appropriate preload configuration.
@@ -15,16 +15,19 @@ export function getPreloadConfig(): PreloadConfig {
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
   // Check connection speed (if available)
-  const connection = typeof navigator !== 'undefined' && 'connection' in navigator
-    ? (navigator as any).connection
-    : null;
-  const hasSlowConnection = connection &&
-    ['2g', 'slow-2g'].includes(connection.effectiveType);
+  const connection =
+    typeof navigator !== 'undefined' && 'connection' in navigator
+      ? (navigator as { connection?: { effectiveType?: string } }).connection
+      : null;
+  const hasSlowConnection =
+    connection && ['2g', 'slow-2g'].includes(connection.effectiveType || '');
 
   // Check memory (if available)
-  const hasLowMemory = typeof navigator !== 'undefined' &&
+  const hasLowMemory =
+    typeof navigator !== 'undefined' &&
     'deviceMemory' in navigator &&
-    (navigator as any).deviceMemory <= 4;
+    (navigator as { deviceMemory?: number }).deviceMemory !== undefined &&
+    ((navigator as { deviceMemory: number }).deviceMemory <= 4);
 
   // Slow connection: minimal preloading
   if (hasSlowConnection) {
@@ -54,4 +57,3 @@ export function getPreloadConfig(): PreloadConfig {
     preloadThumbnailsOnly: false,
   };
 }
-

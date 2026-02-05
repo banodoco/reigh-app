@@ -42,7 +42,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { GenerationRow } from "@/types/shots";
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { handleError } from "@/shared/lib/errorHandler";
 import MediaLightbox from "@/shared/components/MediaLightbox";
 import { useIsMobile } from "@/shared/hooks/use-mobile";

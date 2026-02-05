@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter as ItemCardFooter, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { useCreateResource, useUpdateResource, Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { Pencil } from 'lucide-react';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';

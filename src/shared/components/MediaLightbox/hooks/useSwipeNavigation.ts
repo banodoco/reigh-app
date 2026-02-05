@@ -114,8 +114,8 @@ function isInteractiveElement(el: HTMLElement | null): boolean {
       return true;
     }
     
-    // Check for radix primitives that should block swipe
-    if (current.getAttribute('data-radix-scroll-area-viewport')) {
+    // Check for scroll area viewports that should block swipe
+    if (current.getAttribute('data-scroll-area-viewport')) {
       return true;
     }
     

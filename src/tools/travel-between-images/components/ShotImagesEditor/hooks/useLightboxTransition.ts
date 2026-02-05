@@ -84,7 +84,7 @@ export function useLightboxTransition(): UseLightboxTransitionReturn {
   useEffect(() => {
     if (!isLightboxTransitioning) {
       const timer = setTimeout(() => {
-        if (document.body.style.overflow === 'hidden' && !document.querySelector('[data-radix-dialog-overlay]')) {
+        if (document.body.style.overflow === 'hidden' && !document.querySelector('[data-dialog-backdrop]')) {
           document.body.style.overflow = '';
         }
       }, 100);

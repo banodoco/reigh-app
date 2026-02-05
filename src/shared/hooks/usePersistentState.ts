@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 
 const MAX_LOCAL_STORAGE_ITEM_LENGTH = 4 * 1024 * 1024; // 4MB

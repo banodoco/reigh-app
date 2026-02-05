@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { PromptEntry, PromptMode, ImageGenShotSettings } from '../types';
 import { SHOT_FILTER } from '@/shared/constants/filterConstants';
 

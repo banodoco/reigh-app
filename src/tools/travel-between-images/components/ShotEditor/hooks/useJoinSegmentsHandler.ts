@@ -6,7 +6,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';

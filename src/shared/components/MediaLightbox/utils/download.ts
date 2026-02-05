@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { isAbortError } from '@/shared/lib/errorUtils';
 import type { NavigatorWithDeviceInfo } from '@/types/browser-extensions';

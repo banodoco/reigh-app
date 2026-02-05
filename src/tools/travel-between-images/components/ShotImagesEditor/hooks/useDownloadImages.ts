@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { getDisplayUrl } from '@/shared/lib/utils';
 import type { GenerationRow } from '@/types/shots';

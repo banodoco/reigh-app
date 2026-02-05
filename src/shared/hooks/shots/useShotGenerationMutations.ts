@@ -6,7 +6,7 @@
 import { useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Shot, GenerationRow } from '@/types/shots';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { SHOT_FILTER } from '@/shared/constants/filterConstants';

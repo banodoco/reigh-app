@@ -273,7 +273,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
                     id="replaceImages"
                     checked={replaceImages}
                     onCheckedChange={(checked) => onReplaceImagesChange(checked as boolean)}
-                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    className="data-[checked]:bg-primary data-[checked]:border-primary"
                   />
                   <ImageIcon className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium whitespace-nowrap">

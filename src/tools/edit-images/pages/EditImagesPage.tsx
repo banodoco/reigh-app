@@ -5,7 +5,7 @@ import { LayoutGrid, Upload, ChevronDown, ChevronUp, ImageIcon } from 'lucide-re
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { GenerationRow } from '@/types/shots';
 import { ReighLoading } from '@/shared/components/ReighLoading';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { useAsyncOperation } from '@/shared/hooks/useAsyncOperation';
 import { supabase } from '@/integrations/supabase/client';
 import { InlineEditView } from '../components/InlineEditView';

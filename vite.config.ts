@@ -56,9 +56,9 @@ export default defineConfig(({ mode }: { mode: string }) => {
               if (id.includes('@tanstack/react-query') || id.includes('@tanstack/query-core')) {
                 return 'vendor-query';
               }
-              // Radix UI - large UI component library
-              if (id.includes('@radix-ui')) {
-                return 'vendor-radix';
+              // Base UI - headless UI component library
+              if (id.includes('@base-ui-components')) {
+                return 'vendor-base-ui';
               }
               // DnD Kit - drag and drop functionality
               if (id.includes('@dnd-kit')) {

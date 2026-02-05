@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import type { GenerationRow } from '@/types/shots';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';

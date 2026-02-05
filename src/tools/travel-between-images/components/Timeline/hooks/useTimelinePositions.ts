@@ -14,7 +14,7 @@
 
 import { useState, useCallback, useMemo, useRef, useTransition, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';

@@ -1,13 +1,13 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { Project } from '@/types/project'; // Added import
 import { usePrefetchToolSettings } from '@/shared/hooks/usePrefetchToolSettings';
 import { handleError } from '@/shared/lib/errorHandler';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { useAuth } from './AuthContext';
 import { useUserSettings } from './UserSettingsContext';
-import { preloadingService } from '@/shared/services/PreloadingService';
+import { preloadingService } from '@/shared/lib/preloading';
 
 // Type for updating projects
 interface ProjectUpdate {

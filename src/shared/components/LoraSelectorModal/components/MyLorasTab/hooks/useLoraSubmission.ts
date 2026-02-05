@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { UseMutationResult } from '@tanstack/react-query';
 import { handleError } from '@/shared/lib/errorHandler';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';

@@ -5,7 +5,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { useCredits } from '@/shared/hooks/useCredits';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 const PaymentSuccessPage: React.FC = () => {

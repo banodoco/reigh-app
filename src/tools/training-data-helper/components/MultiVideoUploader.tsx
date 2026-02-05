@@ -7,7 +7,7 @@ import { Label } from '@/shared/components/ui/label';
 import { Progress } from '@/shared/components/ui/progress';
 import { Video, Upload, Trash2, Clock, FileText, Scissors, Play, Zap } from 'lucide-react';
 import FileInput from '@/shared/components/FileInput';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { cropFilename } from '@/shared/lib/utils';
 import { generateUUID } from '@/shared/lib/taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';

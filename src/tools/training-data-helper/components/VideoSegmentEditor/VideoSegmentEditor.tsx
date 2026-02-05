@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui
 import { TrainingDataVideo, TrainingDataSegment } from '../../hooks/useTrainingData';
 import { useTrainingData } from '../../hooks/useTrainingData';
 import { Scissors } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { handleError } from '@/shared/lib/errorHandler';
 import { formatTime } from '@/shared/lib/utils';

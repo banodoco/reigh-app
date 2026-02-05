@@ -1,5 +1,5 @@
 import * as React from "react"
-import * as SwitchPrimitives from "@radix-ui/react-switch"
+import { Switch as SwitchPrimitive } from "@base-ui-components/react/switch"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
@@ -8,13 +8,13 @@ const switchVariants = cva(
   {
     variants: {
       variant: {
-        default: "rounded-full border-2 border-transparent data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-zinc-600",
+        default: "rounded-full border-2 border-transparent data-[checked]:bg-primary data-[unchecked]:bg-input dark:data-[unchecked]:bg-zinc-600",
         // Retro style - squared, blocky shadow
-        retro: "rounded-sm border-2 border-[#6a8a8a] dark:border-[#6a7a7a] data-[state=checked]:bg-[#5a7a7a] data-[state=checked]:dark:bg-[#6a8a8a] data-[state=unchecked]:bg-[#e8e4db] data-[state=unchecked]:dark:bg-[#3a4a4a] shadow-[-1px_1px_0_0_rgba(106,138,138,0.2)] dark:shadow-[-1px_1px_0_0_rgba(20,30,30,0.4)]",
+        retro: "rounded-sm border-2 border-[#6a8a8a] dark:border-[#6a7a7a] data-[checked]:bg-[#5a7a7a] data-[checked]:dark:bg-[#6a8a8a] data-[unchecked]:bg-[#e8e4db] data-[unchecked]:dark:bg-[#3a4a4a] shadow-[-1px_1px_0_0_rgba(106,138,138,0.2)] dark:shadow-[-1px_1px_0_0_rgba(20,30,30,0.4)]",
         // Retro dark - for always-dark contexts
-        "retro-dark": "rounded-sm border-2 border-[#6a7a7a] data-[state=checked]:bg-[#6a8a8a] data-[state=unchecked]:bg-[#3a4a4a] shadow-[-1px_1px_0_0_rgba(20,30,30,0.3)]",
+        "retro-dark": "rounded-sm border-2 border-[#6a7a7a] data-[checked]:bg-[#6a8a8a] data-[unchecked]:bg-[#3a4a4a] shadow-[-1px_1px_0_0_rgba(20,30,30,0.3)]",
         // Zinc - for dark panes
-        zinc: "rounded-sm border border-zinc-600 data-[state=checked]:bg-zinc-500 data-[state=unchecked]:bg-zinc-700",
+        zinc: "rounded-sm border border-zinc-600 data-[checked]:bg-zinc-500 data-[unchecked]:bg-zinc-700",
       },
       size: {
         default: "h-6 w-11",
@@ -40,9 +40,9 @@ const switchThumbVariants = cva(
         zinc: "rounded-sm bg-zinc-300",
       },
       size: {
-        default: "h-5 w-5 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0",
-        sm: "h-4 w-4 data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0",
-        lg: "h-6 w-6 data-[state=checked]:translate-x-7 data-[state=unchecked]:translate-x-0",
+        default: "h-5 w-5 data-[checked]:translate-x-5 data-[unchecked]:translate-x-0",
+        sm: "h-4 w-4 data-[checked]:translate-x-4 data-[unchecked]:translate-x-0",
+        lg: "h-6 w-6 data-[checked]:translate-x-7 data-[unchecked]:translate-x-0",
       },
     },
     defaultVariants: {
@@ -53,23 +53,26 @@ const switchThumbVariants = cva(
 )
 
 export interface SwitchProps
-  extends React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>,
-    VariantProps<typeof switchVariants> {}
+  extends Omit<React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>, 'onCheckedChange'>,
+    VariantProps<typeof switchVariants> {
+  onCheckedChange?: (checked: boolean) => void
+}
 
 const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitives.Root>,
+  HTMLSpanElement,
   SwitchProps
->(({ className, variant, size, ...props }, ref) => (
-  <SwitchPrimitives.Root
+>(({ className, variant, size, onCheckedChange, ...props }, ref) => (
+  <SwitchPrimitive.Root
     className={cn(switchVariants({ variant, size, className }))}
+    onCheckedChange={onCheckedChange ? (checked: boolean) => onCheckedChange(checked) : undefined}
     {...props}
     ref={ref}
   >
-    <SwitchPrimitives.Thumb
+    <SwitchPrimitive.Thumb
       className={cn(switchThumbVariants({ variant, size }))}
     />
-  </SwitchPrimitives.Root>
+  </SwitchPrimitive.Root>
 ))
-Switch.displayName = SwitchPrimitives.Root.displayName
+Switch.displayName = "Switch"
 
 export { Switch, switchVariants, switchThumbVariants }

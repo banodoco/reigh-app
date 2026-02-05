@@ -12,7 +12,7 @@ import ShotListDisplay from '@/tools/travel-between-images/components/ShotListDi
 import { ShotImageManagerContainer as ShotImageManager } from '@/shared/components/ShotImageManager';
 import { Button } from '@/shared/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';

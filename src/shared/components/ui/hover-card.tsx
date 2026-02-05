@@ -1,40 +1,48 @@
 import * as React from "react"
-import * as HoverCardPrimitive from "@radix-ui/react-hover-card"
+import { PreviewCard as PreviewCardPrimitive } from "@base-ui-components/react/preview-card"
 
 import { cn } from "@/shared/lib/utils"
 
-const HoverCard = HoverCardPrimitive.Root
+const HoverCard = PreviewCardPrimitive.Root
 
-const HoverCardTrigger = HoverCardPrimitive.Trigger
-
-const HoverCardPortal = HoverCardPrimitive.Portal
+const HoverCardTrigger = React.forwardRef<
+  HTMLAnchorElement,
+  React.ComponentPropsWithoutRef<typeof PreviewCardPrimitive.Trigger> & { asChild?: boolean }
+>(({ asChild, children, ...props }, ref) => {
+  if (asChild) {
+    return <PreviewCardPrimitive.Trigger ref={ref} render={React.Children.only(children) as React.ReactElement} {...props} />
+  }
+  return <PreviewCardPrimitive.Trigger ref={ref} {...props}>{children}</PreviewCardPrimitive.Trigger>
+})
+HoverCardTrigger.displayName = "HoverCardTrigger"
 
 const HoverCardContent = React.forwardRef<
-  React.ElementRef<typeof HoverCardPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.Content> & {
-    /** Use portal to render outside DOM hierarchy (avoids clipping) */
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof PreviewCardPrimitive.Popup> & {
+    align?: "start" | "center" | "end"
+    side?: "top" | "bottom" | "left" | "right"
+    sideOffset?: number
     usePortal?: boolean
   }
->(({ className, align = "center", sideOffset = 4, usePortal = false, ...props }, ref) => {
-  const content = (
-    <HoverCardPrimitive.Content
-      ref={ref}
+>(({ className, align = "center", sideOffset = 4, usePortal: _usePortal, side, ...props }, ref) => (
+  <PreviewCardPrimitive.Portal>
+    <PreviewCardPrimitive.Positioner
+      side={side}
       align={align}
       sideOffset={sideOffset}
-      className={cn(
-        "z-[100001] w-64 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        className
-      )}
-      {...props}
-    />
-  )
+      className="z-[100001]"
+    >
+      <PreviewCardPrimitive.Popup
+        ref={ref}
+        className={cn(
+          "w-64 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[open]:animate-in data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[open]:fade-in-0 data-[ending-style]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          className
+        )}
+        {...props}
+      />
+    </PreviewCardPrimitive.Positioner>
+  </PreviewCardPrimitive.Portal>
+))
+HoverCardContent.displayName = "HoverCardContent"
 
-  if (usePortal) {
-    return <HoverCardPortal>{content}</HoverCardPortal>
-  }
-
-  return content
-})
-HoverCardContent.displayName = HoverCardPrimitive.Content.displayName
-
-export { HoverCard, HoverCardTrigger, HoverCardContent, HoverCardPortal }
+export { HoverCard, HoverCardTrigger, HoverCardContent }

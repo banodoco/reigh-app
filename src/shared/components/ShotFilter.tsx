@@ -110,7 +110,7 @@ export const ShotFilter: React.FC<ShotFilterProps> = ({
             id={checkboxId}
             checked={excludePositioned}
             onCheckedChange={(checked) => onExcludePositionedChange(!!checked)}
-            className={darkSurface ? "border-zinc-600 data-[state=checked]:bg-zinc-600" : undefined}
+            className={darkSurface ? "border-zinc-600 data-[checked]:bg-zinc-600" : undefined}
           />
           <Label
             htmlFor={checkboxId}

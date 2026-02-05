@@ -10,7 +10,7 @@
 
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { handleError } from '@/shared/lib/errorHandler';
 import type { GenerationRow, Shot } from '@/types/shots';

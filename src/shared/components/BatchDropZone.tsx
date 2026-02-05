@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { ImagePlus, FileUp, Loader2 } from "lucide-react";
 import { getDragType, getGenerationDropData, type DragType } from "@/shared/lib/dragDrop";
 import { handleError } from '@/shared/lib/errorHandler';

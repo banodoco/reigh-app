@@ -1,28 +1,42 @@
 import { useTheme } from "next-themes"
-import { Toaster as Sonner, toast } from "sonner"
+import { Toast } from "@base-ui-components/react/toast"
+import { toastManager, ToastItem, toast } from "./toast"
+import { usePanes } from "@/shared/contexts/PanesContext"
 
-type ToasterProps = React.ComponentProps<typeof Sonner>
+interface ToasterProps {
+  /** Max toasts visible at once. @default 3 */
+  limit?: number
+  /** Default timeout in ms. @default 5000 */
+  timeout?: number
+}
 
-const Toaster = ({ ...props }: ToasterProps) => {
+function ToastList() {
+  const { toasts } = Toast.useToastManager()
+  const { isTasksPaneLocked, tasksPaneWidth } = usePanes()
+
+  const rightOffset = isTasksPaneLocked ? tasksPaneWidth : 0
+
+  return (
+    <Toast.Viewport
+      className="fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 md:max-w-[420px]"
+      style={rightOffset > 0 ? { right: `${rightOffset}px` } : undefined}
+    >
+      {toasts.map((t) => (
+        <ToastItem key={t.id} toast={t} />
+      ))}
+    </Toast.Viewport>
+  )
+}
+
+const Toaster = ({ limit = 3, timeout = 5000 }: ToasterProps = {}) => {
+  // next-themes integration (unused for now since we use Tailwind CSS vars,
+  // but kept for parity with original sonner.tsx and future theme needs)
   const { theme = "system" } = useTheme()
 
   return (
-    <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
-      toastOptions={{
-        classNames: {
-          toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-        },
-      }}
-      {...props}
-    />
+    <Toast.Provider toastManager={toastManager} timeout={timeout} limit={limit}>
+      <ToastList />
+    </Toast.Provider>
   )
 }
 

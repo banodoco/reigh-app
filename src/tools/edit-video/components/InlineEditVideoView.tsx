@@ -14,7 +14,7 @@ import { usePublicLoras } from '@/shared/hooks/useResources';
 import type { LoraModel } from '@/shared/hooks/useLoraManager';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { generateUUID, generateRunId, createTask } from '@/shared/lib/taskCreation';

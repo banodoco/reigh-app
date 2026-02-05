@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useTimelineCore } from './useTimelineCore';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { analyzeReorderOperation, validateReorderAnalysis } from '@/shared/utils/reorderUtils';
 import { handleError } from '@/shared/lib/errorHandler';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';

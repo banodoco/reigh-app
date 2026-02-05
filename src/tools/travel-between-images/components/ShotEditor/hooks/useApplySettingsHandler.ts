@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useRef, useEffect } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ApplySettingsService from '../services/applySettingsService';

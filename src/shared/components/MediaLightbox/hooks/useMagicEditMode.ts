@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GenerationRow } from '@/types/shots';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShotGenerationMetadata } from '@/shared/hooks/useShotGenerationMetadata';

@@ -7,7 +7,7 @@ import { MediaGallery, GeneratedImageWithMetadata, DisplayableMetadata, Metadata
 import { useContainerDimensions } from "@/shared/components/MediaGallery/hooks";
 import { getLayoutForAspectRatio } from "@/shared/components/MediaGallery/utils";
 import SettingsModal from "@/shared/components/SettingsModal";
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { Button } from "@/shared/components/ui/button";
@@ -1031,7 +1031,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
                     </div>
                   </Button>
                 </CollapsibleTrigger>
-              <CollapsibleContent className="data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 transition-all duration-700 ease-in-out overflow-hidden">
+              <CollapsibleContent className="data-[ending-style]:animate-out data-[ending-style]:fade-out-0 data-[open]:animate-in data-[open]:fade-in-0 transition-all duration-700 ease-in-out overflow-hidden">
                 <div ref={formContainerRef} className="p-6 border rounded-lg shadow-sm bg-card w-full max-w-full transition-all duration-700 ease-in-out">
                   <ImageGenerationForm
                     ref={imageGenerationFormRef}

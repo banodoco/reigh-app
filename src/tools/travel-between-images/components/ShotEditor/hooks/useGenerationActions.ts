@@ -1,6 +1,6 @@
 import { useCallback, useRef, useMemo } from 'react';
 import { nanoid } from "nanoid";
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { handleError } from "@/shared/lib/errorHandler";
 import { GenerationRow, Shot } from "@/types/shots";
 import { useProject } from "@/shared/contexts/ProjectContext";

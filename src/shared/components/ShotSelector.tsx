@@ -200,7 +200,7 @@ export const ShotSelector: React.FC<ShotSelectorProps> = ({
             contentClassName
           )}
           style={{
-            width: 'var(--radix-popover-trigger-width)',
+            width: 'var(--anchor-width)',
             minWidth: '160px',
             maxWidth: isMobile ? 'calc(100vw - 24px)' : undefined
           }}

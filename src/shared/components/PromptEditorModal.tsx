@@ -7,7 +7,7 @@ import { PromptGenerationControls, GenerationControlValues as PGC_GenerationCont
 import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControlValues as BEC_BulkEditControlValues } from './BulkEditControls';
 import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
 import { AIPromptItem, GeneratePromptsParams, EditPromptParams, AIModelType } from '@/types/ai';
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { handleError } from '@/shared/lib/errorHandler';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
@@ -646,21 +646,21 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger 
                       value="generate" 
-                      className="w-full hover:bg-accent/50 data-[state=active]:hover:bg-background"
+                      className="w-full hover:bg-accent/50 data-[active]:hover:bg-background"
                       title="Generate new prompts"
                     >
                       <Wand2Icon className="mr-2 h-4 w-4" />Generate
                     </TabsTrigger>
                     <TabsTrigger 
                       value="remix" 
-                      className="w-full hover:bg-accent/50 data-[state=active]:hover:bg-background"
+                      className="w-full hover:bg-accent/50 data-[active]:hover:bg-background"
                       title="Remix existing prompts"
                     >
                       <Shuffle className="mr-2 h-4 w-4" />Remix
                     </TabsTrigger>
                     <TabsTrigger 
                       value="bulk-edit" 
-                      className="w-full hover:bg-accent/50 data-[state=active]:hover:bg-background"
+                      className="w-full hover:bg-accent/50 data-[active]:hover:bg-background"
                       title="Edit existing prompts"
                     >
                       <Edit className="mr-2 h-4 w-4" />Edit

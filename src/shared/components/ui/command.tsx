@@ -1,5 +1,5 @@
 import * as React from "react"
-import { type DialogProps } from "@radix-ui/react-dialog"
+import { Dialog as DialogPrimitiveForProps } from "@base-ui-components/react/dialog"
 import { Command as CommandPrimitive } from "cmdk"
 import { Search } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -38,7 +38,7 @@ const Command = React.forwardRef<
 ))
 Command.displayName = CommandPrimitive.displayName
 
-interface CommandDialogProps extends DialogProps {}
+interface CommandDialogProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitiveForProps.Root> {}
 
 const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
   return (

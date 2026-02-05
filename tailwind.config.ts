@@ -165,12 +165,12 @@ export default {
 						height: '0'
 					},
 					to: {
-						height: 'var(--radix-accordion-content-height)'
+						height: 'var(--collapsible-panel-height)'
 					}
 				},
 				'accordion-up': {
 					from: {
-						height: 'var(--radix-accordion-content-height)'
+						height: 'var(--collapsible-panel-height)'
 					},
 					to: {
 						height: '0'

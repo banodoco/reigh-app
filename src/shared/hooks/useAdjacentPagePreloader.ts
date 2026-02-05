@@ -16,9 +16,11 @@ import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { fetchGenerations } from '@/shared/hooks/useProjectGenerations';
-import { PRIORITY_VALUES } from '@/shared/lib/imagePreloading';
-import { clearLoadedImages } from '@/shared/lib/imageLoadTracker';
-import { preloadingService } from '@/shared/services/PreloadingService';
+import {
+  preloadingService,
+  clearLoadedImages,
+  PRIORITY_VALUES,
+} from '@/shared/lib/preloading';
 
 export interface UseAdjacentPagePreloaderProps {
   /** Project ID to scope queries */
@@ -92,8 +94,7 @@ export function useAdjacentPagePreloader({
 }: UseAdjacentPagePreloaderProps): void {
   const queryClient = useQueryClient();
 
-  // Use shared service for queue and config
-  const queue = preloadingService.getQueue();
+  // Use shared service for config
   const config = preloadingService.getConfig();
 
   // Stable filters string for dependency array (to detect when filters change)
@@ -118,7 +119,7 @@ export function useAdjacentPagePreloader({
     }
 
     // Clear pending preloads from previous page
-    queue.clear();
+    preloadingService.clearQueue();
 
     // Debounce: wait for user to settle on a page
     const timer = setTimeout(async () => {

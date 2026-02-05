@@ -6,7 +6,7 @@ import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { VideoTravelSettings, DEFAULT_PHASE_CONFIG, videoTravelSettings } from '../settings';
 import { STORAGE_KEYS } from '../storageKeys';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '../components/ShotEditor/state/types';
 
 export interface UseShotSettingsReturn {

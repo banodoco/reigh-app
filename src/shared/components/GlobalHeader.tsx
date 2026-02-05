@@ -11,7 +11,7 @@ import { ReferralModal } from '@/shared/components/ReferralModal';
 import { PlusCircle, Settings, Palette, Crown, Star, Wrench, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { ProjectSettingsModal } from '@/shared/components/ProjectSettingsModal';
-import { toast } from "sonner";
+import { toast } from "@/shared/components/ui/sonner";
 import { useProjectContextDebug } from '@/shared/hooks/useProjectContextDebug';
 
 import { useIsTablet } from '@/shared/hooks/use-mobile';

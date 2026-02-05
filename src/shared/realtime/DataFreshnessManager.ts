@@ -8,7 +8,7 @@
  */
 
 import { handleError } from '@/shared/lib/errorHandler';
-import { toast } from 'sonner';
+import { toast } from '@/shared/components/ui/sonner';
 
 type RealtimeStatus = 'connected' | 'disconnected' | 'error';
 type PollingInterval = number | false; // false = no polling
