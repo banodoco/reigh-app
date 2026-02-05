@@ -28,7 +28,7 @@ import { Switch } from '@/shared/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronLeft, Loader2, RotateCcw, Save, Video, X, Images } from 'lucide-react';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
-import { detectGenerationMode, BUILTIN_I2V_PRESET, BUILTIN_VACE_PRESET } from '../segmentSettingsUtils';
+import { detectGenerationMode, BUILTIN_I2V_PRESET, BUILTIN_VACE_PRESET, SEGMENT_I2V_FEATURED_PRESET_IDS, SEGMENT_VACE_FEATURED_PRESET_IDS } from '../segmentSettingsUtils';
 import { ActiveLoRAsDisplay } from '@/shared/components/ActiveLoRAsDisplay';
 import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
 import { DefaultableTextarea } from '@/shared/components/DefaultableTextarea';
@@ -127,9 +127,13 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
     return detectGenerationMode(modelName);
   }, [modelName]);
 
-  // Get built-in preset
+  // Get built-in preset and featured IDs for current mode
   const builtinPreset = useMemo(() => {
     return generationMode === 'vace' ? BUILTIN_VACE_PRESET : BUILTIN_I2V_PRESET;
+  }, [generationMode]);
+
+  const featuredPresetIds = useMemo(() => {
+    return generationMode === 'vace' ? SEGMENT_VACE_FEATURED_PRESET_IDS : SEGMENT_I2V_FEATURED_PRESET_IDS;
   }, [generationMode]);
 
   // Compute effective loras
@@ -549,7 +553,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
               return (
                 <MotionPresetSelector
                   builtinPreset={builtinPreset}
-                  featuredPresetIds={[]}
+                  featuredPresetIds={featuredPresetIds}
                   generationTypeMode={generationMode}
                   selectedPhasePresetId={settings.selectedPhasePresetId ?? shotDefaults?.selectedPhasePresetId ?? null}
                   phaseConfig={settings.phaseConfig ?? shotDefaults?.phaseConfig ?? builtinPreset.metadata.phaseConfig}

@@ -35,8 +35,10 @@ export interface BuiltinPreset {
   };
 }
 
-const BUILTIN_I2V_PRESET_ID = '__builtin_segment_i2v_default__';
-const BUILTIN_VACE_PRESET_ID = '__builtin_segment_vace_default__';
+// Use the same IDs as the batch view (MotionControl.tsx) so shot defaults
+// are recognized as known presets when inherited by the segment form.
+const BUILTIN_I2V_PRESET_ID = '__builtin_default_i2v__';
+const BUILTIN_VACE_PRESET_ID = '__builtin_default_vace__';
 
 export const BUILTIN_I2V_PRESET: BuiltinPreset = {
   id: BUILTIN_I2V_PRESET_ID,
@@ -57,6 +59,15 @@ export const BUILTIN_VACE_PRESET: BuiltinPreset = {
     generationTypeMode: 'vace',
   }
 };
+
+// Featured preset IDs from database (shown after built-in default)
+export const SEGMENT_I2V_FEATURED_PRESET_IDS: string[] = [
+  'e1aad8bf-add9-4d7b-883b-d67d424028c4',
+];
+
+export const SEGMENT_VACE_FEATURED_PRESET_IDS: string[] = [
+  'd72377eb-6d57-4af1-80a3-9b629da28a47',
+];
 
 // =============================================================================
 // HELPERS
@@ -808,7 +819,8 @@ export function buildMetadataUpdate(
   // Handle explicit clear of phaseConfig (when switching to basic mode)
   if (settings.phaseConfig === null && segOverrides) {
     delete segOverrides.phaseConfig;
-    delete segOverrides.selectedPhasePresetId; // Also clear preset when clearing config
+    // Note: selectedPhasePresetId is handled independently via fieldsToClear.
+    // Don't cascade-delete it here — basic mode presets need to persist.
   }
 
   // Handle explicitly cleared fields ('' means remove override, use shot default)
