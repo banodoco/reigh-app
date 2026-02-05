@@ -33,18 +33,18 @@ export const JoinModeContent: React.FC<JoinModeContentProps> = ({
 
   // Extract join settings
   const {
-    prompt: joinPrompt = '',
-    negativePrompt: joinNegativePrompt = '',
-    contextFrameCount: joinContextFrames = 15,
-    gapFrameCount: joinGapFrames = 23,
-    replaceMode: joinReplaceMode = true,
-    keepBridgingImages: joinKeepBridgingImages = false,
-    enhancePrompt: joinEnhancePrompt = false,
-    motionMode: joinMotionMode = 'basic',
+    prompt: joinPrompt,
+    negativePrompt: joinNegativePrompt,
+    contextFrameCount: joinContextFrames,
+    gapFrameCount: joinGapFrames,
+    replaceMode: joinReplaceMode,
+    keepBridgingImages: joinKeepBridgingImages,
+    enhancePrompt: joinEnhancePrompt,
+    motionMode: joinMotionMode,
     phaseConfig: joinPhaseConfig,
     selectedPhasePresetId: joinSelectedPhasePresetId,
-    randomSeed: joinRandomSeed = false,
-  } = joinState.joinSettings.settings || {};
+    randomSeed: joinRandomSeed,
+  } = joinState.joinSettings.settings;
 
   return (
     <div ref={joinSegmentsSectionRef}>

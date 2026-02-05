@@ -161,7 +161,7 @@ export function usePromptSettings() {
     negativePrompt: settings.negativePrompt || '',
     textBeforePrompts: settings.textBeforePrompts || '',
     textAfterPrompts: settings.textAfterPrompts || '',
-    enhancePrompt: settings.enhancePrompt ?? false,
+    enhancePrompt: settings.enhancePrompt,
     setPrompt: handlers.handleBatchVideoPromptChange,
     setNegativePrompt: handlers.handleNegativePromptChange,
     setTextBeforePrompts: handlers.handleTextBeforePromptsChange,

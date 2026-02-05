@@ -1,47 +1,29 @@
-import { PhaseConfig } from '@/tools/travel-between-images/settings';
-import { BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
-
-// Use the shared VACE default ID (matches JoinClipsSettingsForm and MotionPresetSelector)
-const BUILTIN_JOIN_CLIPS_DEFAULT_ID = BUILTIN_VACE_DEFAULT_ID;
+import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 
 // Join Clips Tool Settings
 export const joinClipsSettings = {
   id: 'join-clips',
   scope: ['project', 'shot'] as const,
   defaults: {
+    ...VACE_GENERATION_DEFAULTS,
+    // Join-clips-specific frame counts
     contextFrameCount: 15,
     gapFrameCount: 23,
-    replaceMode: true, // Replace frames (true) or generate new frames (false)
-    keepBridgingImages: false,
-    model: 'wan_2_2_vace_lightning_baseline_2_2_2' as const,
-    numInferenceSteps: 6,
-    guidanceScale: 3.0,
-    seed: -1,
-    negativePrompt: '',
-    priority: 0,
-    prompt: '', // User's current prompt (persisted per project)
-    randomSeed: true,
+    // Join-clips-specific toggles
     useIndividualPrompts: false, // Whether to use per-transition prompts
-    enhancePrompt: false, // AI enhancement of prompts
     useInputVideoResolution: false, // Use first input video's resolution instead of project resolution
     useInputVideoFps: false, // Use first input video's FPS instead of downsampling to 16fps
     noisedInputVideo: 0, // vid2vid init strength - adds noise to input video (0 = disabled)
     loopFirstClip: false, // Loop first clip - use first clip as both start and end
-    // Motion settings mode (Basic = LoRAs, Advanced = Phase Config)
-    motionMode: 'basic' as 'basic' | 'advanced',
-    // Phase config for advanced mode (undefined = use default)
-    phaseConfig: undefined as PhaseConfig | undefined,
-    // Selected phase preset ID (for tracking which preset is active)
-    selectedPhasePresetId: BUILTIN_JOIN_CLIPS_DEFAULT_ID as string | null,
     // Legacy two-video format (kept for backward compatibility)
     startingVideoUrl: undefined as string | undefined,
     startingVideoPosterUrl: undefined as string | undefined,
     endingVideoUrl: undefined as string | undefined,
     endingVideoPosterUrl: undefined as string | undefined,
     // New multi-clip format (with optional duration for validation)
-    clips: [] as Array<{ 
-      url: string; 
-      posterUrl?: string; 
+    clips: [] as Array<{
+      url: string;
+      posterUrl?: string;
       finalFrameUrl?: string;
       durationSeconds?: number;  // Video duration for frame validation
     }>,

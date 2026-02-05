@@ -242,12 +242,12 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
       )}
       {videoEditSubMode === 'replace' && (
         <VideoPortionEditor
-          gapFrames={videoEditing.editSettings.settings.gapFrameCount || 12}
+          gapFrames={videoEditing.editSettings.settings.gapFrameCount}
           setGapFrames={(val) => videoEditing.editSettings.updateField('gapFrameCount', val)}
-          contextFrames={videoEditing.editSettings.settings.contextFrameCount || 8}
+          contextFrames={videoEditing.editSettings.settings.contextFrameCount}
           setContextFrames={(val) => {
             const maxGap = Math.max(1, 81 - (val * 2));
-            const gapFrames = videoEditing.editSettings.settings.gapFrameCount || 12;
+            const gapFrames = videoEditing.editSettings.settings.gapFrameCount;
             const newGapFrames = gapFrames > maxGap ? maxGap : gapFrames;
             videoEditing.editSettings.updateFields({
               contextFrameCount: val,

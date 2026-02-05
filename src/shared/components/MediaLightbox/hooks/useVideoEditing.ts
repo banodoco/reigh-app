@@ -9,6 +9,7 @@ import { createTask, generateUUID, generateRunId } from '@/shared/lib/taskCreati
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { formatTime, PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { useEditVideoSettings } from '@/shared/hooks/useEditVideoSettings';
+import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import type { LoraModel } from '@/shared/hooks/useLoraManager';
@@ -104,8 +105,8 @@ export const useVideoEditing = ({
   });
   
   // Get default gap frame count from settings
-  const defaultGapFrameCount = editSettings.settings.gapFrameCount || 12;
-  const contextFrameCount = editSettings.settings.contextFrameCount || 8;
+  const defaultGapFrameCount = editSettings.settings.gapFrameCount;
+  const contextFrameCount = editSettings.settings.contextFrameCount;
 
   // Helper to calculate gap frames from time range (matches InlineEditVideoView logic)
   const calculateGapFramesFromRange = useCallback((start: number, end: number): number => {
@@ -346,8 +347,8 @@ export const useVideoEditing = ({
       // Get global settings
       const globalPrompt = editSettings.settings.prompt || '';
       const negativePrompt = editSettings.settings.negativePrompt || '';
-      const globalGapFrameCount = editSettings.settings.gapFrameCount || 12;
-      const enhancePrompt = editSettings.settings.enhancePrompt ?? false;
+      const globalGapFrameCount = editSettings.settings.gapFrameCount;
+      const enhancePrompt = editSettings.settings.enhancePrompt;
       
       // Hardcoded settings
       const replaceMode = true;
@@ -388,7 +389,7 @@ export const useVideoEditing = ({
       
       // Cap context_frame_count to the minimum keeper clip length
       // Use minKeeperFrames - 1 as safety margin for off-by-one in video extraction
-      const requestedContextFrameCount = editSettings.settings.contextFrameCount || 8;
+      const requestedContextFrameCount = editSettings.settings.contextFrameCount;
       const safeMaxContextFrames = Math.max(1, minKeeperFrames - 1);
       const contextFrameCount = Math.min(requestedContextFrameCount, safeMaxContextFrames);
       
@@ -454,7 +455,7 @@ export const useVideoEditing = ({
         portions_to_regenerate: portionFrameRanges,
         
         // Model settings
-        model: editSettings.settings.model || 'wan_2_2_vace_lightning_baseline_2_2_2',
+        model: editSettings.settings.model || VACE_GENERATION_DEFAULTS.model,
         resolution: resolutionTuple || [902, 508],
         seed: editSettings.settings.seed ?? -1,
         

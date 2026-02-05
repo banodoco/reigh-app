@@ -34,6 +34,7 @@ import { useShotImages } from '@/shared/hooks/useShotImages';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { findClosestAspectRatio } from '@/shared/lib/aspectRatios';
 import { DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
+import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID, FEATURED_PRESET_IDS } from './MotionControl';
 import { handleError } from '@/shared/lib/errorHandler';
@@ -207,7 +208,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     const motionMode = settings.motionMode || 'basic';
     if (motionMode === 'basic') {
       return useVaceModel
-        ? 'wan_2_2_vace_lightning_baseline_2_2_2'
+        ? VACE_GENERATION_DEFAULTS.model
         : 'wan_2_2_i2v_lightning_baseline_2_2_2';
     }
     // Advanced mode: use phase count to pick 2-phase vs 3-phase variant
@@ -216,7 +217,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     if (useVaceModel) {
       return is2Phase
         ? 'wan_2_2_vace_lightning_baseline_3_3'
-        : 'wan_2_2_vace_lightning_baseline_2_2_2';
+        : VACE_GENERATION_DEFAULTS.model;
     }
     return is2Phase
       ? 'wan_2_2_i2v_lightning_baseline_3_3'
@@ -261,7 +262,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         // Grouped configs (snake_case matching API)
         promptConfig: {
           base_prompt: settings.prompt || '',
-          enhance_prompt: settings.enhancePrompt || false,
+          enhance_prompt: settings.enhancePrompt,
           text_before_prompts: settings.textBeforePrompts,
           text_after_prompts: settings.textAfterPrompts,
           default_negative_prompt: mergedSteerableSettings.negative_prompt,
@@ -471,7 +472,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
                       amountOfMotion={settings.amountOfMotion || 50}
                       onAmountOfMotionChange={(v) => updateField('amountOfMotion', v)}
                       imageCount={positionedImages.length}
-                      enhancePrompt={settings.enhancePrompt || false}
+                      enhancePrompt={settings.enhancePrompt}
                       onEnhancePromptChange={(v) => updateField('enhancePrompt', v)}
                       advancedMode={(settings.motionMode || 'basic') === 'advanced'}
                       phaseConfig={settings.phaseConfig || DEFAULT_PHASE_CONFIG}

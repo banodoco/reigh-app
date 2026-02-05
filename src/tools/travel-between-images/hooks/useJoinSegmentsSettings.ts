@@ -2,8 +2,7 @@ import { useCallback, useRef, useMemo, useEffect } from 'react';
 import { handleError } from '@/shared/lib/errorHandler';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
-import { JoinClipsSettings } from '@/tools/join-clips/settings';
-import { DEFAULT_JOIN_CLIPS_PHASE_CONFIG, BUILTIN_JOIN_CLIPS_DEFAULT_ID } from '@/tools/join-clips/components/JoinClipsSettingsForm';
+import { joinClipsSettings, JoinClipsSettings } from '@/tools/join-clips/settings';
 import { ActiveLora } from '@/shared/hooks/useLoraManager';
 import { STORAGE_KEYS } from '../storageKeys';
 
@@ -21,50 +20,14 @@ export interface JoinSegmentsSettings extends JoinClipsSettings {
 }
 
 /**
- * Default settings for Join Segments (within travel-between-images tool)
- * Same structure as JoinClipsSettings but with slightly different defaults
- * for the shot-level context.
+ * Default settings for Join Segments — spreads from join-clips canonical defaults
+ * and adds join-segments-specific extension fields.
  */
 const DEFAULT_JOIN_SEGMENTS_SETTINGS: JoinSegmentsSettings = {
-  // Keep these aligned with ShotEditor's "Restore defaults" behavior
-  // (and the historical defaults used in travel-between-images).
-  contextFrameCount: 15,
-  gapFrameCount: 23,
-  replaceMode: true,
-  keepBridgingImages: false,
-  model: 'wan_2_2_vace_lightning_baseline_2_2_2',
-  numInferenceSteps: 6,
-  guidanceScale: 3.0,
-  seed: -1,
-  negativePrompt: '',
-  priority: 0,
-  prompt: '',
-  randomSeed: true,
-  useIndividualPrompts: false,
-  enhancePrompt: false,
-  useInputVideoResolution: false,
-  useInputVideoFps: false,
-  noisedInputVideo: 0,
-  loopFirstClip: false,
-  // Motion settings (Basic/Advanced mode)
-  motionMode: 'basic',
-  phaseConfig: DEFAULT_JOIN_CLIPS_PHASE_CONFIG,
-  selectedPhasePresetId: BUILTIN_JOIN_CLIPS_DEFAULT_ID,
-  // Legacy two-video format (not used in join segments)
-  startingVideoUrl: undefined,
-  startingVideoPosterUrl: undefined,
-  endingVideoUrl: undefined,
-  endingVideoPosterUrl: undefined,
-  // New multi-clip format (not used - clips come from timeline)
-  clips: [],
-  transitionPrompts: [],
-  loras: [],
-  hasEverSetLoras: false,
-  // Generate mode toggle (persisted per shot)
+  ...joinClipsSettings.defaults,
+  // Extension fields for join-segments
   generateMode: 'batch',
-  // Full LoRA objects for Join Segments (persisted per shot)
   selectedLoras: [],
-  // Stitch after generate toggle
   stitchAfterGenerate: false,
 };
 

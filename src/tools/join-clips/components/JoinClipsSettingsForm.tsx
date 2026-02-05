@@ -723,9 +723,8 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
     featuredPresetIds = JOIN_CLIPS_FEATURED_PRESET_IDS,
     showGenerateButton = true,
 }) => {
-    // Handle undefined values (defensive fallback)
-    const keepBridgingImagesValue = keepBridgingImages ?? false;
-    const enhancePromptValue = enhancePrompt ?? false;
+    const keepBridgingImagesValue = keepBridgingImages;
+    const enhancePromptValue = enhancePrompt;
 
     // Advanced section state
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);

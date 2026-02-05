@@ -5,7 +5,8 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { handleError } from '@/shared/lib/errorHandler';
-import { DEFAULT_JOIN_CLIPS_PHASE_CONFIG, BUILTIN_JOIN_CLIPS_DEFAULT_ID } from '../components/JoinClipsSettingsForm';
+import { joinClipsSettings } from '../settings';
+import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import type { VideoClip, TransitionPrompt } from '../types';
 import type { useJoinClipsSettings } from './useJoinClipsSettings';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
@@ -36,19 +37,19 @@ export function useJoinClipsGenerate({
   const [showSuccessState, setShowSuccessState] = useState(false);
 
   const {
-    prompt: globalPrompt = '',
-    negativePrompt = '',
-    contextFrameCount = 8,
-    gapFrameCount = 12,
-    replaceMode = true,
+    prompt: globalPrompt,
+    negativePrompt,
+    contextFrameCount,
+    gapFrameCount,
+    replaceMode,
     keepBridgingImages,
-    useIndividualPrompts = false,
-    enhancePrompt = false,
-    useInputVideoResolution = false,
-    useInputVideoFps = false,
-    noisedInputVideo = 0,
-    loopFirstClip = false,
-    motionMode = 'basic',
+    useIndividualPrompts,
+    enhancePrompt,
+    useInputVideoResolution,
+    useInputVideoFps,
+    noisedInputVideo,
+    loopFirstClip,
+    motionMode,
     phaseConfig,
   } = joinSettings.settings;
 
@@ -113,12 +114,12 @@ export function useJoinClipsGenerate({
         enhance_prompt: enhancePrompt,
         model: (joinSettings.settings.model?.startsWith('wan_2_2_')
           ? joinSettings.settings.model
-          : 'wan_2_2_vace_lightning_baseline_2_2_2'),
-        num_inference_steps: joinSettings.settings.numInferenceSteps || 6,
-        guidance_scale: joinSettings.settings.guidanceScale || 3.0,
-        seed: joinSettings.settings.seed || -1,
+          : VACE_GENERATION_DEFAULTS.model),
+        num_inference_steps: joinSettings.settings.numInferenceSteps,
+        guidance_scale: joinSettings.settings.guidanceScale,
+        seed: joinSettings.settings.seed,
         negative_prompt: negativePrompt,
-        priority: joinSettings.settings.priority || 0,
+        priority: joinSettings.settings.priority,
         use_input_video_resolution: useInputVideoResolution,
         use_input_video_fps: useInputVideoFps,
         ...(motionMode === 'advanced' && phaseConfig
@@ -186,8 +187,9 @@ export function useJoinClipsGenerate({
   }, [clips, loopFirstClip]);
 
   const handleRestoreDefaults = useCallback(() => {
-    let context = 10;
-    let gap = 13;
+    const defaults = joinClipsSettings.defaults;
+    let context = defaults.contextFrameCount;
+    let gap = defaults.gapFrameCount;
 
     const shortestFrames = validationResult?.shortestClipFrames;
     if (shortestFrames && shortestFrames > 0) {
@@ -202,18 +204,18 @@ export function useJoinClipsGenerate({
     joinSettings.updateFields({
       contextFrameCount: context,
       gapFrameCount: gap,
-      replaceMode: true,
-      keepBridgingImages: false,
-      prompt: '',
-      negativePrompt: '',
-      useIndividualPrompts: false,
-      enhancePrompt: false,
-      useInputVideoResolution: false,
-      useInputVideoFps: false,
-      noisedInputVideo: 0,
-      motionMode: 'basic',
-      phaseConfig: DEFAULT_JOIN_CLIPS_PHASE_CONFIG,
-      selectedPhasePresetId: BUILTIN_JOIN_CLIPS_DEFAULT_ID,
+      replaceMode: defaults.replaceMode,
+      keepBridgingImages: defaults.keepBridgingImages,
+      prompt: defaults.prompt,
+      negativePrompt: defaults.negativePrompt,
+      useIndividualPrompts: defaults.useIndividualPrompts,
+      enhancePrompt: defaults.enhancePrompt,
+      useInputVideoResolution: defaults.useInputVideoResolution,
+      useInputVideoFps: defaults.useInputVideoFps,
+      noisedInputVideo: defaults.noisedInputVideo,
+      motionMode: defaults.motionMode,
+      phaseConfig: DEFAULT_VACE_PHASE_CONFIG,
+      selectedPhasePresetId: BUILTIN_VACE_DEFAULT_ID,
     });
     loraManager.setSelectedLoras([]);
   }, [validationResult, joinSettings, loraManager]);

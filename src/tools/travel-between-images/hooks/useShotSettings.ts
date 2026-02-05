@@ -3,32 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { handleError } from '@/shared/lib/errorHandler';
 import { useAutoSaveSettings, AutoSaveStatus } from '@/shared/hooks/useAutoSaveSettings';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
-import { VideoTravelSettings, DEFAULT_PHASE_CONFIG } from '../settings';
+import { VideoTravelSettings, DEFAULT_PHASE_CONFIG, videoTravelSettings } from '../settings';
 import { STORAGE_KEYS } from '../storageKeys';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '../components/ShotEditor/state/types';
-
-// Default settings for new shots
-const DEFAULT_SETTINGS: VideoTravelSettings = {
-  videoControlMode: 'batch',
-  prompt: '',
-  negativePrompt: '',
-  batchVideoFrames: 61, // Must be 4N+1 format for Wan model compatibility (61 = 4*15+1)
-  batchVideoSteps: 6,
-  steerableMotionSettings: DEFAULT_STEERABLE_MOTION_SETTINGS,
-  enhancePrompt: false,
-  turboMode: false,
-  smoothContinuations: false, // SVI disabled for now
-  amountOfMotion: 50,
-  motionMode: 'basic',
-  advancedMode: false,
-  phaseConfig: undefined,
-  generationMode: 'timeline',
-  generationTypeMode: 'i2v', // Default to I2V (image-to-video) mode
-  pairConfigs: [],
-  loras: [],
-};
 
 export interface UseShotSettingsReturn {
   // State
@@ -103,7 +82,7 @@ export const useShotSettings = (
         // Merge with defaults, ensuring proper nested object initialization
         const { _uiSettings, ...validSettings } = defaults;
         return {
-          ...DEFAULT_SETTINGS,
+          ...videoTravelSettings.defaults,
           ...validSettings,
           steerableMotionSettings: {
             ...DEFAULT_STEERABLE_MOTION_SETTINGS,
@@ -125,7 +104,7 @@ export const useShotSettings = (
     shotId,
     projectId,
     scope: 'shot',
-    defaults: inheritedSettings || DEFAULT_SETTINGS,
+    defaults: inheritedSettings || videoTravelSettings.defaults,
     enabled: !!shotId,
     debounceMs: 300,
   });
@@ -268,7 +247,7 @@ export const useShotSettings = (
   // Reset to hardcoded defaults
   const resetToDefaults = useCallback(() => {
     console.log('[useShotSettings] 🔄 Resetting to defaults');
-    autoSave.updateFields(DEFAULT_SETTINGS);
+    autoSave.updateFields(videoTravelSettings.defaults);
   }, [autoSave]);
   
   // Memoize return value

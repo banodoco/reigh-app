@@ -103,7 +103,7 @@ export const videoTravelSettings = {
     batchVideoSteps: 6,
     dimensionSource: 'firstImage' as const,
     generationMode: 'timeline' as const,
-    enhancePrompt: true,
+    enhancePrompt: false,
     selectedModel: 'wan-2.1' as const,
     turboMode: false,
     amountOfMotion: 50,
@@ -115,5 +115,6 @@ export const videoTravelSettings = {
     customHeight: undefined,
     generationTypeMode: 'i2v' as const, // Default to I2V (image-to-video) mode
     smoothContinuations: false, // SVI disabled for now
+    loras: [] as ShotLora[],
   },
-}; 
+};

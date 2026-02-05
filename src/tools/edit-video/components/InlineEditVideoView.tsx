@@ -20,7 +20,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import { generateUUID, generateRunId, createTask } from '@/shared/lib/taskCreation';
 import { MultiPortionTimeline, formatTime, PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { SEGMENT_OVERLAY_COLORS } from '@/shared/lib/segmentColors';
-import { DEFAULT_VACE_PHASE_CONFIG, buildPhaseConfigWithLoras, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
+import { DEFAULT_VACE_PHASE_CONFIG, buildPhaseConfigWithLoras, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor';
 import { useVideoTrimming, useTrimSave } from '@/shared/components/VideoTrimEditor';
 import { ModeSelector } from '@/shared/components/MediaLightbox/components/ModeSelector';
@@ -235,14 +235,14 @@ export function InlineEditVideoView({
   
   // Derive settings
   const {
-    prompt = '',
-    negativePrompt = '',
-    contextFrameCount = 8,
-    gapFrameCount = 12,
-    enhancePrompt = false,
-    motionMode = 'basic',
+    prompt,
+    negativePrompt,
+    contextFrameCount,
+    gapFrameCount,
+    enhancePrompt,
+    motionMode,
     phaseConfig: savedPhaseConfig,
-    randomSeed = true,
+    randomSeed,
     selectedPhasePresetId,
   } = editSettings.settings;
   
@@ -659,7 +659,7 @@ export function InlineEditVideoView({
         // Validate model name - fix old settings that have truncated model names
         model: (editSettings.settings.model?.startsWith('wan_2_2_')
           ? editSettings.settings.model
-          : 'wan_2_2_vace_lightning_baseline_2_2_2'),
+          : VACE_GENERATION_DEFAULTS.model),
         resolution: resolutionTuple || [902, 508],
         seed: editSettings.settings.seed ?? -1,
         

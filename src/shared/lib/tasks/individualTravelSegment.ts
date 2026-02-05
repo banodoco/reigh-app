@@ -7,6 +7,7 @@ import type { TaskCreationResult } from "../taskCreation";
 import { supabase } from '@/integrations/supabase/client';
 import { PhaseConfig, buildBasicModePhaseConfig } from '@/shared/types/phaseConfig';
 import { handleError } from '@/shared/lib/errorHandler';
+import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 
 /**
  * Interface for individual travel segment regeneration task parameters
@@ -210,7 +211,7 @@ function buildIndividualTravelSegmentParams(
     (phase.loras || []).map((lora) => ({ url: lora.url, multiplier: lora.multiplier }))
   );
   const defaultModelName = useVaceModel
-    ? "wan_2_2_vace_lightning_baseline_2_2_2"
+    ? VACE_GENERATION_DEFAULTS.model
     : "wan_2_2_i2v_lightning_baseline_2_2_2";
   const modelName = orig.model_name || orchDetails.model_name || defaultModelName;
   

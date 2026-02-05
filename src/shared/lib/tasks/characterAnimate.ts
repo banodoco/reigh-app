@@ -27,7 +27,7 @@ export interface CharacterAnimateTaskParams {
  */
 const DEFAULT_CHARACTER_ANIMATE_VALUES = {
   mode: 'animate' as const,
-  resolution: '720p' as const,
+  resolution: '480p' as const,
   prompt: 'natural expression; preserve outfit details',
   seed: Math.floor(Math.random() * 1000000),
   random_seed: true,

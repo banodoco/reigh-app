@@ -14,7 +14,8 @@ import { handleError } from '@/shared/lib/errorHandler';
 import { getErrorMessage } from '@/shared/lib/errorUtils';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { GenerationRow } from '@/types/shots';
-import { DEFAULT_JOIN_CLIPS_PHASE_CONFIG, BUILTIN_JOIN_CLIPS_DEFAULT_ID } from '@/tools/join-clips/components/JoinClipsSettingsForm';
+import { joinClipsSettings } from '@/tools/join-clips/settings';
+import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 
@@ -41,6 +42,10 @@ interface JoinSettings {
   replaceMode: boolean;
   keepBridgingImages: boolean;
   enhancePrompt: boolean;
+  model: string;
+  numInferenceSteps: number;
+  guidanceScale: number;
+  seed: number;
   motionMode: 'basic' | 'advanced';
   phaseConfig?: Record<string, unknown>;
   selectedPhasePresetId?: string | null;
@@ -215,10 +220,10 @@ export function useJoinSegmentsHandler({
         replace_mode: joinReplaceMode,
         keep_bridging_images: joinKeepBridgingImages,
         enhance_prompt: joinEnhancePrompt,
-        model: 'wan_2_2_vace_lightning_baseline_2_2_2',
-        num_inference_steps: 6,
-        guidance_scale: 3.0,
-        seed: -1,
+        model: joinSettings.model,
+        num_inference_steps: joinSettings.numInferenceSteps,
+        guidance_scale: joinSettings.guidanceScale,
+        seed: joinSettings.seed,
         parent_generation_id: joinSelectedParent?.id,
         tool_type: 'travel-between-images',
         use_input_video_resolution: false,
@@ -259,8 +264,9 @@ export function useJoinSegmentsHandler({
 
   // Handler to restore join clips defaults
   const handleRestoreJoinDefaults = useCallback(() => {
-    let context = 15;
-    let gap = 23;
+    const defaults = joinClipsSettings.defaults;
+    let context = defaults.contextFrameCount;
+    let gap = defaults.gapFrameCount;
 
     // Scale down proportionally if constraint is violated
     const shortestFrames = joinValidationData.shortestClipFrames;
@@ -274,17 +280,17 @@ export function useJoinSegmentsHandler({
     }
 
     joinSettings.updateFields({
-      prompt: '',
-      negativePrompt: '',
+      prompt: defaults.prompt,
+      negativePrompt: defaults.negativePrompt,
       contextFrameCount: context,
       gapFrameCount: gap,
-      replaceMode: true,
-      keepBridgingImages: false,
-      enhancePrompt: false,
-      motionMode: 'basic',
-      phaseConfig: DEFAULT_JOIN_CLIPS_PHASE_CONFIG,
-      selectedPhasePresetId: BUILTIN_JOIN_CLIPS_DEFAULT_ID,
-      randomSeed: true,
+      replaceMode: defaults.replaceMode,
+      keepBridgingImages: defaults.keepBridgingImages,
+      enhancePrompt: defaults.enhancePrompt,
+      motionMode: defaults.motionMode,
+      phaseConfig: DEFAULT_VACE_PHASE_CONFIG,
+      selectedPhasePresetId: BUILTIN_VACE_DEFAULT_ID,
+      randomSeed: defaults.randomSeed,
       selectedLoras: [],
     });
   }, [joinSettings, joinValidationData.shortestClipFrames]);

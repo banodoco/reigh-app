@@ -8,6 +8,8 @@ import {
 import type { TaskCreationResult } from "../taskCreation";
 import { PhaseConfig, PhaseLoraConfig } from '@/shared/types/phaseConfig';
 import { handleError } from '@/shared/lib/errorHandler';
+import { joinClipsSettings } from '@/tools/join-clips/settings';
+import { camelToSnakeKeys } from '@/shared/lib/caseConversion';
 
 // ============================================================================
 
@@ -107,20 +109,11 @@ export interface JoinClipsTaskParams {
 }
 
 /**
- * Default values for join clips task settings
+ * Task defaults in snake_case, auto-derived from the tool's settings.ts.
+ * joinClipsSettings.defaults already spreads VACE_GENERATION_DEFAULTS,
+ * so per-tool overrides (e.g., guidanceScale: 5.0) flow through automatically.
  */
-const DEFAULT_JOIN_CLIPS_VALUES = {
-  context_frame_count: 8,
-  gap_frame_count: 53,
-  prompt: '',
-  replace_mode: true,
-  model: 'wan_2_2_vace_lightning_baseline_2_2_2',
-  num_inference_steps: 6,
-  guidance_scale: 3.0,
-  seed: -1,
-  negative_prompt: '',
-  priority: 0,
-};
+const TASK_DEFAULTS = camelToSnakeKeys(joinClipsSettings.defaults);
 
 /**
  * Build phase config for join clips (always uses VACE since we're joining existing videos).
@@ -287,25 +280,25 @@ function buildJoinClipsPayload(
     })),
     run_id: runId,
     shot_id: params.shot_id ?? undefined, // For "Visit Shot" button in TasksPane
-    prompt: params.prompt ?? DEFAULT_JOIN_CLIPS_VALUES.prompt,
-    gap_frame_count: params.gap_frame_count ?? DEFAULT_JOIN_CLIPS_VALUES.gap_frame_count,
-    context_frame_count: params.context_frame_count ?? DEFAULT_JOIN_CLIPS_VALUES.context_frame_count,
-    replace_mode: params.replace_mode ?? DEFAULT_JOIN_CLIPS_VALUES.replace_mode,
+    prompt: params.prompt ?? TASK_DEFAULTS.prompt,
+    gap_frame_count: params.gap_frame_count ?? TASK_DEFAULTS.gap_frame_count,
+    context_frame_count: params.context_frame_count ?? TASK_DEFAULTS.context_frame_count,
+    replace_mode: params.replace_mode ?? TASK_DEFAULTS.replace_mode,
     keep_bridging_images: params.keep_bridging_images, // Optional, defaults to undefined (backend handles default)
-    enhance_prompt: params.enhance_prompt ?? true, // Default to true for AI prompt enhancement
-    model: params.model ?? DEFAULT_JOIN_CLIPS_VALUES.model,
-    num_inference_steps: params.num_inference_steps ?? DEFAULT_JOIN_CLIPS_VALUES.num_inference_steps,
-    guidance_scale: params.guidance_scale ?? DEFAULT_JOIN_CLIPS_VALUES.guidance_scale,
-    seed: params.seed ?? DEFAULT_JOIN_CLIPS_VALUES.seed,
-    negative_prompt: params.negative_prompt ?? DEFAULT_JOIN_CLIPS_VALUES.negative_prompt,
-    priority: params.priority ?? DEFAULT_JOIN_CLIPS_VALUES.priority,
+    enhance_prompt: params.enhance_prompt ?? TASK_DEFAULTS.enhance_prompt,
+    model: params.model ?? TASK_DEFAULTS.model,
+    num_inference_steps: params.num_inference_steps ?? TASK_DEFAULTS.num_inference_steps,
+    guidance_scale: params.guidance_scale ?? TASK_DEFAULTS.guidance_scale,
+    seed: params.seed ?? TASK_DEFAULTS.seed,
+    negative_prompt: params.negative_prompt ?? TASK_DEFAULTS.negative_prompt,
+    priority: params.priority ?? TASK_DEFAULTS.priority,
     parent_generation_id: params.parent_generation_id,
     // UNIFIED: Always include phase_config and advanced_mode for consistent backend processing
     phase_config: phaseConfig,
     advanced_mode: true,
     // Motion settings for UI state restoration
-    motion_mode: params.motion_mode ?? 'basic',
-    selected_phase_preset_id: params.selected_phase_preset_id ?? null,
+    motion_mode: params.motion_mode ?? TASK_DEFAULTS.motion_mode,
+    selected_phase_preset_id: params.selected_phase_preset_id ?? TASK_DEFAULTS.selected_phase_preset_id,
   };
 
   if (params.resolution) {

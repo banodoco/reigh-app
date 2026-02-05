@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { handleError } from '@/shared/lib/errorHandler';
+import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 
 export interface JoinSettings {
   joinPrompt: string;
@@ -252,10 +253,10 @@ export function useVideoItemJoinClips(
         gap_frame_count: joinGapFrames,
         replace_mode: joinReplaceMode,
         keep_bridging_images: keepBridgingImages,
-        model: 'wan_2_2_vace_lightning_baseline_2_2_2',
-        num_inference_steps: 6,
-        guidance_scale: 3.0,
-        seed: -1,
+        model: VACE_GENERATION_DEFAULTS.model,
+        num_inference_steps: VACE_GENERATION_DEFAULTS.numInferenceSteps,
+        guidance_scale: VACE_GENERATION_DEFAULTS.guidanceScale,
+        seed: VACE_GENERATION_DEFAULTS.seed,
         parent_generation_id: video.id,
         // IMPORTANT: This join is initiated from within Travel Between Images,
         // so the resulting output should be attributed to this tool for filtering/counting.

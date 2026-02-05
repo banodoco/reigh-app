@@ -31,7 +31,7 @@ import {
 import { useJoinClipsSettings } from '../hooks/useJoinClipsSettings';
 import { useClipManager } from '../hooks/useClipManager';
 import { useJoinClipsGenerate } from '../hooks/useJoinClipsGenerate';
-import { JoinClipsSettingsForm, type ClipPairInfo, DEFAULT_JOIN_CLIPS_PHASE_CONFIG, BUILTIN_JOIN_CLIPS_DEFAULT_ID } from '../components/JoinClipsSettingsForm';
+import { JoinClipsSettingsForm, type ClipPairInfo, DEFAULT_JOIN_CLIPS_PHASE_CONFIG } from '../components/JoinClipsSettingsForm';
 import { SortableClip } from '../components/SortableClip';
 
 const JoinClipsPage: React.FC = () => {
@@ -46,22 +46,22 @@ const JoinClipsPage: React.FC = () => {
   // Settings hook
   const joinSettings = useJoinClipsSettings(selectedProjectId);
   const {
-    prompt: globalPrompt = '',
-    negativePrompt = '',
-    contextFrameCount = 15,
-    gapFrameCount = 23,
-    replaceMode = true,
-    keepBridgingImages = false,
-    useIndividualPrompts = false,
-    enhancePrompt = false,
-    useInputVideoResolution = false,
-    useInputVideoFps = false,
-    noisedInputVideo = 0,
-    loopFirstClip = false,
-    motionMode = 'basic',
+    prompt: globalPrompt,
+    negativePrompt,
+    contextFrameCount,
+    gapFrameCount,
+    replaceMode,
+    keepBridgingImages,
+    useIndividualPrompts,
+    enhancePrompt,
+    useInputVideoResolution,
+    useInputVideoFps,
+    noisedInputVideo,
+    loopFirstClip,
+    motionMode,
     phaseConfig,
-    randomSeed = false,
-    selectedPhasePresetId = BUILTIN_JOIN_CLIPS_DEFAULT_ID,
+    randomSeed,
+    selectedPhasePresetId,
   } = joinSettings.settings;
 
   const settingsLoaded = joinSettings.status !== 'idle' && joinSettings.status !== 'loading';

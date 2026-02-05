@@ -109,33 +109,29 @@ export function useJoinSegmentsSetup({
 
   // Destructure with defaults
   const {
-    prompt: joinPrompt = '',
-    negativePrompt: joinNegativePrompt = '',
-    contextFrameCount: joinContextFrames = 15,
-    gapFrameCount: joinGapFrames = 23,
-    replaceMode: joinReplaceMode = true,
-    keepBridgingImages: joinKeepBridgingImages = false,
-    enhancePrompt: joinEnhancePrompt = false,
-    // Model settings (for stitch config)
-    model: joinModel = 'wan_2_2_vace_lightning_baseline_2_2_2',
-    numInferenceSteps: joinNumInferenceSteps = 6,
-    guidanceScale: joinGuidanceScale = 3.0,
-    seed: joinSeed = -1,
-    // Motion preset settings
-    motionMode: joinMotionMode = 'basic',
+    prompt: joinPrompt,
+    negativePrompt: joinNegativePrompt,
+    contextFrameCount: joinContextFrames,
+    gapFrameCount: joinGapFrames,
+    replaceMode: joinReplaceMode,
+    keepBridgingImages: joinKeepBridgingImages,
+    enhancePrompt: joinEnhancePrompt,
+    model: joinModel,
+    numInferenceSteps: joinNumInferenceSteps,
+    guidanceScale: joinGuidanceScale,
+    seed: joinSeed,
+    motionMode: joinMotionMode,
     phaseConfig: joinPhaseConfig,
     selectedPhasePresetId: joinSelectedPhasePresetId,
-    randomSeed: joinRandomSeed = true,
-    // Optional settings with defaults
-    priority: joinPriority = 0,
-    useInputVideoResolution: joinUseInputVideoResolution = false,
-    useInputVideoFps: joinUseInputVideoFps = false,
-    noisedInputVideo: joinNoisedInputVideo = 0,
-    loopFirstClip: joinLoopFirstClip = false,
-    // NEW: Persisted generate mode and LoRAs
-    generateMode = 'batch',
-    selectedLoras: joinSelectedLoras = [],
-    stitchAfterGenerate = false,
+    randomSeed: joinRandomSeed,
+    priority: joinPriority,
+    useInputVideoResolution: joinUseInputVideoResolution,
+    useInputVideoFps: joinUseInputVideoFps,
+    noisedInputVideo: joinNoisedInputVideo,
+    loopFirstClip: joinLoopFirstClip,
+    generateMode,
+    selectedLoras: joinSelectedLoras,
+    stitchAfterGenerate,
   } = joinSettings.settings;
 
   // Setter for generate mode (persisted)

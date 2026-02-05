@@ -1,8 +1,29 @@
 /**
- * Shared default phase configuration for VACE mode tools (Join Clips, Edit Video).
- * 
- * This is the "Basic" default preset used when no custom preset is selected.
- * Both tools regenerate existing video content, so they use VACE mode.
+ * Shared defaults for VACE-based tools (Join Clips, Edit Video, Join Segments).
+ *
+ * DEFAULTS ARCHITECTURE -- how the layers connect:
+ *
+ *   VACE_GENERATION_DEFAULTS (this file)     -- shared engine params (model, steps, seed...)
+ *       | spread into
+ *   tools/[name]/settings.ts                 -- add per-tool fields (frame counts, clips...)
+ *       | imported by
+ *   hooks (useJoinClipsSettings, etc.)       -- pass settings.defaults to useAutoSaveSettings
+ *       | trusted by
+ *   components                              -- NO inline fallbacks (= 8, ?? false, etc.)
+ *       | auto-converted by
+ *   task creation (camelToSnakeKeys)         -- snake_case defaults derived, not hand-mapped
+ *
+ * Adding a new shared VACE param:
+ *   1. Add to VACE_GENERATION_DEFAULTS below
+ *   2. It auto-flows to every tool's settings.ts (via spread)
+ *   3. It auto-flows to hooks (they import settings.defaults)
+ *   4. It auto-flows to task creation TASK_DEFAULTS (via camelToSnakeKeys)
+ *   5. Use TASK_DEFAULTS.your_field in the task creation orchestratorDetails
+ *   6. Do NOT add fallbacks in components -- the hook guarantees a value
+ *
+ * Adding a tool-specific param (e.g., only join-clips needs it):
+ *   1. Add to that tool's settings.ts (not here)
+ *   2. Same rules: no fallbacks in components, import in task creation if needed
  */
 
 import { PhaseConfig } from '@/shared/types/phaseConfig';
@@ -77,6 +98,34 @@ export const BUILTIN_VACE_PRESET: BuiltinPreset = {
 export const VACE_FEATURED_PRESET_IDS: string[] = [
   'd72377eb-6d57-4af1-80a3-9b629da28a47',
 ];
+
+// =============================================================================
+// SHARED VACE GENERATION DEFAULTS
+// =============================================================================
+
+/**
+ * Shared engine defaults for VACE-based tools (Join Clips, Edit Video, Join Segments).
+ * Single source of truth for model, inference steps, guidance scale, etc.
+ *
+ * Per-tool fields (contextFrameCount, gapFrameCount, clips, etc.) are NOT included here —
+ * those live in each tool's settings.ts.
+ */
+export const VACE_GENERATION_DEFAULTS = {
+  model: 'wan_2_2_vace_lightning_baseline_2_2_2' as const,
+  numInferenceSteps: 6,
+  guidanceScale: 3.0,
+  seed: -1,
+  randomSeed: true,
+  replaceMode: true,
+  keepBridgingImages: false,
+  negativePrompt: '',
+  priority: 0,
+  prompt: '',
+  enhancePrompt: false,
+  motionMode: 'basic' as 'basic' | 'advanced',
+  phaseConfig: undefined as PhaseConfig | undefined,
+  selectedPhasePresetId: BUILTIN_VACE_DEFAULT_ID as string | null,
+};
 
 // =============================================================================
 // HELPER FUNCTIONS
