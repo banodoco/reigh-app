@@ -18,7 +18,7 @@ import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useProject } from "@/shared/contexts/ProjectContext";
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { nanoid } from 'nanoid';
-import { useProjectGenerations, GenerationsPaginatedResponse } from "@/shared/hooks/useProjectGenerations";
+import { useProjectGenerations } from "@/shared/hooks/useProjectGenerations";
 import { useDeleteGeneration, useUpdateGenerationLocation, useCreateGeneration } from "@/shared/hooks/useGenerationMutations";
 // Settings inheritance is handled by useShotCreation
 
@@ -32,9 +32,7 @@ import { PageFadeIn } from '@/shared/components/transitions';
 import { useSearchParams } from 'react-router-dom';
 import { timeEnd } from '@/shared/lib/logger';
 import { useIsMobile, useIsTablet } from "@/shared/hooks/use-mobile";
-import { fetchGenerations } from "@/shared/hooks/useProjectGenerations";
 import { getDisplayUrl } from '@/shared/lib/utils';
-import { smartPreloadImages, initializePrefetchOperations, smartCleanupOldPages, triggerImageGarbageCollection } from '@/shared/hooks/useAdjacentPagePreloading';
 import { ShotFilter } from '@/shared/components/ShotFilter';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
@@ -879,71 +877,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     timeEnd('NavPerf', 'PageLoad:/tools/image-generation');
   }, []);
 
-  // Ref to track ongoing server-side prefetch operations
-  const prefetchOperationsRef = useRef<{
-    images: HTMLImageElement[];
-    currentPrefetchId: string;
-  }>({ images: [], currentPrefetchId: '' });
-
-  // Prefetch adjacent pages callback for MediaGallery with cancellation
-  const handlePrefetchAdjacentPages = useCallback((prevPage: number | null, nextPage: number | null) => {
-    if (!effectiveProjectId) return;
-    // Disable adjacent prefetch on mobile to avoid main thread/contention and slow paints
-    if (isMobile) return;
-
-    // Cancel previous image preloads immediately
-    const prevOps = prefetchOperationsRef.current;
-    prevOps.images.forEach(img => {
-      img.onload = null;
-      img.onerror = null;
-      img.src = ''; // Cancel loading
-    });
-
-    // Reset tracking with new prefetch ID
-    const prefetchId = `${nextPage}-${prevPage}-${Date.now()}`;
-    initializePrefetchOperations(prefetchOperationsRef, prefetchId);
-
-    // Clean up old pagination cache to prevent memory leaks
-    // Use unified base key to match actual query keys in this page
-    smartCleanupOldPages(queryClient, currentPage, effectiveProjectId, 'unified-generations');
-    
-    // Trigger image garbage collection every 10 pages to free browser memory
-    if (currentPage % 10 === 0) {
-      triggerImageGarbageCollection();
-    }
-
-    // Use the same memoized filters object for consistency
-    const filters = generationsFilters;
-
-    // Using centralized preload function from shared hooks
-
-    // Prefetch next page first (higher priority)
-    // Note: Uses full dynamic key with pagination params (matches queryKeys.unified.byProject pattern)
-    if (nextPage) {
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.unified.byProject(effectiveProjectId, nextPage, itemsPerPage, filters),
-        queryFn: () => fetchGenerations(effectiveProjectId, itemsPerPage, (nextPage - 1) * itemsPerPage, filters),
-        staleTime: 30 * 1000,
-      }).then(() => {
-        const cached = queryClient.getQueryData(queryKeys.unified.byProject(effectiveProjectId, nextPage, itemsPerPage, filters)) as GenerationsPaginatedResponse | undefined;
-        smartPreloadImages(cached, 'next', prefetchId, prefetchOperationsRef);
-      });
-    }
-
-    // Prefetch previous page second (lower priority)
-    // Note: Uses full dynamic key with pagination params (matches queryKeys.unified.byProject pattern)
-    if (prevPage) {
-      queryClient.prefetchQuery({
-        queryKey: queryKeys.unified.byProject(effectiveProjectId, prevPage, itemsPerPage, filters),
-        queryFn: () => fetchGenerations(effectiveProjectId, itemsPerPage, (prevPage - 1) * itemsPerPage, filters),
-        staleTime: 30 * 1000,
-      }).then(() => {
-        const cachedPrev = queryClient.getQueryData(queryKeys.unified.byProject(effectiveProjectId, prevPage, itemsPerPage, filters)) as GenerationsPaginatedResponse | undefined;
-        smartPreloadImages(cachedPrev, 'prev', prefetchId, prefetchOperationsRef);
-      });
-    }
-  }, [selectedProjectId, itemsPerPage, queryClient, generationsFilters, currentPage]);
-
   useEffect(() => {
     if (generationsResponse && isPageChange) {
       if (isPageChangeFromBottom) {
@@ -1203,8 +1136,8 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
                 currentToolTypeName="Image Generation"
                 formAssociatedShotId={formAssociatedShotId}
                 onSwitchToAssociatedShot={handleSwitchToAssociatedShot}
-                onPrefetchAdjacentPages={handlePrefetchAdjacentPages}
-                enableAdjacentPagePreloading={!isMobile}
+                generationFilters={generationsFilters}
+                enableAdjacentPagePreloading
                 onCreateShot={handleCreateShot}
                 onBackfillRequest={handleBackfillRequest}
                 showShare={false}

@@ -2,11 +2,9 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useRenderLogger } from '@/shared/hooks/useRenderLogger';
 import { useRenderCount } from '@/shared/components/debug/RefactorMetricsCollector';
 import { useSlidingPane } from '@/shared/hooks/useSlidingPane';
-import { cn, getDisplayUrl } from '@/shared/lib/utils';
-import { smartPreloadImages, initializePrefetchOperations, smartCleanupOldPages, triggerImageGarbageCollection } from '@/shared/hooks/useAdjacentPagePreloading';
+import { cn } from '@/shared/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { fetchGenerations } from '@/shared/hooks/useProjectGenerations';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Label } from '@/shared/components/ui/label';
@@ -25,11 +23,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shar
 import { useGalleryPageState } from '@/shared/hooks/useGalleryPageState';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
-import { performanceMonitoredTimeout, measureAsync } from '@/shared/lib/performanceUtils';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { toast } from 'sonner';
+import { useStableObject } from '@/shared/hooks/useStableObject';
 
 import {
   Select,
@@ -214,120 +212,13 @@ const GenerationsPaneComponent: React.FC = () => {
   // Log every render with item count & page for loop detection
   useRenderLogger('GenerationsPane', { page, totalItems: totalCount });
 
-  // Ref to track ongoing server-side prefetch operations
-  const prefetchOperationsRef = useRef<{
-    images: HTMLImageElement[];
-    currentPrefetchId: string;
-  }>({ images: [], currentPrefetchId: '' });
-
-  // Prefetch adjacent pages callback for MediaGallery with cancellation
-  const handlePrefetchAdjacentPages = useCallback((prevPage: number | null, nextPage: number | null) => {
-    const prefetchStartTime = performance.now();
-    
-    if (!selectedProjectId) return;
-
-    // Cancel previous image preloads immediately
-    const prevOps = prefetchOperationsRef.current;
-    prevOps.images.forEach(img => {
-      img.onload = null;
-      img.onerror = null;
-      img.src = ''; // Cancel loading
-    });
-
-    // Reset tracking with new prefetch ID
-    const prefetchId = `${nextPage}-${prevPage}-${Date.now()}`;
-    initializePrefetchOperations(prefetchOperationsRef, prefetchId);
-
-    // Clean up old pagination cache to prevent memory leaks
-    // Use nextPage-1 as approximation of current page for cleanup
-    const currentPage = nextPage ? nextPage - 1 : (prevPage ? prevPage + 1 : 1);
-    
-    // Time-slice the cleanup operation to prevent UI blocking
-    performanceMonitoredTimeout(() => {
-      smartCleanupOldPages(queryClient, currentPage, selectedProjectId, 'unified-generations');
-    }, 0, 'GenerationsPane cleanup');
-    
-    // Trigger image garbage collection periodically for pane to free browser memory
-    if (currentPage % 8 === 0) {
-      // Use requestIdleCallback if available for garbage collection (low priority)
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-          triggerImageGarbageCollection();
-        });
-      } else {
-        performanceMonitoredTimeout(() => {
-          triggerImageGarbageCollection();
-        }, 100, 'GenerationsPane garbage collection');
-      }
-    }
-
-    const filters = {
-      mediaType: mediaTypeFilter,
-      shotId: selectedShotFilter === SHOT_FILTER.ALL ? undefined : selectedShotFilter,
-      excludePositioned: selectedShotFilter !== SHOT_FILTER.ALL ? excludePositioned : undefined,
-      starredOnly
-    };
-
-    // Using centralized preload function from shared hooks - time-sliced for performance
-
-    // Time-slice the prefetch operations to prevent UI blocking
-    const performPrefetchOperations = () => {
-      // Prefetch next page first (higher priority) 
-      if (nextPage) {
-        performanceMonitoredTimeout(async () => {
-          await measureAsync(
-            () => queryClient.prefetchQuery({
-              queryKey: queryKeys.unified.byProject(selectedProjectId, nextPage, GENERATIONS_PER_PAGE, filters),
-              queryFn: () => fetchGenerations(selectedProjectId, GENERATIONS_PER_PAGE, (nextPage - 1) * GENERATIONS_PER_PAGE, filters),
-              staleTime: 30 * 1000,
-            }),
-            'Next page query'
-          ).then(() => {
-            const cached = queryClient.getQueryData(queryKeys.unified.byProject(selectedProjectId, nextPage, GENERATIONS_PER_PAGE, filters)) as { items?: { thumbUrl?: string; url?: string }[] } | null;
-
-            // Time-slice the image preloading
-            performanceMonitoredTimeout(() => {
-              smartPreloadImages(cached, 'next', prefetchId, prefetchOperationsRef);
-            }, 0, 'GenerationsPane next page image preloading');
-          });
-        }, 5, 'GenerationsPane next page prefetch'); // Small delay to yield control
-      }
-
-      // Prefetch previous page second (lower priority) with additional delay
-      if (prevPage) {
-        performanceMonitoredTimeout(async () => {
-          await measureAsync(
-            () => queryClient.prefetchQuery({
-              queryKey: queryKeys.unified.byProject(selectedProjectId, prevPage, GENERATIONS_PER_PAGE, filters),
-              queryFn: () => fetchGenerations(selectedProjectId, GENERATIONS_PER_PAGE, (prevPage - 1) * GENERATIONS_PER_PAGE, filters),
-              staleTime: 30 * 1000,
-            }),
-            'Previous page query'
-          ).then(() => {
-            const cached = queryClient.getQueryData(queryKeys.unified.byProject(selectedProjectId, prevPage, GENERATIONS_PER_PAGE, filters)) as { items?: { thumbUrl?: string; url?: string }[] } | null;
-
-            // Time-slice the image preloading
-            performanceMonitoredTimeout(() => {
-              smartPreloadImages(cached, 'prev', prefetchId, prefetchOperationsRef);
-            }, 0, 'GenerationsPane previous page image preloading');
-          });
-        }, 15, 'GenerationsPane previous page prefetch'); // Larger delay for lower priority
-      }
-    };
-    
-    // Start the prefetch operations
-    performPrefetchOperations();
-    
-    // Monitor total prefetch operation time
-    performanceMonitoredTimeout(() => {
-      const totalPrefetchDuration = performance.now() - prefetchStartTime;
-      if (totalPrefetchDuration > 50) {
-        console.warn(`[PerformanceMonitor] Total prefetch operation took ${totalPrefetchDuration.toFixed(1)}ms`);
-      }
-    }, 20, 'GenerationsPane total prefetch monitoring');
-  }, [selectedProjectId, queryClient, mediaTypeFilter, selectedShotFilter, excludePositioned, starredOnly]);
-
-  
+  // Stable filters object for preloading (prevents recreating on every render)
+  const generationFilters = useStableObject(() => ({
+    mediaType: mediaTypeFilter,
+    shotId: selectedShotFilter === SHOT_FILTER.ALL ? undefined : selectedShotFilter,
+    excludePositioned: selectedShotFilter !== SHOT_FILTER.ALL ? excludePositioned : undefined,
+    starredOnly
+  }), [mediaTypeFilter, selectedShotFilter, excludePositioned, starredOnly]);
 
   const shotFilterContentRef = useRef<HTMLDivElement>(null);
   const mediaTypeContentRef = useRef<HTMLDivElement>(null);
@@ -783,7 +674,7 @@ const GenerationsPaneComponent: React.FC = () => {
                     showShare={false}
                     serverPage={page}
                     onServerPageChange={handleServerPageChange}
-                    onPrefetchAdjacentPages={handlePrefetchAdjacentPages}
+                    generationFilters={generationFilters}
                     currentViewingShotId={currentShotId || undefined}
                     onCreateShot={handleCreateShot}
                     isLoading={isLoading}

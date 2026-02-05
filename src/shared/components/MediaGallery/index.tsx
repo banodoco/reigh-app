@@ -117,8 +117,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     hidePagination = false,
     hideTopFilters = false,
     hideMediaTypeFilter = false,
-    onPrefetchAdjacentPages,
+    onPrefetchAdjacentPages, // Deprecated - use generationFilters instead
     enableAdjacentPagePreloading = true,
+    generationFilters,
     onCreateShot,
     lastShotNameForTooltip,
     onBackfillRequest,
@@ -881,6 +882,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
           itemsPerPage={actualItemsPerPage}
           onPrefetchAdjacentPages={onPrefetchAdjacentPages}
           selectedProjectId={selectedProjectId}
+          generationFilters={generationFilters}
           
           // Filter state for empty states
           hasFilters={hasFilters}

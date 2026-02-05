@@ -2,7 +2,7 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 // @ts-ignore
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { createClient } from "npm:@supabase/supabase-js@2.94.0";
 import { authenticateRequest, verifyTaskOwnership, getTaskUserId } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 

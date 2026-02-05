@@ -28,8 +28,6 @@ export interface TimelineModeContentProps {
   updateTimelineFrame: (id: string, frame: number) => Promise<void>;
   pendingPositions: Map<string, number>;
   onPendingPositionApplied: (generationId: string) => void;
-  trailingEndFrame?: number;
-  onTrailingEndFrameChange: (endFrame: number | undefined) => void;
   maxFrameLimit: number;
 
   // Image actions
@@ -108,6 +106,9 @@ export interface TimelineModeContentProps {
   // Unpositioned
   unpositionedGenerationsCount: number;
   onOpenUnpositionedPane: () => void;
+
+  // Position system: register trailing end frame updater from TimelineContainer
+  onRegisterTrailingUpdater?: (fn: (endFrame: number) => void) => void;
 }
 
 export const TimelineModeContent: React.FC<TimelineModeContentProps> = ({
@@ -121,8 +122,6 @@ export const TimelineModeContent: React.FC<TimelineModeContentProps> = ({
   updateTimelineFrame,
   pendingPositions,
   onPendingPositionApplied,
-  trailingEndFrame,
-  onTrailingEndFrameChange,
   maxFrameLimit,
   onImageReorder,
   onFramePositionsChange,
@@ -172,6 +171,7 @@ export const TimelineModeContent: React.FC<TimelineModeContentProps> = ({
   projectAspectRatio,
   unpositionedGenerationsCount,
   onOpenUnpositionedPane,
+  onRegisterTrailingUpdater,
 }) => {
   return (
     <>
@@ -226,8 +226,6 @@ export const TimelineModeContent: React.FC<TimelineModeContentProps> = ({
         onAddToShot={onAddToShot}
         onAddToShotWithoutPosition={onAddToShotWithoutPosition}
         onCreateShot={onCreateShot}
-        trailingEndFrame={trailingEndFrame}
-        onTrailingEndFrameChange={onTrailingEndFrameChange}
         maxFrameLimit={maxFrameLimit}
         selectedOutputId={selectedOutputId}
         onSelectedOutputChange={onSelectedOutputChange}
@@ -238,6 +236,7 @@ export const TimelineModeContent: React.FC<TimelineModeContentProps> = ({
         onClearPendingImageToOpen={onClearPendingImageToOpen}
         navigateWithTransition={navigateWithTransition}
         onNewShotFromSelection={onNewShotFromSelection}
+        onRegisterTrailingUpdater={onRegisterTrailingUpdater}
       />
 
       {/* Unpositioned generations helper */}

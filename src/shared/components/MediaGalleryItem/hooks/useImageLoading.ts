@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { getDisplayUrl, stripQueryParameters } from "@/shared/lib/utils";
-import { isImageCached, setImageCacheStatus } from "@/shared/lib/imageCacheManager";
+import { hasLoadedImage, setImageLoadStatus } from "@/shared/lib/imageLoadTracker";
 import type { GeneratedImageWithMetadata } from "../../MediaGallery";
 
 interface UseImageLoadingProps {
@@ -34,7 +34,7 @@ export function useImageLoading({
   onImageLoaded,
 }: UseImageLoadingProps): UseImageLoadingReturn {
   // Check if this image was already cached by the preloader
-  const isPreloadedAndCached = isImageCached(image);
+  const isPreloadedAndCached = hasLoadedImage(image);
 
   const [imageLoadError, setImageLoadError] = useState<boolean>(false);
   const [imageRetryCount, setImageRetryCount] = useState<number>(0);
@@ -69,7 +69,7 @@ export function useImageLoading({
     setImageLoading(false);
     // Mark this image as cached in the centralized cache to avoid future skeletons
     try {
-      setImageCacheStatus(image, true);
+      setImageLoadStatus(image, true);
     } catch (_) {
       // Silent: cache status is non-critical optimization; failure won't affect functionality
     }
@@ -127,7 +127,7 @@ export function useImageLoading({
     setImageLoadError(false);
     setImageRetryCount(0);
     // Check if the new image is already cached using centralized function
-    const isNewImageCached = isImageCached(image);
+    const isNewImageCached = hasLoadedImage(image);
     setImageLoaded(isNewImageCached);
     // Only set loading to false if not cached (if cached, we never start loading)
     if (!isNewImageCached) {
@@ -139,7 +139,7 @@ export function useImageLoading({
 
   // Simplified loading system - responds to progressive loading and URL changes
   useEffect(() => {
-    const isPreloaded = isImageCached(image);
+    const isPreloaded = hasLoadedImage(image);
 
     // Update actualSrc when displayUrl changes (for progressive loading transitions)
     // OR when shouldLoad becomes true for the first time

@@ -10,6 +10,7 @@ import { useProjectGenerations } from '@/shared/hooks/useProjectGenerations';
 import { useDeleteGeneration } from '@/shared/hooks/useGenerationMutations';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { handleError } from '@/shared/lib/errorHandler';
+import { useStableObject } from '@/shared/hooks/useStableObject';
 import {
   useVideoTravelViewMode,
   useVideoTravelDropHandlers,
@@ -162,6 +163,18 @@ export function ShotListView({
   const isSearchActive = useMemo(() => shotSearchQuery.trim().length > 0, [shotSearchQuery]);
   const hasNoSearchResults = isSearchActive && ((filteredShots?.length || 0) === 0);
 
+  // Stable filters object for videos query (prevents recreating on every render)
+  const videosFilters = useStableObject(() => ({
+    toolType: videoToolTypeFilter ? 'travel-between-images' : undefined,
+    mediaType: videoMediaTypeFilter,
+    shotId: videoShotFilter !== 'all' ? videoShotFilter : undefined,
+    excludePositioned: videoExcludePositioned,
+    starredOnly: videoStarredOnly,
+    searchTerm: videoSearchTerm,
+    sort: videoSortMode,
+    includeChildren: false
+  }), [videoToolTypeFilter, videoMediaTypeFilter, videoShotFilter, videoExcludePositioned, videoStarredOnly, videoSearchTerm, videoSortMode]);
+
   // Videos query
   const {
     data: videosData,
@@ -172,16 +185,7 @@ export function ShotListView({
     videoPage,
     itemsPerPage,
     showVideosView,
-    {
-      toolType: videoToolTypeFilter ? 'travel-between-images' : undefined,
-      mediaType: videoMediaTypeFilter,
-      shotId: videoShotFilter !== 'all' ? videoShotFilter : undefined,
-      excludePositioned: videoExcludePositioned,
-      starredOnly: videoStarredOnly,
-      searchTerm: videoSearchTerm,
-      sort: videoSortMode,
-      includeChildren: false
-    }
+    videosFilters
   );
 
   // Clear videosViewJustEnabled flag when data loads
@@ -334,6 +338,10 @@ export function ShotListView({
             setVideoToolTypeFilter,
             videoStarredOnly,
             setVideoStarredOnly,
+          }}
+          preloading={{
+            generationFilters: videosFilters,
+            enableAdjacentPagePreloading: true,
           }}
           addToShot={{
             targetShotIdForButton: targetShotInfo.targetShotIdForButton,

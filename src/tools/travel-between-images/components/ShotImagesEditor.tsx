@@ -23,7 +23,7 @@
  * - PreviewTogetherDialog: Video preview dialog
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { Button } from '@/shared/components/ui/button';
@@ -143,10 +143,15 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
   // LOCAL STATE
   // ==========================================================================
 
-  // Local state for responsive drag UI - cleared after drag persists to metadata
-  const [localEndFrame, setLocalEndFrame] = useState<number | undefined>(undefined);
   const [deletingSegmentId, setDeletingSegmentId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Ref for trailing end frame updates through the position system.
+  // TimelineContainer registers its handler here; useFrameCountUpdater calls it.
+  const trailingFrameUpdateRef = useRef<((endFrame: number) => void) | null>(null);
+  const registerTrailingUpdater = useCallback((fn: (endFrame: number) => void) => {
+    trailingFrameUpdateRef.current = fn;
+  }, []);
 
   // ==========================================================================
   // DATA HOOKS
@@ -182,43 +187,6 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
   );
 
   const { addOptimisticPending } = usePendingSegmentTasks(selectedShotId, projectId || null);
-
-  // ==========================================================================
-  // DERIVED END FRAME (from last image's metadata)
-  // ==========================================================================
-
-  // Derive end_frame from the last positioned image's metadata
-  // This is the source of truth; localEndFrame is only used during drag for responsive UI
-  const derivedEndFrame = useMemo(() => {
-    const sortedImages = [...(shotGenerations || [])]
-      .filter((img) => img.timeline_frame != null && img.timeline_frame >= 0)
-      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
-
-    if (sortedImages.length === 0) return undefined;
-
-    const lastImage = sortedImages[sortedImages.length - 1];
-    const lastImageFrame = lastImage.timeline_frame ?? 0;
-    const metadata = lastImage.metadata as Record<string, unknown> | null;
-    const endFrame = metadata?.end_frame;
-
-    // Validate: end_frame must be greater than last image's frame to be valid
-    // If not, the settings are stale (e.g., image was added/moved since trailing was configured)
-    if (typeof endFrame !== 'number' || endFrame <= lastImageFrame) {
-      return undefined;
-    }
-
-    return endFrame;
-  }, [shotGenerations]);
-
-  // Effective end frame: prefer local state during drag, fall back to metadata
-  const trailingEndFrame = localEndFrame ?? derivedEndFrame;
-
-  // Clear local state when derived value changes (after persist completes)
-  useEffect(() => {
-    if (derivedEndFrame !== undefined && localEndFrame !== undefined && localEndFrame === derivedEndFrame) {
-      setLocalEndFrame(undefined);
-    }
-  }, [derivedEndFrame, localEndFrame]);
 
   // ==========================================================================
   // UI STATE HOOKS
@@ -259,6 +227,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
     loadPositions,
     navigateWithTransition,
     addOptimisticPending,
+    trailingFrameUpdateRef,
   });
 
   const {
@@ -293,13 +262,6 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
   const handleDragStateChange = useCallback((isDragging: boolean) => {
     onDragStateChange?.(isDragging);
   }, [onDragStateChange]);
-
-  // Updates local state during drag for responsive UI
-  // The actual persistence happens in useTimelineOrchestrator on mouse up
-  const handleTrailingEndFrameChange = useCallback((endFrame: number | undefined) => {
-    setLocalEndFrame(endFrame);
-    onTrailingDurationChange?.(endFrame);
-  }, [onTrailingDurationChange]);
 
   const handleDeleteSegment = useCallback(async (generationId: string) => {
     setDeletingSegmentId(generationId);
@@ -526,8 +488,6 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
                 updateTimelineFrame={updateTimelineFrame}
                 pendingPositions={pendingPositions}
                 onPendingPositionApplied={onPendingPositionApplied}
-                trailingEndFrame={trailingEndFrame}
-                onTrailingEndFrameChange={handleTrailingEndFrameChange}
                 maxFrameLimit={maxFrameLimit}
                 onImageReorder={onImageReorder}
                 onFramePositionsChange={onFramePositionsChange}
@@ -577,6 +537,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
                 projectAspectRatio={projectAspectRatio}
                 unpositionedGenerationsCount={unpositionedGenerationsCount}
                 onOpenUnpositionedPane={onOpenUnpositionedPane}
+                onRegisterTrailingUpdater={registerTrailingUpdater}
               />
             ) : (
               <BatchModeContent

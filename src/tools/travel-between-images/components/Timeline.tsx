@@ -176,9 +176,6 @@ export interface TimelineProps {
   onCreateShot?: (shotName: string, files: File[]) => Promise<{shotId?: string; shotName?: string} | void>;
   // Multi-select: callback to create a new shot from selected images (returns new shot ID)
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
-  // Trailing segment endpoint for setting video duration (when last image has no following image)
-  trailingEndFrame?: number;
-  onTrailingEndFrameChange?: (endFrame: number | undefined) => void;
   // Maximum frame limit for timeline gaps (77 with smooth continuations, 81 otherwise)
   maxFrameLimit?: number;
   // Shared output selection state (syncs FinalVideoSection with SegmentOutputStrip)
@@ -196,6 +193,8 @@ export interface TimelineProps {
   onClearPendingImageToOpen?: () => void;
   // Helper to navigate with transition overlay (prevents flash when component type changes)
   navigateWithTransition?: (doNavigation: () => void) => void;
+  // Position system: register trailing end frame updater from TimelineContainer
+  onRegisterTrailingUpdater?: (fn: (endFrame: number) => void) => void;
 }
 
 // Stable empty object to avoid creating new references when enhancedPrompts is undefined
@@ -263,9 +262,6 @@ const Timeline: React.FC<TimelineProps> = ({
   onAddToShotWithoutPosition,
   onCreateShot,
   onNewShotFromSelection,
-  // Single image duration props
-  trailingEndFrame,
-  onTrailingEndFrameChange,
   // Frame limit
   maxFrameLimit = 81,
   // Shared output selection (syncs FinalVideoSection with SegmentOutputStrip)
@@ -281,6 +277,8 @@ const Timeline: React.FC<TimelineProps> = ({
   onClearPendingImageToOpen,
   // Lightbox transition support (prevents flash during navigation)
   navigateWithTransition,
+  // Position system: trailing end frame updater registration
+  onRegisterTrailingUpdater,
 }) => {
   // [RefactorMetrics] Track render count for baseline measurements
   useRenderCount('Timeline');
@@ -1099,8 +1097,6 @@ const Timeline: React.FC<TimelineProps> = ({
         readOnly={readOnly}
         isUploadingImage={isUploadingImage}
         uploadProgress={uploadProgress}
-        trailingEndFrame={trailingEndFrame}
-        onTrailingEndFrameChange={onTrailingEndFrameChange}
         maxFrameLimit={maxFrameLimit}
         selectedOutputId={selectedOutputId}
         onSelectedOutputChange={onSelectedOutputChange}
@@ -1108,6 +1104,7 @@ const Timeline: React.FC<TimelineProps> = ({
         videoOutputs={allGenerationsForReadOnly}
         onNewShotFromSelection={onNewShotFromSelection}
         onShotChange={onShotChange}
+        onRegisterTrailingUpdater={onRegisterTrailingUpdater}
       />
 
       {/* Lightbox */}

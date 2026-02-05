@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
-import { quantizePositions } from '../utils/timeline-utils';
+import { quantizePositions, TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { DEFAULT_FRAME_SPACING } from '@/shared/utils/timelinePositionCalculator';
 
@@ -172,6 +172,19 @@ export function useTimelinePositions({
         newPositions.set(shotGen.id, shotGen.timeline_frame);
       }
     });
+
+    // Add trailing endpoint from last positioned image's metadata.end_frame
+    const sortedShotGens = [...shotGenerations]
+      .filter(sg => sg.timeline_frame !== null && sg.timeline_frame !== undefined && sg.timeline_frame >= 0)
+      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+    if (sortedShotGens.length > 0) {
+      const lastShotGen = sortedShotGens[sortedShotGens.length - 1];
+      const metadata = lastShotGen.metadata as Record<string, unknown> | null;
+      const endFrame = metadata?.end_frame;
+      if (typeof endFrame === 'number' && endFrame > (lastShotGen.timeline_frame ?? 0)) {
+        newPositions.set(TRAILING_ENDPOINT_KEY, endFrame);
+      }
+    }
 
     // MERGE LOGIC: Combine server data with local pending updates
     // Instead of skipping the entire sync, we merge:
@@ -376,15 +389,18 @@ export function useTimelinePositions({
     
     // Calculate what changed (using quantized positions)
     const changes: Array<{ id: string; oldPos: number | null; newPos: number }> = [];
-    
+
     for (const [id, newPos] of quantizedPositions) {
       const oldPos = positions.get(id);
       if (oldPos !== newPos) {
         changes.push({ id, oldPos: oldPos ?? null, newPos });
       }
     }
-    
-    if (changes.length === 0) {
+
+    // Detect trailing endpoint removal (was in old positions, not in new)
+    const trailingRemoved = positions.has(TRAILING_ENDPOINT_KEY) && !quantizedPositions.has(TRAILING_ENDPOINT_KEY);
+
+    if (changes.length === 0 && !trailingRemoved) {
       console.log('[TimelinePositions] No changes detected, skipping');
       return;
     }
@@ -411,13 +427,19 @@ export function useTimelinePositions({
     // Apply optimistic update
     let rollback: (() => void) | null = null;
     if (!skipOptimistic) {
-      rollback = applyOptimistic(
-        changes.map(c => ({ 
-          id: c.id, 
-          position: c.newPos, 
-          operation: c.oldPos === null ? 'add' : 'move' 
-        }))
-      );
+      const optimisticUpdates = changes.map(c => ({
+        id: c.id,
+        position: c.newPos,
+        operation: (c.oldPos === null ? 'add' : 'move') as 'add' | 'move' | 'remove',
+      }));
+      if (trailingRemoved) {
+        optimisticUpdates.push({
+          id: TRAILING_ENDPOINT_KEY,
+          position: 0,
+          operation: 'remove',
+        });
+      }
+      rollback = applyOptimistic(optimisticUpdates);
     }
     
     // If skipping database, we're done
@@ -437,73 +459,134 @@ export function useTimelinePositions({
     setIsLocked(true);
     
     try {
-      // Build database updates
+      // Partition changes: trailing endpoint vs. normal images
+      const trailingChange = changes.find(c => c.id === TRAILING_ENDPOINT_KEY);
+      const imageChanges = changes.filter(c => c.id !== TRAILING_ENDPOINT_KEY);
+
+      // Build database updates for normal image changes
       const dbUpdates: Array<{ shot_generation_id: string; timeline_frame: number }> = [];
-      
-      for (const change of changes) {
+
+      for (const change of imageChanges) {
         // Find the shot_generation record for this item
         // change.id is shot_generations.id which matches sg.id directly
         const shotGen = shotGenerations.find(sg => {
           // Direct match on shot_generations.id
           return sg.id === change.id;
         });
-        
+
         if (shotGen) {
           dbUpdates.push({
             shot_generation_id: shotGen.id,
             timeline_frame: change.newPos
           });
         } else {
-          console.warn('[TimelinePositions] Could not find shot_generation for:', 
+          console.warn('[TimelinePositions] Could not find shot_generation for:',
             change.id.substring(0, 8));
         }
       }
-      
-      if (dbUpdates.length === 0) {
+
+      // Handle trailing endpoint change — write metadata.end_frame on last positioned image
+      if (trailingChange) {
+        const sortedShotGens = [...shotGenerations]
+          .filter(sg => sg.timeline_frame !== null && sg.timeline_frame !== undefined && sg.timeline_frame >= 0)
+          .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+        const lastShotGen = sortedShotGens[sortedShotGens.length - 1];
+        if (lastShotGen) {
+          console.log('[TimelinePositions] 📤 Persisting trailing end_frame:', {
+            shotGenId: lastShotGen.id.substring(0, 8),
+            endFrame: trailingChange.newPos
+          });
+          const { data: current, error: fetchError } = await supabase
+            .from('shot_generations')
+            .select('metadata')
+            .eq('id', lastShotGen.id)
+            .single();
+          if (fetchError) throw fetchError;
+          const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
+          const { error: updateError } = await supabase
+            .from('shot_generations')
+            .update({
+              metadata: { ...currentMetadata, end_frame: trailingChange.newPos },
+            })
+            .eq('id', lastShotGen.id);
+          if (updateError) throw updateError;
+        }
+      }
+
+      // Handle trailing endpoint removal — clear metadata.end_frame from last positioned image
+      if (trailingRemoved) {
+        const sortedShotGens = [...shotGenerations]
+          .filter(sg => sg.timeline_frame !== null && sg.timeline_frame !== undefined && sg.timeline_frame >= 0)
+          .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+        const lastShotGen = sortedShotGens[sortedShotGens.length - 1];
+        if (lastShotGen) {
+          console.log('[TimelinePositions] 🗑️ Clearing trailing end_frame:', {
+            shotGenId: lastShotGen.id.substring(0, 8),
+          });
+          const { data: current, error: fetchError } = await supabase
+            .from('shot_generations')
+            .select('metadata')
+            .eq('id', lastShotGen.id)
+            .single();
+          if (fetchError) throw fetchError;
+          const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
+          delete currentMetadata.end_frame;
+          const { error: updateError } = await supabase
+            .from('shot_generations')
+            .update({ metadata: currentMetadata })
+            .eq('id', lastShotGen.id);
+          if (updateError) throw updateError;
+        }
+      }
+
+      if (dbUpdates.length === 0 && !trailingChange && !trailingRemoved) {
         console.warn('[TimelinePositions] No database updates to perform');
         clearPendingUpdates(changes.map(c => c.id));
         return;
       }
-      
-      console.log('[TimelinePositions] 📤 Sending batch update to database:', {
-        updatesCount: dbUpdates.length
-      });
-      
-      // Use batch update RPC if available, otherwise fallback to sequential updates
-      const { error: rpcError } = await supabase.rpc('batch_update_timeline_frames', {
-        p_updates: dbUpdates.map(u => ({
-          shot_generation_id: u.shot_generation_id,
-          timeline_frame: u.timeline_frame,
-          metadata: {
-            user_positioned: true,
-            drag_source: operation,
-            ...metadata
+
+      // Batch-update normal image positions (skip if only trailing changed)
+      if (dbUpdates.length > 0) {
+        console.log('[TimelinePositions] 📤 Sending batch update to database:', {
+          updatesCount: dbUpdates.length
+        });
+
+        // Use batch update RPC if available, otherwise fallback to sequential updates
+        const { error: rpcError } = await supabase.rpc('batch_update_timeline_frames', {
+          p_updates: dbUpdates.map(u => ({
+            shot_generation_id: u.shot_generation_id,
+            timeline_frame: u.timeline_frame,
+            metadata: {
+              user_positioned: true,
+              drag_source: operation,
+              ...metadata
+            }
+          }))
+        });
+
+        if (rpcError) {
+          // Fallback to sequential updates if RPC doesn't exist
+          if (rpcError.code === '42883') { // function does not exist
+            console.warn('[TimelinePositions] batch_update_timeline_frames not found, using sequential updates');
+
+            for (const update of dbUpdates) {
+              const { error } = await supabase
+                .from('shot_generations')
+                .update({
+                  timeline_frame: update.timeline_frame,
+                  metadata: {
+                    user_positioned: true,
+                    drag_source: operation,
+                    ...metadata
+                  }
+                })
+                .eq('id', update.shot_generation_id);
+
+              if (error) throw error;
+            }
+          } else {
+            throw rpcError;
           }
-        }))
-      });
-      
-      if (rpcError) {
-        // Fallback to sequential updates if RPC doesn't exist
-        if (rpcError.code === '42883') { // function does not exist
-          console.warn('[TimelinePositions] batch_update_timeline_frames not found, using sequential updates');
-          
-          for (const update of dbUpdates) {
-            const { error } = await supabase
-              .from('shot_generations')
-              .update({ 
-                timeline_frame: update.timeline_frame,
-                metadata: {
-                  user_positioned: true,
-                  drag_source: operation,
-                  ...metadata
-                }
-              })
-              .eq('id', update.shot_generation_id);
-            
-            if (error) throw error;
-          }
-        } else {
-          throw rpcError;
         }
       }
       

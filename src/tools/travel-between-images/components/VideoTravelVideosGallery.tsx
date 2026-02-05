@@ -57,11 +57,20 @@ export interface DeleteProps {
   isDeleting?: boolean;
 }
 
+export interface PreloadingProps {
+  /** @deprecated Use generationFilters instead */
+  onPrefetchAdjacentPages?: (prevPage: number | null, nextPage: number | null) => void;
+  enableAdjacentPagePreloading?: boolean;
+  /** Filters for automatic preloading */
+  generationFilters?: Record<string, unknown>;
+}
+
 export interface VideoTravelVideosGalleryProps {
   query: VideosQueryProps;
   filters: VideosFiltersProps;
   addToShot: AddToShotProps;
   deletion?: DeleteProps;
+  preloading?: PreloadingProps;
   /** Flag to show skeleton during view transition */
   videosViewJustEnabled: boolean;
 }
@@ -75,6 +84,7 @@ export const VideoTravelVideosGallery: React.FC<VideoTravelVideosGalleryProps> =
   filters,
   addToShot,
   deletion,
+  preloading,
   videosViewJustEnabled,
 }) => {
   const {
@@ -207,6 +217,9 @@ export const VideoTravelVideosGallery: React.FC<VideoTravelVideosGalleryProps> =
           showShare={false}
           onDelete={deletion?.onDelete}
           isDeleting={deletion?.isDeleting}
+          // Preloading props
+          generationFilters={preloading?.generationFilters}
+          enableAdjacentPagePreloading={preloading?.enableAdjacentPagePreloading ?? true}
         />
       </div>
     </div>

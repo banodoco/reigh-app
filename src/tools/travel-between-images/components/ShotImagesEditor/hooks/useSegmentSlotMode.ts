@@ -7,7 +7,7 @@
  * - useFrameCountUpdater: Frame count updates
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, type RefObject } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { SegmentSlotModeData } from '@/shared/components/MediaLightbox/types';
 import type { PairData } from '../../Timeline/TimelineContainer';
@@ -38,6 +38,8 @@ export interface UseSegmentSlotModeProps {
   loadPositions: (options?: { silent?: boolean; reason?: string }) => Promise<void>;
   navigateWithTransition: (doNavigation: () => void) => void;
   addOptimisticPending: (pairShotGenerationId: string) => void;
+  /** Ref to trailing end frame updater from position system (for instant optimistic updates) */
+  trailingFrameUpdateRef?: RefObject<((endFrame: number) => void) | null>;
 }
 
 export interface UseSegmentSlotModeReturn {
@@ -74,6 +76,7 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
     loadPositions,
     navigateWithTransition,
     addOptimisticPending,
+    trailingFrameUpdateRef,
   } = props;
 
   const location = useLocation();
@@ -103,6 +106,7 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
     generationMode: effectiveGenerationMode,
     maxFrameLimit,
     loadPositions,
+    trailingFrameUpdateRef,
   });
 
   // ==========================================================================

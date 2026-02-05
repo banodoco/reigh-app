@@ -13,6 +13,7 @@ import { realtimeEventProcessor } from '@/shared/realtime/RealtimeEventProcessor
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 import { invalidateGenerationsSync, invalidateAllShotGenerations } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { preloadingService } from '@/shared/services/PreloadingService';
 import type {
   ProcessedEvent,
   TasksUpdatedEvent,
@@ -247,6 +248,12 @@ function handleGenerationsDeleted(queryClient: QueryClient, event: GenerationsDe
   console.log('[RealtimeInvalidation] Generations deleted:', {
     count: event.generations.length,
   });
+
+  // Notify preloading service to clear deleted images from tracker
+  const deletedIds = event.generations.map((g) => g.id).filter((id): id is string => !!id);
+  if (deletedIds.length > 0) {
+    preloadingService.onGenerationsDeleted(deletedIds);
+  }
 
   // Invalidate all generation-related queries
   queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });

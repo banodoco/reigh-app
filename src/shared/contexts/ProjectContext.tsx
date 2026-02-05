@@ -7,6 +7,7 @@ import { handleError } from '@/shared/lib/errorHandler';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { useAuth } from './AuthContext';
 import { useUserSettings } from './UserSettingsContext';
+import { preloadingService } from '@/shared/services/PreloadingService';
 
 // Type for updating projects
 interface ProjectUpdate {
@@ -279,6 +280,9 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       timestamp: Date.now(),
       stack: new Error().stack?.split('\n').slice(1, 4)
     });
+
+    // Notify preloading service of project change (clears caches)
+    preloadingService.onProjectChange(projectId);
 
     setSelectedProjectIdState(projectId);
 

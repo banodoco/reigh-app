@@ -167,8 +167,11 @@ export interface MediaGalleryProps {
   hidePagination?: boolean;
   hideTopFilters?: boolean;
   hideMediaTypeFilter?: boolean;
+  /** @deprecated Use generationFilters instead - callbacks no longer needed */
   onPrefetchAdjacentPages?: (prevPage: number | null, nextPage: number | null) => void;
   enableAdjacentPagePreloading?: boolean;
+  /** Filters for generation queries - enables automatic preloading */
+  generationFilters?: Record<string, unknown>;
   onCreateShot?: (shotName: string, files: File[]) => Promise<void>;
   /** Called after delete to trigger data refetch. Should invalidate queries and refetch current page. */
   onBackfillRequest?: () => Promise<void>;

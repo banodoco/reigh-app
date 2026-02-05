@@ -78,9 +78,6 @@ export interface TimelineContainerProps {
   // Upload progress tracking
   isUploadingImage?: boolean;
   uploadProgress?: number;
-  // Trailing segment endpoint for setting video duration (when last image has no following image)
-  trailingEndFrame?: number;
-  onTrailingEndFrameChange?: (endFrame: number | undefined) => void;
   // Maximum frame limit for timeline gaps (77 with smooth continuations, 81 otherwise)
   maxFrameLimit?: number;
   // Shared output selection state (syncs FinalVideoSection with SegmentOutputStrip)
@@ -94,6 +91,8 @@ export interface TimelineContainerProps {
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
   // Callback to navigate to a different shot (used for "Jump to shot" after creation)
   onShotChange?: (shotId: string) => void;
+  // Position system: register trailing end frame updater with parent
+  onRegisterTrailingUpdater?: (fn: (endFrame: number) => void) => void;
 }
 
 // Sub-component prop types are defined in their respective files

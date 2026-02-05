@@ -3,7 +3,7 @@
  * Handles the complex logic of shifting subsequent images and compression.
  */
 
-import { useCallback } from 'react';
+import { useCallback, type RefObject } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { GenerationRow } from '@/types/shots';
 
@@ -16,6 +16,12 @@ export interface UseFrameCountUpdaterProps {
   maxFrameLimit: number;
   /** Reload positions after update */
   loadPositions: (options?: { silent?: boolean; reason?: string }) => Promise<void>;
+  /**
+   * Ref to a function that updates trailing end frame through the position system.
+   * When set, trailing segment changes get instant optimistic updates on the timeline.
+   * When null/undefined, falls back to direct DB write + loadPositions (slower round-trip).
+   */
+  trailingFrameUpdateRef?: RefObject<((endFrame: number) => void) | null>;
 }
 
 export interface UseFrameCountUpdaterReturn {
@@ -36,6 +42,7 @@ export function useFrameCountUpdater({
   generationMode,
   maxFrameLimit,
   loadPositions,
+  trailingFrameUpdateRef,
 }: UseFrameCountUpdaterProps): UseFrameCountUpdaterReturn {
   const updatePairFrameCount = useCallback(async (
     pairShotGenerationId: string,
@@ -64,11 +71,18 @@ export function useFrameCountUpdater({
     // Calculate effective frame count (capped at maxFrameLimit)
     const effectiveNewFrameCount = Math.min(newFrameCount, maxFrameLimit);
 
-    // Handle trailing segment (no end image) - update metadata.end_frame
+    // Handle trailing segment (no end image) - update via position system or fallback to direct DB write
     if (isTrailingSegment) {
       const newEndFrame = startFrame + effectiveNewFrameCount;
 
-      // Fetch current metadata
+      // Preferred path: update through the position system for instant optimistic updates.
+      // The position system (updatePositions) handles both the visual update and the DB persist.
+      if (trailingFrameUpdateRef?.current) {
+        trailingFrameUpdateRef.current(newEndFrame);
+        return { finalFrameCount: effectiveNewFrameCount };
+      }
+
+      // Fallback: direct DB write + reload (used when position system not connected, e.g. batch mode)
       const { data: current, error: fetchError } = await supabase
         .from('shot_generations')
         .select('metadata')
@@ -82,7 +96,6 @@ export function useFrameCountUpdater({
 
       const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
 
-      // Update metadata.end_frame
       const { error: updateError } = await supabase
         .from('shot_generations')
         .update({
@@ -98,7 +111,6 @@ export function useFrameCountUpdater({
         return;
       }
 
-      // Refresh data
       if (loadPositions) {
         await loadPositions({ silent: true, reason: 'end-frame-update' });
       }
@@ -180,7 +192,7 @@ export function useFrameCountUpdater({
     }
 
     return { finalFrameCount };
-  }, [shotGenerations, generationMode, loadPositions, maxFrameLimit]);
+  }, [shotGenerations, generationMode, loadPositions, maxFrameLimit, trailingFrameUpdateRef]);
 
   return { updatePairFrameCount };
 }

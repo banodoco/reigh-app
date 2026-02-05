@@ -1,16 +1,31 @@
 import { quantizeGap, isValidFrameCount } from "./time-utils";
 
+// The trailing endpoint key — lives in the positions map but is not a real image
+export const TRAILING_ENDPOINT_KEY = '__trailing_endpoint';
+
 // Minimum gap between frames (4N+1 format, starting at 5)
 const QUANTIZE_MIN_GAP = 5;
 
 /**
  * Quantize all positions to ensure gaps between adjacent items are in 4N+1 format.
  * First item remains at position 0, subsequent items are adjusted to have quantized gaps.
+ * The trailing endpoint is extracted before quantizing and re-added after (its gap has
+ * different constraints — quantization happens in the drag handler).
  */
 export const quantizePositions = (positions: Map<string, number>): Map<string, number> => {
-  const entries = [...positions.entries()].sort((a, b) => a[1] - b[1]);
+  // Extract trailing endpoint before quantizing
+  const trailingValue = positions.get(TRAILING_ENDPOINT_KEY);
+  const imagePositions = new Map(positions);
+  imagePositions.delete(TRAILING_ENDPOINT_KEY);
 
-  if (entries.length === 0) return new Map();
+  const entries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
+
+  if (entries.length === 0) {
+    // If only trailing existed, return it as-is
+    const result = new Map<string, number>();
+    if (trailingValue !== undefined) result.set(TRAILING_ENDPOINT_KEY, trailingValue);
+    return result;
+  }
 
   const result = new Map<string, number>();
 
@@ -24,6 +39,11 @@ export const quantizePositions = (positions: Map<string, number>): Map<string, n
     const originalGap = pos - entries[i - 1][1];
     const quantizedGap = quantizeGap(Math.max(originalGap, QUANTIZE_MIN_GAP), QUANTIZE_MIN_GAP);
     result.set(id, prevPos + quantizedGap);
+  }
+
+  // Re-add trailing endpoint unchanged
+  if (trailingValue !== undefined) {
+    result.set(TRAILING_ENDPOINT_KEY, trailingValue);
   }
 
   return result;
@@ -44,7 +64,7 @@ export const validateGaps = (
   checkQuantization: boolean = false
 ): boolean => {
   const positions = [...testPositions.entries()]
-    .filter(([id]) => id !== excludeId)
+    .filter(([id]) => id !== excludeId && id !== TRAILING_ENDPOINT_KEY)
     .map(([_, pos]) => pos);
   positions.push(0);
   positions.sort((a, b) => a - b);
@@ -70,7 +90,10 @@ const shrinkOversizedGaps = (
 ): Map<string, number> => {
   const maxGap = calculateMaxGap();
 
-  const entries = [...positions.entries()].filter(([id]) => id !== excludeId);
+  // Preserve trailing endpoint separately (not subject to gap shrinking)
+  const trailingValue = positions.get(TRAILING_ENDPOINT_KEY);
+
+  const entries = [...positions.entries()].filter(([id]) => id !== excludeId && id !== TRAILING_ENDPOINT_KEY);
 
   // Ensure frame 0 is included if it exists
   if (!entries.some(([_, pos]) => pos === 0)) {
@@ -105,6 +128,11 @@ const shrinkOversizedGaps = (
   // Re-add excluded id unchanged
   if (excludeId && positions.has(excludeId)) {
     result.set(excludeId, positions.get(excludeId)!);
+  }
+
+  // Re-add trailing endpoint unchanged
+  if (trailingValue !== undefined) {
+    result.set(TRAILING_ENDPOINT_KEY, trailingValue);
   }
 
   return result;
@@ -172,9 +200,10 @@ const clamp = (value: number, min: number, max: number): number => {
   return Math.max(min, Math.min(value, max));
 };
 
-// Get pair information from positions
+// Get pair information from positions (excludes trailing endpoint)
 export const getPairInfo = (framePositions: Map<string, number>) => {
   const sortedPositions = [...framePositions.entries()]
+    .filter(([id]) => id !== TRAILING_ENDPOINT_KEY)
     .map(([id, pos]) => ({ id, pos }))
     .sort((a, b) => a.pos - b.pos);
 

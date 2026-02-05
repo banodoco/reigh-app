@@ -56,13 +56,24 @@ export async function createGenerationFromTask(
     return null;
   }
 
-  // Extract all routing params from multiple possible locations
+  // Skip tasks that explicitly opt out of generation creation.
+  // Intermediate tasks (e.g., join_clips_segment) set this at creation time —
+  // the final stitch task handles the parent variant instead.
+  if (params.skip_generation === true) {
+    console.log(`[GenMigration] SKIP: Task ${taskId} has skip_generation=true`);
+    return null;
+  }
+
+  // Extract routing params that determine which generation case applies.
+  // IMPORTANT: Only extract from locations where the task creator explicitly
+  // declares routing intent. full_orchestrator_payload is passthrough context
+  // (not a routing directive) — if a task shouldn't create a generation,
+  // set skip_generation: true at creation time instead.
   const basedOn = extractBasedOn(params);
   const createAsGeneration = params.create_as_generation === true;
   const childGenerationId = params.child_generation_id;
   const parentGenerationId = params.parent_generation_id ||
-                             params.orchestrator_details?.parent_generation_id ||
-                             params.full_orchestrator_payload?.parent_generation_id;
+                             params.orchestrator_details?.parent_generation_id;
   const childOrder = params.child_order ?? params.segment_index ?? params.join_index ?? null;
   const isSingleItem = params.is_single_item === true ||
                        (params.is_first_segment === true && params.is_last_segment === true);

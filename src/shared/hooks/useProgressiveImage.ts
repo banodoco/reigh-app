@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { isImageCached, markImageAsCached } from '@/shared/lib/imageCacheManager';
+import { hasLoadedImage, markImageLoaded } from '@/shared/lib/imageLoadTracker';
 
 type ImagePhase = 'idle' | 'thumb' | 'loadingFull' | 'full' | 'error';
 
@@ -134,7 +134,7 @@ export const useProgressiveImage = (
       img.onload = () => {
         cleanup();
         if (isSessionActive(session)) {
-          markImageAsCached(url);
+          markImageLoaded(url);
           resolve(img);
         } else {
           reject(new Error('Session cancelled during load'));
@@ -296,7 +296,7 @@ export const useProgressiveImage = (
         }
 
         // Step 2: Now start loading full image in background
-        const isFullCached = isImageCached(fullUrl!);
+        const isFullCached = hasLoadedImage(fullUrl!);
         console.log('[ThumbToFullTransition] 🔄 Phase 2: Starting full image load in background', {
           isFullCached,
           priority,

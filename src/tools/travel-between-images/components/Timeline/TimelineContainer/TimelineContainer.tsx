@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from '../constants';
 
 // Timeline sub-components (existing)
@@ -6,7 +6,8 @@ import TimelineRuler from '../TimelineRuler';
 import DropIndicator from '../DropIndicator';
 import PairRegion from '../PairRegion';
 import TimelineItem from '../TimelineItem';
-import TrailingEndpoint, { TRAILING_ENDPOINT_ID } from '../TrailingEndpoint';
+import TrailingEndpoint from '../TrailingEndpoint';
+import { TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 import { GuidanceVideoStrip } from '../GuidanceVideoStrip';
 import { GuidanceVideoUploader } from '../GuidanceVideoUploader';
 import { GuidanceVideosContainer } from '../GuidanceVideosContainer';
@@ -78,8 +79,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   audioMetadata,
   onAudioChange,
   hasNoImages = false,
-  trailingEndFrame,
-  onTrailingEndFrameChange,
   maxFrameLimit = 81,
   selectedOutputId,
   onSelectedOutputChange,
@@ -87,7 +86,28 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   videoOutputs,
   onNewShotFromSelection,
   onShotChange,
+  onRegisterTrailingUpdater,
 }) => {
+  // Derive trailingEndFrame from positions map (single source of truth)
+  const trailingEndFrame = framePositions.get(TRAILING_ENDPOINT_KEY);
+
+  // Helper: update trailing endpoint in positions
+  const handleTrailingEndFrameChange = React.useCallback((endFrame: number | undefined) => {
+    const next = new Map(framePositions);
+    if (endFrame === undefined) {
+      next.delete(TRAILING_ENDPOINT_KEY);
+    } else {
+      next.set(TRAILING_ENDPOINT_KEY, endFrame);
+    }
+    setFramePositions(next);
+  }, [framePositions, setFramePositions]);
+
+  // Register trailing end frame updater with parent (for useFrameCountUpdater to use).
+  // Uses useLayoutEffect to ensure the ref is set before any user interactions fire.
+  useLayoutEffect(() => {
+    onRegisterTrailingUpdater?.(handleTrailingEndFrameChange);
+  }, [onRegisterTrailingUpdater, handleTrailingEndFrameChange]);
+
   // Compute trailing video info from videoOutputs SYNCHRONOUSLY to avoid layout shift
   // This replaces the async callback approach that caused fullMax to expand after render
   const { hasTrailing: hasExistingTrailingVideo, videoUrl: computedTrailingVideoUrl } = React.useMemo(() => {
@@ -95,8 +115,10 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
       return { hasTrailing: false, videoUrl: null };
     }
 
-    // Find the last image's shot_generation_id from framePositions
-    const sortedEntries = [...framePositions.entries()].sort((a, b) => a[1] - b[1]);
+    // Find the last image's shot_generation_id from framePositions (exclude trailing key)
+    const sortedEntries = [...framePositions.entries()]
+      .filter(([id]) => id !== TRAILING_ENDPOINT_KEY)
+      .sort((a, b) => a[1] - b[1]);
     const lastImageShotGenId = sortedEntries[sortedEntries.length - 1]?.[0] || null;
 
     return findTrailingVideoInfo(videoOutputs, lastImageShotGenId);
@@ -152,6 +174,8 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     handleTimelineTapToMove,
     handleVideoBrowserSelect,
     handleEndpointMouseDown,
+    endpointDragFrame,
+    isEndpointDragging: isEndpointDraggingState,
     resetGap,
     setResetGap,
     maxGap,
@@ -176,8 +200,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     onImageDuplicate,
     readOnly,
     isUploadingImage,
-    trailingEndFrame,
-    onTrailingEndFrameChange,
     maxFrameLimit,
     structureVideos,
     structureVideoType,
@@ -189,6 +211,13 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     hasExistingTrailingVideo,
   });
 
+  // Image-only positions (excluding trailing endpoint) for sorts that need the "last image"
+  const imagePositions = React.useMemo(() => {
+    const filtered = new Map(currentPositions);
+    filtered.delete(TRAILING_ENDPOINT_KEY);
+    return filtered;
+  }, [currentPositions]);
+
   const numPairs = Math.max(0, images.length - 1);
   const maxAllowedGap = 81;
 
@@ -197,10 +226,10 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   // Note: trailingEndFrame is handled by derivedEndFrame validation (end_frame > lastImageFrame)
   const lastImageIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (currentPositions.size === 0) return;
+    if (imagePositions.size === 0) return;
 
     // Find the current last image (highest frame position)
-    const sortedEntries = [...currentPositions.entries()].sort((a, b) => a[1] - b[1]);
+    const sortedEntries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
     const currentLastImageId = sortedEntries[sortedEntries.length - 1]?.[0] || null;
 
     // If the last image changed, clear trailing video URL
@@ -216,7 +245,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     }
 
     lastImageIdRef.current = currentLastImageId;
-  }, [currentPositions, trailingVideoUrl]);
+  }, [imagePositions, trailingVideoUrl]);
 
   // Check for pending segment tasks (needed to show trailing slot when pending)
   const { hasPendingTask } = usePendingSegmentTasks(shotId, projectId);
@@ -289,11 +318,18 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   }, [trailingVideoUrl, onFileDrop, currentPositions, trailingEndFrame]);
 
   const handleReset = useCallback(() => {
-    onResetFrames(resetGap);
-    if (images.length === 1 && onTrailingEndFrameChange) {
-      onTrailingEndFrameChange(resetGap);
+    if (images.length === 1) {
+      // Single-image: combine image reset + trailing in one position update.
+      // Calling onResetFrames then handleTrailingEndFrameChange would trigger two
+      // parallel setFramePositions calls that race on metadata.end_frame.
+      const newPositions = new Map<string, number>();
+      newPositions.set(images[0].id, 0);
+      newPositions.set(TRAILING_ENDPOINT_KEY, resetGap);
+      setFramePositions(newPositions);
+    } else {
+      onResetFrames(resetGap);
     }
-  }, [onResetFrames, resetGap, images.length, onTrailingEndFrameChange]);
+  }, [onResetFrames, resetGap, images, setFramePositions]);
 
   // Build pair click handler for SegmentOutputStrip
   const handleOpenPairSettings = useCallback((pairIndex: number, passedFrameData?: { frames: number; startFrame: number; endFrame: number }) => {
@@ -310,7 +346,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
 
     // Handle single-image mode (trailing segment is the only segment)
     if (images.length === 1 && trailingEndFrame !== undefined) {
-      const entry = [...currentPositions.entries()][0];
+      const entry = [...imagePositions.entries()][0];
       if (entry) {
         const [imageId, imageFrame] = entry;
         const image = images[0];
@@ -336,9 +372,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     }
 
     // Handle multi-image trailing segment (pairIndex is after all regular pairs)
-    if (pairIndex === pairInfo.length && trailingEndFrame !== undefined && currentPositions.size > 0) {
+    if (pairIndex === pairInfo.length && trailingEndFrame !== undefined && imagePositions.size > 0) {
       console.log('[TrailingGen] Multi-image trailing segment detected');
-      const sortedEntries = [...currentPositions.entries()].sort((a, b) => a[1] - b[1]);
+      const sortedEntries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
       const lastEntry = sortedEntries[sortedEntries.length - 1];
       if (lastEntry) {
         const [imageId, imageFrame] = lastEntry;
@@ -464,8 +500,8 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
           {/* Segment output strip */}
           {shotId && (projectId || (readOnly && videoOutputs)) && (() => {
             // Compute trailing segment info for SegmentOutputStrip
-            const sortedEntries = currentPositions.size > 0
-              ? [...currentPositions.entries()].sort((a, b) => a[1] - b[1])
+            const sortedEntries = imagePositions.size > 0
+              ? [...imagePositions.entries()].sort((a, b) => a[1] - b[1])
               : [];
             const lastEntry = sortedEntries[sortedEntries.length - 1];
             const isMultiImage = images.length > 1;
@@ -505,13 +541,13 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 })() : undefined}
                 isMultiImage={isMultiImage}
                 lastImageFrame={lastImageFrame}
-                onAddTrailingSegment={onTrailingEndFrameChange && lastImageFrame !== undefined && lastEntry ? () => {
+                onAddTrailingSegment={lastImageFrame !== undefined && lastEntry ? () => {
                   // Initialize trailing segment with default 17-frame duration
-                  onTrailingEndFrameChange(lastImageFrame + 17);
+                  handleTrailingEndFrameChange(lastImageFrame + 17);
                 } : undefined}
-                onRemoveTrailingSegment={onTrailingEndFrameChange && isMultiImage && trailingEndFrame !== undefined ? () => {
+                onRemoveTrailingSegment={isMultiImage && trailingEndFrame !== undefined ? () => {
                   // Remove trailing segment by clearing the end frame
-                  onTrailingEndFrameChange(undefined);
+                  handleTrailingEndFrameChange(undefined);
                 } : undefined}
                 onTrailingVideoInfo={setTrailingVideoUrl}
               />
@@ -646,7 +682,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
 
             {/* Pair regions */}
             {pairInfo.map((pair, index) => {
-              const sortedDynamicPositions = [...currentPositions.entries()].sort((a, b) => a[1] - b[1]);
+              const sortedDynamicPositions = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
               const [startEntry, endEntry] = [sortedDynamicPositions[index], sortedDynamicPositions[index + 1]];
 
               const getPixel = (entry: [string, number] | undefined): number => {
@@ -738,9 +774,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
             {/* Trailing endpoint - appears after last image */}
             {/* For single-image: always show (needed for generation) */}
             {/* For multi-image: only show when explicitly enabled (trailingEndFrame is set) */}
-            {currentPositions.size > 0 && onTrailingEndFrameChange && (() => {
+            {imagePositions.size > 0 && (() => {
               // Find the last image (highest frame position)
-              const sortedEntries = [...currentPositions.entries()].sort((a, b) => a[1] - b[1]);
+              const sortedEntries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
               const lastEntry = sortedEntries[sortedEntries.length - 1];
               if (!lastEntry) return null;
               const [id, imageFrame] = lastEntry;
@@ -771,8 +807,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               const defaultEndFrame = imageFrame + (isMultiImage ? 17 : 49);
               const effectiveEndFrame = trailingEndFrame ?? defaultEndFrame;
               const gapToImage = effectiveEndFrame - imageFrame;
-              const isEndpointDragging = dragState.isDragging && dragState.activeId === TRAILING_ENDPOINT_ID;
-
               // Find the corresponding image for pair data
               const lastImageIndex = sortedEntries.length - 1;
               const lastImage = images.find(img => {
@@ -787,13 +821,13 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 <TrailingEndpoint
                   framePosition={effectiveEndFrame}
                   imageFramePosition={imageFrame}
-                  isDragging={isEndpointDragging}
-                  dragOffset={isEndpointDragging ? dragOffset : null}
+                  isDragging={isEndpointDraggingState}
+                  dragOffset={null}
                   onMouseDown={readOnly ? undefined : (e, endpointId) => handleEndpointMouseDown(e, endpointId)}
                   timelineWidth={containerWidth}
                   fullMinFrames={fullMin}
                   fullRange={fullRange}
-                  currentDragFrame={isEndpointDragging ? currentDragFrame : null}
+                  currentDragFrame={isEndpointDraggingState ? endpointDragFrame : null}
                   gapToImage={gapToImage}
                   maxAllowedGap={maxAllowedGap}
                   readOnly={readOnly}

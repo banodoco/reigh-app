@@ -7,7 +7,7 @@
 
 import { PreloadableImage, PreloadConfig } from './types';
 import { PreloadQueue } from './PreloadQueue';
-import { setImageCacheStatus, isImageCached } from '@/shared/lib/imageCacheManager';
+import { setImageLoadStatus, hasLoadedImage } from '@/shared/lib/imageLoadTracker';
 import { getDisplayUrl } from '@/shared/lib/utils';
 
 /**
@@ -28,8 +28,8 @@ export async function preloadImages(
   // Limit to max images per page
   const limitedImages = images.slice(0, config.maxImagesPerPage);
 
-  // Filter out already-cached images
-  const toPreload = limitedImages.filter((img) => !isImageCached(img));
+  // Filter out already-loaded images
+  const toPreload = limitedImages.filter((img) => !hasLoadedImage(img));
 
   if (toPreload.length === 0) {
     return;
@@ -51,7 +51,7 @@ export async function preloadImages(
     try {
       // Slightly decrease priority for later images in the batch
       await queue.add(url, priority - idx);
-      setImageCacheStatus(img, true);
+      setImageLoadStatus(img, true);
     } catch {
       // Preloading is best-effort - don't throw on failure
     }

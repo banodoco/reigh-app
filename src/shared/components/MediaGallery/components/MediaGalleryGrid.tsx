@@ -2,9 +2,9 @@ import React from "react";
 import { Filter, Sparkles } from "lucide-react";
 import { SkeletonGallery } from "@/shared/components/ui/skeleton-gallery";
 import { ProgressiveLoadingManager } from "@/shared/components/ProgressiveLoadingManager";
-import { ImagePreloadManager } from "@/shared/components/ImagePreloadManager";
 import { MediaGalleryItem } from "@/shared/components/MediaGalleryItem";
 import { getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
+import { useAdjacentPagePreloader } from '@/shared/hooks/useAdjacentPagePreloader';
 import { GeneratedImageWithMetadata } from '../index';
 import { parseRatio } from '@/shared/lib/aspectRatios';
 
@@ -47,8 +47,11 @@ interface MediaGalleryGridProps {
   serverPage?: number;
   totalFilteredItems: number;
   itemsPerPage: number;
+  /** @deprecated No longer needed - use generationFilters instead */
   onPrefetchAdjacentPages?: (prevPage: number | null, nextPage: number | null) => void;
   selectedProjectId?: string;
+  /** Filters for generation queries - enables automatic preloading */
+  generationFilters?: Record<string, unknown>;
   
   // Filter state for empty states
   hasFilters: boolean;
@@ -109,8 +112,9 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
   serverPage,
   totalFilteredItems,
   itemsPerPage,
-  onPrefetchAdjacentPages,
+  onPrefetchAdjacentPages, // Deprecated - kept for backwards compatibility
   selectedProjectId,
+  generationFilters,
   
   // Filter state
   hasFilters,
@@ -216,22 +220,20 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
     );
   }
 
+  // Adjacent page preloading - uses new unified hook when filters are provided
+  // Falls back to legacy callback approach if generationFilters not provided
+  useAdjacentPagePreloader({
+    projectId: selectedProjectId || null,
+    currentPage: isServerPagination ? (serverPage ?? 1) : page + 1, // Convert to 1-indexed
+    itemsPerPage,
+    filters: generationFilters,
+    totalItems: totalFilteredItems,
+    enabled: enableAdjacentPagePreloading && !!generationFilters, // Only enable if filters provided
+    paused: isLightboxOpen,
+  });
+
   return (
     <>
-      {/* Adjacent Page Preloading Manager - handles preloading in background */}
-      <ImagePreloadManager
-        enabled={enableAdjacentPagePreloading}
-        isServerPagination={isServerPagination}
-        page={page}
-        serverPage={serverPage}
-        totalFilteredItems={totalFilteredItems}
-        itemsPerPage={itemsPerPage}
-        onPrefetchAdjacentPages={onPrefetchAdjacentPages}
-        allImages={filteredImages}
-        projectId={selectedProjectId}
-        isLightboxOpen={isLightboxOpen}
-      />
-
       {/* Gallery content wrapper with minimum height to prevent layout jump when there are images */}
       <div className={paginatedImages.length > 0 && !reducedSpacing && !hideBottomPagination ? "min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]" : ""}>
         {/* No items match filters message */}

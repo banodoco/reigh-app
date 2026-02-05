@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { isImageCached } from '@/shared/lib/imageCacheManager';
+import { hasLoadedImage } from '@/shared/lib/imageLoadTracker';
 import { getUnifiedBatchConfig, getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
 
 interface ImageWithId {
@@ -189,7 +189,7 @@ export const useProgressiveImageLoading = ({
     
     // Use a single pass to check cache status
     for (const img of images) {
-      if (isImageCached(img)) {
+      if (hasLoadedImage(img)) {
         cachedCount++;
       } else {
         allCached = false;

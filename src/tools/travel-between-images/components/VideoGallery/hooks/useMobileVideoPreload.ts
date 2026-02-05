@@ -25,21 +25,8 @@ export function useMobileVideoPreload(
 
   const startMobileVideoPreload = React.useCallback(() => {
     if (!isMobile || isMobilePreloading || preloadVideoRef.current) {
-      console.log('[MobilePreload] Skipping preload', {
-        videoId: video.id?.substring(0, 8),
-        isMobile,
-        isMobilePreloading,
-        hasExistingPreloadVideo: !!preloadVideoRef.current,
-        timestamp: Date.now()
-      });
       return;
     }
-
-    console.log('[MobilePreload] Starting video preload', {
-      videoId: video.id?.substring(0, 8),
-      videoSrc: video.location?.substring(video.location.lastIndexOf('/') + 1) || 'no-src',
-      timestamp: Date.now()
-    });
 
     setIsMobilePreloading(true);
 
@@ -55,33 +42,14 @@ export function useMobileVideoPreload(
     preloadVideo.style.top = '-9999px';
     preloadVideo.style.left = '-9999px';
 
-    // Add event listeners for preload tracking
-    const handleCanPlay = () => {
-      console.log('[MobilePreload] Video can play - preload successful', {
-        videoId: video.id?.substring(0, 8),
-        readyState: preloadVideo.readyState,
-        timestamp: Date.now()
-      });
-    };
-
-    const handleLoadedData = () => {
-      console.log('[MobilePreload] Video data loaded - preload progressing', {
-        videoId: video.id?.substring(0, 8),
-        readyState: preloadVideo.readyState,
-        timestamp: Date.now()
-      });
-    };
-
+    // Log errors for debugging
     const handleError = () => {
       console.warn('[MobilePreload] Video preload failed', {
         videoId: video.id?.substring(0, 8),
         error: preloadVideo.error,
-        timestamp: Date.now()
       });
     };
 
-    preloadVideo.addEventListener('canplay', handleCanPlay);
-    preloadVideo.addEventListener('loadeddata', handleLoadedData);
     preloadVideo.addEventListener('error', handleError);
 
     // Store ref and append to DOM (hidden)
@@ -91,8 +59,6 @@ export function useMobileVideoPreload(
     // Cleanup function
     const cleanup = () => {
       if (preloadVideoRef.current) {
-        preloadVideoRef.current.removeEventListener('canplay', handleCanPlay);
-        preloadVideoRef.current.removeEventListener('loadeddata', handleLoadedData);
         preloadVideoRef.current.removeEventListener('error', handleError);
         if (preloadVideoRef.current.parentNode) {
           preloadVideoRef.current.parentNode.removeChild(preloadVideoRef.current);
@@ -103,10 +69,6 @@ export function useMobileVideoPreload(
 
     // Auto-cleanup after 30 seconds if video not opened
     const timeoutId = setTimeout(() => {
-      console.log('[MobilePreload] Auto-cleanup preload video after timeout', {
-        videoId: video.id?.substring(0, 8),
-        timestamp: Date.now()
-      });
       cleanup();
       setIsMobilePreloading(false);
     }, 30000);
