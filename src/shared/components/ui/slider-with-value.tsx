@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { NumberField } from "@base-ui-components/react/number-field";
 import { Slider } from "./slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 import { ChevronUp, ChevronDown } from "lucide-react";
@@ -30,40 +31,8 @@ const SliderWithValue = ({
   formatValue,
   numberInputClassName = "w-20",
 }: SliderWithValueProps) => {
-  // Local state to manage input value for smooth typing (handles "1." vs "1" cases)
-  const [inputValue, setInputValue] = useState(
-    formatValue ? formatValue(value) : (Number.isInteger(value) ? value.toString() : value.toFixed(2))
-  );
-
-  // Sync local state with prop value changes
-  useEffect(() => {
-    // If using formatValue, always sync
-    if (formatValue) {
-      setInputValue(formatValue(value));
-      return;
-    }
-
-    // For numeric inputs: only update if the numeric value actually changed
-    // This prevents overwriting "1." (parsed as 1) with "1" (prop) while typing
-    const currentNumeric = parseFloat(inputValue);
-    // Check if values are effectively different (accounting for potential string parsing differences)
-    if (isNaN(currentNumeric) || Math.abs(currentNumeric - value) > Number.EPSILON) {
-      setInputValue(Number.isInteger(value) ? value.toString() : value.toFixed(2));
-    }
-  }, [value, formatValue, inputValue]);
-
   const handleValueChange = (values: number[]) => {
     onChange(values[0]);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValStr = e.target.value;
-    setInputValue(newValStr);
-    
-    const newVal = parseFloat(newValStr);
-    if (!isNaN(newVal)) {
-      onChange(newVal);
-    }
   };
 
   const sliderContent = (
@@ -79,44 +48,38 @@ const SliderWithValue = ({
             {formatValue(value)}
           </div>
         ) : (
-          <div className={`flex items-center border border-border rounded ${numberInputClassName} h-10 bg-card dark:bg-gray-800`}>
-            <input
-              type="number"
-              className="flex-1 min-w-0 h-full bg-transparent text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none"
-              value={inputValue}
-              onChange={handleInputChange}
-              step={step}
-              min={min}
-              max={max}
-              disabled={disabled}
-            />
-            <div className="flex flex-col h-full border-l border-border shrink-0">
-              <button
-                type="button"
-                className="flex-1 px-1.5 flex items-center justify-center hover:bg-muted/50 active:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {
-                  const newVal = Math.min(max, value + step);
-                  onChange(newVal);
-                }}
-                disabled={disabled || value >= max}
-                tabIndex={-1}
-              >
-                <ChevronUp className="h-3 w-3 text-muted-foreground" />
-              </button>
-              <button
-                type="button"
-                className="flex-1 px-1.5 flex items-center justify-center hover:bg-muted/50 active:bg-muted transition-colors border-t border-border disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => {
-                  const newVal = Math.max(min, value - step);
-                  onChange(newVal);
-                }}
-                disabled={disabled || value <= min}
-                tabIndex={-1}
-              >
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              </button>
-            </div>
-          </div>
+          <NumberField.Root
+            value={value}
+            onValueChange={(val) => {
+              if (val !== null) onChange(val);
+            }}
+            min={min}
+            max={max}
+            step={step}
+            disabled={disabled}
+          >
+            <NumberField.Group
+              className={`flex items-center border border-border rounded ${numberInputClassName} h-10 bg-card dark:bg-gray-800`}
+            >
+              <NumberField.Input
+                className="flex-1 min-w-0 h-full bg-transparent text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none"
+              />
+              <div className="flex flex-col h-full border-l border-border shrink-0">
+                <NumberField.Increment
+                  className="flex-1 px-1.5 flex items-center justify-center hover:bg-muted/50 active:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  tabIndex={-1}
+                >
+                  <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                </NumberField.Increment>
+                <NumberField.Decrement
+                  className="flex-1 px-1.5 flex items-center justify-center hover:bg-muted/50 active:bg-muted transition-colors border-t border-border disabled:opacity-50 disabled:cursor-not-allowed"
+                  tabIndex={-1}
+                >
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </NumberField.Decrement>
+              </div>
+            </NumberField.Group>
+          </NumberField.Root>
         )}
         <Slider
           value={[value]}

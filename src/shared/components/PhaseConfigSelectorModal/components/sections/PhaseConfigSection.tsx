@@ -184,8 +184,8 @@ export const PhaseConfigSection: React.FC<PhaseConfigSectionProps> = ({
               min={1}
               max={10}
               step={0.1}
-              value={[editablePhaseConfig.flow_shift]}
-              onValueChange={(value) => updatePhaseConfig('flow_shift', value[0])}
+              value={editablePhaseConfig.flow_shift}
+              onValueChange={(value) => updatePhaseConfig('flow_shift', value)}
             />
           </div>
 
@@ -216,10 +216,10 @@ export const PhaseConfigSection: React.FC<PhaseConfigSectionProps> = ({
                     min={1}
                     max={15}
                     step={1}
-                    value={[(editablePhaseConfig.steps_per_phase || [])[phaseIdx] ?? 2]}
+                    value={(editablePhaseConfig.steps_per_phase || [])[phaseIdx] ?? 2}
                     onValueChange={(value) => {
                       const newSteps = [...(editablePhaseConfig.steps_per_phase || [])];
-                      newSteps[phaseIdx] = value[0];
+                      newSteps[phaseIdx] = value;
                       updatePhaseConfig('steps_per_phase', newSteps);
                     }}
                   />

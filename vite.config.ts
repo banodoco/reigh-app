@@ -48,17 +48,13 @@ export default defineConfig(({ mode }: { mode: string }) => {
           manualChunks: (id) => {
             // Vendor chunk splitting for better caching and parallel loading
             if (id.includes('node_modules')) {
-              // React core - rarely changes
-              if (id.includes('/react/') || id.includes('react-dom') || id.includes('react-reconciler') || id.includes('scheduler')) {
+              // React core + Base UI in same chunk to avoid circular chunk dependency
+              if (id.includes('@base-ui-components') || id.includes('/react/') || id.includes('react-dom') || id.includes('react-reconciler') || id.includes('scheduler')) {
                 return 'vendor-react';
               }
               // TanStack Query - frequently used, benefits from caching
               if (id.includes('@tanstack/react-query') || id.includes('@tanstack/query-core')) {
                 return 'vendor-query';
-              }
-              // Base UI - headless UI component library
-              if (id.includes('@base-ui-components')) {
-                return 'vendor-base-ui';
               }
               // DnD Kit - drag and drop functionality
               if (id.includes('@dnd-kit')) {

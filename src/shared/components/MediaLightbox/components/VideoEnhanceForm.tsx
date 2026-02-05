@@ -183,8 +183,8 @@ export const VideoEnhanceForm: React.FC<VideoEnhanceFormProps> = ({
                 </span>
               </div>
               <Slider
-                value={[settings.numFrames]}
-                onValueChange={([value]) => onUpdateSetting('numFrames', value)}
+                value={settings.numFrames}
+                onValueChange={(value) => onUpdateSetting('numFrames', value)}
                 min={1}
                 max={4}
                 step={1}
@@ -234,8 +234,8 @@ export const VideoEnhanceForm: React.FC<VideoEnhanceFormProps> = ({
                 </span>
               </div>
               <Slider
-                value={[settings.upscaleFactor]}
-                onValueChange={([value]) =>
+                value={settings.upscaleFactor}
+                onValueChange={(value) =>
                   onUpdateSetting('upscaleFactor', value)
                 }
                 min={1}

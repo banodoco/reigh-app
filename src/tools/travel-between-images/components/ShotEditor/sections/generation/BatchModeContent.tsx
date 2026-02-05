@@ -182,8 +182,8 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
                       <span className="text-sm font-medium">{structureVideo.structureVideoMotionStrength.toFixed(1)}x</span>
                     </div>
                     <Slider
-                      value={[structureVideo.structureVideoMotionStrength]}
-                      onValueChange={([value]) => structureVideoHandlers.handleStructureVideoMotionStrengthChange(value)}
+                      value={structureVideo.structureVideoMotionStrength}
+                      onValueChange={(value) => structureVideoHandlers.handleStructureVideoMotionStrengthChange(value)}
                       min={0}
                       max={2}
                       step={0.1}
@@ -202,8 +202,8 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
                         <span className="text-sm font-medium">{((structureVideo.structureVideoConfig.uni3c_end_percent || 0.1) * 100).toFixed(0)}%</span>
                       </div>
                       <Slider
-                        value={[structureVideo.structureVideoConfig.uni3c_end_percent || 0.1]}
-                        onValueChange={([value]) => structureVideoHandlers.handleUni3cEndPercentChange(value)}
+                        value={structureVideo.structureVideoConfig.uni3c_end_percent || 0.1}
+                        onValueChange={(value) => structureVideoHandlers.handleUni3cEndPercentChange(value)}
                         min={0}
                         max={1}
                         step={0.05}

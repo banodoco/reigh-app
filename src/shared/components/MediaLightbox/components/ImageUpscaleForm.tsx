@@ -86,8 +86,8 @@ export const ImageUpscaleForm: React.FC<ImageUpscaleFormProps> = ({
             </span>
           </div>
           <Slider
-            value={[scaleFactor]}
-            onValueChange={([value]) => setScaleFactor(value)}
+            value={scaleFactor}
+            onValueChange={(value) => setScaleFactor(value)}
             min={1}
             max={4}
             step={0.5}

@@ -120,8 +120,8 @@ export const BaseGenerationSettingsSection: React.FC<BaseGenerationSettingsSecti
             min={10}
             max={81}
             step={1}
-            value={[durationFrames]}
-            onValueChange={([value]) => onDurationFramesChange(value)}
+            value={durationFrames}
+            onValueChange={(value) => onDurationFramesChange(value)}
             className="flex-1"
           />
           <span className="text-sm font-medium w-16 text-right">

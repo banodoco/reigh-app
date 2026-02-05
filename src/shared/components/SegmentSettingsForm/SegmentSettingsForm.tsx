@@ -361,8 +361,8 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                   </span>
                 </div>
                 <Slider
-                  value={[quantizeFrameCount(settings.numFrames, 9)]}
-                  onValueChange={([value]) => handleFrameCountChange(value)}
+                  value={quantizeFrameCount(settings.numFrames, 9)}
+                  onValueChange={(value) => handleFrameCountChange(value)}
                   min={9}
                   max={maxFrames}
                   step={4}
@@ -891,8 +891,8 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                     </span>
                   </div>
                   <Slider
-                    value={[settings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2]}
-                    onValueChange={([value]) => onChange({ structureMotionStrength: value })}
+                    value={settings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2}
+                    onValueChange={(value) => onChange({ structureMotionStrength: value })}
                     min={0}
                     max={2}
                     step={0.1}
@@ -926,8 +926,8 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                       </span>
                     </div>
                     <Slider
-                      value={[settings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1]}
-                      onValueChange={([value]) => onChange({ structureUni3cEndPercent: value })}
+                      value={settings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1}
+                      onValueChange={(value) => onChange({ structureUni3cEndPercent: value })}
                       min={0}
                       max={1}
                       step={0.05}
