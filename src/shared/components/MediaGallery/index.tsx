@@ -1036,7 +1036,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
                     ))}
                   </SelectContent>
                 </Select>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground ml-1">
                   of {paginationHook.totalPages}
                 </span>
               </div>

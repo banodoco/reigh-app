@@ -81,7 +81,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             ))}
           </SelectContent>
         </Select>
-        <span className="text-zinc-300 text-[11px]">
+        <span className="text-zinc-300 text-[11px] ml-1">
           of {totalPages}
         </span>
         

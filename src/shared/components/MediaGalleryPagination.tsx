@@ -212,7 +212,7 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
               ))}
             </SelectContent>
           </Select>
-          <span className={`text-xs ${isSticky ? 'text-muted-foreground' : (whiteText ? 'text-zinc-400' : 'text-muted-foreground')}`}>
+          <span className={`text-xs ml-1 ${isSticky ? 'text-muted-foreground' : (whiteText ? 'text-zinc-400' : 'text-muted-foreground')}`}>
             of {totalPages}
           </span>
         </div>
@@ -310,9 +310,9 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
             ))}
           </SelectContent>
         </Select>
-        <span className={`text-xs ${whiteText ? 'text-zinc-400' : 'text-muted-foreground'}`}>
-          of {totalPages}
-        </span>
+        <span className={`text-xs ml-1 ${whiteText ? 'text-zinc-400' : 'text-muted-foreground'}`}>
+            of {totalPages}
+          </span>
       </div>
 
       <button
