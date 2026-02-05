@@ -647,6 +647,17 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
       />
 
       {/* Segment Slot Editor */}
+      {(() => {
+        if (segmentSlotModeData) {
+          console.log('[DeepLink] Rendering segment slot editor:', {
+            hasSegmentVideo: !!segmentSlotModeData.segmentVideo,
+            segmentVideoId: segmentSlotModeData.segmentVideo?.id?.substring(0, 8),
+            willRenderMediaLightbox: !!segmentSlotModeData.segmentVideo,
+            willRenderSegmentEditorModal: !segmentSlotModeData.segmentVideo,
+          });
+        }
+        return null;
+      })()}
       {segmentSlotModeData && (
         segmentSlotModeData.segmentVideo ? (
           <MediaLightbox

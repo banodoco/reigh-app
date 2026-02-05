@@ -134,7 +134,7 @@ export const extractPairShotGenerationId = (task: Task): string | null => {
  * These should open in shot context for proper timeline integration.
  */
 export const isSegmentVideoTask = (task: Task): boolean => {
-  return task.task_type === 'individual_travel_segment';
+  return task.taskType === 'individual_travel_segment';
 };
 
 

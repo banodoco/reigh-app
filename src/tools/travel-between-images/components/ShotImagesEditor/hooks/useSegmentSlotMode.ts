@@ -111,11 +111,45 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
 
   useEffect(() => {
     const state = location.state as { openSegmentSlot?: string; fromShotClick?: boolean } | null;
+
+    console.log('[DeepLink] Effect running:', {
+      hasOpenSegmentSlot: !!state?.openSegmentSlot,
+      openSegmentSlot: state?.openSegmentSlot?.substring(0, 8),
+      pairDataByIndexSize: pairDataByIndex.size,
+      segmentSlotsCount: segmentSlots.length,
+      segmentSlotTypes: segmentSlots.map(s => ({ index: s.index, type: s.type })),
+    });
+
     if (!state?.openSegmentSlot || pairDataByIndex.size === 0) return;
 
     // Find pair where startImage.id matches
     for (const [pairIndex, pairData] of pairDataByIndex.entries()) {
+      console.log('[DeepLink] Checking pair:', {
+        pairIndex,
+        startImageId: pairData.startImage.id?.substring(0, 8),
+        matchesOpenSegmentSlot: pairData.startImage.id === state.openSegmentSlot,
+      });
+
       if (pairData.startImage.id === state.openSegmentSlot) {
+        // Check if segmentSlots has the video loaded for this pair
+        // This prevents the SegmentEditorModal from flashing before MediaLightbox
+        const matchingSlot = segmentSlots.find(s => s.index === pairIndex);
+        const hasVideo = matchingSlot?.type === 'child' && matchingSlot.child?.location;
+
+        console.log('[DeepLink] ✅ MATCH FOUND:', {
+          pairIndex,
+          hasMatchingSlot: !!matchingSlot,
+          slotType: matchingSlot?.type,
+          hasVideo,
+        });
+
+        if (!hasVideo) {
+          // Video not loaded yet - wait for next render when segmentSlots updates
+          console.log('[DeepLink] ⏳ Waiting for video to load in segmentSlots...');
+          return;
+        }
+
+        console.log('[DeepLink] 🎬 Opening lightbox with video for pair:', pairIndex);
         setActivePairData(pairData);
         setSegmentSlotLightboxIndex(pairIndex);
         navigate(location.pathname + location.hash, {
@@ -125,7 +159,7 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
         break;
       }
     }
-  }, [location.state, pairDataByIndex, navigate, location.pathname, location.hash]);
+  }, [location.state, pairDataByIndex, segmentSlots, navigate, location.pathname, location.hash]);
 
   // ==========================================================================
   // HANDLERS
@@ -150,11 +184,25 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
   // ==========================================================================
 
   const segmentSlotModeData: SegmentSlotModeData | null = useMemo(() => {
+    console.log('[DeepLink] segmentSlotModeData computing:', {
+      segmentSlotLightboxIndex,
+      hasActivePairData: !!activePairData,
+      segmentSlotsCount: segmentSlots.length,
+    });
+
     if (segmentSlotLightboxIndex === null || !activePairData) return null;
 
     const pairData = activePairData;
     const pairSlot = segmentSlots.find(slot => slot.index === segmentSlotLightboxIndex);
     const segmentVideo = pairSlot?.type === 'child' ? pairSlot.child : null;
+
+    console.log('[DeepLink] segmentSlotModeData building:', {
+      pairIndex: segmentSlotLightboxIndex,
+      foundPairSlot: !!pairSlot,
+      pairSlotType: pairSlot?.type,
+      hasSegmentVideo: !!segmentVideo,
+      segmentVideoId: segmentVideo?.id?.substring(0, 8),
+    });
 
     const pairStartFrame = pairData.startFrame ?? 0;
     const pairEndFrame = pairData.endFrame ?? 0;

@@ -122,6 +122,8 @@ interface TaskListProps {
   activeTaskId?: string | null; // Currently active/viewed task ID
   onOpenImageLightbox?: (task: Task, media: GenerationRow, initialVariantId?: string) => void;
   onOpenVideoLightbox?: (task: Task, media: GenerationRow[], videoIndex: number, initialVariantId?: string) => void;
+  /** Close the TasksPane's lightbox (called before navigating to shot context) */
+  onCloseLightbox?: () => void;
   // Mobile two-step tap interaction state
   mobileActiveTaskId?: string | null;
   onMobileActiveTaskChange?: (taskId: string | null) => void;
@@ -141,6 +143,7 @@ const TaskListComponent: React.FC<TaskListProps> = ({
   activeTaskId,
   onOpenImageLightbox,
   onOpenVideoLightbox,
+  onCloseLightbox,
   mobileActiveTaskId,
   onMobileActiveTaskChange,
   taskTypeFilter,
@@ -369,6 +372,7 @@ const TaskListComponent: React.FC<TaskListProps> = ({
                       isActive={task.id === activeTaskId}
                       onOpenImageLightbox={onOpenImageLightbox}
                       onOpenVideoLightbox={onOpenVideoLightbox}
+                      onCloseLightbox={onCloseLightbox}
                       isMobileActive={mobileActiveTaskId === task.id}
                       onMobileActiveChange={onMobileActiveTaskChange}
                       showProjectIndicator={showProjectIndicator}

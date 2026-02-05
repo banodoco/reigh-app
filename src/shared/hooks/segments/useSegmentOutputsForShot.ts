@@ -807,6 +807,20 @@ export function useSegmentOutputsForShot(
     refetchTimeline();
   }, [refetchParents, refetchChildren, refetchTimeline]);
 
+  // [DeepLink] Log segment slots for deep-link debugging
+  console.log('[DeepLink] useSegmentOutputsForShot returning:', {
+    shotId: shotId?.substring(0, 8),
+    segmentSlotsCount: segmentSlots.length,
+    segmentSlotsSummary: segmentSlots.map(s => ({
+      index: s.index,
+      type: s.type,
+      childId: s.type === 'child' ? s.child.id?.substring(0, 8) : undefined,
+      pairShotGenId: s.pairShotGenerationId?.substring(0, 8),
+    })),
+    isLoading: isLoadingParents || isLoadingChildren,
+    selectedParentId: selectedParentId?.substring(0, 8),
+  });
+
   return {
     parentGenerations,
     selectedParentId,

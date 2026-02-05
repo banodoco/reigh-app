@@ -568,6 +568,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                 activeTaskId={activeTaskId}
                 onOpenImageLightbox={handleOpenImageLightbox}
                 onOpenVideoLightbox={handleOpenVideoLightbox}
+                onCloseLightbox={handleCloseLightbox}
                 mobileActiveTaskId={mobileActiveTaskId}
                 onMobileActiveTaskChange={setMobileActiveTaskId}
                 taskTypeFilter={selectedTaskType}

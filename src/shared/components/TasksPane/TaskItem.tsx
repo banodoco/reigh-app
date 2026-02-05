@@ -49,6 +49,8 @@ interface TaskItemProps {
   isActive?: boolean;
   onOpenImageLightbox?: (task: Task, media: GenerationRow, initialVariantId?: string) => void;
   onOpenVideoLightbox?: (task: Task, media: GenerationRow[], videoIndex: number, initialVariantId?: string) => void;
+  /** Close the TasksPane's lightbox (called before navigating to shot context) */
+  onCloseLightbox?: () => void;
   isMobileActive?: boolean;
   onMobileActiveChange?: (taskId: string | null) => void;
   showProjectIndicator?: boolean;
@@ -61,6 +63,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   isActive = false,
   onOpenImageLightbox,
   onOpenVideoLightbox,
+  onCloseLightbox,
   isMobileActive = false,
   onMobileActiveChange,
   showProjectIndicator = false,
@@ -319,7 +322,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
     navigate(`/tools/travel-between-images#${shotId}`, { state: { fromShotClick: true } });
   };
 
-  const handleViewVideo = (e: React.MouseEvent) => {
+  const handleViewVideo = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     setIsHoveringTaskItem(false);
@@ -334,30 +337,71 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
       shotId: shotId?.substring(0, 8),
     });
 
-    // For segment videos, open in shot context for full timeline integration
-    // This ensures correct start/end images and navigation between pairs
+    // For segment videos, try to open in shot context for full timeline integration
+    // First check if the segment's position still exists in the shot
     if (isSegmentVideoTask(task) && shotId) {
       const pairShotGenerationId = extractPairShotGenerationId(task);
-      console.log('[VideoQueryDebug] Segment video - navigating to shot context:', {
+
+      console.log('[DeepLink] 🔍 Checking if segment position still exists:', {
+        taskId: task.id.substring(0, 8),
         shotId: shotId.substring(0, 8),
-        pairShotGenerationId: pairShotGenerationId?.substring(0, 8),
+        pairShotGenerationId: pairShotGenerationId,
+        hasPairShotGenerationId: !!pairShotGenerationId,
       });
 
-      // Switch to the task's project if different from current
-      if (task.projectId && task.projectId !== selectedProjectId) {
-        setSelectedProjectId(task.projectId);
+      // Check if the pair_shot_generation_id still exists in the shot's timeline
+      let isConnected = false;
+      if (pairShotGenerationId) {
+        const { data, error } = await supabase
+          .from('shot_generations')
+          .select('id, shot_id, timeline_frame')
+          .eq('id', pairShotGenerationId)
+          .maybeSingle();
+
+        console.log('[DeepLink] 📋 Query result:', {
+          data,
+          error: error?.message,
+          expectedShotId: shotId,
+          actualShotId: data?.shot_id,
+          timelineFrame: data?.timeline_frame,
+        });
+
+        // Check if it exists, belongs to the right shot, and is on timeline
+        isConnected = !!data && data.shot_id === shotId && (data.timeline_frame ?? -1) >= 0;
       }
 
-      setCurrentShotId(shotId);
-      navigate(`/tools/travel-between-images#${shotId}`, {
-        state: {
-          fromShotClick: true,
-          openSegmentSlot: pairShotGenerationId, // ShotImagesEditor will use this to open the segment slot
-        }
+      console.log('[DeepLink] 📋 Segment connection check result:', {
+        pairShotGenerationId: pairShotGenerationId?.substring(0, 8),
+        isConnected,
       });
-      return;
+
+      if (isConnected) {
+        // Segment is still connected to shot - navigate for full context
+        console.log('[DeepLink] 🚀 Navigating to shot for connected segment');
+
+        // Close any open TasksPane lightbox before navigating
+        onCloseLightbox?.();
+
+        // Switch to the task's project if different from current
+        if (task.projectId && task.projectId !== selectedProjectId) {
+          setSelectedProjectId(task.projectId);
+        }
+
+        setCurrentShotId(shotId);
+        navigate(`/tools/travel-between-images#${shotId}`, {
+          state: {
+            fromShotClick: true,
+            openSegmentSlot: pairShotGenerationId,
+          }
+        });
+        return;
+      } else {
+        // Segment is orphaned - fall back to simple video viewer
+        console.log('[DeepLink] 📺 Segment orphaned, using simple video viewer');
+      }
     }
 
+    // Default path: simple video lightbox
     if (onOpenVideoLightbox && videoOutputs && videoOutputs.length > 0) {
       console.log('[VideoQueryDebug] Opening lightbox with existing videoOutputs');
       const initialVariantId = (videoOutputs[0] as GenerationRowWithVariant)?._variant_id;
