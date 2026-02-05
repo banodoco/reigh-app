@@ -436,7 +436,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
             <div className="flex items-center space-x-2 p-2 bg-muted/30 rounded-lg border flex-1">
               <Switch
                 id="enhance-prompt-segment"
-                checked={enhancePromptEnabled ?? !promptField.hasEnhancedPrompt}
+                checked={enhancePromptEnabled ?? false}
                 onCheckedChange={onEnhancePromptChange}
               />
               <Label htmlFor="enhance-prompt-segment" className="text-sm font-medium cursor-pointer flex-1">

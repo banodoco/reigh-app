@@ -16,7 +16,7 @@ const DEFAULT_JOIN_CLIPS_SETTINGS: JoinClipsSettings = {
   prompt: '',
   randomSeed: true,
   useIndividualPrompts: false,
-  enhancePrompt: true,
+  enhancePrompt: false,
   useInputVideoResolution: false,
   useInputVideoFps: false,
   noisedInputVideo: 0,

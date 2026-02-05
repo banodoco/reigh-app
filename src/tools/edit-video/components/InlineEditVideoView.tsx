@@ -239,7 +239,7 @@ export function InlineEditVideoView({
     negativePrompt = '',
     contextFrameCount = 8,
     gapFrameCount = 12,
-    enhancePrompt = true,
+    enhancePrompt = false,
     motionMode = 'basic',
     phaseConfig: savedPhaseConfig,
     randomSeed = true,

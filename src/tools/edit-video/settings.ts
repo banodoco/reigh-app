@@ -21,7 +21,7 @@ export const editVideoSettings = {
     priority: 0,
     prompt: '',
     randomSeed: true,
-    enhancePrompt: true,
+    enhancePrompt: false,
     
     // Motion settings (Basic/Advanced mode with presets)
     motionMode: 'basic' as 'basic' | 'advanced',

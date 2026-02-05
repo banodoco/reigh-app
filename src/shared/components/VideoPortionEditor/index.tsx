@@ -282,7 +282,7 @@ export const VideoPortionEditor: React.FC<VideoPortionEditorProps> = ({
     onClose,
     hideHeader = false,
 }) => {
-    const enhancePromptValue = enhancePrompt ?? true;
+    const enhancePromptValue = enhancePrompt ?? false;
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Calculate total frames to generate across all segments

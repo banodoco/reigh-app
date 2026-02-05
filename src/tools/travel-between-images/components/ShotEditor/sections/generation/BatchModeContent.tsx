@@ -100,7 +100,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
     gapFrameCount: joinGapFrames = 23,
     replaceMode: joinReplaceMode = true,
     keepBridgingImages: joinKeepBridgingImages = false,
-    enhancePrompt: joinEnhancePrompt = true,
+    enhancePrompt: joinEnhancePrompt = false,
     motionMode: joinMotionMode = 'basic',
     phaseConfig: joinPhaseConfig,
     selectedPhasePresetId: joinSelectedPhasePresetId,

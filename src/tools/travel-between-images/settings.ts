@@ -103,7 +103,7 @@ export const videoTravelSettings = {
     batchVideoSteps: 6,
     dimensionSource: 'firstImage' as const,
     generationMode: 'timeline' as const,
-    enhancePrompt: false,
+    enhancePrompt: true,
     selectedModel: 'wan-2.1' as const,
     turboMode: false,
     amountOfMotion: 50,

@@ -725,7 +725,7 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
 }) => {
     // Handle undefined values (defensive fallback)
     const keepBridgingImagesValue = keepBridgingImages ?? false;
-    const enhancePromptValue = enhancePrompt ?? true;
+    const enhancePromptValue = enhancePrompt ?? false;
 
     // Advanced section state
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);

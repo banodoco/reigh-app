@@ -56,7 +56,7 @@ const DEFAULT_EDIT_VIDEO_SETTINGS: EditVideoSettings = {
   priority: 0,
   prompt: '',
   randomSeed: true,
-  enhancePrompt: true,
+  enhancePrompt: false,
   // Motion settings
   motionMode: 'basic',
   phaseConfig: undefined,

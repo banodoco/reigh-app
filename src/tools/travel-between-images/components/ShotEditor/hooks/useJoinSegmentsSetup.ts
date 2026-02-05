@@ -115,7 +115,7 @@ export function useJoinSegmentsSetup({
     gapFrameCount: joinGapFrames = 23,
     replaceMode: joinReplaceMode = true,
     keepBridgingImages: joinKeepBridgingImages = false,
-    enhancePrompt: joinEnhancePrompt = true,
+    enhancePrompt: joinEnhancePrompt = false,
     // Model settings (for stitch config)
     model: joinModel = 'wan_2_2_vace_lightning_baseline_2_2_2',
     numInferenceSteps: joinNumInferenceSteps = 6,

@@ -347,7 +347,7 @@ export const useVideoEditing = ({
       const globalPrompt = editSettings.settings.prompt || '';
       const negativePrompt = editSettings.settings.negativePrompt || '';
       const globalGapFrameCount = editSettings.settings.gapFrameCount || 12;
-      const enhancePrompt = editSettings.settings.enhancePrompt ?? true;
+      const enhancePrompt = editSettings.settings.enhancePrompt ?? false;
       
       // Hardcoded settings
       const replaceMode = true;

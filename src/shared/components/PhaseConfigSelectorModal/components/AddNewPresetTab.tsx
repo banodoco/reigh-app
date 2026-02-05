@@ -79,7 +79,7 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
       negativePrompt: currentSettings?.negativePrompt || '',
       textBeforePrompts: currentSettings?.textBeforePrompts || '',
       textAfterPrompts: currentSettings?.textAfterPrompts || '',
-      enhancePrompt: currentSettings?.enhancePrompt ?? true,
+      enhancePrompt: currentSettings?.enhancePrompt ?? false,
       durationFrames: currentSettings?.durationFrames || 60,
     };
     return initialForm;
@@ -158,7 +158,7 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
       negativePrompt: '',
       textBeforePrompts: '',
       textAfterPrompts: '',
-      enhancePrompt: true,
+      enhancePrompt: false,
       durationFrames: 60,
     });
     setEditablePhaseConfig(currentPhaseConfig || DEFAULT_PHASE_CONFIG);
@@ -196,7 +196,7 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
         negativePrompt: currentSettings.negativePrompt || '',
         textBeforePrompts: currentSettings.textBeforePrompts || '',
         textAfterPrompts: currentSettings.textAfterPrompts || '',
-        enhancePrompt: currentSettings.enhancePrompt ?? true,
+        enhancePrompt: currentSettings.enhancePrompt ?? false,
         durationFrames: currentSettings.durationFrames || 60,
       };
 
@@ -228,7 +228,7 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
           negativePrompt: currentSettings.negativePrompt || '',
           textBeforePrompts: currentSettings.textBeforePrompts || '',
           textAfterPrompts: currentSettings.textAfterPrompts || '',
-          enhancePrompt: currentSettings.enhancePrompt ?? true,
+          enhancePrompt: currentSettings.enhancePrompt ?? false,
           durationFrames: currentSettings.durationFrames || 60,
         });
 
@@ -245,7 +245,7 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
           negativePrompt: metadata.negativePrompt || '',
           textBeforePrompts: metadata.textBeforePrompts || '',
           textAfterPrompts: metadata.textAfterPrompts || '',
-          enhancePrompt: metadata.enhancePrompt ?? true,
+          enhancePrompt: metadata.enhancePrompt ?? false,
           durationFrames: metadata.durationFrames || 60,
         });
       }

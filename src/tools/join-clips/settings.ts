@@ -22,7 +22,7 @@ export const joinClipsSettings = {
     prompt: '', // User's current prompt (persisted per project)
     randomSeed: true,
     useIndividualPrompts: false, // Whether to use per-transition prompts
-    enhancePrompt: true, // AI enhancement of prompts
+    enhancePrompt: false, // AI enhancement of prompts
     useInputVideoResolution: false, // Use first input video's resolution instead of project resolution
     useInputVideoFps: false, // Use first input video's FPS instead of downsampling to 16fps
     noisedInputVideo: 0, // vid2vid init strength - adds noise to input video (0 = disabled)

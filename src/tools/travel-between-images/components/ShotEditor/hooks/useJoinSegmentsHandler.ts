@@ -280,7 +280,7 @@ export function useJoinSegmentsHandler({
       gapFrameCount: gap,
       replaceMode: true,
       keepBridgingImages: false,
-      enhancePrompt: true,
+      enhancePrompt: false,
       motionMode: 'basic',
       phaseConfig: DEFAULT_JOIN_CLIPS_PHASE_CONFIG,
       selectedPhasePresetId: BUILTIN_JOIN_CLIPS_DEFAULT_ID,

@@ -41,7 +41,7 @@ const DEFAULT_JOIN_SEGMENTS_SETTINGS: JoinSegmentsSettings = {
   prompt: '',
   randomSeed: true,
   useIndividualPrompts: false,
-  enhancePrompt: true,
+  enhancePrompt: false,
   useInputVideoResolution: false,
   useInputVideoFps: false,
   noisedInputVideo: 0,
