@@ -73,6 +73,8 @@ export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = ({
     }
   };
 
+  const isLoadingPresets = myPresetsResource.isLoading || publicPresetsResource.isLoading;
+
   const myPresetIds = useMemo(() => myPresetsResource.data?.map(r => r.id) || [], [myPresetsResource.data]);
 
   // Combine all presets (my presets + public presets)
@@ -207,7 +209,19 @@ export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = ({
       {/* Scrollable content area */}
       <div className="flex-1 min-h-0 overflow-y-auto relative">
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-3 ${isMobile ? 'pb-3' : 'pb-6'}`}>
-          {paginatedPresets.length > 0 ? (
+          {isLoadingPresets ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Card key={`skeleton-${i}`} className="w-full animate-pulse border-gray-200 dark:border-gray-700">
+                <CardHeader className="pb-3">
+                  <div className="h-5 w-2/3 rounded bg-muted" />
+                  <div className="h-4 w-full rounded bg-muted mt-2" />
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="h-28 w-full rounded bg-muted" />
+                </CardContent>
+              </Card>
+            ))
+          ) : paginatedPresets.length > 0 ? (
             paginatedPresets.map((preset) => {
               const isSelected = preset.id === selectedPresetId;
               const isMyPreset = preset._isMyPreset;
