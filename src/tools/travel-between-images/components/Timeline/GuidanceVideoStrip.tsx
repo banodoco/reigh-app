@@ -80,7 +80,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
 
   const stripContainerRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
-  const [currentTimelineFrame, setCurrentTimelineFrame] = useState(0);
+  const [currentVideoFrame, setCurrentVideoFrame] = useState(0);
 
   // Tablet tap-to-select state for endpoints
   const { isTablet } = useDeviceDetection();
@@ -214,10 +214,6 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     // Normalize cursor position within the strip (0 to 1)
     const normalizedPosition = Math.max(0, Math.min(1, cursorX / stripWidth));
 
-    // Calculate timeline frame based on output range
-    const timelineFrame = Math.round(displayOutputStart + (normalizedPosition * displayOutputFrameCount));
-    setCurrentTimelineFrame(timelineFrame);
-
     // Calculate video frame based on treatment mode
     let videoFrame: number;
     if (treatment === 'adjust') {
@@ -234,6 +230,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
       videoFrame = Math.max(effectiveSourceStart, Math.min(videoFrame, effectiveSourceEnd - 1));
     }
 
+    setCurrentVideoFrame(videoFrame);
     hoverPreview.updateHoverPosition(e.clientX, e.clientY - 140, videoFrame);
   }, [treatment, effectiveMetadata, displayOutputStart, displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd, sourceFrameCount, hoverPreview.updateHoverPosition, isDragging, isVideoReady]);
 
@@ -375,10 +372,6 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
         // Normalize cursor position within the strip (0 to 1)
         const normalizedPosition = Math.max(0, Math.min(1, cursorX / stripWidth));
 
-        // Calculate timeline frame based on output range
-        const timelineFrame = Math.round(displayOutputStart + (normalizedPosition * displayOutputFrameCount));
-        setCurrentTimelineFrame(timelineFrame);
-
         // Calculate video frame based on treatment mode
         let videoFrame: number;
         if (treatment === 'adjust') {
@@ -393,6 +386,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
           videoFrame = Math.max(effectiveSourceStart, Math.min(videoFrame, effectiveSourceEnd - 1));
         }
 
+        setCurrentVideoFrame(videoFrame);
         hoverPreview.updateHoverPosition(touch.clientX, touch.clientY - 140, videoFrame);
         tapPreview.show();
       }
@@ -436,7 +430,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
             />
             <div className="px-2 py-1 bg-background/95 border-t border-primary/40">
               <span className="text-[10px] font-medium text-foreground">
-                Frame {currentTimelineFrame}
+                Frame {currentVideoFrame}
               </span>
             </div>
           </div>

@@ -52,7 +52,7 @@ const BUILTIN_VACE_PRESET = {
 
 // Featured preset IDs from database - shown after built-in default
 export const FEATURED_PRESET_IDS: string[] = [
-  // Add database preset IDs here if desired
+  'e1aad8bf-add9-4d7b-883b-d67d424028c4',
 ];
 
 export interface MotionControlProps {
