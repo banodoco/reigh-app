@@ -297,6 +297,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     hasUpscaledVersion,
     handleUpscale,
     handleToggleUpscaled,
+    setActiveVariant: setUpscaleActiveVariant,
   } = upscaleHook;
 
   // ========================================
@@ -432,6 +433,11 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     layout,
     buttonGroupProps,
   } = sharedState;
+
+  // Keep upscale hook in sync with active variant so it enhances the viewed image
+  useEffect(() => {
+    setUpscaleActiveVariant(variants.activeVariant?.location, variants.activeVariant?.id);
+  }, [variants.activeVariant?.location, variants.activeVariant?.id, setUpscaleActiveVariant]);
 
   // ========================================
   // LORA MANAGEMENT

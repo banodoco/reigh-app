@@ -421,8 +421,14 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
       <DialogPrimitive.Root
         open={true}
         modal={isMobile && !isTabletOrLarger}
-        onOpenChange={() => {
-          // Prevent automatic closing - we handle all closing manually
+        disablePointerDismissal
+        onOpenChange={(_open, eventDetails) => {
+          // Prevent Base UI from updating internal state (which corrupts controlled open={true})
+          // and from calling stopPropagation on the native event (which blocks our custom handlers).
+          // Our own handlers in useLightboxNavigation (Escape) and handleOverlayClick (outside press)
+          // manage all closing logic.
+          eventDetails.cancel();
+          eventDetails.allowPropagation();
         }}
       >
         <DialogPrimitive.Portal>

@@ -14,7 +14,7 @@ export interface ImageUpscaleTaskParams {
   project_id: string;
   image_url: string; // The source image to upscale
   generation_id?: string | null; // Optional: the generation ID to update with upscaled URL
-  shot_id?: string; // Optional: shot to link the result to
+  source_variant_id?: string; // Optional: track which variant was the source for lineage
   scale_factor?: number; // Default to 2x upscaling
   noise_scale?: number; // Default to 0.1
   output_format?: string; // Default to "jpeg"
@@ -66,9 +66,9 @@ function buildImageUpscaleTaskParams(
     taskParams.is_primary = true;
   }
 
-  // Add shot_id if provided (for linking result to shot)
-  if (params.shot_id) {
-    taskParams.shot_id = params.shot_id;
+  // Track source variant if enhancing from a specific variant
+  if (params.source_variant_id) {
+    taskParams.source_variant_id = params.source_variant_id;
   }
 
   return taskParams;

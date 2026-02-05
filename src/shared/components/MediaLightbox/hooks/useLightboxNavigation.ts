@@ -64,14 +64,10 @@ export const useLightboxNavigation = ({
   /**
    * Global key handler
    * --------------------------------------------------
-   * We register a window-level keydown listener so that
+   * We register a document-level keydown listener so that
    * arrow navigation still works even when an embedded
    * <video> element (which is focusable) steals keyboard
-   * focus. Without this, users need to press an arrow
-   * key twice: the first keystroke focuses the video and
-   * is consumed by the browser, the second finally
-   * reaches our onKeyDown handler. Capturing the event at
-   * the window level avoids that issue entirely.
+   * focus.
    * 
    * IMPORTANT: Don't handle keys if another dialog is open on top
    */
@@ -116,8 +112,8 @@ export const useLightboxNavigation = ({
       }
     };
 
-    window.addEventListener('keydown', handleWindowKeyDown);
-    return () => window.removeEventListener('keydown', handleWindowKeyDown);
+    document.addEventListener('keydown', handleWindowKeyDown);
+    return () => document.removeEventListener('keydown', handleWindowKeyDown);
   }, [onNext, onPrevious, onClose]);
 
   return {
