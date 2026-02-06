@@ -184,9 +184,11 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
   const dragContainerRef = useRef<HTMLDivElement>(null);
   const handlesOverlayRef = useRef<HTMLDivElement>(null);
 
-  // Use a ref for current scale so the touch pinch effect doesn't re-attach on every scale change
+  // Use refs for current values so the touch gesture effect doesn't re-attach on every change
   const scaleRef = useRef(repositionScale);
   scaleRef.current = repositionScale;
+  const rotationRef = useRef(repositionRotation);
+  rotationRef.current = repositionRotation;
 
   useEffect(() => {
     const el = dragContainerRef.current;
@@ -205,55 +207,78 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
       cleanups.push(() => el.removeEventListener('wheel', nativeWheelHandler));
     }
 
-    // Touch pinch-to-zoom via native touch events.
-    // Pointer Events multi-touch is unreliable on iOS Safari, so we use
-    // the Touch Events API directly — it's been solid on iOS since day one.
+    // Two-finger touch gestures: pinch-to-zoom + rotate.
+    // Uses native Touch Events (not Pointer Events) because iOS Safari
+    // doesn't reliably dispatch multi-touch pointer events.
     //
-    // For performance, we manipulate the DOM transform directly during the
-    // gesture (bypassing React's render cycle) and only commit the final
-    // scale to React state on touchend.
-    if (onRepositionScaleChange) {
-      let pinchStartDistance = 0;
-      let pinchStartScale = 1;
-      let pinchStartTransform = ''; // original CSS transform string
-      let lastPinchScale = 0;
+    // For performance, transforms are applied directly to the DOM during
+    // the gesture and only committed to React state on touchend.
+    if (onRepositionScaleChange || onRepositionRotationChange) {
+      let gestureStartDistance = 0;
+      let gestureStartAngle = 0;
+      let gestureStartScale = 1;
+      let gestureStartRotation = 0;
+      let gestureStartTransform = '';
+      let lastScale = 0;
+      let lastRotation = 0;
+      let gestureActive = false;
 
-      const handleTouchStart = (e: TouchEvent) => {
-        if (e.touches.length === 2) {
-          const dx = e.touches[1].clientX - e.touches[0].clientX;
-          const dy = e.touches[1].clientY - e.touches[0].clientY;
-          pinchStartDistance = Math.hypot(dx, dy);
-          pinchStartScale = scaleRef.current;
-          lastPinchScale = pinchStartScale;
-          // Capture the current transform string from the image
-          const img = imageRef.current;
-          if (img) pinchStartTransform = img.style.transform;
-        }
-      };
+      const getTouchVector = (e: TouchEvent) => ({
+        dx: e.touches[1].clientX - e.touches[0].clientX,
+        dy: e.touches[1].clientY - e.touches[0].clientY,
+      });
 
-      const buildTransform = (newScale: number): string => {
+      const buildTransform = (newScale: number, newRotation: number): string => {
         // Format: translate(X%, Y%) scale(sX, sY) rotate(Rdeg)
-        // scaleX/Y can be negative (for flips). Preserve the sign, replace the magnitude.
-        return pinchStartTransform.replace(
+        // Preserve sign on scale (negative = flipped)
+        let result = gestureStartTransform;
+        result = result.replace(
           /scale\((-?)[\d.]+,\s*(-?)[\d.]+\)/,
           `scale($1${newScale}, $2${newScale})`
         );
+        result = result.replace(
+          /rotate\(-?[\d.]+deg\)/,
+          `rotate(${newRotation}deg)`
+        );
+        return result;
+      };
+
+      const handleTouchStart = (e: TouchEvent) => {
+        if (e.touches.length === 2) {
+          const { dx, dy } = getTouchVector(e);
+          gestureStartDistance = Math.hypot(dx, dy);
+          gestureStartAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+          gestureStartScale = scaleRef.current;
+          gestureStartRotation = rotationRef.current;
+          lastScale = gestureStartScale;
+          lastRotation = gestureStartRotation;
+          gestureActive = true;
+          const img = imageRef.current;
+          if (img) gestureStartTransform = img.style.transform;
+        }
       };
 
       const handleTouchMove = (e: TouchEvent) => {
         if (e.touches.length >= 2) {
-          e.preventDefault(); // Suppress Safari's native pinch zoom
+          e.preventDefault();
         }
-        if (e.touches.length === 2 && pinchStartDistance > 0) {
-          const dx = e.touches[1].clientX - e.touches[0].clientX;
-          const dy = e.touches[1].clientY - e.touches[0].clientY;
+        if (e.touches.length === 2 && gestureActive) {
+          const { dx, dy } = getTouchVector(e);
           const distance = Math.hypot(dx, dy);
-          const ratio = distance / pinchStartDistance;
-          const newScale = Math.max(0.25, Math.min(2.0, pinchStartScale * ratio));
-          lastPinchScale = newScale;
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
-          // Direct DOM manipulation — no React render cycle
-          const newTransform = buildTransform(newScale);
+          // Scale
+          const ratio = distance / gestureStartDistance;
+          const newScale = Math.max(0.25, Math.min(2.0, gestureStartScale * ratio));
+          lastScale = newScale;
+
+          // Rotation
+          const angleDelta = angle - gestureStartAngle;
+          const newRotation = gestureStartRotation + angleDelta;
+          lastRotation = newRotation;
+
+          // Direct DOM manipulation
+          const newTransform = buildTransform(newScale, newRotation);
           const img = imageRef.current;
           if (img) img.style.transform = newTransform;
           const handles = handlesOverlayRef.current;
@@ -262,12 +287,15 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
       };
 
       const handleTouchEnd = (e: TouchEvent) => {
-        if (e.touches.length < 2 && pinchStartDistance > 0) {
-          // Commit final scale to React state
-          if (lastPinchScale !== pinchStartScale) {
-            onRepositionScaleChange(lastPinchScale);
+        if (e.touches.length < 2 && gestureActive) {
+          gestureActive = false;
+          // Commit final values to React state
+          if (onRepositionScaleChange && lastScale !== gestureStartScale) {
+            onRepositionScaleChange(lastScale);
           }
-          pinchStartDistance = 0;
+          if (onRepositionRotationChange && lastRotation !== gestureStartRotation) {
+            onRepositionRotationChange(Math.round(lastRotation));
+          }
         }
       };
 
@@ -284,7 +312,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
     }
 
     return () => cleanups.forEach(fn => fn());
-  }, [isInpaintMode, editMode, repositionDragHandlers, onRepositionScaleChange]);
+  }, [isInpaintMode, editMode, repositionDragHandlers, onRepositionScaleChange, onRepositionRotationChange]);
 
   // Progressive loading: show thumbnail first, then swap to full image when loaded
   const [fullImageLoaded, setFullImageLoaded] = React.useState(() => {
