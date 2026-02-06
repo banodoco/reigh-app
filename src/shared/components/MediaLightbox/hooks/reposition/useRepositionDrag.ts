@@ -27,8 +27,17 @@ const PINCH_ZOOM_SPEED = 0.01;
 
 /**
  * Hook for drag-to-move and scroll/pinch-to-zoom in reposition mode.
- * Handles pointer events for mouse/touch dragging, wheel events for
- * mouse scroll zoom, and touch pinch-to-zoom via pointer events.
+ *
+ * Input methods:
+ * - Mouse drag: pointer capture for reliable tracking outside element
+ * - Touch drag: single finger, no pointer capture (touch-action:none handles it)
+ * - Mouse wheel: onWheel handler (caller wraps in native listener with passive:false)
+ * - Trackpad pinch: same as wheel but with ctrlKey and finer speed
+ * - Touch pinch: two-pointer tracking via pointer events (no capture needed)
+ *
+ * Key: we only use setPointerCapture for mouse. On touch, capturing the first
+ * pointer prevents the second pointer's events from dispatching correctly on
+ * iOS Safari, breaking pinch-to-zoom.
  */
 export function useRepositionDrag({
   transform,
@@ -48,7 +57,7 @@ export function useRepositionDrag({
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null);
 
-  // --- Drag-to-move (single pointer) ---
+  // --- Drag-to-move / pinch-to-zoom ---
 
   const handleDragPointerDown = useCallback((e: React.PointerEvent) => {
     // Track all pointers for pinch detection
@@ -56,6 +65,10 @@ export function useRepositionDrag({
 
     // Two pointers = start pinch, cancel any active drag
     if (activePointersRef.current.size === 2) {
+      // Release any mouse pointer capture from a prior drag
+      if (dragStartRef.current) {
+        try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+      }
       setIsDragging(false);
       dragStartRef.current = null;
 
@@ -71,7 +84,10 @@ export function useRepositionDrag({
     // Single pointer: start drag (only primary button for mouse)
     if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Only capture for mouse — touch capture breaks multi-touch on iOS Safari
+    if (e.pointerType === 'mouse') {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    }
 
     setIsDragging(true);
     dragStartRef.current = {
@@ -145,10 +161,13 @@ export function useRepositionDrag({
 
     if (!isDragging) return;
 
-    try {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      // Pointer capture may already be released
+    // Release capture (only set for mouse, but safe to call regardless)
+    if (e.pointerType === 'mouse') {
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // Pointer capture may already be released
+      }
     }
 
     setIsDragging(false);

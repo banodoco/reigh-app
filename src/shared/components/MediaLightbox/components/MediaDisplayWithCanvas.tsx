@@ -180,22 +180,37 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
     rotationDragRef.current = null;
   }, []);
 
-  // --- Native wheel listener (passive: false) for trackpad pinch-to-zoom ---
+  // --- Native event listeners for reposition mode ---
   const dragContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = dragContainerRef.current;
-    const handler = repositionDragHandlers?.onWheel;
-    if (!isInpaintMode || editMode !== 'reposition' || !el || !handler) return;
+    if (!isInpaintMode || editMode !== 'reposition' || !el) return;
 
-    const nativeHandler = (e: WheelEvent) => {
-      e.preventDefault();
-      // Create a synthetic-like object for the callback
-      handler(e as unknown as React.WheelEvent);
+    const cleanups: (() => void)[] = [];
+
+    // Wheel: passive:false so we can preventDefault for trackpad pinch zoom
+    const wheelHandler = repositionDragHandlers?.onWheel;
+    if (wheelHandler) {
+      const nativeWheelHandler = (e: WheelEvent) => {
+        e.preventDefault();
+        wheelHandler(e as unknown as React.WheelEvent);
+      };
+      el.addEventListener('wheel', nativeWheelHandler, { passive: false });
+      cleanups.push(() => el.removeEventListener('wheel', nativeWheelHandler));
+    }
+
+    // Touchmove: passive:false + preventDefault to suppress Safari's native
+    // pinch-to-zoom on the page (touch-action:none alone isn't enough on iOS Safari)
+    const nativeTouchmoveHandler = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        e.preventDefault();
+      }
     };
+    el.addEventListener('touchmove', nativeTouchmoveHandler, { passive: false });
+    cleanups.push(() => el.removeEventListener('touchmove', nativeTouchmoveHandler));
 
-    el.addEventListener('wheel', nativeHandler, { passive: false });
-    return () => el.removeEventListener('wheel', nativeHandler);
+    return () => cleanups.forEach(fn => fn());
   }, [isInpaintMode, editMode, repositionDragHandlers]);
 
   // Progressive loading: show thumbnail first, then swap to full image when loaded
