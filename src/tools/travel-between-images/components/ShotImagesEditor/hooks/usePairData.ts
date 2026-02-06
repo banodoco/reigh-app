@@ -88,6 +88,7 @@ export function usePairData({
         startImage: {
           id: startImage.id,
           generationId: startImage.generation_id,
+          primaryVariantId: startImage.primary_variant_id || undefined,
           url: startImage.imageUrl || startImage.location,
           thumbUrl: startImage.thumbUrl || startImage.location,
           position: pairIndex + 1,
@@ -95,6 +96,7 @@ export function usePairData({
         endImage: {
           id: endImage.id,
           generationId: endImage.generation_id,
+          primaryVariantId: endImage.primary_variant_id || undefined,
           url: endImage.imageUrl || endImage.location,
           thumbUrl: endImage.thumbUrl || endImage.location,
           position: pairIndex + 2,
@@ -129,6 +131,7 @@ export function usePairData({
         startImage: {
           id: lastImage.id,
           generationId: lastImage.generation_id,
+          primaryVariantId: lastImage.primary_variant_id || undefined,
           url: lastImage.imageUrl || lastImage.location,
           thumbUrl: lastImage.thumbUrl || lastImage.location,
           position: trailingPairIndex + 1,

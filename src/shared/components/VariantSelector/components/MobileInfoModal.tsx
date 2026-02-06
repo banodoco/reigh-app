@@ -6,14 +6,15 @@
  */
 
 import React from 'react';
-import { X, Star, Download } from 'lucide-react';
+import { X, Star, Download, Image, Check } from 'lucide-react';
+import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/components/ui/button';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import { getVariantLabel, hasLoadableSettings } from '../utils';
+import { getVariantLabel, hasLoadableSettings, hasDifferentSourceImages, type CurrentSegmentImagesData } from '../utils';
 
 // --- MobileVariantDetails (fetches real task data, same as desktop hover) ---
 
@@ -65,6 +66,9 @@ interface MobileInfoModalProps {
   onClose: () => void;
   onMakePrimary?: (variantId: string) => Promise<void>;
   onLoadVariantSettings?: (variantParams: Record<string, unknown>) => void;
+  onLoadImages?: (variant: GenerationVariant) => void;
+  currentSegmentImages?: CurrentSegmentImagesData;
+  loadedImagesVariantId: string | null;
 }
 
 export const MobileInfoModal: React.FC<MobileInfoModalProps> = ({
@@ -75,6 +79,9 @@ export const MobileInfoModal: React.FC<MobileInfoModalProps> = ({
   onClose,
   onMakePrimary,
   onLoadVariantSettings,
+  onLoadImages,
+  currentSegmentImages,
+  loadedImagesVariantId,
 }) => {
   const isPrimary = variant.is_primary;
   const label = getVariantLabel(variant);
@@ -123,8 +130,8 @@ export const MobileInfoModal: React.FC<MobileInfoModalProps> = ({
           )}
 
           {/* Action buttons */}
-          {!readOnly && ((!isPrimary && onMakePrimary) || (onLoadVariantSettings && hasLoadableSettings(variant))) && (
-            <div className="flex gap-2 pt-2 border-t border-border/50">
+          {!readOnly && ((!isPrimary && onMakePrimary) || (onLoadVariantSettings && hasLoadableSettings(variant)) || (onLoadImages && hasDifferentSourceImages(variant, currentSegmentImages))) && (
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
               {!isPrimary && onMakePrimary && (
                 <Button
                   size="sm"
@@ -151,6 +158,32 @@ export const MobileInfoModal: React.FC<MobileInfoModalProps> = ({
                 >
                   <Download className="w-4 h-4" />
                   Load Settings
+                </Button>
+              )}
+              {onLoadImages && hasDifferentSourceImages(variant, currentSegmentImages) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    onLoadImages(variant);
+                    onClose();
+                  }}
+                  className={cn(
+                    "flex-1 gap-1",
+                    loadedImagesVariantId === variant.id && "bg-green-500/20 border-green-500/50 text-green-400"
+                  )}
+                >
+                  {loadedImagesVariantId === variant.id ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Loaded!
+                    </>
+                  ) : (
+                    <>
+                      <Image className="w-4 h-4" />
+                      Load Images
+                    </>
+                  )}
                 </Button>
               )}
             </div>

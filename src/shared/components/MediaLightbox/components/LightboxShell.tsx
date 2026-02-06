@@ -126,19 +126,44 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
   // Track pointerdown target for capture-phase background click detection
   const bgPointerDownTargetRef = useRef<EventTarget | null>(null);
 
-  // Lock body scroll when lightbox is open on desktop
-  // (On mobile, modal={true} handles this, but on desktop we use modal={false}
-  // to allow TasksPane interaction, so we need manual scroll locking)
+  // Lock body scroll when lightbox is open.
+  // On phones, modal={true} handles scroll locking. On desktop and iPad,
+  // modal={false} (to allow TasksPane interaction), so we lock manually.
+  // We use position:fixed on body + scroll-position save/restore so that:
+  //   1. iOS Safari can't touch-scroll the body (overflow:hidden alone doesn't work)
+  //   2. The body scroll state is always clean between lightbox open/close cycles
+  const isActuallyModal = isMobile && !isTabletOrLarger;
   useEffect(() => {
-    if (isMobile) return; // modal={true} handles mobile
+    if (isActuallyModal) return; // modal={true} handles scroll locking
 
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const saved = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      overflow: body.style.overflow,
+      width: body.style.width,
+    };
+
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.overflow = 'hidden';
+    body.style.width = '100%';
 
     return () => {
-      document.body.style.overflow = originalOverflow;
+      body.style.position = saved.position;
+      body.style.top = saved.top;
+      body.style.left = saved.left;
+      body.style.right = saved.right;
+      body.style.overflow = saved.overflow;
+      body.style.width = saved.width;
+      window.scrollTo(0, scrollY);
     };
-  }, [isMobile]);
+  }, [isActuallyModal]);
 
   // ========================================
   // OVERLAY EVENT HANDLERS (Backdrop layer)
@@ -305,7 +330,9 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
     left: 0,
     right: shouldAccountForTasksPane ? `${effectiveTasksPaneWidth}px` : 0,
     bottom: 0,
-    height: '100dvh',
+    // Use inset (top/bottom: 0) for height instead of 100dvh.
+    // 100dvh changes dynamically on iOS Safari as the address bar shows/hides,
+    // causing the lightbox to resize and leave gaps.
     transition: 'right 300ms cubic-bezier(0.22, 1, 0.36, 1), width 300ms cubic-bezier(0.22, 1, 0.36, 1)',
     ...(shouldAccountForTasksPane
       ? { width: `calc(100vw - ${effectiveTasksPaneWidth}px)` }
@@ -316,18 +343,16 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
   // CONTENT STYLES
   // ========================================
 
+  // For fullscreen layouts the Popup already has `inset-0 h-full` which fills
+  // the fixed-position containing block (the viewport) — no explicit height needed.
+  // Avoid 100dvh: it changes dynamically on iOS Safari as the address bar
+  // shows/hides, causing the lightbox to resize and leave gaps at the bottom.
   const contentStyle: React.CSSProperties = {
     transition: 'width 300ms cubic-bezier(0.22, 1, 0.36, 1)',
     ...(needsTasksPaneOffset
-      ? {
-          width: `calc(100vw - ${effectiveTasksPaneWidth}px)`,
-          height: '100dvh',
-        }
+      ? { width: `calc(100vw - ${effectiveTasksPaneWidth}px)` }
       : needsFullscreenLayout
-      ? {
-          width: '100vw',
-          height: '100dvh',
-        }
+      ? { width: '100vw' }
       : {}),
   };
 
@@ -335,7 +360,7 @@ export const LightboxShell: React.FC<LightboxShellProps> = ({
     <TooltipProvider delayDuration={500}>
       <DialogPrimitive.Root
         open={true}
-        modal={isMobile && !isTabletOrLarger}
+        modal={isActuallyModal}
         disablePointerDismissal
         onOpenChange={(_open, eventDetails) => {
           // Prevent Base UI from updating internal state (which corrupts controlled open={true})

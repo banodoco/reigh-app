@@ -27,7 +27,7 @@ const LazyLineageGifModal = React.lazy(() =>
 import { getLineageDepth } from '@/shared/hooks/useLineageChain';
 import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import type { RelationshipFilter } from './utils';
+import type { RelationshipFilter, CurrentSegmentImagesData } from './utils';
 import { VariantGrid } from './components/VariantGrid';
 import { MobileInfoModal } from './components/MobileInfoModal';
 
@@ -55,6 +55,10 @@ interface VariantSelectorProps {
   onDeleteVariant?: (variantId: string) => Promise<void>;
   /** Read-only mode - hides action buttons (Make Primary, Promote, Delete) */
   readOnly?: boolean;
+  /** Handler to load a variant's source images onto the timeline */
+  onLoadVariantImages?: (variant: GenerationVariant) => void;
+  /** Current segment images data for comparison */
+  currentSegmentImages?: CurrentSegmentImagesData;
 }
 
 export const VariantSelector: React.FC<VariantSelectorProps> = ({
@@ -68,6 +72,8 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
   onLoadVariantSettings,
   onDeleteVariant,
   readOnly = false,
+  onLoadVariantImages,
+  currentSegmentImages,
 }) => {
   const [isMakingPrimary, setIsMakingPrimary] = useState(false);
   const [localIsPromoting, setLocalIsPromoting] = useState(false);
@@ -76,6 +82,7 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
   const [currentPage, setCurrentPage] = useState(0);
   const [loadedSettingsVariantId, setLoadedSettingsVariantId] = useState<string | null>(null);
   const [copiedVariantId, setCopiedVariantId] = useState<string | null>(null);
+  const [loadedImagesVariantId, setLoadedImagesVariantId] = useState<string | null>(null);
   const deleteOperation = useAsyncOperationMap();
   const [lineageGifVariantId, setLineageGifVariantId] = useState<string | null>(null);
   const [mobileInfoVariantId, setMobileInfoVariantId] = useState<string | null>(null);
@@ -243,6 +250,13 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
     onLoadVariantSettings(variant.params as Record<string, unknown>);
     setLoadedSettingsVariantId(variant.id);
     setTimeout(() => setLoadedSettingsVariantId(null), 2000);
+  };
+
+  const handleLoadImages = (variant: GenerationVariant) => {
+    if (!onLoadVariantImages) return;
+    onLoadVariantImages(variant);
+    setLoadedImagesVariantId(variant.id);
+    setTimeout(() => setLoadedImagesVariantId(null), 2000);
   };
 
   const handleDeleteVariant = (variantId: string) => {
@@ -420,6 +434,9 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
           onShowLineageGif={setLineageGifVariantId}
           onCopyId={handleCopyId}
           onLoadSettings={handleLoadSettings}
+          onLoadImages={onLoadVariantImages ? handleLoadImages : undefined}
+          currentSegmentImages={currentSegmentImages}
+          loadedImagesVariantId={loadedImagesVariantId}
           isDeleteLoading={(id) => deleteOperation.isLoading(id)}
         />
       </div>
@@ -446,6 +463,9 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
         onClose={() => setMobileInfoVariantId(null)}
         onMakePrimary={onMakePrimary}
         onLoadVariantSettings={onLoadVariantSettings}
+        onLoadImages={onLoadVariantImages ? handleLoadImages : undefined}
+        currentSegmentImages={currentSegmentImages}
+        loadedImagesVariantId={loadedImagesVariantId}
       />
     )}
     </>

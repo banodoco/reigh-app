@@ -70,6 +70,7 @@ export interface BatchModeContentProps {
 
   // Lightbox transitions
   pendingImageToOpen: string | null;
+  pendingImageVariantId?: string | null;
   onClearPendingImageToOpen: () => void;
   navigateWithTransition: (doNavigation: () => void) => void;
 
@@ -134,6 +135,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
   onSegmentDelete,
   deletingSegmentId,
   pendingImageToOpen,
+  pendingImageVariantId,
   onClearPendingImageToOpen,
   navigateWithTransition,
   projectAspectRatio,
@@ -204,6 +206,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
         onSegmentDelete={onSegmentDelete}
         deletingSegmentId={deletingSegmentId}
         pendingImageToOpen={pendingImageToOpen}
+        pendingImageVariantId={pendingImageVariantId}
         onClearPendingImageToOpen={onClearPendingImageToOpen}
         navigateWithTransition={navigateWithTransition}
       />

@@ -630,6 +630,8 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       endUrl: pairData?.endImage?.url,
       startGenerationId: pairData?.startImage?.generationId,
       endGenerationId: pairData?.endImage?.generationId,
+      startVariantId: pairData?.startImage?.primaryVariantId,
+      endVariantId: pairData?.endImage?.primaryVariantId,
     };
   }, [currentLightboxSlot, pairDataByIndex]);
 

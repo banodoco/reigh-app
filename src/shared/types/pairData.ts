@@ -16,6 +16,7 @@ export interface PairData {
   startImage: {
     id: string;           // shot_generation.id (used as startShotGenerationId)
     generationId?: string; // generation_id (used as startGenerationId)
+    primaryVariantId?: string; // generation_variants.id of the primary variant
     url?: string;
     thumbUrl?: string;
     position: number;
@@ -23,6 +24,7 @@ export interface PairData {
   endImage: {
     id: string;           // shot_generation.id
     generationId?: string; // generation_id (used as endGenerationId)
+    primaryVariantId?: string; // generation_variants.id of the primary variant
     url?: string;
     thumbUrl?: string;
     position: number;

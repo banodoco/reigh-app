@@ -121,6 +121,8 @@ export interface GenerationRow {
   // FK reference to shot_generations for video-to-timeline slot matching
   // When the referenced shot_generation is deleted, this becomes null (ON DELETE SET NULL)
   pair_shot_generation_id?: string | null;
+  // FK to the primary variant record (generation_variants.id)
+  primary_variant_id?: string | null;
 }
 
 /**

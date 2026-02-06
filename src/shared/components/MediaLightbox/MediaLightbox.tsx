@@ -117,6 +117,8 @@ interface MediaLightboxProps {
     startShotGenerationId?: string;
     endShotGenerationId?: string;
     activeChildGenerationId?: string;
+    startVariantId?: string;
+    endVariantId?: string;
   };
   // Segment frame count callback
   onSegmentFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;

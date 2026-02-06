@@ -66,6 +66,8 @@ export interface ShotImageManagerProps {
   pairOverrides?: PairOverridesMap;
   /** Request to open lightbox for specific image (from segment constituent navigation) */
   pendingImageToOpen?: string | null;
+  /** Variant ID to auto-select when opening from pendingImageToOpen */
+  pendingImageVariantId?: string | null;
   /** Callback to clear the pending image request after handling */
   onClearPendingImageToOpen?: () => void;
   /** Helper to navigate with transition overlay (prevents flash when component type changes) */

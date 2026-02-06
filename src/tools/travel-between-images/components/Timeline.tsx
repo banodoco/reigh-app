@@ -69,6 +69,7 @@ import { calculateMaxGap, validateGaps } from "./Timeline/utils/timeline-utils";
 import { quantizeGap } from "./Timeline/utils/time-utils";
 import { useExternalGenerations } from "@/shared/components/ShotImageManager/hooks/useExternalGenerations";
 import { useDerivedNavigation } from "@/shared/hooks/useDerivedNavigation";
+import { usePendingImageOpen } from "@/shared/hooks/usePendingImageOpen";
 import { useRenderCount } from "@/shared/components/debug/RefactorMetricsCollector";
 
 // Import components
@@ -189,6 +190,8 @@ export interface TimelineProps {
   onOpenSegmentSlot?: (pairIndex: number) => void;
   // Request to open lightbox for specific image (from segment constituent navigation)
   pendingImageToOpen?: string | null;
+  // Variant ID to auto-select when opening from pendingImageToOpen (e.g. from TasksPane)
+  pendingImageVariantId?: string | null;
   // Callback to clear the pending image request after handling
   onClearPendingImageToOpen?: () => void;
   // Helper to navigate with transition overlay (prevents flash when component type changes)
@@ -274,6 +277,7 @@ const Timeline: React.FC<TimelineProps> = ({
   onOpenSegmentSlot,
   // Constituent image navigation support
   pendingImageToOpen,
+  pendingImageVariantId,
   onClearPendingImageToOpen,
   // Lightbox transition support (prevents flash during navigation)
   navigateWithTransition,
@@ -572,25 +576,14 @@ const Timeline: React.FC<TimelineProps> = ({
     hookCloseLightbox();
   }, [hookCloseLightbox, externalGens]);
 
-  // Handle pending image to open (from constituent image navigation)
-  useEffect(() => {
-    if (!pendingImageToOpen || !currentImages?.length) return;
-
-    // Find the image in the current images array (by shot_generations.id, shotImageEntryId, or generation_id)
-    const index = currentImages.findIndex(
-      (img) => img.id === pendingImageToOpen || img.shotImageEntryId === pendingImageToOpen || img.generation_id === pendingImageToOpen
-    );
-
-    if (index !== -1) {
-      console.log('[ConstituentImageNav] Timeline opening lightbox for image:', pendingImageToOpen.substring(0, 8), 'at index:', index);
-      openLightbox(index);
-    } else {
-      console.log('[ConstituentImageNav] Image not found in Timeline images:', pendingImageToOpen.substring(0, 8));
-    }
-
-    // Clear the pending request
-    onClearPendingImageToOpen?.();
-  }, [pendingImageToOpen, currentImages, openLightbox, onClearPendingImageToOpen]);
+  // Handle pending image to open (from constituent image navigation / TasksPane deep-link)
+  const capturedVariantIdRef = usePendingImageOpen({
+    pendingImageToOpen,
+    pendingImageVariantId,
+    images: currentImages,
+    openLightbox,
+    onClear: onClearPendingImageToOpen,
+  });
 
   // Add derived navigation mode support (navigates only through "Based on this" items when active)
   const { wrappedGoNext, wrappedGoPrev, hasNext: derivedHasNext, hasPrevious: derivedHasPrevious } = useDerivedNavigation({
@@ -1140,7 +1133,9 @@ const Timeline: React.FC<TimelineProps> = ({
             starred={currentLightboxImage.starred ?? false}
             autoEnterInpaint={autoEnterInpaint}
             toolTypeOverride="travel-between-images"
+            initialVariantId={capturedVariantIdRef.current ?? undefined}
             onClose={() => {
+              capturedVariantIdRef.current = null;
               closeLightbox();
               // Reset dropdown to current shot when closing
               setLightboxSelectedShotId(selectedShotId || shotId);

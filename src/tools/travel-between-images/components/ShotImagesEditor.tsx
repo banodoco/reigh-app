@@ -533,6 +533,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
                 onSelectedOutputChange={onSelectedOutputChange}
                 onSegmentFrameCountChange={updatePairFrameCount}
                 pendingImageToOpen={pendingImageToOpen}
+                pendingImageVariantId={pendingImageVariantId}
                 onClearPendingImageToOpen={handleClearPendingImageToOpen}
                 navigateWithTransition={navigateWithTransition}
                 projectAspectRatio={projectAspectRatio}
@@ -577,6 +578,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
                 onSegmentDelete={handleDeleteSegment}
                 deletingSegmentId={deletingSegmentId}
                 pendingImageToOpen={pendingImageToOpen}
+                pendingImageVariantId={pendingImageVariantId}
                 onClearPendingImageToOpen={handleClearPendingImageToOpen}
                 navigateWithTransition={navigateWithTransition}
                 projectAspectRatio={projectAspectRatio}

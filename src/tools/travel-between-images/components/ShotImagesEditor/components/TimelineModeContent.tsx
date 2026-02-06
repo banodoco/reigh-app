@@ -167,6 +167,7 @@ export const TimelineModeContent: React.FC<TimelineModeContentProps> = ({
   onSelectedOutputChange,
   onSegmentFrameCountChange,
   pendingImageToOpen,
+  pendingImageVariantId,
   onClearPendingImageToOpen,
   navigateWithTransition,
   projectAspectRatio,
@@ -234,6 +235,7 @@ export const TimelineModeContent: React.FC<TimelineModeContentProps> = ({
         segmentSlots={segmentSlots}
         onOpenSegmentSlot={(pairIndex) => onPairClick(pairIndex)}
         pendingImageToOpen={pendingImageToOpen}
+        pendingImageVariantId={pendingImageVariantId}
         onClearPendingImageToOpen={onClearPendingImageToOpen}
         navigateWithTransition={navigateWithTransition}
         onNewShotFromSelection={onNewShotFromSelection}

@@ -25,6 +25,7 @@ interface JoinedGeneration {
   name: string | null;
   based_on: string | null;
   params: Record<string, unknown> | null;
+  primary_variant_id?: string | null;
   primary_variant?: {
     location: string | null;
     thumbnail_url: string | null;
@@ -82,6 +83,7 @@ export const mapShotGenerationToRow = (sg: RawShotGeneration): GenerationRow | n
     // From shot_generations table:
     timeline_frame: sg.timeline_frame,
     metadata: sg.metadata || {},
+    primary_variant_id: gen.primary_variant_id || null,
 
     // Legacy support:
     position: sg.timeline_frame != null ? Math.floor(sg.timeline_frame / 50) : undefined,

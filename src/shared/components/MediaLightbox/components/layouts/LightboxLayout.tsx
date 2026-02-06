@@ -446,7 +446,7 @@ export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
         <div
           data-task-details-panel
           className={cn(
-            "bg-background overflow-hidden relative z-[60]",
+            "bg-background overflow-hidden relative z-[60] overscroll-contain",
             isDesktopPanel
               ? "border-l border-border h-full"
               : "border-t border-border overflow-y-auto"

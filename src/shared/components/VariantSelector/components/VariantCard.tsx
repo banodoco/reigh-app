@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { Check, ArrowDown, ArrowUp, Info, Loader2, Trash2, GitBranch, Star, Download } from 'lucide-react';
+import { Check, ArrowDown, ArrowUp, Info, Loader2, Trash2, GitBranch, Star, Download, Image } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -20,7 +20,7 @@ import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import { getVariantIcon, getVariantLabel, isNewVariant, getTimeAgo, hasLoadableSettings } from '../utils';
+import { getVariantIcon, getVariantLabel, isNewVariant, getTimeAgo, hasLoadableSettings, hasDifferentSourceImages, type CurrentSegmentImagesData } from '../utils';
 
 // --- VariantHoverDetails (fetches real task data for hover tooltip) ---
 
@@ -94,6 +94,9 @@ interface VariantCardProps {
   onShowLineageGif: (variantId: string) => void;
   onCopyId: (variantId: string) => void;
   onLoadSettings: (variant: GenerationVariant) => void;
+  onLoadImages?: (variant: GenerationVariant) => void;
+  currentSegmentImages?: CurrentSegmentImagesData;
+  loadedImagesVariantId: string | null;
 }
 
 export const VariantCard: React.FC<VariantCardProps> = ({
@@ -119,6 +122,9 @@ export const VariantCard: React.FC<VariantCardProps> = ({
   onShowLineageGif,
   onCopyId,
   onLoadSettings,
+  onLoadImages,
+  currentSegmentImages,
+  loadedImagesVariantId,
 }) => {
   const Icon = getVariantIcon(variant.variant_type);
   const label = getVariantLabel(variant);
@@ -334,8 +340,8 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                   </div>
 
                   {/* Action buttons row */}
-                  {!readOnly && ((!isPrimary && onMakePrimary) || (onLoadVariantSettings && hasLoadableSettings(variant))) && (
-                    <div className="flex gap-1.5">
+                  {!readOnly && ((!isPrimary && onMakePrimary) || (onLoadVariantSettings && hasLoadableSettings(variant)) || (onLoadImages && hasDifferentSourceImages(variant, currentSegmentImages))) && (
+                    <div className="flex flex-wrap gap-1.5">
                       {!isPrimary && onMakePrimary && (
                         <Button
                           size="sm"
@@ -345,10 +351,7 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                             onVariantSelect(variant.id);
                             setTimeout(() => onMakePrimary(variant.id), 50);
                           }}
-                          className={cn(
-                            "h-6 text-xs gap-1",
-                            onLoadVariantSettings && hasLoadableSettings(variant) ? "flex-1" : "w-full"
-                          )}
+                          className="h-6 text-xs gap-1 flex-1"
                         >
                           <Star className="w-3 h-3" />
                           Make Primary
@@ -363,8 +366,7 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                             onLoadSettings(variant);
                           }}
                           className={cn(
-                            "h-6 text-xs gap-1",
-                            !isPrimary && onMakePrimary ? "flex-1" : "w-full",
+                            "h-6 text-xs gap-1 flex-1",
                             loadedSettingsVariantId === variant.id && "bg-green-500/20 border-green-500/50 text-green-400"
                           )}
                         >
@@ -377,6 +379,32 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                             <>
                               <Download className="w-3 h-3" />
                               Load Settings
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      {onLoadImages && hasDifferentSourceImages(variant, currentSegmentImages) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onLoadImages(variant);
+                          }}
+                          className={cn(
+                            "h-6 text-xs gap-1 flex-1",
+                            loadedImagesVariantId === variant.id && "bg-green-500/20 border-green-500/50 text-green-400"
+                          )}
+                        >
+                          {loadedImagesVariantId === variant.id ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              Loaded!
+                            </>
+                          ) : (
+                            <>
+                              <Image className="w-3 h-3" />
+                              Load Images
                             </>
                           )}
                         </Button>

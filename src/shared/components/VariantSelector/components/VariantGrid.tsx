@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { CurrentSegmentImagesData } from '../utils';
 import { VariantCard } from './VariantCard';
 
 const ITEMS_PER_PAGE = 20;
@@ -37,6 +38,9 @@ interface VariantGridProps {
   onShowLineageGif: (variantId: string) => void;
   onCopyId: (variantId: string) => void;
   onLoadSettings: (variant: GenerationVariant) => void;
+  onLoadImages?: (variant: GenerationVariant) => void;
+  currentSegmentImages?: CurrentSegmentImagesData;
+  loadedImagesVariantId: string | null;
   isDeleteLoading: (variantId: string) => boolean;
 }
 
@@ -62,6 +66,9 @@ export const VariantGrid: React.FC<VariantGridProps> = ({
   onShowLineageGif,
   onCopyId,
   onLoadSettings,
+  onLoadImages,
+  currentSegmentImages,
+  loadedImagesVariantId,
   isDeleteLoading,
 }) => {
   const totalPages = Math.ceil(filteredVariants.length / ITEMS_PER_PAGE);
@@ -141,6 +148,9 @@ export const VariantGrid: React.FC<VariantGridProps> = ({
               onShowLineageGif={onShowLineageGif}
               onCopyId={onCopyId}
               onLoadSettings={onLoadSettings}
+              onLoadImages={onLoadImages}
+              currentSegmentImages={currentSegmentImages}
+              loadedImagesVariantId={loadedImagesVariantId}
             />
           );
         })}

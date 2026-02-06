@@ -89,7 +89,8 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
 
   const [segmentSlotLightboxIndex, setSegmentSlotLightboxIndex] = useState<number | null>(null);
   const [activePairData, setActivePairData] = useState<PairData | null>(null);
-  // Initialize from location state so the value is available on first render (prevents flash)
+  // Initialize from location state so the value is available on first render (prevents flash).
+  // The overlay div in ShotImagesEditor uses this to start visible.
   const initialState = location.state as { openImageGenerationId?: string; openImageVariantId?: string } | null;
   const [pendingImageToOpen, setPendingImageToOpen] = useState<string | null>(
     initialState?.openImageGenerationId ?? null
@@ -98,6 +99,14 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
     initialState?.openImageVariantId ?? null
   );
   const frameCountDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const isFirstMountRef = useRef(true);
+
+  // Auto-clear variant ID when pending image is cleared
+  useEffect(() => {
+    if (!pendingImageToOpen) {
+      setPendingImageVariantId(null);
+    }
+  }, [pendingImageToOpen]);
 
   // ==========================================================================
   // COMPOSED HOOKS
@@ -121,17 +130,48 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
   // DEEP-LINKING: Open segment from URL state
   // ==========================================================================
 
-  // Deep-linking: Clear openImageGenerationId from URL state after initialization
-  // (pendingImageToOpen is initialized from location.state above, so just clean up the URL)
+  // Deep-linking: Open image from URL state (e.g. TasksPane "Open Image").
+  // Mirrors the openSegmentSlot pattern below.
+  // On first mount: pendingImageToOpen is already set via useState init, just clear URL state.
+  // On subsequent navigations (component already mounted): show overlay, set state, clear URL.
   useEffect(() => {
-    const state = location.state as { openImageGenerationId?: string; fromShotClick?: boolean } | null;
+    const wasFirstMount = isFirstMountRef.current;
+    isFirstMountRef.current = false;
+
+    const state = location.state as { openImageGenerationId?: string; openImageVariantId?: string; fromShotClick?: boolean } | null;
     if (!state?.openImageGenerationId) return;
 
+    if (wasFirstMount) {
+      // First mount: pendingImageToOpen already set via useState init above.
+      // Just clear URL state.
+      navigate(location.pathname + location.hash, {
+        replace: true,
+        state: { fromShotClick: state.fromShotClick }
+      });
+      return;
+    }
+
+    // Subsequent navigation (component already mounted, e.g. clicking another task).
+    // Close segment lightbox if open.
+    if (segmentSlotLightboxIndex !== null) {
+      setSegmentSlotLightboxIndex(null);
+      setActivePairData(null);
+    }
+
+    // Show overlay synchronously, then set state after paint.
+    navigateWithTransition(() => {
+      setPendingImageToOpen(state.openImageGenerationId!);
+      if (state.openImageVariantId) {
+        setPendingImageVariantId(state.openImageVariantId);
+      }
+    });
+
+    // Clear URL state
     navigate(location.pathname + location.hash, {
       replace: true,
       state: { fromShotClick: state.fromShotClick }
     });
-  }, [location.state, navigate, location.pathname, location.hash]);
+  }, [location.state, navigate, location.pathname, location.hash, navigateWithTransition, segmentSlotLightboxIndex]);
 
   useEffect(() => {
     const state = location.state as { openSegmentSlot?: string; fromShotClick?: boolean } | null;

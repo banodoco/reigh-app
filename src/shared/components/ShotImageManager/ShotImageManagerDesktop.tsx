@@ -28,6 +28,7 @@ import type { SegmentSlot } from '@/shared/hooks/segments';
 import { getDisplayUrl, cn } from '@/shared/lib/utils';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
 import type { GenerationRow } from '@/types/shots';
 import type { useSelection } from './hooks/useSelection';
 import type { useDragAndDrop } from './hooks/useDragAndDrop';
@@ -57,6 +58,8 @@ interface ShotImageManagerDesktopProps extends ShotImageManagerProps {
   deletingSegmentId?: string | null;
   /** Request to open lightbox for specific image (from segment constituent navigation) */
   pendingImageToOpen?: string | null;
+  /** Variant ID to auto-select when opening from pendingImageToOpen */
+  pendingImageVariantId?: string | null;
   /** Callback to clear the pending image request after handling */
   onClearPendingImageToOpen?: () => void;
   /** Helper to navigate with transition overlay (prevents flash when component type changes) */
@@ -79,6 +82,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
   onSegmentDelete,
   deletingSegmentId,
   pendingImageToOpen,
+  pendingImageVariantId,
   onClearPendingImageToOpen,
   navigateWithTransition,
   ...props
@@ -179,25 +183,14 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
     }
   }, [lightbox.lightboxIndex, lightbox.currentImages, currentLightboxImageId, prefetchTaskData]);
 
-  // Handle pending image to open (from constituent image navigation)
-  useEffect(() => {
-    if (!pendingImageToOpen || !lightbox.currentImages?.length) return;
-
-    // Find the image in the current images array
-    const index = lightbox.currentImages.findIndex(
-      (img: GenerationRow) => img.id === pendingImageToOpen || img.shotImageEntryId === pendingImageToOpen
-    );
-
-    if (index !== -1) {
-      console.log('[ConstituentImageNav] Opening lightbox for image:', pendingImageToOpen.substring(0, 8), 'at index:', index);
-      lightbox.setLightboxIndex(index);
-    } else {
-      console.log('[ConstituentImageNav] Image not found in current images:', pendingImageToOpen.substring(0, 8));
-    }
-
-    // Clear the pending request
-    onClearPendingImageToOpen?.();
-  }, [pendingImageToOpen, lightbox.currentImages, lightbox.setLightboxIndex, onClearPendingImageToOpen]);
+  // Handle pending image to open (from constituent image navigation / TasksPane deep-link)
+  const capturedVariantIdRef = usePendingImageOpen({
+    pendingImageToOpen,
+    pendingImageVariantId,
+    images: lightbox.currentImages,
+    openLightbox: lightbox.setLightboxIndex,
+    onClear: onClearPendingImageToOpen,
+  });
 
   // Build adjacent segments data for the current lightbox image
   // This enables navigation to videos that start/end with the current image
@@ -586,6 +579,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                 shotId={props.shotId}
                 toolTypeOverride={props.toolTypeOverride}
                 autoEnterInpaint={lightbox.shouldAutoEnterInpaint}
+                initialVariantId={capturedVariantIdRef.current ?? undefined}
                 onClose={() => {
                   console.log('[BasedOnNav] 🚪 MediaLightbox onClose called (Desktop)', {
                     lightboxIndex: lightbox.lightboxIndex,
@@ -597,6 +591,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                     } : null,
                     tempDerivedCount: externalGens.tempDerivedGenerations.length
                   });
+                  capturedVariantIdRef.current = null;
                   lightbox.setLightboxIndex(null);
                   lightbox.setShouldAutoEnterInpaint(false);
                   externalGens.setDerivedNavContext(null);

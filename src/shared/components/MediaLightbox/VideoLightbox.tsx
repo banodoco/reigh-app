@@ -106,6 +106,8 @@ interface VideoLightboxProps {
     startShotGenerationId?: string;
     endShotGenerationId?: string;
     activeChildGenerationId?: string;
+    startVariantId?: string;
+    endVariantId?: string;
   };
   onSegmentFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;
   currentFrameCount?: number;

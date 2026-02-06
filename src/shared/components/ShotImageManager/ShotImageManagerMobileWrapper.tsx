@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ShotImageManagerProps } from './types';
 import { ShotImageManagerMobile } from './ShotImageManagerMobile';
 import MediaLightbox from '../MediaLightbox';
@@ -9,6 +9,7 @@ import type { SegmentSlot } from '@/shared/hooks/segments';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { getDisplayUrl } from '@/shared/lib/utils';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
 import type { GenerationRow } from '@/types/shots';
 import type { useSelection } from './hooks/useSelection';
 import type { useLightbox } from './hooks/useLightbox';
@@ -33,6 +34,8 @@ interface ShotImageManagerMobileWrapperProps extends ShotImageManagerProps {
   hasPendingTask?: (pairShotGenerationId: string | null | undefined) => boolean;
   /** Request to open lightbox for specific image (from segment constituent navigation) */
   pendingImageToOpen?: string | null;
+  /** Variant ID to auto-select when opening from pendingImageToOpen */
+  pendingImageVariantId?: string | null;
   /** Callback to clear the pending image request after handling */
   onClearPendingImageToOpen?: () => void;
   /** Helper to navigate with transition overlay (prevents flash when component type changes) */
@@ -52,6 +55,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
   onSegmentClick,
   hasPendingTask,
   pendingImageToOpen,
+  pendingImageVariantId,
   onClearPendingImageToOpen,
   navigateWithTransition,
   ...props
@@ -80,27 +84,14 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
     }
   }, [showTickForSecondaryImageId]);
 
-  // Handle pendingImageToOpen - navigate from segment video back to constituent image
-  useEffect(() => {
-    if (!pendingImageToOpen) return;
-
-    console.log('[ConstituentImageNav] Mobile: Looking for image to open:', pendingImageToOpen.substring(0, 8));
-
-    // Find the image in current images by ID
-    const imageIndex = lightbox.currentImages.findIndex(
-      (img: GenerationRow) => img.id === pendingImageToOpen || img.generation_id === pendingImageToOpen
-    );
-
-    if (imageIndex !== -1) {
-      console.log('[ConstituentImageNav] Mobile: Found image at index', imageIndex);
-      lightbox.setLightboxIndex(imageIndex);
-    } else {
-      console.log('[ConstituentImageNav] Mobile: Image not found in current images:', pendingImageToOpen.substring(0, 8));
-    }
-
-    // Clear the pending request
-    onClearPendingImageToOpen?.();
-  }, [pendingImageToOpen, lightbox.currentImages, lightbox.setLightboxIndex, onClearPendingImageToOpen]);
+  // Handle pending image to open (from constituent image navigation / TasksPane deep-link)
+  const capturedVariantIdRef = usePendingImageOpen({
+    pendingImageToOpen,
+    pendingImageVariantId,
+    images: lightbox.currentImages,
+    openLightbox: lightbox.setLightboxIndex,
+    onClear: onClearPendingImageToOpen,
+  });
 
   // Build adjacent segments data for the current lightbox image
   // This enables navigation to videos that start/end with the current image
@@ -347,7 +338,9 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
             shotId={props.shotId}
             toolTypeOverride={props.toolTypeOverride}
             autoEnterInpaint={lightbox.shouldAutoEnterInpaint}
+            initialVariantId={capturedVariantIdRef.current ?? undefined}
             onClose={() => {
+              capturedVariantIdRef.current = null;
               console.log('[BasedOnNav] 🚪 MediaLightbox onClose called (Mobile)', {
                 lightboxIndex: lightbox.lightboxIndex,
                 currentImagesLength: lightbox.currentImages.length,

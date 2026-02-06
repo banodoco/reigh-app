@@ -371,11 +371,13 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
         setSelectedProjectId(task.projectId);
       }
 
+      const variantId = imageVariantId || (generationData as GenerationRowWithVariant)?._variant_id;
       setCurrentShotId(shotId);
       navigate(`/tools/travel-between-images#${shotId}`, {
         state: {
           fromShotClick: true,
           openImageGenerationId: generationData.generation_id || generationData.id,
+          openImageVariantId: variantId,
         }
       });
       return;
@@ -429,11 +431,13 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
             if (task.projectId && task.projectId !== selectedProjectId) {
               setSelectedProjectId(task.projectId);
             }
+            const variantId = imageVariantId || (generationData as GenerationRowWithVariant)?._variant_id;
             setCurrentShotId(shotId);
             navigate(`/tools/travel-between-images#${shotId}`, {
               state: {
                 fromShotClick: true,
                 openImageGenerationId: generationData.generation_id || generationData.id,
+                openImageVariantId: variantId,
               }
             });
             return;
