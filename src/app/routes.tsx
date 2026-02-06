@@ -19,6 +19,8 @@ import EditVideoPage from '@/tools/edit-video/pages/EditVideoPage';
 // Keep other heavy tools lazy-loaded to preserve bundle size
 const EditImagesPage = lazy(() => import('@/tools/edit-images/pages/EditImagesPage'));
 const TrainingDataHelperPage = lazy(() => import('@/tools/training-data-helper/pages/TrainingDataHelperPage'));
+import BlogListPage from '@/pages/Blog/BlogListPage';
+import BlogPostPage from '@/pages/Blog/BlogPostPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import ShotsPage from "@/pages/ShotsPage";
 import Layout from './Layout'; // Import the new Layout component
@@ -76,6 +78,18 @@ const router = createBrowserRouter([
   {
     path: '/share/:shareId',
     element: <SharePage />,
+    errorElement: <NotFoundPage />,
+  },
+
+  // Blog pages (public, outside of Layout)
+  {
+    path: '/blog',
+    element: <BlogListPage />,
+    errorElement: <NotFoundPage />,
+  },
+  {
+    path: '/blog/:slug',
+    element: <BlogPostPage />,
     errorElement: <NotFoundPage />,
   },
 
