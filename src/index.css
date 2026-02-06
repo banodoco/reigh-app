@@ -3028,38 +3028,39 @@ body.lightbox-transitioning [data-dialog-content] {
   --blob-r: 0;
 
   /*
-   * 11 overlapping radial-gradient blobs that expand from near-center.
-   * Each is slightly offset (within ~8vw of center) and sized as a
-   * fraction of --blob-r to create an irregular, organic silhouette.
+   * 11 overlapping radial-gradient blobs clustered slightly toward the
+   * bottom-right (~62% 58%) so the reveal originates from that corner
+   * and sweeps toward center. Each blob is offset within ~8% of the
+   * cluster center and sized as a fraction of --blob-r.
    * The first blob has a 3-stop gradient (solid core) to prevent
-   * semi-transparency at the center during mid-animation.
+   * semi-transparency at the cluster center during mid-animation.
    */
   -webkit-mask-image:
-    radial-gradient(circle at 50% 50%,
+    radial-gradient(circle at 62% 58%,
       black 0%, black calc(var(--blob-r) * 0.5vmax), transparent calc(var(--blob-r) * 1vmax)),
-    radial-gradient(circle at 47% 46%, black 0%, transparent calc(var(--blob-r) * 0.92vmax)),
-    radial-gradient(circle at 54% 53%, black 0%, transparent calc(var(--blob-r) * 0.88vmax)),
-    radial-gradient(circle at 44% 55%, black 0%, transparent calc(var(--blob-r) * 0.78vmax)),
-    radial-gradient(circle at 56% 44%, black 0%, transparent calc(var(--blob-r) * 0.82vmax)),
-    radial-gradient(circle at 48% 58%, black 0%, transparent calc(var(--blob-r) * 0.68vmax)),
-    radial-gradient(circle at 53% 42%, black 0%, transparent calc(var(--blob-r) * 0.72vmax)),
-    radial-gradient(circle at 42% 49%, black 0%, transparent calc(var(--blob-r) * 0.62vmax)),
-    radial-gradient(circle at 58% 51%, black 0%, transparent calc(var(--blob-r) * 0.58vmax)),
-    radial-gradient(circle at 46% 43%, black 0%, transparent calc(var(--blob-r) * 0.52vmax)),
-    radial-gradient(circle at 55% 57%, black 0%, transparent calc(var(--blob-r) * 0.48vmax));
+    radial-gradient(circle at 59% 54%, black 0%, transparent calc(var(--blob-r) * 0.92vmax)),
+    radial-gradient(circle at 66% 61%, black 0%, transparent calc(var(--blob-r) * 0.88vmax)),
+    radial-gradient(circle at 56% 63%, black 0%, transparent calc(var(--blob-r) * 0.78vmax)),
+    radial-gradient(circle at 68% 52%, black 0%, transparent calc(var(--blob-r) * 0.82vmax)),
+    radial-gradient(circle at 60% 66%, black 0%, transparent calc(var(--blob-r) * 0.68vmax)),
+    radial-gradient(circle at 65% 50%, black 0%, transparent calc(var(--blob-r) * 0.72vmax)),
+    radial-gradient(circle at 54% 57%, black 0%, transparent calc(var(--blob-r) * 0.62vmax)),
+    radial-gradient(circle at 70% 59%, black 0%, transparent calc(var(--blob-r) * 0.58vmax)),
+    radial-gradient(circle at 58% 51%, black 0%, transparent calc(var(--blob-r) * 0.52vmax)),
+    radial-gradient(circle at 67% 65%, black 0%, transparent calc(var(--blob-r) * 0.48vmax));
   mask-image:
-    radial-gradient(circle at 50% 50%,
+    radial-gradient(circle at 62% 58%,
       black 0%, black calc(var(--blob-r) * 0.5vmax), transparent calc(var(--blob-r) * 1vmax)),
-    radial-gradient(circle at 47% 46%, black 0%, transparent calc(var(--blob-r) * 0.92vmax)),
-    radial-gradient(circle at 54% 53%, black 0%, transparent calc(var(--blob-r) * 0.88vmax)),
-    radial-gradient(circle at 44% 55%, black 0%, transparent calc(var(--blob-r) * 0.78vmax)),
-    radial-gradient(circle at 56% 44%, black 0%, transparent calc(var(--blob-r) * 0.82vmax)),
-    radial-gradient(circle at 48% 58%, black 0%, transparent calc(var(--blob-r) * 0.68vmax)),
-    radial-gradient(circle at 53% 42%, black 0%, transparent calc(var(--blob-r) * 0.72vmax)),
-    radial-gradient(circle at 42% 49%, black 0%, transparent calc(var(--blob-r) * 0.62vmax)),
-    radial-gradient(circle at 58% 51%, black 0%, transparent calc(var(--blob-r) * 0.58vmax)),
-    radial-gradient(circle at 46% 43%, black 0%, transparent calc(var(--blob-r) * 0.52vmax)),
-    radial-gradient(circle at 55% 57%, black 0%, transparent calc(var(--blob-r) * 0.48vmax));
+    radial-gradient(circle at 59% 54%, black 0%, transparent calc(var(--blob-r) * 0.92vmax)),
+    radial-gradient(circle at 66% 61%, black 0%, transparent calc(var(--blob-r) * 0.88vmax)),
+    radial-gradient(circle at 56% 63%, black 0%, transparent calc(var(--blob-r) * 0.78vmax)),
+    radial-gradient(circle at 68% 52%, black 0%, transparent calc(var(--blob-r) * 0.82vmax)),
+    radial-gradient(circle at 60% 66%, black 0%, transparent calc(var(--blob-r) * 0.68vmax)),
+    radial-gradient(circle at 65% 50%, black 0%, transparent calc(var(--blob-r) * 0.72vmax)),
+    radial-gradient(circle at 54% 57%, black 0%, transparent calc(var(--blob-r) * 0.62vmax)),
+    radial-gradient(circle at 70% 59%, black 0%, transparent calc(var(--blob-r) * 0.58vmax)),
+    radial-gradient(circle at 58% 51%, black 0%, transparent calc(var(--blob-r) * 0.52vmax)),
+    radial-gradient(circle at 67% 65%, black 0%, transparent calc(var(--blob-r) * 0.48vmax));
 
   -webkit-mask-composite: source-over;
   mask-composite: add;
