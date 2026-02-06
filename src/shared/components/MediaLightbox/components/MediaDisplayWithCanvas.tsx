@@ -182,6 +182,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
 
   // --- Native event listeners for reposition mode ---
   const dragContainerRef = useRef<HTMLDivElement>(null);
+  const handlesOverlayRef = useRef<HTMLDivElement>(null);
 
   // Use a ref for current scale so the touch pinch effect doesn't re-attach on every scale change
   const scaleRef = useRef(repositionScale);
@@ -207,9 +208,15 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
     // Touch pinch-to-zoom via native touch events.
     // Pointer Events multi-touch is unreliable on iOS Safari, so we use
     // the Touch Events API directly — it's been solid on iOS since day one.
+    //
+    // For performance, we manipulate the DOM transform directly during the
+    // gesture (bypassing React's render cycle) and only commit the final
+    // scale to React state on touchend.
     if (onRepositionScaleChange) {
       let pinchStartDistance = 0;
       let pinchStartScale = 1;
+      let pinchStartTransform = ''; // original CSS transform string
+      let lastPinchScale = 0;
 
       const handleTouchStart = (e: TouchEvent) => {
         if (e.touches.length === 2) {
@@ -217,7 +224,20 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
           const dy = e.touches[1].clientY - e.touches[0].clientY;
           pinchStartDistance = Math.hypot(dx, dy);
           pinchStartScale = scaleRef.current;
+          lastPinchScale = pinchStartScale;
+          // Capture the current transform string from the image
+          const img = imageRef.current;
+          if (img) pinchStartTransform = img.style.transform;
         }
+      };
+
+      const buildTransform = (newScale: number): string => {
+        // Format: translate(X%, Y%) scale(sX, sY) rotate(Rdeg)
+        // scaleX/Y can be negative (for flips). Preserve the sign, replace the magnitude.
+        return pinchStartTransform.replace(
+          /scale\((-?)[\d.]+,\s*(-?)[\d.]+\)/,
+          `scale($1${newScale}, $2${newScale})`
+        );
       };
 
       const handleTouchMove = (e: TouchEvent) => {
@@ -230,12 +250,25 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
           const distance = Math.hypot(dx, dy);
           const ratio = distance / pinchStartDistance;
           const newScale = Math.max(0.25, Math.min(2.0, pinchStartScale * ratio));
-          onRepositionScaleChange(newScale);
+          lastPinchScale = newScale;
+
+          // Direct DOM manipulation — no React render cycle
+          const newTransform = buildTransform(newScale);
+          const img = imageRef.current;
+          if (img) img.style.transform = newTransform;
+          const handles = handlesOverlayRef.current;
+          if (handles) handles.style.transform = newTransform;
         }
       };
 
-      const handleTouchEnd = () => {
-        pinchStartDistance = 0;
+      const handleTouchEnd = (e: TouchEvent) => {
+        if (e.touches.length < 2 && pinchStartDistance > 0) {
+          // Commit final scale to React state
+          if (lastPinchScale !== pinchStartScale) {
+            onRepositionScaleChange(lastPinchScale);
+          }
+          pinchStartDistance = 0;
+        }
       };
 
       el.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -501,7 +534,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
                 ${isFlippedHorizontally ? 'scale-x-[-1]' : ''}
                 ${isSaving ? 'opacity-30' : 'opacity-100'}
                 ${isInpaintMode ? 'pointer-events-none' : ''}
-                ${editMode === 'reposition' ? 'transition-transform duration-75' : 'transition-opacity duration-300'}
+                ${editMode !== 'reposition' ? 'transition-opacity duration-300' : ''}
                 ${className}
               `.trim()}
               style={{
@@ -659,6 +692,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
           {/* Rotation corner handles + zoom buttons - follows the transformed image */}
           {isRepositionMode && displaySize.width > 0 && displaySize.height > 0 && (
             <div
+              ref={handlesOverlayRef}
               className="absolute z-[46] pointer-events-none"
               style={{
                 left: imageOffset.left,
