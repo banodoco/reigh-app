@@ -14,7 +14,6 @@ import { useAddImageToShot } from '@/shared/hooks/useShots';
 
 export interface UseVariantPromotionProps {
   selectedProjectId: string | null;
-  actualGenerationId: string;
 }
 
 export interface UseVariantPromotionReturn {
@@ -30,7 +29,6 @@ export interface UseVariantPromotionReturn {
 
 export function useVariantPromotion({
   selectedProjectId,
-  actualGenerationId,
 }: UseVariantPromotionProps): UseVariantPromotionReturn {
   const promoteVariantMutation = usePromoteVariantToGeneration();
   const addImageToShotMutation = useAddImageToShot();
@@ -43,31 +41,21 @@ export function useVariantPromotion({
       return;
     }
 
-    console.log('[PromoteVariant] handlePromoteToGeneration called:', {
-      variantId: variantId.substring(0, 8),
-      projectId: selectedProjectId.substring(0, 8),
-      sourceGenerationId: actualGenerationId.substring(0, 8),
-    });
-
     setPromoteSuccess(false);
 
     try {
       const result = await promoteVariantMutation.mutateAsync({
         variantId,
         projectId: selectedProjectId,
-        sourceGenerationId: actualGenerationId,
       });
 
-      console.log('[PromoteVariant] Successfully created generation:', result.id.substring(0, 8));
+      console.log('[NewImage] promoted → new generation:', result.id.substring(0, 8));
       setPromoteSuccess(true);
-      // Reset success state after delay
       setTimeout(() => setPromoteSuccess(false), 2000);
-      // Stay on current item - don't navigate away
     } catch (error) {
       handleError(error, { context: 'useVariantPromotion', showToast: false });
-      // Error toast is handled in the hook
     }
-  }, [promoteVariantMutation, selectedProjectId, actualGenerationId]);
+  }, [promoteVariantMutation, selectedProjectId]);
 
   // Handler for "Add as new image to shot" button in ShotSelectorControls
   // Positions new image between current and next item in the TARGET shot
@@ -81,20 +69,11 @@ export function useVariantPromotion({
       return false;
     }
 
-    console.log('[VariantToShot] Starting:', {
-      shotId: shotId.substring(0, 8),
-      variantId: variantId.substring(0, 8),
-      projectId: selectedProjectId.substring(0, 8),
-      sourceGenerationId: actualGenerationId.substring(0, 8),
-      currentTimelineFrame,
-    });
-
     try {
       // 1. Create the generation from the variant
       const newGen = await promoteVariantMutation.mutateAsync({
         variantId,
         projectId: selectedProjectId,
-        sourceGenerationId: actualGenerationId,
       });
 
       console.log('[VariantToShot] Created generation:', newGen.id.substring(0, 8));
@@ -166,7 +145,7 @@ export function useVariantPromotion({
       handleError(error, { context: 'useVariantPromotion', showToast: false });
       return false;
     }
-  }, [promoteVariantMutation, addImageToShotMutation, selectedProjectId, actualGenerationId]);
+  }, [promoteVariantMutation, addImageToShotMutation, selectedProjectId]);
 
   return {
     promoteSuccess,

@@ -15,15 +15,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { hasVideoExtension } from '@/shared/lib/typeGuards';
 import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 
 export interface PromoteVariantParams {
   /** ID of the variant to promote */
   variantId: string;
   /** Project ID for the new generation */
   projectId: string;
-  /** ID of the generation this variant belongs to (for lineage tracking) */
-  sourceGenerationId: string;
 }
 
 export interface PromotedGeneration {
@@ -46,15 +43,8 @@ export const usePromoteVariantToGeneration = () => {
     mutationFn: async ({
       variantId,
       projectId,
-      sourceGenerationId,
     }: PromoteVariantParams): Promise<PromotedGeneration> => {
-      console.log('[PromoteVariant] Starting promotion:', {
-        variantId: variantId.substring(0, 8),
-        projectId: projectId.substring(0, 8),
-        sourceGenerationId: sourceGenerationId.substring(0, 8),
-      });
-
-      // 1. Fetch the variant's data
+      // 1. Fetch the variant — its generation_id is the single source of truth for lineage
       const { data: variant, error: variantError } = await supabase
         .from('generation_variants')
         .select('*')
@@ -62,14 +52,16 @@ export const usePromoteVariantToGeneration = () => {
         .single();
 
       if (variantError || !variant) {
-        console.error('[PromoteVariant] Failed to fetch variant:', variantError);
         throw new Error(`Failed to fetch variant: ${variantError?.message || 'Not found'}`);
       }
 
-      console.log('[PromoteVariant] Fetched variant:', {
-        id: variant.id.substring(0, 8),
-        location: variant.location?.substring(0, 50),
+      const sourceGenerationId = variant.generation_id;
+
+      console.log('[NewImage] promoting variant:', {
+        variantId: variant.id.substring(0, 8),
+        sourceGenerationId: sourceGenerationId?.substring(0, 8),
         variant_type: variant.variant_type,
+        is_primary: variant.is_primary,
       });
 
       // 2. Determine if this is a video or image based on the URL
@@ -77,27 +69,31 @@ export const usePromoteVariantToGeneration = () => {
       const mediaType = isVideo ? 'video' : 'image';
 
       // 3. Create new generation record
+      // Strip generation_id from variant params — if it leaks into the new generation's params,
+      // generationTransformers spreads params into metadata, and getGenerationId() reads
+      // metadata.generation_id (priority 2) over media.id (priority 3), causing the lightbox
+      // to fetch variants for the SOURCE generation instead of the new one.
+      const {
+        generation_id: _stripGenId,
+        source_task_id: _stripTaskId,
+        ...cleanVariantParams
+      } = (variant.params as Record<string, unknown>) || {};
+
       const newGenerationData = {
         location: variant.location,
         thumbnail_url: variant.thumbnail_url,
         project_id: projectId,
         type: mediaType,
-        based_on: sourceGenerationId, // Track lineage
+        based_on: sourceGenerationId,
         params: {
-          ...((variant.params as Record<string, unknown>) || {}),
+          ...cleanVariantParams,
           source: 'variant_promotion',
           source_variant_id: variantId,
           source_generation_id: sourceGenerationId,
-          tool_type: (variant.params as Record<string, unknown> | null)?.tool_type || 'promoted-variant',
+          tool_type: cleanVariantParams.tool_type || 'promoted-variant',
           promoted_at: new Date().toISOString(),
         },
       };
-
-      console.log('[PromoteVariant] Creating generation with:', {
-        type: newGenerationData.type,
-        based_on: newGenerationData.based_on?.substring(0, 8),
-        projectId: newGenerationData.project_id.substring(0, 8),
-      });
 
       const { data: newGeneration, error: insertError } = await supabase
         .from('generations')
@@ -106,24 +102,15 @@ export const usePromoteVariantToGeneration = () => {
         .single();
 
       if (insertError || !newGeneration) {
-        console.error('[PromoteVariant] Failed to create generation:', insertError);
         throw new Error(`Failed to create generation: ${insertError?.message || 'Unknown error'}`);
       }
 
-      // Create the original variant
-      await supabase.from('generation_variants').insert({
-        generation_id: newGeneration.id,
-        location: newGenerationData.location,
-        thumbnail_url: newGenerationData.thumbnail_url,
-        is_primary: true,
-        variant_type: VARIANT_TYPE.ORIGINAL,
-        name: 'Original',
-        params: newGenerationData.params,
-      });
+      // DB trigger trg_auto_create_variant_after_generation auto-creates
+      // the primary variant from the generation's location/params.
 
-      console.log('[PromoteVariant] Successfully created generation:', {
-        id: newGeneration.id.substring(0, 8),
-        type: newGeneration.type,
+      console.log('[NewImage] created generation:', {
+        newGenId: newGeneration.id.substring(0, 8),
+        sourceGenId: sourceGenerationId?.substring(0, 8),
       });
 
       return {
@@ -137,17 +124,17 @@ export const usePromoteVariantToGeneration = () => {
       };
     },
 
-    onSuccess: (data, variables) => {
-      console.log('[PromoteVariant] Mutation success, invalidating caches');
-
+    onSuccess: (data) => {
       // Invalidate generations queries to show the new generation in galleries
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.byProjectAll });
 
-      // Invalidate derived generations for the source (new generation will show in "based on this")
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.generations.derivedGenerations(variables.sourceGenerationId),
-      });
+      // Invalidate derived generations for the source
+      if (data.based_on) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.generations.derivedGenerations(data.based_on),
+        });
+      }
     },
 
     onError: (error) => {
