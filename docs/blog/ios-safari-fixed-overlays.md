@@ -10,6 +10,8 @@ author: Peter O'Malley
 
 We built a fullscreen lightbox — image on the left, scrollable panel on the right. It worked everywhere except iPad Safari, where touching the image area shifted the entire overlay upward, leaving a gap at the bottom. Closing and reopening made it worse.
 
+![Before: overlay shifts upward on touch, leaving a gap at the bottom](/images/blog/ios-safari-before.png)
+
 If you've built a modal or lightbox for iPad Safari, you've probably hit some version of this. There are a lot of partial answers online. The reason none of them fully worked for us is that there are multiple interacting issues.
 
 ## The Three Fixes
@@ -142,4 +144,6 @@ The tradeoff is real — Base UI made us do the work ourselves. But the fixes in
 
 For touch-heavy applications on iOS Safari, pay attention to what your component library does implicitly. Built-in scroll locking is convenient until it breaks on your target platform and you can't opt out. Sometimes you want a library that gives you primitives and gets out of the way.
 
-You can see our full implementation in [this pull request](https://github.com/banodoco/Reigh/pull/1).
+![After: overlay stays locked in place, no shifting](/images/blog/ios-safari-after.png)
+
+You can see our full implementation in [this commit](https://github.com/banodoco/Reigh/commit/bc40f9d5).
