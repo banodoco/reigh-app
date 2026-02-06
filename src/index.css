@@ -3014,3 +3014,76 @@ body.lightbox-transitioning [data-dialog-content] {
   animation: none !important;
   transition: none !important;
 }
+
+/* ── Painterly video reveal ────────────────────────────────────── */
+
+/* Register custom property so CSS can interpolate it */
+@property --blob-r {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+.video-reveal {
+  --blob-r: 0;
+
+  /*
+   * 11 overlapping radial-gradient blobs that expand from near-center.
+   * Each is slightly offset (within ~8vw of center) and sized as a
+   * fraction of --blob-r to create an irregular, organic silhouette.
+   * The first blob has a 3-stop gradient (solid core) to prevent
+   * semi-transparency at the center during mid-animation.
+   */
+  -webkit-mask-image:
+    radial-gradient(circle at 50% 50%,
+      black 0%, black calc(var(--blob-r) * 0.5vmax), transparent calc(var(--blob-r) * 1vmax)),
+    radial-gradient(circle at 47% 46%, black 0%, transparent calc(var(--blob-r) * 0.92vmax)),
+    radial-gradient(circle at 54% 53%, black 0%, transparent calc(var(--blob-r) * 0.88vmax)),
+    radial-gradient(circle at 44% 55%, black 0%, transparent calc(var(--blob-r) * 0.78vmax)),
+    radial-gradient(circle at 56% 44%, black 0%, transparent calc(var(--blob-r) * 0.82vmax)),
+    radial-gradient(circle at 48% 58%, black 0%, transparent calc(var(--blob-r) * 0.68vmax)),
+    radial-gradient(circle at 53% 42%, black 0%, transparent calc(var(--blob-r) * 0.72vmax)),
+    radial-gradient(circle at 42% 49%, black 0%, transparent calc(var(--blob-r) * 0.62vmax)),
+    radial-gradient(circle at 58% 51%, black 0%, transparent calc(var(--blob-r) * 0.58vmax)),
+    radial-gradient(circle at 46% 43%, black 0%, transparent calc(var(--blob-r) * 0.52vmax)),
+    radial-gradient(circle at 55% 57%, black 0%, transparent calc(var(--blob-r) * 0.48vmax));
+  mask-image:
+    radial-gradient(circle at 50% 50%,
+      black 0%, black calc(var(--blob-r) * 0.5vmax), transparent calc(var(--blob-r) * 1vmax)),
+    radial-gradient(circle at 47% 46%, black 0%, transparent calc(var(--blob-r) * 0.92vmax)),
+    radial-gradient(circle at 54% 53%, black 0%, transparent calc(var(--blob-r) * 0.88vmax)),
+    radial-gradient(circle at 44% 55%, black 0%, transparent calc(var(--blob-r) * 0.78vmax)),
+    radial-gradient(circle at 56% 44%, black 0%, transparent calc(var(--blob-r) * 0.82vmax)),
+    radial-gradient(circle at 48% 58%, black 0%, transparent calc(var(--blob-r) * 0.68vmax)),
+    radial-gradient(circle at 53% 42%, black 0%, transparent calc(var(--blob-r) * 0.72vmax)),
+    radial-gradient(circle at 42% 49%, black 0%, transparent calc(var(--blob-r) * 0.62vmax)),
+    radial-gradient(circle at 58% 51%, black 0%, transparent calc(var(--blob-r) * 0.58vmax)),
+    radial-gradient(circle at 46% 43%, black 0%, transparent calc(var(--blob-r) * 0.52vmax)),
+    radial-gradient(circle at 55% 57%, black 0%, transparent calc(var(--blob-r) * 0.48vmax));
+
+  -webkit-mask-composite: source-over;
+  mask-composite: add;
+}
+
+.video-reveal.revealing {
+  animation: blob-reveal 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes blob-reveal {
+  from { --blob-r: 0; }
+  to   { --blob-r: 120; }
+}
+
+/* Fallback: browsers without @property support get a simple opacity fade */
+@supports not (syntax: "<number>") {
+  .video-reveal {
+    -webkit-mask-image: none;
+    mask-image: none;
+    opacity: 0;
+    transition: opacity 0.8s ease-out;
+  }
+  .video-reveal.revealing {
+    animation: none;
+    opacity: 1;
+  }
+}

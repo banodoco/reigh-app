@@ -79,6 +79,11 @@ export default function HomePage() {
   const videoBRef = useRef<HTMLVideoElement>(null);
   const [isLoopVideo, setIsLoopVideo] = useState(false);
   const [videoBReady, setVideoBReady] = useState(false);
+
+  // Painterly video reveal
+  const [videoReady, setVideoReady] = useState(false);
+  const videoRevealRef = useRef<HTMLDivElement>(null);
+  const revealTriggeredRef = useRef(false);
   
   // Video Preload Hook
   useVideoPreload({ 
@@ -392,6 +397,33 @@ export default function HomePage() {
     };
   }, [isMobile, ecosystemTipOpen]);
 
+  // Painterly video reveal: trigger when poster or video is ready
+  useEffect(() => {
+    if (!(posterLoaded || videoReady)) return;
+    if (revealTriggeredRef.current) return;
+    revealTriggeredRef.current = true;
+
+    const el = videoRevealRef.current;
+    if (!el) return;
+    el.classList.add('revealing');
+  }, [posterLoaded, videoReady]);
+
+  // Clean up mask after reveal animation completes
+  useEffect(() => {
+    const el = videoRevealRef.current;
+    if (!el) return;
+
+    const handleEnd = (e: AnimationEvent) => {
+      if (e.animationName !== 'blob-reveal') return;
+      el.style.maskImage = 'none';
+      el.style.webkitMaskImage = 'none';
+      el.classList.remove('video-reveal', 'revealing');
+    };
+
+    el.addEventListener('animationend', handleEnd);
+    return () => el.removeEventListener('animationend', handleEnd);
+  }, []);
+
   // --- Handlers ---
 
   const handleDiscordSignIn = async () => {
@@ -441,109 +473,105 @@ export default function HomePage() {
   return (
     <div className="min-h-screen overflow-hidden">
       {/* Background Videos - Two-video system for seamless looping on desktop */}
-      {/* Video A: plays once on landing (normal start, ease-out at end) */}
-      {/* Video B: loops forever (ease-in at start, ease-out at end) - preloaded and hidden until needed */}
-
-      {(() => { console.log('[VideoDebug] Rendering video, isMobile:', isMobile, 'isLoopVideo:', isLoopVideo, 'videoBReady:', videoBReady); return null; })()}
-      {isMobile ? (
-        // Mobile: single looping video
-        <video
-          ref={videoARef}
-          autoPlay
-          loop
-          muted
-          playsInline
-          // @ts-expect-error webkit-specific attribute for iOS
-          webkit-playsinline="true"
-          preload="auto"
-          poster={posterLoaded ? "/hero-background-poster.jpg" : undefined}
-          src="/hero-background-mobile.mp4"
-          className="fixed inset-0 w-full h-full object-cover"
-          style={{ zIndex: 0 }}
-          onLoadedData={() => console.log('[VideoDebug] Mobile video loaded')}
-          onPlay={() => console.log('[VideoDebug] Mobile video playing')}
-        />
-      ) : (
-        <>
-          {/* Video A - Landing video (plays once) */}
+      {/* Wrapped in video-reveal container for painterly mask animation */}
+      <div ref={videoRevealRef} className="fixed inset-0 video-reveal" style={{ zIndex: 0 }}>
+        {isMobile ? (
+          // Mobile: single looping video
           <video
             ref={videoARef}
             autoPlay
+            loop
             muted
             playsInline
             // @ts-expect-error webkit-specific attribute for iOS
             webkit-playsinline="true"
             preload="auto"
             poster={posterLoaded ? "/hero-background-poster.jpg" : undefined}
-            src="/hero-background-easeout-smooth-web.mp4"
-            className="fixed inset-0 w-full h-full object-cover"
-            style={{
-              zIndex: 0,
-              // Hide Video A once we switch to loop video
-              opacity: isLoopVideo ? 0 : 1,
-              pointerEvents: isLoopVideo ? 'none' : 'auto',
-            }}
-            onLoadedData={() => console.log('[VideoDebug] Video A loaded, duration:', videoARef.current?.duration)}
-            onPlay={() => console.log('[VideoDebug] Video A playing, currentTime:', videoARef.current?.currentTime)}
-            onTimeUpdate={() => {
-              const v = videoARef.current;
-              if (v && v.duration - v.currentTime < 5) {
-                console.log('[VideoDebug] Video A near end, currentTime:', v.currentTime, 'duration:', v.duration);
-              }
-            }}
-            onEnded={() => {
-              // When Video A ends, switch to Video B
-              if (!isLoopVideo && videoBReady) {
-                console.log('[VideoSwitch] Video A ended, switching to Video B');
-                const videoB = videoBRef.current;
-                if (videoB) {
-                  videoB.currentTime = 0;
-                  videoB.play().catch(() => {});
+            src="/hero-background-mobile.mp4"
+            className="absolute inset-0 w-full h-full object-cover"
+            onLoadedData={() => console.log('[VideoDebug] Mobile video loaded')}
+            onPlay={() => { console.log('[VideoDebug] Mobile video playing'); setVideoReady(true); }}
+          />
+        ) : (
+          <>
+            {/* Video A - Landing video (plays once) */}
+            <video
+              ref={videoARef}
+              autoPlay
+              muted
+              playsInline
+              // @ts-expect-error webkit-specific attribute for iOS
+              webkit-playsinline="true"
+              preload="auto"
+              poster={posterLoaded ? "/hero-background-poster.jpg" : undefined}
+              src="/hero-background-easeout-smooth-web.mp4"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{
+                // Hide Video A once we switch to loop video
+                opacity: isLoopVideo ? 0 : 1,
+                pointerEvents: isLoopVideo ? 'none' : 'auto',
+              }}
+              onLoadedData={() => console.log('[VideoDebug] Video A loaded, duration:', videoARef.current?.duration)}
+              onPlay={() => { console.log('[VideoDebug] Video A playing'); setVideoReady(true); }}
+              onTimeUpdate={() => {
+                const v = videoARef.current;
+                if (v && v.duration - v.currentTime < 5) {
+                  console.log('[VideoDebug] Video A near end, currentTime:', v.currentTime, 'duration:', v.duration);
                 }
-                setIsLoopVideo(true);
-              } else if (!isLoopVideo) {
-                // Video B not ready yet, wait for it
-                console.log('[VideoSwitch] Video A ended but Video B not ready, waiting...');
-                const checkReady = setInterval(() => {
+              }}
+              onEnded={() => {
+                // When Video A ends, switch to Video B
+                if (!isLoopVideo && videoBReady) {
+                  console.log('[VideoSwitch] Video A ended, switching to Video B');
                   const videoB = videoBRef.current;
-                  if (videoB && videoB.readyState >= 3) {
-                    clearInterval(checkReady);
-                    console.log('[VideoSwitch] Video B now ready, switching');
+                  if (videoB) {
                     videoB.currentTime = 0;
                     videoB.play().catch(() => {});
-                    setIsLoopVideo(true);
                   }
-                }, 50);
-                // Timeout after 3 seconds
-                setTimeout(() => clearInterval(checkReady), 3000);
-              }
-            }}
-          />
+                  setIsLoopVideo(true);
+                } else if (!isLoopVideo) {
+                  // Video B not ready yet, wait for it
+                  console.log('[VideoSwitch] Video A ended but Video B not ready, waiting...');
+                  const checkReady = setInterval(() => {
+                    const videoB = videoBRef.current;
+                    if (videoB && videoB.readyState >= 3) {
+                      clearInterval(checkReady);
+                      console.log('[VideoSwitch] Video B now ready, switching');
+                      videoB.currentTime = 0;
+                      videoB.play().catch(() => {});
+                      setIsLoopVideo(true);
+                    }
+                  }, 50);
+                  // Timeout after 3 seconds
+                  setTimeout(() => clearInterval(checkReady), 3000);
+                }
+              }}
+            />
 
-          {/* Video B - Loop video (preloaded, shown after Video A ends) */}
-          <video
-            ref={videoBRef}
-            loop
-            muted
-            playsInline
-            // @ts-expect-error webkit-specific attribute for iOS
-            webkit-playsinline="true"
-            preload="none"
-            src="/hero-background-loop.mp4"
-            className="fixed inset-0 w-full h-full object-cover"
-            style={{
-              zIndex: 0,
-              // Show Video B once we switch to loop video
-              opacity: isLoopVideo ? 1 : 0,
-              pointerEvents: isLoopVideo ? 'auto' : 'none',
-            }}
-            onLoadedData={() => console.log('[VideoDebug] Video B loaded, duration:', videoBRef.current?.duration)}
-            onCanPlayThrough={() => console.log('[VideoDebug] Video B canplaythrough')}
-            onPlay={() => console.log('[VideoDebug] Video B playing, currentTime:', videoBRef.current?.currentTime)}
-            onSeeked={() => console.log('[VideoDebug] Video B seeked to:', videoBRef.current?.currentTime)}
-          />
-        </>
-      )}
+            {/* Video B - Loop video (preloaded, shown after Video A ends) */}
+            <video
+              ref={videoBRef}
+              loop
+              muted
+              playsInline
+              // @ts-expect-error webkit-specific attribute for iOS
+              webkit-playsinline="true"
+              preload="none"
+              src="/hero-background-loop.mp4"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{
+                // Show Video B once we switch to loop video
+                opacity: isLoopVideo ? 1 : 0,
+                pointerEvents: isLoopVideo ? 'auto' : 'none',
+              }}
+              onLoadedData={() => console.log('[VideoDebug] Video B loaded, duration:', videoBRef.current?.duration)}
+              onCanPlayThrough={() => console.log('[VideoDebug] Video B canplaythrough')}
+              onPlay={() => console.log('[VideoDebug] Video B playing, currentTime:', videoBRef.current?.currentTime)}
+              onSeeked={() => console.log('[VideoDebug] Video B seeked to:', videoBRef.current?.currentTime)}
+            />
+          </>
+        )}
+      </div>
 
       {/* Film grain overlay - above video, below darkening */}
       <div className="fixed inset-0 bg-film-grain opacity-30 animate-film-grain pointer-events-none" style={{ zIndex: 1 }} />
