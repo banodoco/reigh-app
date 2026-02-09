@@ -10,7 +10,7 @@ import {
   useHandleExternalImageDrop,
   useDuplicateAsNewGeneration
 } from "@/shared/hooks/useShots";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useQueryClient } from '@tanstack/react-query';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { ShotEditorState } from '../state/types';
@@ -232,68 +232,22 @@ export const useGenerationActions = ({
     // [OptimisticUpdates] No event coordination needed - the mutation's optimistic update
     // immediately updates the React Query cache, and selectors automatically reflect the change.
     
+    // Build shift data to pass to mutation (applied optimistically in onMutate)
+    const shiftItems = isDeletingFirstItem && frameOffset > 0 && itemsToShift.length > 0
+      ? itemsToShift.map(item => ({ id: item.id, newFrame: item.currentFrame - frameOffset }))
+      : undefined;
+
     try {
       // CRITICAL: Pass shotGenerationId (shot_generations.id), NOT generationId (generations.id)
       // This ensures only this specific entry is deleted, not all duplicates of the same generation
+      // shiftItems are applied optimistically in onMutate and persisted in mutationFn
       await removeImageFromShotMutationRef.current.mutateAsync({
         shotId: currentShot.id,
         shotGenerationId: shotImageEntryId, // The unique shot_generations.id
         projectId: currentProjectId,
+        shiftItems,
       });
-      
-      // If we deleted the first item, shift all remaining items back
-      if (isDeletingFirstItem && frameOffset > 0 && itemsToShift.length > 0) {
-        console.log('[DeleteDebug] 📐 STEP 4: Shifting remaining items back by', frameOffset);
 
-        // Build batch updates for all remaining items
-        const updates = itemsToShift.map(item => ({
-          id: item.id,
-          newFrame: item.currentFrame - frameOffset
-        }));
-
-        console.log('[DeleteDebug] 📐 Batch updating timeline_frames', {
-          updateCount: updates.length,
-          updates: updates.map(u => ({ id: u.id.substring(0, 8), newFrame: u.newFrame }))
-        });
-
-        // Optimistic UI update: immediately update the cache so UI feels instant
-        const previousGens = queryClientRef.current.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(currentShot.id));
-        if (previousGens) {
-          queryClientRef.current.setQueryData(
-            queryKeys.generations.byShot(currentShot.id),
-            previousGens.map(g => {
-              const update = updates.find(u => u.id === g.id);
-              return update ? { ...g, timeline_frame: update.newFrame } : g;
-            })
-          );
-        }
-
-        // Single atomic RPC call instead of N individual updates
-        const rpcUpdates = updates.map(u => ({
-          shot_generation_id: u.id,
-          timeline_frame: u.newFrame,
-          metadata: { user_positioned: true }
-        }));
-
-        const { error: rpcError } = await supabase.rpc('batch_update_timeline_frames', {
-          p_updates: rpcUpdates
-        });
-
-        if (rpcError) {
-          handleError(rpcError, { context: 'DeleteDebug', showToast: false });
-          // Rollback optimistic update on error
-          if (previousGens) {
-            queryClientRef.current.setQueryData(queryKeys.generations.byShot(currentShot.id), previousGens);
-          }
-          throw rpcError;
-        }
-
-        console.log('[DeleteDebug] ✅ STEP 5: Timeline frames shifted successfully');
-      }
-
-      // Always invalidate queries after delete (and any shifting)
-      // This was moved out of the if-block because we removed invalidation from
-      // the mutation's onSuccess to avoid race conditions with the shift logic
       invalidateGenerationsSync(queryClientRef.current, currentShot.id, {
         reason: isDeletingFirstItem ? 'delete-image-frame-shift' : 'delete-image',
         scope: 'all',

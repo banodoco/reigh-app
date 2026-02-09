@@ -433,10 +433,13 @@ export const useRemoveImageFromShot = () => {
       shotId,
       shotGenerationId,
       projectId,
+      shiftItems,
     }: {
       shotId: string;
       shotGenerationId: string;
       projectId: string;
+      /** When deleting the first item, shift remaining items back */
+      shiftItems?: Array<{ id: string; newFrame: number }>;
     }) => {
       if (!shotId || !shotGenerationId || !projectId) {
         throw new Error(`Missing required parameters`);
@@ -451,11 +454,25 @@ export const useRemoveImageFromShot = () => {
         throw error;
       }
 
+      // Persist frame shifts (optimistic update already applied in onMutate)
+      if (shiftItems && shiftItems.length > 0) {
+        const { error: rpcError } = await supabase.rpc('batch_update_timeline_frames', {
+          p_updates: shiftItems.map(u => ({
+            shot_generation_id: u.id,
+            timeline_frame: u.newFrame,
+            metadata: { user_positioned: true }
+          }))
+        });
+        if (rpcError) {
+          throw rpcError;
+        }
+      }
+
       return { shotId, shotGenerationId, projectId };
     },
 
     onMutate: async (variables) => {
-      const { shotId, shotGenerationId, projectId } = variables;
+      const { shotId, shotGenerationId, projectId, shiftItems } = variables;
 
       await cancelShotsQueries(queryClient, projectId);
       await cancelShotGenerationsQuery(queryClient, shotId);
@@ -465,13 +482,19 @@ export const useRemoveImageFromShot = () => {
         queryKeys.generations.byShot(shotId)
       );
 
-      // Optimistically set timeline_frame = null
+      // Build a shift lookup for items that need frame updates
+      const shiftMap = new Map(shiftItems?.map(s => [s.id, s.newFrame]) ?? []);
+
+      // Optimistically: set timeline_frame = null on deleted item + shift remaining
       if (previousFastGens) {
         queryClient.setQueryData(
           queryKeys.generations.byShot(shotId),
-          previousFastGens.map(g =>
-            g.id === shotGenerationId ? { ...g, timeline_frame: null } : g
-          )
+          previousFastGens.map(g => {
+            if (g.id === shotGenerationId) return { ...g, timeline_frame: null };
+            const shifted = shiftMap.get(g.id);
+            if (shifted !== undefined) return { ...g, timeline_frame: shifted };
+            return g;
+          })
         );
       }
 
@@ -481,9 +504,12 @@ export const useRemoveImageFromShot = () => {
             if (shot.id === shotId) {
               return {
                 ...shot,
-                images: shot.images.map(img =>
-                  img.id === shotGenerationId ? { ...img, timeline_frame: null } : img
-                ),
+                images: shot.images.map(img => {
+                  if (img.id === shotGenerationId) return { ...img, timeline_frame: null };
+                  const shifted = shiftMap.get(img.id);
+                  if (shifted !== undefined) return { ...img, timeline_frame: shifted };
+                  return img;
+                }),
               };
             }
             return shot;

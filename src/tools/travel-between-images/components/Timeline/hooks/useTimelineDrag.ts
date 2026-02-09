@@ -227,8 +227,7 @@ export const useTimelineDrag = ({
       hasMovedPastThreshold: false,
     });
 
-    onDragStart?.();
-  }, [framePositions, dragState.isDragging, onDragStart, setIsDragInProgress]);
+  }, [framePositions, dragState.isDragging, setIsDragInProgress]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!dragState.isDragging) return;
@@ -246,6 +245,7 @@ export const useTimelineDrag = ({
         currentX: e.clientX,
         currentY: e.clientY,
       }));
+      onDragStart?.();
     } else {
       setDragState(prev => ({
         ...prev,
@@ -255,7 +255,7 @@ export const useTimelineDrag = ({
     }
 
     currentMousePosRef.current = { x: e.clientX, y: e.clientY };
-  }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.hasMovedPastThreshold]);
+  }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.hasMovedPastThreshold, onDragStart]);
 
   const handleMouseUp = useCallback((e: MouseEvent, containerRef: React.RefObject<HTMLDivElement>) => {
     if (!dragState.isDragging || !dragState.activeId) return;

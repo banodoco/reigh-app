@@ -295,6 +295,7 @@ export function useTimelineOrchestrator({
     handleZoomReset,
     handleZoomToStart,
     handleTimelineDoubleClick,
+    isZooming,
   } = useZoom({ fullMin, fullMax, fullRange, containerRef: timelineRef });
 
   // Custom zoom handlers that preserve viewport center
@@ -361,9 +362,9 @@ export function useTimelineOrchestrator({
     };
   }, [dragState.isDragging, dragState.activeId]);
 
-  // Scroll timeline to center on zoom
+  // Scroll timeline to center on zoom (only during active zoom, not dimension changes)
   useEffect(() => {
-    if (dragState.isDragging || dragJustEndedRef.current || zoomLevel <= 1) return;
+    if (!isZooming || dragState.isDragging || dragJustEndedRef.current || zoomLevel <= 1) return;
     if (timelineRef.current && containerRef.current) {
       const timer = setTimeout(() => {
         if (dragJustEndedRef.current) return;
@@ -379,7 +380,7 @@ export function useTimelineOrchestrator({
       }, 10);
       return () => clearTimeout(timer);
     }
-  }, [zoomLevel, zoomCenter, fullMin, fullRange, dragState.isDragging]);
+  }, [isZooming, zoomLevel, zoomCenter, fullMin, fullRange, dragState.isDragging]);
 
   // Drop interceptors
   const handleImageDropInterceptor = useCallback(async (files: File[], targetFrame?: number) => {

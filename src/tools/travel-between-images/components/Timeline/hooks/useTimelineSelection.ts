@@ -51,7 +51,9 @@ export const useTimelineSelection = ({
 }: UseTimelineSelectionProps): UseTimelineSelectionReturn => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showSelectionBar, setShowSelectionBar] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
+  // Use ref for lock state so callbacks always read the latest value
+  // (avoids stale closure when toggleSelection fires between unlock and React re-render)
+  const isLockedRef = useRef(false);
 
   const selectionBarTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -95,33 +97,33 @@ export const useTimelineSelection = ({
   }, [selectedIds]);
 
   const toggleSelection = useCallback((id: string) => {
-    if (!isEnabled || isLocked) return;
+    if (!isEnabled || isLockedRef.current) return;
 
     setSelectedIds(prev => {
       const isSelected = prev.includes(id);
       return isSelected ? prev.filter(s => s !== id) : [...prev, id];
     });
-  }, [isEnabled, isLocked]);
+  }, [isEnabled]);
 
   const addToSelection = useCallback((id: string) => {
-    if (!isEnabled || isLocked) return;
+    if (!isEnabled || isLockedRef.current) return;
 
     setSelectedIds(prev => {
       if (prev.includes(id)) return prev;
       console.log('[TimelineSelection] Adding to selection:', id.substring(0, 8));
       return [...prev, id];
     });
-  }, [isEnabled, isLocked]);
+  }, [isEnabled]);
 
   const removeFromSelection = useCallback((id: string) => {
-    if (!isEnabled || isLocked) return;
+    if (!isEnabled || isLockedRef.current) return;
 
     setSelectedIds(prev => {
       if (!prev.includes(id)) return prev;
       console.log('[TimelineSelection] Removing from selection:', id.substring(0, 8));
       return prev.filter(selectedId => selectedId !== id);
     });
-  }, [isEnabled, isLocked]);
+  }, [isEnabled]);
 
   const clearSelection = useCallback(() => {
     console.log('[TimelineSelection] Clearing selection');
@@ -129,19 +131,19 @@ export const useTimelineSelection = ({
   }, []);
 
   const setSelection = useCallback((ids: string[]) => {
-    if (!isEnabled || isLocked) return;
+    if (!isEnabled || isLockedRef.current) return;
     console.log('[TimelineSelection] Setting selection:', ids.map(id => id.substring(0, 8)));
     setSelectedIds(ids);
-  }, [isEnabled, isLocked]);
+  }, [isEnabled]);
 
   const lockSelection = useCallback(() => {
     console.log('[TimelineSelection] Locking selection');
-    setIsLocked(true);
+    isLockedRef.current = true;
   }, []);
 
   const unlockSelection = useCallback(() => {
     console.log('[TimelineSelection] Unlocking selection');
-    setIsLocked(false);
+    isLockedRef.current = false;
   }, []);
 
   return {
@@ -155,6 +157,6 @@ export const useTimelineSelection = ({
     setSelection,
     lockSelection,
     unlockSelection,
-    isLocked,
+    isLocked: isLockedRef.current,
   };
 };
