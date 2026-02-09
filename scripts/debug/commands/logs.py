@@ -108,8 +108,8 @@ def _print_logs_text(result: dict, options: dict):
             source_display = source_id[:15] if source_id else source_type
         
         # Truncate message if very long
-        if len(message) > 120:
-            message = message[:117] + "..."
+        if len(message) > 200:
+            message = message[:197] + "..."
         
         print(f"  [{time_part}] {level_symbol} [{source_display:15}] {message}")
     

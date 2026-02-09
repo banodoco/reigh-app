@@ -20,20 +20,22 @@ Options:
     --debug                             # Show debug info on errors
 
 Examples:
+    # Quick table lookup (no extra deps needed)
+    debug.py query shot_tool_settings shot_id=bbdf9068-...
+    debug.py q generations id=some-gen-id --json
+    debug.py q tasks status=Failed --limit 10
+
     # Investigate why a task failed
     debug.py task 41345358-f3b5-418a-9805-b442aed30e18
-    
+
     # List recent failed tasks
     debug.py tasks --status Failed --limit 10
-    
+
     # View most recent browser session logs
     debug.py logs --latest
-    
-    # View browser errors from last 2 hours
-    debug.py logs --source browser --level ERROR --hours 2
-    
-    # List browser sessions
-    debug.py logs --sessions
+
+    # Raw SQL (requires psycopg2 + DATABASE_URL)
+    debug.py sql "SELECT count(*) FROM tasks WHERE status = 'Failed'"
 """
 
 import sys
@@ -45,7 +47,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from debug.client import DebugClient
-from debug.commands import task, tasks, logs, sql
+from debug.commands import task, tasks, logs, sql, query
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -74,8 +76,17 @@ def create_parser() -> argparse.ArgumentParser:
     tasks_parser.add_argument('--json', action='store_true', help='Output as JSON')
     tasks_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
     
-    # SQL command
-    sql_parser = subparsers.add_parser('sql', help='Execute arbitrary SQL query')
+    # Query command (uses Supabase client — no extra deps)
+    query_parser = subparsers.add_parser('query', aliases=['q'], help='Query a table (e.g. query shots id=abc)')
+    query_parser.add_argument('table', help='Table name to query')
+    query_parser.add_argument('filters', nargs='*', help='Filters as column=value pairs')
+    query_parser.add_argument('--select', default='*', help='Columns to select (default: *)')
+    query_parser.add_argument('--limit', type=int, default=50, help='Max rows (default: 50)')
+    query_parser.add_argument('--json', action='store_true', help='Output as JSON')
+    query_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
+
+    # SQL command (requires psycopg2 + DATABASE_URL)
+    sql_parser = subparsers.add_parser('sql', help='Execute raw SQL (requires psycopg2)')
     sql_parser.add_argument('query', help='SQL query to execute')
     sql_parser.add_argument('--json', action='store_true', help='Output as JSON')
     sql_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
@@ -101,21 +112,23 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     
-    # Create debug client
-    try:
-        client = DebugClient()
-    except Exception as e:
-        print(f"❌ Failed to initialize debug client: {e}")
-        print("\n💡 Make sure your .env file is configured with:")
-        print("   - SUPABASE_URL")
-        print("   - SUPABASE_SERVICE_ROLE_KEY")
-        sys.exit(1)
-    
     # Convert args to options dict
     options = {
         'format': 'json' if hasattr(args, 'json') and args.json else 'text',
         'debug': args.debug if hasattr(args, 'debug') else False
     }
+
+    # Create debug client (sql command doesn't need it)
+    client = None
+    if args.command != 'sql':
+        try:
+            client = DebugClient(verbose=options['debug'])
+        except Exception as e:
+            print(f"❌ Failed to initialize debug client: {e}")
+            print("\n💡 Make sure your .env file is configured with:")
+            print("   - SUPABASE_URL")
+            print("   - SUPABASE_SERVICE_ROLE_KEY")
+            sys.exit(1)
     
     # Add command-specific options
     if hasattr(args, 'hours') and args.hours:
@@ -148,6 +161,9 @@ def main():
         if args.command == 'sql':
             sql.run(args.query, options)
             return
+        elif args.command in ('query', 'q'):
+            options['select'] = args.select
+            query.run(client, args.table, args.filters, options)
         elif args.command == 'task':
             task.run(client, args.task_id, options)
         elif args.command == 'tasks':

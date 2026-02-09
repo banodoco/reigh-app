@@ -1,6 +1,7 @@
 """Debug client for querying task data from Supabase."""
 
 import os
+import sys
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
 from collections import Counter
@@ -15,15 +16,21 @@ from debug.models import TaskInfo, TasksSummary
 
 class DebugClient:
     """Client for debugging task data."""
-    
-    def __init__(self):
+
+    def __init__(self, verbose: bool = False):
+        self.verbose = verbose
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        
+
         if not supabase_url or not supabase_key:
             raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment")
-        
+
         self.supabase = create_client(supabase_url, supabase_key)
+
+    def _warn(self, context: str, error: Exception):
+        """Print a warning when --debug is on, otherwise silently continue."""
+        if self.verbose:
+            print(f"  ⚠️  [{context}] {error}", file=sys.stderr)
     
     def get_task_info(self, task_id: str) -> TaskInfo:
         """Get complete task information with all related context."""
@@ -82,7 +89,8 @@ class DebugClient:
         try:
             result = self.supabase.table('system_logs').select('*').eq('task_id', task_id).order('timestamp').execute()
             return result.data or []
-        except:
+        except Exception as e:
+            self._warn('task_logs', e)
             return []
     
     def _get_generation_for_task(self, task_id: str) -> Optional[Dict[str, Any]]:
@@ -105,9 +113,9 @@ class DebugClient:
                 result = self.supabase.rpc('get_generation_by_task_id', {'p_task_id': task_id}).execute()
                 if result.data:
                     return result.data[0] if isinstance(result.data, list) else result.data
-            except:
-                pass
-            
+            except Exception as e:
+                self._warn('generation_rpc', e)
+
             # Method 3: Fallback - query all recent generations and check client-side
             # This is less efficient but works without RPC
             try:
@@ -116,8 +124,8 @@ class DebugClient:
                     tasks_array = gen.get('tasks', []) or []
                     if task_id in tasks_array:
                         return gen
-            except:
-                pass
+            except Exception as e:
+                self._warn('generation_fallback', e)
             
             return None
         except Exception as e:
@@ -131,7 +139,8 @@ class DebugClient:
         try:
             result = self.supabase.table('generation_variants').select('*').eq('generation_id', generation_id).order('created_at').execute()
             return result.data or []
-        except:
+        except Exception as e:
+            self._warn('variants', e)
             return []
     
     def _get_worker_info(self, worker_id: str) -> Optional[Dict[str, Any]]:
@@ -141,7 +150,8 @@ class DebugClient:
         try:
             result = self.supabase.table('workers').select('*').eq('id', worker_id).execute()
             return result.data[0] if result.data else None
-        except:
+        except Exception as e:
+            self._warn('worker', e)
             return None
     
     def _get_credit_entries(self, task_id: str) -> List[Dict[str, Any]]:
@@ -149,7 +159,8 @@ class DebugClient:
         try:
             result = self.supabase.table('credits_ledger').select('*').eq('task_id', task_id).order('created_at').execute()
             return result.data or []
-        except:
+        except Exception as e:
+            self._warn('credits', e)
             return []
     
     def _get_predecessor_tasks(self, dependant_on: any) -> List[Dict[str, Any]]:
@@ -171,7 +182,8 @@ class DebugClient:
                 'id, task_type, status, created_at, generation_processed_at'
             ).contains('dependant_on', [task_id]).order('created_at').execute()
             return result.data or []
-        except:
+        except Exception as e:
+            self._warn('dependent_tasks', e)
             return []
     
     def _get_task_summary(self, task_id: str) -> Optional[Dict[str, Any]]:
@@ -183,7 +195,8 @@ class DebugClient:
                 'id, task_type, status, created_at, generation_processed_at, output_location, error_message, worker_id'
             ).eq('id', task_id).execute()
             return result.data[0] if result.data else None
-        except:
+        except Exception as e:
+            self._warn('task_summary', e)
             return None
     
     def _get_shot_associations(self, generation_id: str) -> List[Dict[str, Any]]:
@@ -195,7 +208,8 @@ class DebugClient:
                 '*, shot:shots(id, name)'
             ).eq('generation_id', generation_id).execute()
             return result.data or []
-        except:
+        except Exception as e:
+            self._warn('shot_associations', e)
             return []
     
     def _get_run_siblings(self, run_id: str, exclude_task_id: str) -> List[Dict[str, Any]]:
@@ -222,7 +236,8 @@ class DebugClient:
                     siblings.append(task)
             
             return siblings
-        except:
+        except Exception as e:
+            self._warn('run_siblings', e)
             return []
     
     def _get_child_tasks(self, run_id: str) -> List[Dict[str, Any]]:
@@ -253,7 +268,8 @@ class DebugClient:
             # Sort by segment index
             children.sort(key=lambda t: t.get('segment_index') or 0)
             return children
-        except:
+        except Exception as e:
+            self._warn('child_tasks', e)
             return []
     
     def get_logs(
@@ -342,7 +358,8 @@ class DebugClient:
             if result.data:
                 return result.data[0].get('source_id')
             return None
-        except:
+        except Exception as e:
+            self._warn('latest_session', e)
             return None
     
     def get_browser_sessions(self, limit: int = 10) -> List[Dict[str, Any]]:
@@ -422,16 +439,16 @@ class DebugClient:
                     started = datetime.fromisoformat(task['generation_started_at'].replace('Z', '+00:00'))
                     processed = datetime.fromisoformat(task['generation_processed_at'].replace('Z', '+00:00'))
                     processing_times.append((processed - started).total_seconds())
-                except:
-                    pass
-            
+                except Exception:
+                    pass  # skip rows with malformed timestamps
+
             if task.get('created_at') and task.get('generation_started_at'):
                 try:
                     created = datetime.fromisoformat(task['created_at'].replace('Z', '+00:00'))
                     started = datetime.fromisoformat(task['generation_started_at'].replace('Z', '+00:00'))
                     queue_times.append((started - created).total_seconds())
-                except:
-                    pass
+                except Exception:
+                    pass  # skip rows with malformed timestamps
         
         timing_stats = {
             'avg_processing_seconds': sum(processing_times) / len(processing_times) if processing_times else None,

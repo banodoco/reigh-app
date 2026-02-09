@@ -19,6 +19,7 @@ def run(query: str, options: Dict[str, Any]) -> None:
         print("❌ DATABASE_URL not set in environment")
         sys.exit(1)
 
+    conn = None
     try:
         conn = psycopg2.connect(database_url)
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -32,23 +33,25 @@ def run(query: str, options: Dict[str, Any]) -> None:
                 if not rows:
                     print("(no rows)")
                     return
-                # Print as formatted table
-                for row in rows:
+                for i, row in enumerate(rows):
+                    if i > 0:
+                        print("  ---")
                     row_dict = dict(row)
                     for key, value in row_dict.items():
                         if isinstance(value, (dict, list)):
                             value = json.dumps(value, indent=2, default=str)
                         print(f"  {key}: {value}")
-                    print()
+                print(f"\n({len(rows)} row{'s' if len(rows) != 1 else ''})")
         else:
             print(f"✅ Query executed ({cur.rowcount} rows affected)")
 
         conn.commit()
-        cur.close()
-        conn.close()
     except Exception as e:
         print(f"❌ SQL error: {e}")
         if options.get('debug'):
             import traceback
             traceback.print_exc()
         sys.exit(1)
+    finally:
+        if conn:
+            conn.close()

@@ -49,7 +49,15 @@ export const NewImageOverlayButton: React.FC<NewImageOverlayButtonProps> = ({
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => variantId && onPromote(variantId)}
+            onClick={() => {
+              console.log('[NewImage] Button clicked:', {
+                activeVariantId: activeVariantId?.substring(0, 8),
+                primaryVariantId: primaryVariantId?.substring(0, 8),
+                resolvedVariantId: variantId?.substring(0, 8),
+                isPrimary: activeVariantId === primaryVariantId,
+              });
+              variantId && onPromote(variantId);
+            }}
             disabled={isDisabled}
             className={`text-white ${
               promoteSuccess

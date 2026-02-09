@@ -112,7 +112,7 @@ class Formatter:
             info.orchestrator_task,
             info.child_tasks,
             info.run_siblings,
-            info.predecessor_task,
+            info.predecessor_tasks,
             info.dependent_tasks
         ])
         
@@ -147,10 +147,10 @@ class Formatter:
                     status_counts[status] = status_counts.get(status, 0) + 1
                 lines.append(f"      Status breakdown: {status_counts}")
             
-            if info.predecessor_task:
-                pred = info.predecessor_task
-                lines.append(f"   Depends On: {pred.get('id', '')[:20]}...")
-                lines.append(f"      Status: {pred.get('status')} | Type: {pred.get('task_type')}")
+            if info.predecessor_tasks:
+                lines.append(f"   Depends On: {len(info.predecessor_tasks)} task(s)")
+                for pred in info.predecessor_tasks:
+                    lines.append(f"      → {pred.get('id', '')[:20]}... {pred.get('status')} ({pred.get('task_type')})")
             
             if info.dependent_tasks:
                 lines.append(f"   Blocking Tasks: {len(info.dependent_tasks)} tasks depend on this")
