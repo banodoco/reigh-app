@@ -348,7 +348,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
                       >
                         {copiedLoraUrl === lora.url ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                       </button>
-                      <span className="text-muted-foreground shrink-0">{lora.multiplier}</span>
+                      <span className="text-muted-foreground shrink-0">{Number(lora.multiplier).toFixed(1)}</span>
                     </div>
                   ))}
                 </div>
@@ -371,7 +371,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
                 >
                   {copiedLoraUrl === url ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                 </button>
-                <span className="text-muted-foreground shrink-0">{String(strength)}</span>
+                <span className="text-muted-foreground shrink-0">{Number(strength).toFixed(1)}</span>
               </div>
             ))}
           </div>
@@ -416,7 +416,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
                         >
                           {copiedLoraUrl === lora.url ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                         </button>
-                        <span className="text-muted-foreground shrink-0">{lora.multiplier}</span>
+                        <span className="text-muted-foreground shrink-0">{Number(lora.multiplier).toFixed(1)}</span>
                       </div>
                     ))}
                   </div>
