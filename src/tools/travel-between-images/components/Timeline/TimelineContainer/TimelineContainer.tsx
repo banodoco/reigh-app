@@ -222,6 +222,10 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   // pairInfo + positions so pair regions and segment strip update immediately
   const imagePositionsWithPending = React.useMemo(() => {
     if (activePendingFrame === null) return imagePositions;
+    // Skip phantom if a real item already exists at this frame (optimistic update
+    // arrived before pending state cleared — prevents a brief extra pair/segment)
+    const realItemAtFrame = [...imagePositions.values()].some(pos => pos === activePendingFrame);
+    if (realItemAtFrame) return imagePositions;
     const augmented = new Map(imagePositions);
     augmented.set(PENDING_POSITION_KEY, activePendingFrame);
     return augmented;

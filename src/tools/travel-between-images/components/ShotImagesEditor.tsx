@@ -23,7 +23,7 @@
  * - PreviewTogetherDialog: Video preview dialog
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { Button } from '@/shared/components/ui/button';
@@ -177,13 +177,22 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
     preloadedImages,
   });
 
+  // Compute last image's shot_generation_id for trailing segment matching
+  const lastImageShotGenId = useMemo(() => {
+    const positioned = shotGenerations
+      .filter(g => g.timeline_frame !== null && g.timeline_frame !== undefined && g.timeline_frame >= 0)
+      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+    return positioned[positioned.length - 1]?.id ?? null;
+  }, [shotGenerations]);
+
   const { segmentSlots, selectedParentId } = useSegmentOutputsForShot(
     selectedShotId,
     projectId || '',
     undefined,
     selectedOutputId,
     onSelectedOutputChange,
-    readOnly ? preloadedImages : undefined
+    readOnly ? preloadedImages : undefined,
+    lastImageShotGenId ?? undefined
   );
 
   const { addOptimisticPending } = usePendingSegmentTasks(selectedShotId, projectId || null);
