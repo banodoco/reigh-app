@@ -185,12 +185,43 @@ export const VariantCard: React.FC<VariantCardProps> = ({
           </div>
         )}
 
-        {/* Primary badge */}
-        {isPrimary && (
-          <div className="absolute top-0.5 right-0.5 bg-green-500 rounded-full p-0.5 pointer-events-none">
-            <Check className="w-2 h-2 text-white" />
-          </div>
-        )}
+        {/* Top-right: primary badge + relationship badges */}
+        <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 pointer-events-auto">
+          {/* Parent relationship badge */}
+          {isParent && !isActive && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-blue-500 rounded-full p-0.5 cursor-default">
+                  <ArrowUp className="w-2 h-2 text-white" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs z-[100001]">
+                Current variant is based on this one
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Child relationship badge */}
+          {isChild && !isActive && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-purple-500 rounded-full p-0.5 cursor-default">
+                  <ArrowDown className="w-2 h-2 text-white" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs z-[100001]">
+                Based on the current variant
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Primary badge */}
+          {isPrimary && (
+            <div className="bg-green-500 rounded-full p-0.5 pointer-events-none">
+              <Check className="w-2 h-2 text-white" />
+            </div>
+          )}
+        </div>
 
         {/* Top-left: star button */}
         {onToggleStar && (
@@ -210,33 +241,16 @@ export const VariantCard: React.FC<VariantCardProps> = ({
           </div>
         )}
 
-        {/* Bottom-left: relationship badge + time/NEW */}
-        <div className="absolute bottom-0.5 left-0.5 flex flex-col items-start gap-0.5 pointer-events-none">
-          {/* Parent relationship badge */}
-          {isParent && !isActive && (
-            <div className="bg-blue-500 rounded-full p-0.5" title="Current is based on this">
-              <ArrowUp className="w-2 h-2 text-white" />
-            </div>
-          )}
-
-          {/* Child relationship badge */}
-          {isChild && !isActive && (
-            <div className="bg-purple-500 rounded-full p-0.5" title="Based on current">
-              <ArrowDown className="w-2 h-2 text-white" />
-            </div>
-          )}
-
-          {/* NEW badge or time ago */}
-          {isNewVariant(variant, activeVariantId) ? (
-            <div className="bg-yellow-500 text-black text-[8px] font-bold px-1 rounded">
-              NEW
-            </div>
-          ) : (
-            <div className="bg-black/70 text-white text-[8px] px-1 rounded">
-              {getTimeAgo(variant.created_at)}
-            </div>
-          )}
-        </div>
+        {/* Bottom-left: NEW badge or time ago */}
+        {isNewVariant(variant, activeVariantId) ? (
+          <div className="absolute bottom-0.5 left-0.5 bg-yellow-500 text-black text-[8px] font-bold px-1 rounded pointer-events-none">
+            NEW
+          </div>
+        ) : (
+          <div className="absolute bottom-0.5 left-0.5 bg-black/70 text-white text-[8px] px-1 rounded pointer-events-none">
+            {getTimeAgo(variant.created_at)}
+          </div>
+        )}
 
         {/* Info button - bottom right, shows on hover (desktop only) */}
         {!isMobile && (
