@@ -447,14 +447,12 @@ export const useGenerationActions = ({
       : null;
     const nextTimelineFrame = nextImage ? nextImage.timeline_frame : undefined;
 
-    // For single-image mode, use the passed timeline_frame as explicit target
-    // (the interceptor passes the trailing endpoint position for single-image)
-    const isSingleImage = sortedImages.length === 1;
-    const targetTimelineFrame = isSingleImage ? timeline_frame : undefined;
-    // For single-image, use the original image frame (0 typically) for the source frame
-    const sourceTimelineFrame = isSingleImage
-      ? (originalImage.timeline_frame ?? 0)
-      : timeline_frame;
+    // The interceptor already calculates the correct target frame (midpoint + collision avoidance).
+    // Always pass it as target_timeline_frame so the mutation uses it directly instead of
+    // re-computing a midpoint (which would give a different result since timeline_frame
+    // is already the midpoint, not the original item's frame).
+    const targetTimelineFrame = timeline_frame;
+    const sourceTimelineFrame = originalImage.timeline_frame ?? 0;
 
     console.log('[DUPLICATE] Calling duplicateAsNewGenerationMutation (creates NEW generation from primary variant)', {
       originalTimelineFrame: timeline_frame,
@@ -463,7 +461,6 @@ export const useGenerationActions = ({
       nextTimelineFrame,
       currentIndex,
       totalSortedImages: sortedImages.length,
-      isSingleImage
     });
 
     duplicateAsNewGenerationMutationRef.current.mutate({

@@ -7,7 +7,7 @@ import DropIndicator from '../DropIndicator';
 import PairRegion from '../PairRegion';
 import TimelineItem from '../TimelineItem';
 import TrailingEndpoint from '../TrailingEndpoint';
-import { TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
+import { TRAILING_ENDPOINT_KEY, getPairInfo } from '../utils/timeline-utils';
 import { GuidanceVideoStrip } from '../GuidanceVideoStrip';
 import { GuidanceVideoUploader } from '../GuidanceVideoUploader';
 import { GuidanceVideosContainer } from '../GuidanceVideosContainer';
@@ -217,6 +217,15 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     filtered.delete(TRAILING_ENDPOINT_KEY);
     return filtered;
   }, [currentPositions]);
+
+  // When a pending duplicate exists, compute pairInfo that includes the phantom item
+  // so the segment output strip immediately reflects the new pair layout
+  const pairInfoWithPending = React.useMemo(() => {
+    if (pendingDuplicateFrame === null) return pairInfo;
+    const augmented = new Map(imagePositions);
+    augmented.set('__pending_duplicate__', pendingDuplicateFrame);
+    return getPairInfo(augmented);
+  }, [pairInfo, pendingDuplicateFrame, imagePositions]);
 
   const numPairs = Math.max(0, images.length - 1);
   const maxAllowedGap = 81;
@@ -505,7 +514,13 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               : [];
             const lastEntry = sortedEntries[sortedEntries.length - 1];
             const isMultiImage = images.length > 1;
-            const lastImageFrame = lastEntry ? lastEntry[1] : undefined;
+            const realLastFrame = lastEntry ? lastEntry[1] : undefined;
+
+            // If pending duplicate is beyond the last real image, trailing starts from it
+            const pendingIsLast = pendingDuplicateFrame !== null &&
+              realLastFrame !== undefined &&
+              pendingDuplicateFrame > realLastFrame;
+            const effectiveLastFrame = pendingIsLast ? pendingDuplicateFrame : realLastFrame;
 
             return (
               <SegmentOutputStrip
@@ -514,7 +529,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 preloadedGenerations={videoOutputs}
                 readOnly={readOnly}
                 projectAspectRatio={projectAspectRatio}
-                pairInfo={pairInfo}
+                pairInfo={pairInfoWithPending}
                 fullMin={fullMin}
                 fullMax={fullMax}
                 fullRange={fullRange}
@@ -530,20 +545,20 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 lastImageId={lastEntry?.[0]}
                 // SIMPLIFIED: Only pass trailingSegmentMode when user has configured trailing
                 // (trailingEndFrame is set and valid - validation happens in derivedEndFrame)
+                // When pending duplicate is at the end, shift trailing to start from it
                 trailingSegmentMode={lastEntry && trailingEndFrame !== undefined ? (() => {
                   const [imageId, imageFrame] = lastEntry;
-                  console.log('[TrailingDebug] trailingSegmentMode SET:', {
-                    imageId: imageId?.substring(0, 8),
-                    imageFrame,
-                    endFrame: trailingEndFrame,
-                  });
-                  return { imageId, imageFrame, endFrame: trailingEndFrame };
+                  const trailingDuration = trailingEndFrame - imageFrame;
+                  const effectiveImageId = pendingIsLast ? '__pending_duplicate__' : imageId;
+                  const effectiveImageFrame = pendingIsLast ? pendingDuplicateFrame : imageFrame;
+                  const effectiveEndFrame = pendingIsLast ? pendingDuplicateFrame + trailingDuration : trailingEndFrame;
+                  return { imageId: effectiveImageId, imageFrame: effectiveImageFrame, endFrame: effectiveEndFrame };
                 })() : undefined}
                 isMultiImage={isMultiImage}
-                lastImageFrame={lastImageFrame}
-                onAddTrailingSegment={lastImageFrame !== undefined && lastEntry ? () => {
+                lastImageFrame={effectiveLastFrame}
+                onAddTrailingSegment={realLastFrame !== undefined && lastEntry ? () => {
                   // Initialize trailing segment with default 17-frame duration
-                  handleTrailingEndFrameChange(lastImageFrame + 17);
+                  handleTrailingEndFrameChange(realLastFrame + 17);
                 } : undefined}
                 onRemoveTrailingSegment={isMultiImage && trailingEndFrame !== undefined ? () => {
                   // Remove trailing segment by clearing the end frame

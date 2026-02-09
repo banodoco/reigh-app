@@ -757,7 +757,7 @@ export const useDuplicateAsNewGeneration = () => {
 
       let targetTimelineFrame: number;
       if (target_timeline_frame !== undefined) {
-        // Explicit target provided (e.g., for single-image mode placing at trailing endpoint)
+        // Explicit target provided (interceptor pre-calculates midpoint + collision avoidance)
         targetTimelineFrame = target_timeline_frame;
       } else if (next_timeline_frame !== undefined) {
         targetTimelineFrame = Math.floor((timeline_frame + next_timeline_frame) / 2);
