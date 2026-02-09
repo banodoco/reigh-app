@@ -339,15 +339,15 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
                     )}
                   </div>
                   {phase.loras?.length > 0 && phase.loras.map((lora: PhaseLoraConfig & { name?: string }, idx: number) => (
-                    <div key={idx} className={`group/lora relative flex justify-between items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
+                    <div key={idx} className={`group/lora flex items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
+                      <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(lora.url, availableLoras, lora.name)}</span>
                       <button
                         onClick={() => { navigator.clipboard.writeText(lora.url); setCopiedLoraUrl(lora.url); setTimeout(() => setCopiedLoraUrl(null), 2000); }}
-                        className="absolute inset-y-0 left-0 px-1.5 flex items-center rounded-l bg-background/90 text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover/lora:opacity-100"
+                        className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/lora:opacity-100 shrink-0"
                         title="Copy LoRA URL"
                       >
                         {copiedLoraUrl === lora.url ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                       </button>
-                      <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(lora.url, availableLoras, lora.name)}</span>
                       <span className="text-muted-foreground shrink-0">{lora.multiplier}</span>
                     </div>
                   ))}
@@ -362,15 +362,15 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
           <div className="pt-2 border-t border-muted-foreground/20 space-y-2">
             <p className={`${config.textSize} font-medium text-muted-foreground`}>LoRAs</p>
             {Object.entries(additionalLoras).slice(0, config.maxLoras).map(([url, strength]) => (
-              <div key={url} className={`group/lora relative flex justify-between items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
+              <div key={url} className={`group/lora flex items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
+                <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(url, availableLoras)}</span>
                 <button
                   onClick={() => { navigator.clipboard.writeText(url); setCopiedLoraUrl(url); setTimeout(() => setCopiedLoraUrl(null), 2000); }}
-                  className="absolute inset-y-0 left-0 px-1.5 flex items-center rounded-l bg-background/90 text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover/lora:opacity-100"
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/lora:opacity-100 shrink-0"
                   title="Copy LoRA URL"
                 >
                   {copiedLoraUrl === url ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                 </button>
-                <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(url, availableLoras)}</span>
                 <span className="text-muted-foreground shrink-0">{String(strength)}</span>
               </div>
             ))}
@@ -407,15 +407,15 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
                       )}
                     </div>
                     {phase.loras?.length > 0 && phase.loras.map((lora: PhaseLoraConfig & { name?: string }, idx: number) => (
-                      <div key={idx} className={`group/lora relative flex justify-between items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
+                      <div key={idx} className={`group/lora flex items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
+                        <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(lora.url, availableLoras, lora.name)}</span>
                         <button
                           onClick={() => { navigator.clipboard.writeText(lora.url); setCopiedLoraUrl(lora.url); setTimeout(() => setCopiedLoraUrl(null), 2000); }}
-                          className="absolute inset-y-0 left-0 px-1.5 flex items-center rounded-l bg-background/90 text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover/lora:opacity-100"
+                          className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/lora:opacity-100 shrink-0"
                           title="Copy LoRA URL"
                         >
                           {copiedLoraUrl === lora.url ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                         </button>
-                        <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(lora.url, availableLoras, lora.name)}</span>
                         <span className="text-muted-foreground shrink-0">{lora.multiplier}</span>
                       </div>
                     ))}
