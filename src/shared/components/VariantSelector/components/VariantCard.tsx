@@ -271,7 +271,26 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                 className="z-[100001] max-w-md p-0 w-auto"
                 sideOffset={4}
               >
-                <div className="p-2 space-y-2">
+                <div className="relative">
+                <div
+                  className="p-2 space-y-2 max-h-[85vh] overflow-y-auto"
+                  onScroll={(e) => {
+                    const el = e.currentTarget;
+                    const fade = el.nextElementSibling as HTMLElement | null;
+                    if (fade) {
+                      const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
+                      fade.style.opacity = isAtBottom ? '0' : '1';
+                    }
+                  }}
+                  ref={(el) => {
+                    if (!el) return;
+                    const fade = el.nextElementSibling as HTMLElement | null;
+                    if (fade) {
+                      const isScrollable = el.scrollHeight > el.clientHeight;
+                      fade.style.opacity = isScrollable ? '1' : '0';
+                    }
+                  }}
+                >
                   {/* Header with label, status badges, id copy, delete button */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -448,6 +467,8 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                       )}
                     </div>
                   )}
+                </div>
+                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-popover to-transparent rounded-b-md transition-opacity duration-150" />
                 </div>
               </HoverCardContent>
             </HoverCard>
