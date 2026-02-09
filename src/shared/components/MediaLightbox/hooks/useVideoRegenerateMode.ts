@@ -394,11 +394,18 @@ export function useVideoRegenerateMode({
     } : undefined;
     const shotStructureVideoUrl = firstStructureVideo?.path as string | undefined;
 
-    // Use segment-level data from segmentSlotMode when available (Timeline Mode),
-    // falling back to shot-level data
-    const structureVideoType = segmentSlotMode?.structureVideoType ?? shotStructureVideoType;
-    const structureVideoDefaults = segmentSlotMode?.structureVideoDefaults ?? shotStructureVideoDefaults;
-    const structureVideoUrl = segmentSlotMode?.structureVideoUrl ?? shotStructureVideoUrl;
+    // When segmentSlotMode is present (Timeline Mode), it's the authority for structure video data.
+    // Its structureVideoType is null (not undefined) when no covering video exists,
+    // so we must NOT use ?? which would fall through null to stale shot-level cache.
+    const structureVideoType = segmentSlotMode
+      ? segmentSlotMode.structureVideoType
+      : shotStructureVideoType;
+    const structureVideoDefaults = segmentSlotMode
+      ? segmentSlotMode.structureVideoDefaults
+      : shotStructureVideoDefaults;
+    const structureVideoUrl = segmentSlotMode
+      ? segmentSlotMode.structureVideoUrl
+      : shotStructureVideoUrl;
 
     // Get frame count from segmentSlotMode.pairData (source of truth for timeline)
     // Fall back to currentFrameCount prop for non-slot-mode usage

@@ -45,7 +45,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from debug.client import DebugClient
-from debug.commands import task, tasks, logs
+from debug.commands import task, tasks, logs, sql
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -74,6 +74,12 @@ def create_parser() -> argparse.ArgumentParser:
     tasks_parser.add_argument('--json', action='store_true', help='Output as JSON')
     tasks_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
     
+    # SQL command
+    sql_parser = subparsers.add_parser('sql', help='Execute arbitrary SQL query')
+    sql_parser.add_argument('query', help='SQL query to execute')
+    sql_parser.add_argument('--json', action='store_true', help='Output as JSON')
+    sql_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
+
     # Logs command
     logs_parser = subparsers.add_parser('logs', help='View system logs')
     logs_parser.add_argument('--source', help='Filter by source type (browser, worker, edge_function, orchestrator_gpu, orchestrator_api)')
@@ -139,7 +145,10 @@ def main():
     
     # Route to appropriate command handler
     try:
-        if args.command == 'task':
+        if args.command == 'sql':
+            sql.run(args.query, options)
+            return
+        elif args.command == 'task':
             task.run(client, args.task_id, options)
         elif args.command == 'tasks':
             tasks.run(client, options)

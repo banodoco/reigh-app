@@ -73,6 +73,18 @@ export const useLightboxNavigation = ({
    */
   useEffect(() => {
     const handleWindowKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Escape') {
+        const activeEl = document.activeElement;
+        console.log('[LightboxNav] keydown:', e.key, {
+          activeElement: activeEl?.tagName,
+          activeElementType: (activeEl as HTMLInputElement)?.type,
+          activeElementClass: (activeEl as HTMLElement)?.className?.slice(0, 80),
+          onNext: !!onNext,
+          onPrevious: !!onPrevious,
+          defaultPrevented: e.defaultPrevented,
+        });
+      }
+
       // Check if another dialog/modal is open on top by looking for higher z-index dialog overlays
       const dialogOverlays = document.querySelectorAll('[data-dialog-backdrop]');
       const hasHigherZIndexDialog = Array.from(dialogOverlays).some((overlay) => {
@@ -83,27 +95,18 @@ export const useLightboxNavigation = ({
 
       // Don't handle keys if a higher z-index dialog is open
       if (hasHigherZIndexDialog) {
-        return;
-      }
-
-      // Check if user is currently typing in a text input field
-      const activeElement = document.activeElement;
-      const isTyping = activeElement && (
-        activeElement.tagName === 'INPUT' ||
-        activeElement.tagName === 'TEXTAREA' ||
-        (activeElement as HTMLElement).contentEditable === 'true' ||
-        (activeElement as HTMLElement).isContentEditable
-      );
-
-      // Don't handle arrow keys if user is typing (but still handle Escape)
-      if (isTyping && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          console.log('[LightboxNav] BLOCKED by higher z-index dialog');
+        }
         return;
       }
 
       if (e.key === 'ArrowLeft' && onPrevious) {
+        console.log('[LightboxNav] → navigating previous');
         e.preventDefault();
         onPrevious();
       } else if (e.key === 'ArrowRight' && onNext) {
+        console.log('[LightboxNav] → navigating next');
         e.preventDefault();
         onNext();
       } else if (e.key === 'Escape') {
@@ -112,8 +115,25 @@ export const useLightboxNavigation = ({
       }
     };
 
+    // Capture-phase listener to detect if events are being swallowed
+    const handleCaptureKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        console.log('[LightboxNav] CAPTURE phase:', e.key, 'defaultPrevented:', e.defaultPrevented);
+      }
+    };
+
+    console.log('[LightboxNav] MOUNT — registering keydown listeners', {
+      hasOnNext: !!onNext,
+      hasOnPrevious: !!onPrevious,
+    });
+
+    document.addEventListener('keydown', handleCaptureKeyDown, true);
     document.addEventListener('keydown', handleWindowKeyDown);
-    return () => document.removeEventListener('keydown', handleWindowKeyDown);
+    return () => {
+      console.log('[LightboxNav] UNMOUNT — removing keydown listeners');
+      document.removeEventListener('keydown', handleCaptureKeyDown, true);
+      document.removeEventListener('keydown', handleWindowKeyDown);
+    };
   }, [onNext, onPrevious, onClose]);
 
   return {

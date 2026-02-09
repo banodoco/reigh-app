@@ -22,7 +22,7 @@
  * - PreviewTogetherDialog: Video preview dialog
  */
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { Button } from '@/shared/components/ui/button';
@@ -201,6 +201,41 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
   );
 
   const { addOptimisticPending, hasPendingTask } = usePendingSegmentTasks(selectedShotId, projectId || null);
+
+  // ==========================================================================
+  // PRUNE OFF-SCREEN STRUCTURE VIDEOS
+  // ==========================================================================
+  // Structure videos positioned entirely beyond the last timeline image are
+  // invisible (clipped by overflow:hidden) and cause confusion. Remove them
+  // on load so the user doesn't see a phantom empty strip.
+
+  const pruneRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !structureVideos?.length ||
+      !onSetStructureVideos ||
+      !shotGenerations.length ||
+      positionsLoading ||
+      effectiveGenerationMode !== 'timeline'
+    ) return;
+
+    // Only prune once per shot
+    if (pruneRef.current === selectedShotId) return;
+
+    const maxFrame = Math.max(...shotGenerations.map(g => g.timeline_frame ?? 0));
+    if (maxFrame <= 0) return;
+
+    const visible = structureVideos.filter(v => (v.start_frame ?? 0) < maxFrame);
+    if (visible.length < structureVideos.length) {
+      console.log('[ShotImagesEditor] 🧹 Pruning off-screen structure videos:', {
+        before: structureVideos.length,
+        after: visible.length,
+        maxFrame,
+      });
+      onSetStructureVideos(visible);
+    }
+    pruneRef.current = selectedShotId;
+  }, [structureVideos, onSetStructureVideos, shotGenerations, positionsLoading, effectiveGenerationMode, selectedShotId]);
 
   // ==========================================================================
   // UI STATE HOOKS
