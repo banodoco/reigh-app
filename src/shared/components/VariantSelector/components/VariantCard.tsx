@@ -271,27 +271,29 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                 className="z-[100001] max-w-md p-0 w-auto"
                 sideOffset={4}
               >
-                <div className="relative">
-                <div
-                  className="p-2 space-y-2 max-h-[85vh] overflow-y-auto"
-                  onScroll={(e) => {
-                    const el = e.currentTarget;
-                    const fade = el.nextElementSibling as HTMLElement | null;
-                    if (fade) {
-                      const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
-                      fade.style.opacity = isAtBottom ? '0' : '1';
-                    }
-                  }}
-                  ref={(el) => {
-                    if (!el) return;
-                    const fade = el.nextElementSibling as HTMLElement | null;
-                    if (fade) {
-                      const isScrollable = el.scrollHeight > el.clientHeight;
-                      fade.style.opacity = isScrollable ? '1' : '0';
-                    }
-                  }}
-                >
-                  {/* Header with label, status badges, id copy, delete button */}
+                <div className="flex flex-col max-h-[85vh]">
+                  {/* Scrollable area: header + details */}
+                  <div className="relative min-h-0 flex-1">
+                  <div
+                    className="p-2 pb-0 space-y-2 overflow-y-auto max-h-[calc(85vh-3rem)]"
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      const fade = el.nextElementSibling as HTMLElement | null;
+                      if (fade) {
+                        const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 8;
+                        fade.style.opacity = isAtBottom ? '0' : '1';
+                      }
+                    }}
+                    ref={(el) => {
+                      if (!el) return;
+                      const fade = el.nextElementSibling as HTMLElement | null;
+                      if (fade) {
+                        const isScrollable = el.scrollHeight > el.clientHeight;
+                        fade.style.opacity = isScrollable ? '1' : '0';
+                      }
+                    }}
+                  >
+                    {/* Header with label, status badges, id copy, delete button */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm">{label}</p>
@@ -385,19 +387,22 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                     </div>
                   </div>
 
-                  {/* Full task details (skip for variants with no params) */}
-                  {variant.params && (
-                    <div className="border-t border-border/50 pt-2">
-                      <VariantHoverDetails
-                        variant={variant}
-                        availableLoras={availableLoras}
-                      />
-                    </div>
-                  )}
+                    {/* Full task details (skip for variants with no params) */}
+                    {variant.params && (
+                      <div className="border-t border-border/50 pt-2">
+                        <VariantHoverDetails
+                          variant={variant}
+                          availableLoras={availableLoras}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-popover to-transparent transition-opacity duration-150" />
+                  </div>
 
-                  {/* Action buttons row */}
+                  {/* Action buttons row - pinned at bottom */}
                   {!readOnly && ((!isPrimary && onMakePrimary) || (onLoadVariantSettings && hasLoadableSettings(variant)) || (onLoadImages && hasDifferentSourceImages(variant, currentSegmentImages))) && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 px-2 py-1.5 border-t border-border/50 shrink-0">
                       {!isPrimary && onMakePrimary && (
                         <Button
                           size="sm"
@@ -467,8 +472,6 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                       )}
                     </div>
                   )}
-                </div>
-                <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-popover to-transparent rounded-b-md transition-opacity duration-150" />
                 </div>
               </HoverCardContent>
             </HoverCard>
