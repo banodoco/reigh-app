@@ -86,7 +86,7 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
       justQueuedTimeoutRef.current = window.setTimeout(() => {
         setJustQueued(false);
         justQueuedTimeoutRef.current = null;
-      }, 3000);
+      }, 1500);
 
     } catch (error) {
       handleError(error, { context: 'ImageGenerationModal', toastTitle: 'Failed to create tasks' });

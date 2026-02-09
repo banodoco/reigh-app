@@ -11,7 +11,6 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import { handleError } from '@/shared/lib/errorHandler';
 import { generateVideo } from '../services/generateVideoService';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 import type { SteerableMotionSettings } from '@/shared/types/steerableMotion';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { Shot, GenerationRow } from '@/types/shots';
@@ -167,7 +166,6 @@ export function useGenerateBatch({
   joinLoopFirstClip,
 }: UseGenerateBatchOptions): UseGenerateBatchReturn {
   const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
-  const { data: taskStatusCounts } = useTaskStatusCounts(selectedProjectId);
 
   // Local state
   const [isSteerableMotionEnqueuing, setIsSteerableMotionEnqueuing] = useState(false);
@@ -181,16 +179,14 @@ export function useGenerateBatch({
   const handleGenerateBatch = useCallback((variantNameParam: string) => {
     // Add incoming task immediately for instant TasksPane feedback
     const taskLabel = variantNameParam || selectedShot?.name || 'Travel video';
-    const currentBaseline = taskStatusCounts?.processing ?? 0;
     const incomingTaskId = addIncomingTask({
       taskType: 'travel_orchestrator',
       label: taskLabel.length > 50 ? taskLabel.substring(0, 50) + '...' : taskLabel,
-      baselineCount: currentBaseline,
     });
 
     // Show success feedback immediately (task is being created)
     setSteerableMotionJustQueued(true);
-    setTimeout(() => setSteerableMotionJustQueued(false), 2000);
+    setTimeout(() => setSteerableMotionJustQueued(false), 1500);
 
     // Fire-and-forget: run task creation in background
     (async () => {
@@ -407,7 +403,6 @@ export function useGenerateBatch({
     joinUseInputVideoFps,
     joinNoisedInputVideo,
     joinLoopFirstClip,
-    taskStatusCounts,
     addIncomingTask,
     removeIncomingTask,
   ]);

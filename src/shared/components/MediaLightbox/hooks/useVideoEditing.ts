@@ -519,7 +519,7 @@ export const useVideoEditing = ({
     onSuccess: () => {
       // No success toast per .cursorrules
       setGenerateSuccess(true);
-      setTimeout(() => setGenerateSuccess(false), 3000);
+      setTimeout(() => setGenerateSuccess(false), 1500);
       
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });

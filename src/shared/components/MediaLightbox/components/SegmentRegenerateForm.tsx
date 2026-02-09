@@ -14,7 +14,6 @@ import { SegmentSettingsForm } from '@/shared/components/SegmentSettingsForm';
 import { buildTaskParams, extractSettingsFromParams } from '@/shared/components/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { StructureVideoConfigWithMetadata, StructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages';
@@ -143,7 +142,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
 
   // For background task submission with placeholder
   const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
-  const { data: taskStatusCounts } = useTaskStatusCounts(projectId ?? undefined);
 
   // Use the combined hook for form props
   const {
@@ -300,11 +298,9 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
 
       // Add placeholder for immediate feedback
       const taskLabel = `Segment ${segmentIndex + 1}`;
-      const currentBaseline = taskStatusCounts?.processing ?? 0;
       const incomingTaskId = addIncomingTask({
         taskType: 'individual_travel_segment',
         label: taskLabel,
-        baselineCount: currentBaseline,
       });
 
       // Fire and forget - run in background
@@ -434,11 +430,9 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
 
     // Standard submission (no enhancement) - also use background pattern for fast UI
     const taskLabel = `Segment ${segmentIndex + 1}`;
-    const currentBaseline = taskStatusCounts?.processing ?? 0;
     const incomingTaskId = addIncomingTask({
       taskType: 'individual_travel_segment',
       label: taskLabel,
-      baselineCount: currentBaseline,
     });
 
     (async () => {
@@ -506,7 +500,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     enhancePromptRef,
     addIncomingTask,
     removeIncomingTask,
-    taskStatusCounts,
     queryClient,
     structureVideoForTask,
   ]);

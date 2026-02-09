@@ -278,7 +278,7 @@ export function useVideoItemJoinClips(
 
       // Show success state
       setJoinClipsSuccess(true);
-      setTimeout(() => setJoinClipsSuccess(false), 3000);
+      setTimeout(() => setJoinClipsSuccess(false), 1500);
 
       // Invalidate queries to refresh task list
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });

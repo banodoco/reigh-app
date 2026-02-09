@@ -17,7 +17,6 @@ import { buildTaskParams } from '@/shared/components/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import type { StructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { SegmentSlotModeData } from '../types';
@@ -48,7 +47,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
 
   // For background task submission with placeholder
   const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
-  const { data: taskStatusCounts } = useTaskStatusCounts(segmentSlotMode.projectId ?? undefined);
 
   const pairShotGenerationId = segmentSlotMode.pairData.startImage?.id;
   const startImageUrl = segmentSlotMode.pairData.startImage?.url ?? segmentSlotMode.pairData.startImage?.thumbUrl;
@@ -234,11 +232,9 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
 
       // Add placeholder for immediate feedback
       const taskLabel = `Segment ${segmentSlotMode.currentIndex + 1}`;
-      const currentBaseline = taskStatusCounts?.processing ?? 0;
       const incomingTaskId = addIncomingTask({
         taskType: 'individual_travel_segment',
         label: taskLabel,
-        baselineCount: currentBaseline,
       });
 
       // Notify parent for optimistic UI
@@ -371,11 +367,9 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
 
     // Standard submission (no enhancement) - also use background pattern for fast UI
     const taskLabel = `Segment ${segmentSlotMode.currentIndex + 1}`;
-    const currentBaseline = taskStatusCounts?.processing ?? 0;
     const incomingTaskId = addIncomingTask({
       taskType: 'individual_travel_segment',
       label: taskLabel,
-      baselineCount: currentBaseline,
     });
 
     // Notify parent for optimistic UI
@@ -439,7 +433,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
     enhancePromptRef,
     addIncomingTask,
     removeIncomingTask,
-    taskStatusCounts,
     queryClient,
     structureVideoForTask,
   ]);

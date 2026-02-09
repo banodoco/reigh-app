@@ -16,6 +16,7 @@ import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { CharacterAnimateSettings, characterAnimateSettings } from '../settings';
 import { PageFadeIn } from '@/shared/components/transitions';
 import { createCharacterAnimateTask } from '@/shared/lib/tasks/characterAnimate';
+import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
 import { useDeleteGeneration } from '@/shared/hooks/useGenerationMutations';
 import { MediaGallery } from '@/shared/components/MediaGallery';
@@ -47,6 +48,8 @@ const CharacterAnimatePage: React.FC = () => {
   const queryClient = useQueryClient();
   const { selectedProjectId } = useProject();
   const isMobile = useIsMobile();
+  const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
+  const incomingTaskIdRef = useRef<string | null>(null);
   
   // Local state for inputs
   const [characterImage, setCharacterImage] = useState<{ url: string; file?: File } | null>(null);
@@ -319,6 +322,12 @@ const CharacterAnimatePage: React.FC = () => {
 
   // Generate animation mutation
   const generateAnimationMutation = useMutation({
+    onMutate: () => {
+      incomingTaskIdRef.current = addIncomingTask({
+        taskType: 'character_animate',
+        label: prompt?.substring(0, 50) || 'Character animation...',
+      });
+    },
     mutationFn: async () => {
       if (!characterImage) throw new Error('No character image');
       if (!motionVideo) throw new Error('No motion video');
@@ -344,7 +353,7 @@ const CharacterAnimatePage: React.FC = () => {
     onSuccess: (data) => {
       // Show success state on button
       setShowSuccessState(true);
-      setTimeout(() => setShowSuccessState(false), 3000);
+      setTimeout(() => setShowSuccessState(false), 1500);
       
       // Set flag to indicate we just created a task
       setVideosViewJustEnabled(true);
@@ -355,6 +364,14 @@ const CharacterAnimatePage: React.FC = () => {
     },
     onError: (error) => {
       handleError(error, { context: 'CharacterAnimate', toastTitle: 'Failed to create task' });
+    },
+    onSettled: async () => {
+      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      if (incomingTaskIdRef.current) {
+        removeIncomingTask(incomingTaskIdRef.current);
+        incomingTaskIdRef.current = null;
+      }
     },
   });
   

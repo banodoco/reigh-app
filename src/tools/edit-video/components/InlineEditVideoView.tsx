@@ -727,7 +727,7 @@ export function InlineEditVideoView({
     onSuccess: () => {
       // No success toast - per .cursorrules, only show error toasts
       setShowSuccessState(true);
-      setTimeout(() => setShowSuccessState(false), 3000);
+      setTimeout(() => setShowSuccessState(false), 1500);
       
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });

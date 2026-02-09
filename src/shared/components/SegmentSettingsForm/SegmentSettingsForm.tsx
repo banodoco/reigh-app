@@ -163,7 +163,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
     try {
       await onSubmit();
       setSubmitSuccess(true);
-      setTimeout(() => setSubmitSuccess(false), 2000);
+      setTimeout(() => setSubmitSuccess(false), 1500);
     } catch (error) {
       handleError(error, { context: 'SegmentSettingsForm', showToast: false });
     }

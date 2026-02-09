@@ -17,7 +17,6 @@ import { GenerationRow } from '@/types/shots';
 import { joinClipsSettings } from '@/tools/join-clips/settings';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 
 interface JoinSegmentSlot {
   type: 'child' | 'pending' | 'empty';
@@ -95,7 +94,6 @@ export function useJoinSegmentsHandler({
 }: UseJoinSegmentsHandlerProps): UseJoinSegmentsHandlerReturn {
   const queryClient = useQueryClient();
   const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
-  const { data: taskStatusCounts } = useTaskStatusCounts(selectedProjectId);
 
   // Local state
   const [isJoiningClips, setIsJoiningClips] = useState(false);
@@ -150,11 +148,9 @@ export function useJoinSegmentsHandler({
     const taskLabel = joinPrompt
       ? (joinPrompt.length > 50 ? joinPrompt.substring(0, 50) + '...' : joinPrompt)
       : `Join ${joinValidationData.videoCount} segments`;
-    const currentBaseline = taskStatusCounts?.processing ?? 0;
     const incomingTaskId = addIncomingTask({
       taskType: 'join_clips_orchestrator',
       label: taskLabel,
-      baselineCount: currentBaseline,
     });
 
     setIsJoiningClips(true);
@@ -236,14 +232,15 @@ export function useJoinSegmentsHandler({
         ...(joinPhaseConfig && { phase_config: joinPhaseConfig }),
       });
 
-      removeIncomingTask(incomingTaskId);
       setJoinClipsSuccess(true);
-      setTimeout(() => setJoinClipsSuccess(false), 3000);
+      setTimeout(() => setJoinClipsSuccess(false), 1500);
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
     } catch (error: unknown) {
       handleError(error, { context: 'JoinSegments', toastTitle: getErrorMessage(error) || 'Failed to create join task' });
-      removeIncomingTask(incomingTaskId);
     } finally {
+      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      removeIncomingTask(incomingTaskId);
       setIsJoiningClips(false);
     }
   }, [
@@ -257,7 +254,6 @@ export function useJoinSegmentsHandler({
     audioUrl,
     joinSelectedParent,
     queryClient,
-    taskStatusCounts,
     addIncomingTask,
     removeIncomingTask,
   ]);

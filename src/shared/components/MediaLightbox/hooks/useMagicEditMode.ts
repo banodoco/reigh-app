@@ -281,7 +281,7 @@ export const useMagicEditMode = ({
         }
         
         setMagicEditTasksCreated(true);
-        setTimeout(() => setMagicEditTasksCreated(false), 3000);
+        setTimeout(() => setMagicEditTasksCreated(false), 1500);
       } catch (error) {
         handleError(error, { context: 'useMagicEditMode', toastTitle: 'Failed to create magic edit tasks' });
       } finally {

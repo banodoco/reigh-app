@@ -156,7 +156,7 @@ export function useJoinClipsGenerate({
       });
 
       setShowSuccessState(true);
-      setTimeout(() => setShowSuccessState(false), 3000);
+      setTimeout(() => setShowSuccessState(false), 1500);
 
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
