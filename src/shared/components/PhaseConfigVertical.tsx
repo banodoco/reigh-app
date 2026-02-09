@@ -222,22 +222,40 @@ export const PhaseConfigVertical: React.FC<PhaseConfigVerticalProps> = ({
                     const newNumPhases = parseInt(value);
                     const currentPhases = phaseConfig.phases || [];
                     const currentSteps = phaseConfig.steps_per_phase || [];
+                    const oldNumPhases = currentPhases.length;
 
-                    // Adjust arrays to match the new number of phases
-                    let newPhases = currentPhases.slice(0, newNumPhases);
-                    let newSteps = currentSteps.slice(0, newNumPhases);
+                    let newPhases: PhaseSettings[];
+                    let newSteps: number[];
 
-                    // If we're increasing phases, fill with defaults
-                    while (newPhases.length < newNumPhases) {
-                      newPhases.push({
-                        phase: newPhases.length + 1,
-                        guidance_scale: 1.0,
-                        loras: []
-                      });
-                    }
-
-                    while (newSteps.length < newNumPhases) {
-                      newSteps.push(2);
+                    if (oldNumPhases === 2 && newNumPhases === 3) {
+                      // 2→3: phase 1 duplicates into phases 1+2, phase 2 moves to phase 3
+                      const phase1 = currentPhases[0] || { phase: 1, guidance_scale: 1.0, loras: [] };
+                      const phase2 = currentPhases[1] || { phase: 2, guidance_scale: 1.0, loras: [] };
+                      newPhases = [
+                        { ...phase1, phase: 1, loras: phase1.loras.map(l => ({ ...l })) },
+                        { ...phase1, phase: 2, loras: phase1.loras.map(l => ({ ...l })) },
+                        { ...phase2, phase: 3, loras: phase2.loras.map(l => ({ ...l })) },
+                      ];
+                      newSteps = [currentSteps[0] || 2, currentSteps[0] || 2, currentSteps[1] || 2];
+                    } else if (oldNumPhases === 3 && newNumPhases === 2) {
+                      // 3→2: phase 1 stays, phase 3 becomes phase 2, phase 2 is dropped
+                      const phase1 = currentPhases[0] || { phase: 1, guidance_scale: 1.0, loras: [] };
+                      const phase3 = currentPhases[2] || { phase: 3, guidance_scale: 1.0, loras: [] };
+                      newPhases = [
+                        { ...phase1, phase: 1, loras: phase1.loras.map(l => ({ ...l })) },
+                        { ...phase3, phase: 2, loras: phase3.loras.map(l => ({ ...l })) },
+                      ];
+                      newSteps = [currentSteps[0] || 2, currentSteps[2] || 2];
+                    } else {
+                      // Fallback: slice/pad
+                      newPhases = currentPhases.slice(0, newNumPhases);
+                      newSteps = currentSteps.slice(0, newNumPhases);
+                      while (newPhases.length < newNumPhases) {
+                        newPhases.push({ phase: newPhases.length + 1, guidance_scale: 1.0, loras: [] });
+                      }
+                      while (newSteps.length < newNumPhases) {
+                        newSteps.push(2);
+                      }
                     }
 
                     onPhaseConfigChange({
