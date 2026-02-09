@@ -181,55 +181,53 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
       {/* Main Content Column */}
       <div className={showPhaseContentInRightColumn ? 'space-y-4 min-w-0' : 'space-y-4'}>
         {/* Guidance Images */}
-        {effectiveInputImages.length > 0 && (
-          <div className="space-y-1.5">
-            <p className={`${config.textSize} font-medium text-muted-foreground`}>
-              Image Guidance ({effectiveInputImages.length})
-            </p>
-            <div className={`grid gap-1 ${config.imageGridCols}`}>
-              {(showAllImages ? effectiveInputImages : effectiveInputImages.slice(0, config.maxImages)).map((img, i) => (
-                <img key={i} src={img} alt={`Input ${i + 1}`} className="w-full aspect-square object-cover rounded border shadow-sm" />
-              ))}
-              {effectiveInputImages.length > config.maxImages && !showAllImages && (
-                <div onClick={() => onShowAllImagesChange?.(true)} className="w-full aspect-square bg-muted/50 hover:bg-muted/70 rounded border cursor-pointer flex items-center justify-center">
-                  <span className={`${config.textSize} text-muted-foreground font-medium`}>{effectiveInputImages.length - config.maxImages} more</span>
+        {/* Guidance Images + Structure Video side by side */}
+        {(effectiveInputImages.length > 0 || videoPath) && (
+          <div className="flex gap-3 items-start">
+            {effectiveInputImages.length > 0 && (
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <p className={`${config.textSize} font-medium text-muted-foreground`}>
+                  Image Guidance ({effectiveInputImages.length})
+                </p>
+                <div className={`grid gap-1 ${config.imageGridCols}`}>
+                  {(showAllImages ? effectiveInputImages : effectiveInputImages.slice(0, config.maxImages)).map((img, i) => (
+                    <img key={i} src={img} alt={`Input ${i + 1}`} className="w-full aspect-square object-cover rounded border shadow-sm" />
+                  ))}
+                  {effectiveInputImages.length > config.maxImages && !showAllImages && (
+                    <div onClick={() => onShowAllImagesChange?.(true)} className="w-full aspect-square bg-muted/50 hover:bg-muted/70 rounded border cursor-pointer flex items-center justify-center">
+                      <span className={`${config.textSize} text-muted-foreground font-medium`}>{effectiveInputImages.length - config.maxImages} more</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        {/* Video/Structure Guidance */}
-        {videoPath && (
-          <div className="space-y-1.5">
-            <p className={`${config.textSize} font-medium text-muted-foreground`}>
-              {structureGuidance?.target ? 'Structure Guidance' : 'Video Guidance'}
-            </p>
-            <div className="flex items-start gap-3">
-              <div className="relative group cursor-pointer" style={{ width: '80px' }} onClick={() => setVideoLoaded(true)}>
-                {!videoLoaded ? (
-                  <div className="w-full aspect-video bg-black rounded border flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                  </div>
-                ) : (
-                  <video src={videoPath} className="w-full rounded border" loop muted playsInline autoPlay />
-                )}
+            {videoPath && (
+              <div className="space-y-1.5 shrink-0">
+                <p className={`${config.textSize} font-medium text-muted-foreground`}>
+                  {structureGuidance?.target ? 'Structure' : 'Video'}
+                </p>
+                <div className="relative group cursor-pointer" style={{ width: '80px' }} onClick={() => setVideoLoaded(true)}>
+                  {!videoLoaded ? (
+                    <div className="w-full aspect-video bg-black rounded border flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                  ) : (
+                    <video src={videoPath} className="w-full rounded border" loop muted playsInline autoPlay />
+                  )}
+                </div>
+                <div className={`${config.textSize} ${config.fontWeight} space-y-0.5`}>
+                  {structureGuidance?.strength != null && (
+                    <div><span className="text-muted-foreground">Str: </span>{structureGuidance.strength}</div>
+                  )}
+                  {structureGuidance?.step_window && Array.isArray(structureGuidance.step_window) && (
+                    <div><span className="text-muted-foreground">Window: </span>{structureGuidance.step_window[0]}→{structureGuidance.step_window[1]}</div>
+                  )}
+                  {videoTreatment && <div className="text-muted-foreground capitalize">{videoTreatment}</div>}
+                  {motionStrength != null && <div><span className="text-muted-foreground">Motion: </span>{Math.round(motionStrength * 100)}%</div>}
+                </div>
               </div>
-              <div className={`${config.textSize} ${config.fontWeight} space-y-1`}>
-                {structureGuidance?.target && (
-                  <div><span className="text-muted-foreground">Target: </span><span className="uppercase">{structureGuidance.target}</span></div>
-                )}
-                {structureGuidance?.strength != null && (
-                  <div><span className="text-muted-foreground">Strength: </span>{structureGuidance.strength}</div>
-                )}
-                {structureGuidance?.step_window && Array.isArray(structureGuidance.step_window) && (
-                  <div><span className="text-muted-foreground">Step Window: </span>{structureGuidance.step_window[0]} → {structureGuidance.step_window[1]}</div>
-                )}
-                {videoType && <div><span className="text-muted-foreground">Type: </span><span className="capitalize">{videoType}</span></div>}
-                {videoTreatment && <div><span className="text-muted-foreground">Treatment: </span><span className="capitalize">{videoTreatment}</span></div>}
-                {motionStrength != null && <div><span className="text-muted-foreground">Strength: </span>{Math.round(motionStrength * 100)}%</div>}
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -308,22 +306,24 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
               <p className={`${config.textSize} font-medium text-muted-foreground`}>{isSegmentTask ? 'Frames' : 'Frames / Segment'}</p>
               <p className={`${config.textSize} ${config.fontWeight}`}>{frames || 'N/A'}</p>
             </div>
+            {phaseConfig?.flow_shift !== undefined && (
+              <div className="space-y-1">
+                <p className={`${config.textSize} font-medium text-muted-foreground`}>Flow Shift</p>
+                <p className={`${config.textSize} ${config.fontWeight}`}>{phaseConfig.flow_shift}</p>
+              </div>
+            )}
+            {phaseConfig?.sample_solver && (
+              <div className="space-y-1">
+                <p className={`${config.textSize} font-medium text-muted-foreground`}>Solver</p>
+                <p className={`${config.textSize} ${config.fontWeight} capitalize`}>{phaseConfig.sample_solver}</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Phase details (when not in right column) */}
         {!showPhaseContentInRightColumn && isAdvancedMode && phaseConfig?.phases && phaseConfig.phases.length > 0 && (
           <div className="pt-2 border-t border-muted-foreground/20 space-y-2">
-            {(phaseConfig.flow_shift !== undefined || phaseConfig.sample_solver) && (
-              <div className="flex gap-4">
-                {phaseConfig.flow_shift !== undefined && (
-                  <div><span className={`${config.textSize} text-muted-foreground`}>Flow Shift: </span><span className={`${config.textSize} ${config.fontWeight}`}>{phaseConfig.flow_shift}</span></div>
-                )}
-                {phaseConfig.sample_solver && (
-                  <div><span className={`${config.textSize} text-muted-foreground`}>Solver: </span><span className={`${config.textSize} ${config.fontWeight} capitalize`}>{phaseConfig.sample_solver}</span></div>
-                )}
-              </div>
-            )}
             <p className={`${config.textSize} font-medium text-muted-foreground`}>Phases</p>
             {phaseConfig.phases.map((phase: PhaseSettings, phaseIndex: number) => (
               <div key={phase.phase} className="space-y-1">
