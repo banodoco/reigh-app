@@ -9,8 +9,7 @@ import { log } from '@/shared/lib/logger';
  *     return <div/>;
  *   }
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useRenderLogger(tag: string, propsSnapshot?: any): void {
+export function useRenderLogger(tag: string, propsSnapshot?: Record<string, unknown>): void {
   const renderCount = useRef(0);
 
   // Increment synchronously before effect to catch first render.

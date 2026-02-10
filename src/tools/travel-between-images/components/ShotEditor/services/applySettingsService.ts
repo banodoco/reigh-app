@@ -449,7 +449,7 @@ export const applyLoRAs = async (
       setTimeout(() => {
         let matchedCount = 0;
         
-        settings.loras!.forEach(loraData => {
+        settings.loras.forEach(loraData => {
           const matchingLora = context.availableLoras.find(lora => {
             const loraUrl = lora.huggingface_url || (lora as Record<string, unknown>)['Download Link'] || '';
             return loraUrl === loraData.path ||
@@ -463,7 +463,7 @@ export const applyLoRAs = async (
           }
         });
         
-        resolve({ success: true, settingName: 'loras', details: `${matchedCount}/${settings.loras!.length} matched` });
+        resolve({ success: true, settingName: 'loras', details: `${matchedCount}/${settings.loras.length} matched` });
       }, 100); // Small delay to ensure state clears
     });
   } else {
@@ -629,11 +629,11 @@ export const replaceImagesIfRequested = async (
   
   try {
     // Remove existing non-video images (only those with id)
-    const imagesToDelete = simpleFilteredImages.filter(img => !!img.id);
-    
+    const imagesToDelete = simpleFilteredImages.filter((img): img is GenerationRow & { id: string } => !!img.id);
+
     const deletions = imagesToDelete.map(img => removeImageFromShotMutation.mutateAsync({
       shotId: selectedShot.id,
-      shotGenerationId: img.id!, // img.id is shot_generations.id - Safe now, filtered above
+      shotGenerationId: img.id, // img.id is shot_generations.id - narrowed by filter above
       projectId: projectId,
     }));
     
@@ -668,6 +668,7 @@ export const replaceImagesIfRequested = async (
     
     if (lookupError) {
       console.error('[ApplySettings] ❌ Failed to look up generations by URL:', lookupError);
+      return { success: false, settingName: 'images', error: 'Failed to look up generation IDs for input images' };
     }
     
     // Create a map of URL -> generation data for quick lookup

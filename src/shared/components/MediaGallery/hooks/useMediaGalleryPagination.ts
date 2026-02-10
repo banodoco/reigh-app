@@ -287,7 +287,8 @@ export const useMediaGalleryPagination = ({
       // Note: This happens in a timeout to ensure the page state update has been processed
       if (fromBottom && galleryTopRef.current) {
         setTimeout(() => {
-          const rect = galleryTopRef.current!.getBoundingClientRect();
+          if (!galleryTopRef.current) return;
+          const rect = galleryTopRef.current.getBoundingClientRect();
           const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           const targetPosition = rect.top + scrollTop - (isMobile ? 80 : 20);
 

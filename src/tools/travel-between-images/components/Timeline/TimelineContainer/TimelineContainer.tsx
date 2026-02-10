@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useEffect, useLayoutEffect } from 'react';
+import { toast } from '@/shared/components/ui/sonner';
 import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from '../constants';
 
 // Timeline sub-components (existing)
@@ -323,6 +324,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
       video.src = '';
     } catch (error) {
       console.error('[ExtractFinalFrame] Error:', error);
+      toast.error('Failed to extract frame from video');
     }
   }, [trailingVideoUrl, onFileDrop, currentPositions, trailingEndFrame]);
 

@@ -190,25 +190,23 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
       ));
       
       // CRITICAL: Reload shotGenerations if images were replaced
-      if (replaceImages && inputImages.length > 0) {
-        
+      if (replaceImages && inputImages.length > 0 && ctx.selectedShot?.id) {
+
         try {
           // Invalidate cache using centralized hook
-          if (ctx.selectedShot?.id) {
-            invalidateGenerationsSync(queryClient, ctx.selectedShot.id, {
-              reason: 'apply-settings-from-task',
-              scope: 'all'
-            });
-          }
+          invalidateGenerationsSync(queryClient, ctx.selectedShot.id, {
+            reason: 'apply-settings-from-task',
+            scope: 'all'
+          });
         } catch (invalidateError) {
           console.error('[ApplySettings] ❌ Error during query invalidation:', invalidateError);
           throw invalidateError;
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
         await ctx.loadPositions({ silent: true });
-        
+
         // Query DB for fresh data
         const { data: freshGens, error: freshGensError } = await supabase
           .from('shot_generations')
@@ -218,7 +216,7 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
             metadata,
             generation:generations!shot_generations_generation_id_generations_id_fk(id, type, location)
           `)
-          .eq('shot_id', ctx.selectedShot!.id)
+          .eq('shot_id', ctx.selectedShot.id)
           .not('timeline_frame', 'is', null)
           .order('timeline_frame', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
@@ -296,12 +294,7 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
 
     } catch (e) {
       console.error('[ApplySettings] ❌ Failed to apply settings:', e);
-      console.error('[ApplySettings] Error details:', {
-        error: e,
-        message: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
-        failedAt: 'See logs above for last successful step'
-      });
+      toast.error('Failed to apply settings from task');
     }
   }, [queryClient]); // ✅ Only depends on queryClient (stable)
 }

@@ -30,7 +30,8 @@ Object.defineProperty(global, 'window', {
 });
 
 // Import VisibilityManager after mocks are set up
-let VisibilityManager: any;
+type VisibilityManagerType = typeof import('../VisibilityManager')['VisibilityManager'];
+let VisibilityManager: VisibilityManagerType;
 
 describe('VisibilityManager', () => {
   beforeEach(async () => {
@@ -111,7 +112,7 @@ describe('VisibilityManager', () => {
       expect(debugInfo).toHaveProperty('state');
       expect(debugInfo).toHaveProperty('subscriptions');
       expect(debugInfo).toHaveProperty('isInitialized');
-      expect(debugInfo.subscriptions.some((s: any) => s.id === 'test-debug')).toBe(true);
+      expect(debugInfo.subscriptions.some((s: { id: string }) => s.id === 'test-debug')).toBe(true);
     });
   });
 
@@ -122,17 +123,15 @@ describe('VisibilityManager', () => {
     // Get the visibility change handler
     const visibilityHandler = mockDocument.addEventListener.mock.calls.find(
       call => call[0] === 'visibilitychange'
-    )?.[1] as any;
-    
+    )?.[1] as ((event: Event) => void) | undefined;
+
     // Simulate tab becoming hidden
     mockDocument.hidden = true;
     mockDocument.visibilityState = 'hidden';
-    
-    // Call the handler (fall back to public method if not captured)
+
+    // Call the handler
     if (visibilityHandler) {
       visibilityHandler(new Event('visibilitychange'));
-    } else {
-      (VisibilityManager as any)['handleVisibilityChange'](new Event('visibilitychange'));
     }
     
     // Check that callback was called with correct signals
@@ -163,13 +162,11 @@ describe('VisibilityManager', () => {
     // Get the pageshow handler
     const pageShowHandler = mockWindow.addEventListener.mock.calls.find(
       call => call[0] === 'pageshow'
-    )?.[1] as any;
-    
+    )?.[1] as ((event: Event) => void) | undefined;
+
     // Simulate pageshow event
     if (pageShowHandler) {
       pageShowHandler(new Event('pageshow'));
-    } else {
-      (VisibilityManager as any)['handlePageShow'](new Event('pageshow'));
     }
     
     // Only pageshow callback should be called
@@ -180,7 +177,7 @@ describe('VisibilityManager', () => {
   it('should maintain backward compatibility with global timestamp', () => {
     const state = VisibilityManager.getState();
     // Check that window-scoped timestamp is set (back-compat behavior)
-    expect((window as any).__VIS_CHANGE_AT__).toBeGreaterThanOrEqual(state.lastVisibilityChangeAt);
+    expect((window as Record<string, unknown>).__VIS_CHANGE_AT__).toBeGreaterThanOrEqual(state.lastVisibilityChangeAt);
   });
 
   it('should clean up properly on destroy', () => {

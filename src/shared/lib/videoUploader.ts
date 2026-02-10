@@ -156,7 +156,8 @@ export const uploadVideoToStorage = async (
 
     // Refresh session token before each attempt (tokens can expire during retries)
     const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData?.session?.access_token) {
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
       throw new Error('Session expired - please sign in again');
     }
 
@@ -235,7 +236,7 @@ export const uploadVideoToStorage = async (
         });
 
         xhr.open('POST', bucketUrl);
-        xhr.setRequestHeader('Authorization', `Bearer ${sessionData.session!.access_token}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
         xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
         xhr.setRequestHeader('Cache-Control', '3600');
 

@@ -5,6 +5,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { TrainingDataSegment } from '../../../hooks/useTrainingData';
 import { SegmentFramePreview } from './SegmentFramePreview';
 
+const ASSUMED_FPS = 30;
+
 interface SegmentColor {
   bg: string;
   border: string;
@@ -82,7 +84,7 @@ export function SegmentListItem({
 
           {/* Frame count */}
           <Badge variant="outline" className="text-muted-foreground">
-            {Math.round((segment.endTime - segment.startTime) / 1000 * 30)} frames
+            {Math.round((segment.endTime - segment.startTime) / 1000 * ASSUMED_FPS)} frames
           </Badge>
 
           {/* Current segment indicator */}

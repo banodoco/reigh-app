@@ -329,29 +329,29 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
               .eq('id', pairShotGenerationId)
               .single();
 
-            if (fetchError) {
-              console.error('[EnhancedPromptSave] ❌ Error fetching current metadata:', fetchError);
+            if (!fetchError) {
+              const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
+
+              const { error: updateError } = await supabase
+                .from('shot_generations')
+                .update({
+                  metadata: {
+                    ...currentMetadata,
+                    enhanced_prompt: enhancedPromptResult,
+                    // Store the base prompt so we can reveal it when clearing enhanced
+                    base_prompt_for_enhancement: effectiveSettings.prompt?.trim() || '',
+                  },
+                })
+                .eq('id', pairShotGenerationId);
+
+              if (updateError) {
+                console.error('[EnhancedPromptSave] Error saving enhanced_prompt to metadata:', updateError);
+              }
+
+              queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(pairShotGenerationId) });
+            } else {
+              console.error('[EnhancedPromptSave] Error fetching current metadata, skipping save:', fetchError);
             }
-
-            const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
-
-            const { error: updateError } = await supabase
-              .from('shot_generations')
-              .update({
-                metadata: {
-                  ...currentMetadata,
-                  enhanced_prompt: enhancedPromptResult,
-                  // Store the base prompt so we can reveal it when clearing enhanced
-                  base_prompt_for_enhancement: effectiveSettings.prompt?.trim() || '',
-                },
-              })
-              .eq('id', pairShotGenerationId);
-
-            if (updateError) {
-              console.error('[EnhancedPromptSave] ❌ Error saving enhanced_prompt to metadata:', updateError);
-            }
-
-            queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(pairShotGenerationId) });
           }
 
           // 4. Build task params with original prompt as base_prompt, enhanced as separate field

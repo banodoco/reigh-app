@@ -130,39 +130,39 @@ export function usePromptFieldState({
   // 1. settings.prompt exists
   // 2. AND it's different from the base that was used for enhancement
   const userHasEditedAfterEnhancement = useMemo(() => {
-    if (!hasSettingsPrompt) return false;
+    if (settingsPrompt === undefined) return false;
     if (!hasEnhancedPrompt) return false; // No enhancement to compare against
 
     // If we have the base that was used for enhancement, compare against it
     if (basePromptForEnhancement !== undefined) {
-      return settingsPrompt!.trim() !== basePromptForEnhancement.trim();
+      return settingsPrompt.trim() !== basePromptForEnhancement.trim();
     }
 
     // Fallback: if no base stored (older data), compare against enhanced prompt itself
     // User has edited if their prompt differs from the displayed enhanced value
-    return settingsPrompt!.trim() !== enhancedPrompt!.trim();
+    return enhancedPrompt ? settingsPrompt.trim() !== enhancedPrompt.trim() : false;
   }, [hasSettingsPrompt, hasEnhancedPrompt, settingsPrompt, basePromptForEnhancement, enhancedPrompt]);
 
   // Calculate display value and badge type
   const { displayValue, badgeType } = useMemo(() => {
     // Priority 1: User edited after enhancement → show their edit
-    if (userHasEditedAfterEnhancement) {
-      return { displayValue: settingsPrompt!, badgeType: null as PromptBadgeType };
+    if (userHasEditedAfterEnhancement && settingsPrompt !== undefined) {
+      return { displayValue: settingsPrompt, badgeType: null as PromptBadgeType };
     }
 
     // Priority 2: Enhanced prompt exists → show it
-    if (hasEnhancedPrompt) {
-      return { displayValue: enhancedPrompt!, badgeType: 'enhanced' as PromptBadgeType };
+    if (enhancedPrompt?.trim()) {
+      return { displayValue: enhancedPrompt, badgeType: 'enhanced' as PromptBadgeType };
     }
 
     // Priority 3: settings.prompt exists (no enhancement, or same as base)
-    if (hasSettingsPrompt) {
-      return { displayValue: settingsPrompt!, badgeType: null as PromptBadgeType };
+    if (settingsPrompt !== undefined) {
+      return { displayValue: settingsPrompt, badgeType: null as PromptBadgeType };
     }
 
     // Priority 4: Fall back to shot defaults
-    if (hasDefaultPrompt) {
-      return { displayValue: defaultPrompt!, badgeType: 'default' as PromptBadgeType };
+    if (defaultPrompt !== undefined) {
+      return { displayValue: defaultPrompt, badgeType: 'default' as PromptBadgeType };
     }
 
     // Nothing set

@@ -14,7 +14,7 @@ const RadioGroup = React.forwardRef<
   return (
     <RadioGroupPrimitive
       className={cn("grid gap-2", className)}
-      onValueChange={onValueChange ? (value: any) => onValueChange(value as string) : undefined}
+      onValueChange={onValueChange ? (value: unknown) => onValueChange(String(value)) : undefined}
       {...props}
       ref={ref}
     />

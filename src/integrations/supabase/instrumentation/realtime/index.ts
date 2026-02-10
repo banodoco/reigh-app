@@ -40,7 +40,7 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
             console.error('[RealtimeCorruptionTrace] 🔄 realtime.socket REPLACED:', { previousValue: _socket, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, timestamp: Date.now() });
             addCorruptionEvent('SOCKET_REPLACED', { previousValue: _socket, newValue: value });
           }
-          _socket = value as any;
+          _socket = value as WebSocket | null;
         },
         configurable: true
       });
@@ -60,7 +60,7 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
               console.error('[RealtimeCorruptionTrace] 🔄 conn.transport REPLACED:', { previousValue: _transport, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, timestamp: Date.now() });
               addCorruptionEvent('TRANSPORT_REPLACED', { previousValue: _transport, newValue: value });
             }
-            _transport = value as any;
+            _transport = value as typeof _transport;
           },
           configurable: true
         });
@@ -73,34 +73,35 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
 
   // Heuristic for realtime=down to dispatch provider-led heal
   if (__REALTIME_DOWN_FIX_ENABLED__ && typeof window !== 'undefined') {
-    if (!(console as any).__WARN_INTERCEPTED__) {
-      (console as any).__WARN_INTERCEPTED__ = true;
+    const consoleWithFlag = console as Console & { __WARN_INTERCEPTED__?: boolean };
+    if (!consoleWithFlag.__WARN_INTERCEPTED__) {
+      consoleWithFlag.__WARN_INTERCEPTED__ = true;
       const originalConsoleWarn = console.warn;
-      console.warn = function(...args: any[]) {
+      console.warn = function(...args: unknown[]) {
         const message = args.join(' ');
         if (message.includes('realtime=down') || message.includes('Polling boosted due to realtime=down')) {
-          
+
           // Use async IIFE to handle dynamic import
           (async () => {
             try {
               const module = await import('@/integrations/supabase/reconnect/ReconnectScheduler');
               const { getReconnectScheduler } = module;
-              
+
               const scheduler = getReconnectScheduler();
-              
+
               scheduler.requestReconnect({
                 source: 'ConsoleWarnInterceptor',
                 reason: 'realtime=down detected in console output',
                 priority: 'medium'
               });
-              
+
             } catch (error) {
               handleError(error, { context: 'RealtimeInstrumentation', showToast: false });
             }
           })();
         }
-        return originalConsoleWarn.apply(this, args as any);
-      } as any;
+        return originalConsoleWarn.apply(this, args as Parameters<typeof console.warn>);
+      };
     }
   }
 }

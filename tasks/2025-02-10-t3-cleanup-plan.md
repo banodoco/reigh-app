@@ -1,9 +1,18 @@
 # T3 Cleanup Plan
 
-**Current Score:** 84/100
+**Current Score:** 86/100
 **Target:** 100/100
-**T3:** 520 open / 648 total (20% addressed)
-**Also:** 30 T1 items (unused imports, auto-fixable), 46 T4 items
+**T1:** Done (100%)
+**T3:** 521 open / 649 total (20% addressed)
+**T4:** 46 open / 356 total (87% addressed)
+
+> **ANTI-LAZINESS RULES** (read before every phase):
+> 1. **No blanket wontfixes.** Every item must be read before deciding. "Read" means opening the file and understanding the context, not just looking at the finding metadata.
+> 2. **Wontfix notes must be specific.** Not "acceptable" or "fine as-is" — explain WHY for THIS file. If you can't articulate why, you haven't read it.
+> 3. **Fix what you can.** If reading a "wontfix candidate" reveals a 2-minute improvement, make it. Don't skip easy wins.
+> 4. **Don't inflate the score.** The goal is better code, not a higher number. If you're wontfixing to move the needle, you're gaming the system.
+> 5. **Sub-agents are helpers, not rubber stamps.** Review their output. If a sub-agent wontfixed 90% of its batch, something is wrong.
+> 6. **When in doubt, fix.** The default should be fixing, not wontfixing. Only wontfix when fixing would make the code worse or when the finding is genuinely a false positive.
 
 ## Score Math
 

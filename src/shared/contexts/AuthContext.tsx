@@ -70,8 +70,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // [AuthDebounce] Wait 150ms for additional auth events before processing
       debounceTimeout = setTimeout(() => {
         if (pendingAuthState) {
+          const { event: pendingEvent, session: pendingSession } = pendingAuthState;
           React.startTransition(() => {
-            processAuthChange(pendingAuthState!.event, pendingAuthState!.session);
+            processAuthChange(pendingEvent, pendingSession);
           });
           pendingAuthState = null;
         }

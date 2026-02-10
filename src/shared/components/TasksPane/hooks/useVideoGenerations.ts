@@ -124,6 +124,7 @@ export function useVideoGenerations({
 
       if (error) {
         console.error('[useVideoGenerations] Error fetching video generations:', error);
+        throw error;
       }
 
       if (data && data.length > 0) {

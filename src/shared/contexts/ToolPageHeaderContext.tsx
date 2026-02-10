@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 
 interface ToolPageHeaderContextType {
+  header: ReactNode;
   setHeader: (header: ReactNode) => void;
   clearHeader: () => void;
 }
@@ -52,7 +53,5 @@ export const useHeaderState = () => {
     if (!context) {
       throw new Error('useHeaderState must be used within a ToolPageHeaderProvider');
     }
-    // This is a bit of a hack to get the header state without exposing setHeader
-    // @ts-ignore
     return { header: context.header };
 } 

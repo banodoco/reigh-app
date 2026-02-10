@@ -1,6 +1,19 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { handleError } from '@/shared/lib/errorHandler';
 
+/** Browser BeforeInstallPromptEvent (not in standard lib types) */
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+/** Navigator with non-standard iOS/Chrome APIs */
+interface NavigatorWithExtensions extends Navigator {
+  standalone?: boolean;
+  getInstalledRelatedApps?: () => Promise<Array<{ platform: string; url?: string; id?: string }>>;
+  connection?: { effectiveType?: string };
+}
+
 export type Platform = 'mac' | 'windows' | 'linux' | 'ios' | 'android' | 'unknown';
 export type Browser = 'chrome' | 'safari' | 'edge' | 'firefox' | 'samsung' | 'unknown';
 export type InstallMethod = 'prompt' | 'safari-dock' | 'safari-home-screen' | 'none';
@@ -50,7 +63,7 @@ const checkIsStandalone = (): boolean => {
   try {
     const displayModeStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const displayModeFullscreen = window.matchMedia('(display-mode: fullscreen)').matches;
-    const iosStandalone = (navigator as any).standalone === true;
+    const iosStandalone = (navigator as NavigatorWithExtensions).standalone === true;
     return displayModeStandalone || displayModeFullscreen || iosStandalone;
   } catch {
     return false;
@@ -58,7 +71,7 @@ const checkIsStandalone = (): boolean => {
 };
 
 export function usePlatformInstall(): PlatformInstallState {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   // Initialize isStandalone synchronously to prevent flash of install UI in PWA
   const [isStandalone, setIsStandalone] = useState(checkIsStandalone);
   const [promptTimedOut, setPromptTimedOut] = useState(false);
@@ -195,7 +208,7 @@ export function usePlatformInstall(): PlatformInstallState {
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       // Clear timeout since we got the prompt
       if (timeoutId) clearTimeout(timeoutId);
       // Reset states in case they were set before this event
@@ -219,8 +232,9 @@ export function usePlatformInstall(): PlatformInstallState {
       
       // Try to detect if app is installed using getInstalledRelatedApps (Chrome 80+)
       // This requires the manifest to list related_applications, but worth trying
-      if ('getInstalledRelatedApps' in navigator) {
-        (navigator as any).getInstalledRelatedApps().then((apps: any[]) => {
+      const nav = navigator as NavigatorWithExtensions;
+      if (nav.getInstalledRelatedApps) {
+        nav.getInstalledRelatedApps().then((apps) => {
           if (apps && apps.length > 0) {
             setIsAppInstalled(true);
           }

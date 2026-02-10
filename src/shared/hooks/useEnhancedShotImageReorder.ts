@@ -141,8 +141,9 @@ export const useEnhancedShotImageReorder = (
       
       // NEW: Use midpoint logic for contiguous block moves (single or multi)
       // 🔧 FIX: Use parentHookRef to access latest parentHook (avoids stale closure)
-      if (detectItemMove && parentHookRef.current?.['moveItemsToMidpoint']) {
-        
+      const moveToMidpoint = detectItemMove && parentHookRef.current?.moveItemsToMidpoint;
+      if (detectItemMove && moveToMidpoint) {
+
         // Build the new order array for neighbor calculation
         const newOrderItems = orderedShotImageEntryIds.map(id => {
           // img.id is shot_generations.id - unique per entry
@@ -152,8 +153,8 @@ export const useEnhancedShotImageReorder = (
             timeline_frame: img?.timeline_frame ?? null
           };
         });
-        
-        await parentHookRef.current!.moveItemsToMidpoint!(
+
+        await moveToMidpoint(
           detectItemMove.movedItemIds,
           detectItemMove.newStartIndex,
           newOrderItems

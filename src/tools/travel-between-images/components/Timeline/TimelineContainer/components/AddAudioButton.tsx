@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from '@/shared/components/ui/sonner';
 import { uploadVideoToStorage } from '@/shared/lib/videoUploader';
 
 export interface AddAudioButtonProps {
@@ -39,6 +40,7 @@ export const AddAudioButton: React.FC<AddAudioButtonProps> = ({
             e.target.value = '';
           } catch (error) {
             console.error('Error uploading audio:', error);
+            toast.error('Failed to upload audio');
           }
         }}
       />

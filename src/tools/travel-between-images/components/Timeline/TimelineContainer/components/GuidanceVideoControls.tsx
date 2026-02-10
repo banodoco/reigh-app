@@ -7,6 +7,7 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { calculateNewVideoPlacement } from '../../utils/timeline-utils';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import { extractVideoMetadata, uploadVideoToStorage, type VideoMetadata } from '@/shared/lib/videoUploader';
+import { toast } from '@/shared/components/ui/sonner';
 
 export interface GuidanceVideoControlsProps {
   shotId: string;
@@ -108,6 +109,7 @@ export const GuidanceVideoControls: React.FC<GuidanceVideoControlsProps> = ({
       e.target.value = '';
     } catch (error) {
       console.error('Error uploading video:', error);
+      toast.error('Failed to upload guidance video');
     } finally {
       setIsUploadingStructureVideo(false);
     }

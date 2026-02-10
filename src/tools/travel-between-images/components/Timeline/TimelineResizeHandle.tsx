@@ -42,7 +42,7 @@ export const TimelineResizeHandle: React.FC<TimelineResizeHandleProps> = ({
       <div
         className={`w-1.5 h-14 rounded-full transition-all ${
           isSelected
-            ? 'bg-orange-500 shadow-[0_0_0_4px_rgba(249,115,22,0.3)]'
+            ? 'bg-orange-500 ring-4 ring-orange-500/30'
             : 'bg-primary/60 hover:bg-primary'
         }`}
       />

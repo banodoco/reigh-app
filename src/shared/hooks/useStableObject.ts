@@ -4,7 +4,7 @@ import { useRef } from 'react';
  * Hook that returns a stable reference to an object, only updating when dependencies change.
  * Uses deep comparison to prevent unnecessary recreations.
  */
-export function useStableObject<T extends Record<string, any>>(
+export function useStableObject<T extends Record<string, unknown>>(
   factory: () => T,
   deps: React.DependencyList
 ): T {
@@ -53,7 +53,7 @@ function useStableValue<T>(
  * More efficient than useCallback for functions with many dependencies.
  * @internal Not currently used externally.
  */
-function useStableCallback<T extends (...args: any[]) => any>(
+function useStableCallback<T extends (...args: unknown[]) => unknown>(
   callback: T,
   deps: React.DependencyList
 ): T {

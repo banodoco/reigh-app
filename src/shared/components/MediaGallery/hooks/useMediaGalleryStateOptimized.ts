@@ -420,7 +420,8 @@ export const useMediaGalleryStateOptimized = ({
   useEffect(() => {
     // Sync activeLightboxMedia with updated images list to ensure fresh data (like name changes)
     if (state.activeLightboxMedia) {
-      const updatedImage = images.find(img => img.id === state.activeLightboxMedia!.id);
+      const activeLightbox = state.activeLightboxMedia;
+      const updatedImage = images.find(img => img.id === activeLightbox.id);
       // Only update if the object reference changed (meaning data changed or refetched)
       // and deep equality check on key properties to avoid unnecessary render cycles
       if (updatedImage && updatedImage !== state.activeLightboxMedia) {

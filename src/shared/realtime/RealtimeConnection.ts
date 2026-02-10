@@ -188,13 +188,14 @@ export class RealtimeConnection {
     this.setupEventHandlers(projectId);
 
     // Subscribe with timeout
+    const channel = this.channel;
     return new Promise((resolve) => {
       this.subscribeTimeout = setTimeout(() => {
         this.handleSubscribeFailure('Timeout', projectId);
         resolve(false);
       }, this.config.subscribeTimeout);
 
-      this.channel!.subscribe((status: string) => {
+      channel.subscribe((status: string) => {
         if (this.subscribeTimeout) {
           clearTimeout(this.subscribeTimeout);
           this.subscribeTimeout = null;

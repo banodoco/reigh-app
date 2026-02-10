@@ -87,8 +87,9 @@ export function useReferenceSelection(props: UseReferenceSelectionProps): UseRef
     // Need a fallback - check if we already cached one for this shot
     if (fallbackCache.current?.shotId === effectiveShotId) {
       // Verify the cached fallback still exists in hydrated refs
-      if (hydratedReferences.some(r => r.id === fallbackCache.current!.referenceId)) {
-        return fallbackCache.current.referenceId;
+      const cachedRefId = fallbackCache.current.referenceId;
+      if (hydratedReferences.some(r => r.id === cachedRefId)) {
+        return cachedRefId;
       }
       // Cached ref no longer valid, clear it
       fallbackCache.current = null;

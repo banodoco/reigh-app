@@ -12,6 +12,8 @@ import { SegmentFormDialog } from './components/SegmentFormDialog';
 import { VideoPlayerControls } from './components/VideoPlayerControls';
 import { useVideoPlayback } from './hooks/useVideoPlayback';
 
+const POST_CREATE_SEEK_DELAY_MS = 100;
+
 // Color palette for segments
 const segmentColors = [
   { bg: 'bg-blue-500/60', border: 'border-blue-500' },
@@ -136,7 +138,7 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
       const targetJumpTime = segmentEndTime;
       await onCreateSegment(video.id, segmentStartTime * 1000, segmentEndTime * 1000, description);
       clearSegmentState();
-      setTimeout(() => jumpToTime(targetJumpTime), 100);
+      setTimeout(() => jumpToTime(targetJumpTime), POST_CREATE_SEEK_DELAY_MS);
     } catch (error) {
       handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to create segment' });
     } finally {

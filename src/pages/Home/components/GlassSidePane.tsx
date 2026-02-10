@@ -30,8 +30,8 @@ export const GlassSidePane: React.FC<GlassSidePaneProps> = ({
   const setRefs = (element: HTMLDivElement | null) => {
     contentRef.current = element;
     if (scrollFade.scrollRef) {
-      // @ts-ignore - handling multiple refs
-      scrollFade.scrollRef.current = element;
+      // scrollRef is React.RefObject (readonly .current), but we need to assign from a callback ref
+      (scrollFade.scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = element;
     }
   };
 

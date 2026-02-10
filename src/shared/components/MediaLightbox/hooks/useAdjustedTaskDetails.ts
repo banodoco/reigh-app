@@ -94,7 +94,7 @@ export function useAdjustedTaskDetails({
   // Skip fetch if variant already has orchestrator_details (e.g., clip_join variants)
   // NOTE: Uses ['tasks', 'single', taskId] query key to share cache with usePrefetchTaskData
   const { data: variantSourceTask, isLoading: isLoadingVariantTask } = useQuery({
-    queryKey: queryKeys.tasks.single(variantSourceTaskId!),
+    queryKey: queryKeys.tasks.single(variantSourceTaskId ?? ''),
     queryFn: async () => {
       if (!variantSourceTaskId) return null;
       const { data, error } = await supabase
@@ -139,7 +139,7 @@ export function useAdjustedTaskDetails({
       const effectiveTaskType = activeVariant.variant_type || 'variant';
 
       if (hasMatchingTaskData) {
-        effectiveParams = taskDetailsData.task!.params as Record<string, unknown>;
+        effectiveParams = (taskDetailsData.task?.params ?? variantParams) as Record<string, unknown>;
       } else if (!variantParams.orchestrator_details && variantSourceTask?.params) {
         // Only use fetched task params if variant doesn't already have orchestrator_details
         // clip_join variants store orchestrator_details directly, so we don't want to overwrite

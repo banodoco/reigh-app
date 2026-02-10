@@ -2,6 +2,27 @@ import { __WS_INSTRUMENTATION_ENABLED__, __CORRUPTION_TRACE_ENABLED__ } from '@/
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
 
+/** Shape of a Phoenix channel message received over WebSocket */
+interface PhoenixMessage {
+  event?: string;
+  topic?: string;
+  ref?: string;
+  payload?: Record<string, unknown>;
+}
+
+/** Window extensions used by instrumentation */
+interface InstrumentedWindow extends Window {
+  __WS_PROBE_INSTALLED__?: boolean;
+  __SUPABASE_WEBSOCKET_INSTANCES__?: Array<{
+    wsId: number;
+    url: string;
+    protocols?: string | string[];
+    createdAt: number;
+    websocketRef: WebSocket;
+  }>;
+  __REALTIME_SNAPSHOT__?: Record<string, unknown>;
+}
+
 export function installWindowOnlyInstrumentation() {
   // InstrumentationManager removed - calling legacy function directly
   installWindowOnlyInstrumentationLegacy();
@@ -11,6 +32,7 @@ export function installWindowOnlyInstrumentation() {
 // Legacy function for backward compatibility - now delegates to InstrumentationManager
 function installWindowOnlyInstrumentationLegacy() {
   if (typeof window === 'undefined') return;
+  const instrumentedWindow = window as InstrumentedWindow;
 
   // localStorage monitoring removed - not needed in production
 
@@ -25,13 +47,13 @@ function installWindowOnlyInstrumentationLegacy() {
         source: String(source),
         lineno,
         colno,
-        error: error ? { name: (error as any).name, message: (error as any).message, stack: (error as any).stack } : null,
+        error: error ? { name: error.name, message: error.message, stack: error.stack } : null,
         timestamp: Date.now(),
         userAgent: navigator.userAgent.slice(0, 100)
       };
 
       if (source && source.includes('supabase-js.js') && lineno === 2372) {
-        console.error('[RealtimeCorruptionTrace] 🎯 SUPABASE ERROR CAPTURED!', {
+        console.error('[RealtimeCorruptionTrace] SUPABASE ERROR CAPTURED!', {
           ...errorInfo,
           realtimeSnapshot: captureRealtimeSnapshot(),
           corruptionTimeline: [...__CORRUPTION_TIMELINE__]
@@ -41,18 +63,18 @@ function installWindowOnlyInstrumentationLegacy() {
         addCorruptionEvent('RELATED_ERROR', errorInfo);
       }
 
-      if (originalOnError) return originalOnError.call(this, message as any, source as any, lineno as any, colno as any, error as any);
+      if (originalOnError) return originalOnError.call(this, message, source, lineno, colno, error);
       return false;
     };
 
     window.onunhandledrejection = function(event: PromiseRejectionEvent) {
       const rejectionInfo = {
-        reason: (event as any).reason,
+        reason: event.reason,
         promise: '[PROMISE_OBJECT]',
         timestamp: Date.now()
       };
 
-      if ((event as any).reason && (String((event as any).reason).includes('supabase') || String((event as any).reason).includes('realtime'))) {
+      if (event.reason && (String(event.reason).includes('supabase') || String(event.reason).includes('realtime'))) {
         addCorruptionEvent('UNHANDLED_REJECTION', rejectionInfo);
       }
 
@@ -64,16 +86,15 @@ function installWindowOnlyInstrumentationLegacy() {
     return;
   }
 
-  const key = '__WS_PROBE_INSTALLED__';
-  if ((window as any)[key]) return;
+  if (instrumentedWindow.__WS_PROBE_INSTALLED__) return;
 
-  (window as any)[key] = true;
+  instrumentedWindow.__WS_PROBE_INSTALLED__ = true;
   const OriginalWS = window.WebSocket;
 
   let wsCreationCount = 0;
   let wsDestroyedCount = 0;
 
-  (window as any).WebSocket = function(url: string, protocols?: string | string[]) {
+  instrumentedWindow.WebSocket = function(url: string, protocols?: string | string[]) {
     wsCreationCount++;
     const wsId = wsCreationCount;
 
@@ -85,8 +106,8 @@ function installWindowOnlyInstrumentationLegacy() {
       ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
 
       if (isSupabaseRealtime || isSupabaseWebSocket) {
-        (window as any).__SUPABASE_WEBSOCKET_INSTANCES__ = (window as any).__SUPABASE_WEBSOCKET_INSTANCES__ || [];
-        (window as any).__SUPABASE_WEBSOCKET_INSTANCES__.push({
+        instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ = instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ || [];
+        instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__.push({
           wsId,
           url,
           protocols,
@@ -101,19 +122,19 @@ function installWindowOnlyInstrumentationLegacy() {
             const messageData = typeof event.data === 'string' ? event.data : '[BINARY_DATA]';
             if (typeof messageData === 'string') {
               try {
-                const parsed = JSON.parse(messageData);
-                if ((parsed as any).event) {
+                const parsed = JSON.parse(messageData) as PhoenixMessage;
+                if (parsed.event) {
                   addCorruptionEvent('PHOENIX_MESSAGE', {
-                    event: (parsed as any).event,
-                    topic: (parsed as any).topic,
-                    ref: (parsed as any).ref,
-                    payload: (parsed as any).payload ? Object.keys((parsed as any).payload) : null
+                    event: parsed.event,
+                    topic: parsed.topic,
+                    ref: parsed.ref,
+                    payload: parsed.payload ? Object.keys(parsed.payload) : null
                   });
                 }
               } catch {}
             }
-            const snap: any = (window as any).__REALTIME_SNAPSHOT__ || {};
-            (window as any).__REALTIME_SNAPSHOT__ = { ...snap, lastPhoenixMsgAt: Date.now() };
+            const snap = instrumentedWindow.__REALTIME_SNAPSHOT__ || {};
+            instrumentedWindow.__REALTIME_SNAPSHOT__ = { ...snap, lastPhoenixMsgAt: Date.now() };
           } catch {}
         }
       });
@@ -126,7 +147,7 @@ function installWindowOnlyInstrumentationLegacy() {
     }
 
     return ws as WebSocket;
-  };
+  } as unknown as typeof WebSocket;
 
   // Global fetch instrumentation removed - not needed in production
 }

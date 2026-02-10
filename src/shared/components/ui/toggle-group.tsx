@@ -81,10 +81,10 @@ const ToggleGroup = React.forwardRef<
     ? (Array.isArray(defaultValue) ? defaultValue : defaultValue ? [defaultValue] : [])
     : undefined
 
-  const handleValueChange = React.useCallback((newValue: any[]) => {
+  const handleValueChange = React.useCallback((newValue: string[]) => {
     if (!onValueChange) return
     if (multiple) {
-      onValueChange(newValue as string[])
+      onValueChange(newValue)
     } else {
       onValueChange(newValue[0] ?? "")
     }

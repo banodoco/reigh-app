@@ -16,14 +16,26 @@
  * > getProjectDebugHistory()
  */
 
+interface DebugLogEntry {
+  timestamp: number;
+  event: string;
+  data?: unknown;
+}
+
 declare global {
   interface Window {
     enableProjectDebug: () => void;
     disableProjectDebug: () => void;
     checkProjectState: () => void;
     forceProjectRecovery: () => void;
-    getProjectDebugHistory: () => any[];
-    __projectDebugLog?: any[];
+    getProjectDebugHistory: () => DebugLogEntry[];
+    __projectDebugLog?: DebugLogEntry[];
+    supabase?: {
+      auth: {
+        getSession: () => Promise<{ data: { session: { user: { id: string } } | null } }>;
+        refreshSession: () => Promise<void>;
+      };
+    };
   }
 }
 
@@ -59,7 +71,7 @@ window.checkProjectState = () => {
   } catch {
     // Fallback to direct navigator access
     console.log('- Network Status (navigator):', navigator.onLine ? 'Online' : 'Offline');
-    console.log('- Connection Type:', (navigator as any).connection?.effectiveType || 'Unknown');
+    console.log('- Connection Type:', (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType || 'Unknown');
   }
   console.log('- Local Storage Available:', (() => {
     try {
@@ -72,8 +84,8 @@ window.checkProjectState = () => {
   })());
   
   // Check Supabase auth state
-  if ((window as any).supabase) {
-    (window as any).supabase.auth.getSession().then((result: any) => {
+  if (window.supabase) {
+    window.supabase.auth.getSession().then((result) => {
       console.log('- Supabase Session:', !!result.data?.session?.user?.id);
       console.log('- User ID:', result.data?.session?.user?.id || 'None');
     });

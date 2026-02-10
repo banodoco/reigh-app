@@ -38,6 +38,13 @@
 - Flag briefly (don't derail): duplication, giant components (>300 LOC), prop drilling (3+ levels), mixed concerns, inconsistent patterns, missing error handling.
 - Anti-patterns and quality standards: see `docs/code_quality_audit.md`. Core principle: every change should make the codebase smaller or more explicit.
 
+## Thoroughness over speed
+- **Don't half-measure.** When reviewing/fixing a batch of items, read every one. Don't blanket-categorize based on metadata alone.
+- **Wontfix requires justification.** Every wontfix must include a specific reason for THIS item — not a generic category label. If you can't explain why it's fine, you haven't read it.
+- **Fix > wontfix.** The default action is fixing. Only wontfix when fixing would make things worse or the finding is a false positive.
+- **Don't game metrics.** Wontfixing to inflate a score is worse than leaving items open. The goal is code quality, not numbers.
+- **When the user asks for a complete job, do a complete job.** Don't propose half-measures or shortcuts unless the user explicitly says they want speed over thoroughness.
+
 ## Debugging
 - See `debugging.md` for CLI commands, frontend logging, SQL queries, and the decision table.
 - **Use consistent tags**: `console.log('[MyTag] message', data)` — filter with `debug.py logs --latest --tag MyTag`.

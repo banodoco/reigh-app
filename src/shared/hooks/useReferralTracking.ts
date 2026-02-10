@@ -31,9 +31,7 @@ async function generateFingerprint(): Promise<string> {
     let webglInfo = '';
     if (gl) {
       const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      // @ts-ignore - vendor constants may not exist in all browsers
       const vendor = debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : '';
-      // @ts-ignore - renderer constants may not exist in all browsers
       const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : '';
       webglInfo = `${vendor}_${renderer}`;
     }

@@ -1,5 +1,6 @@
 import * as React from "react"
 import { Toast } from "@base-ui-components/react/toast"
+import type { ToastRootToastObject } from "@base-ui-components/react/toast"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
@@ -35,7 +36,7 @@ function typeToVariant(type?: string): "default" | "destructive" | "success" {
 }
 
 // ── Individual toast renderer ───────────────────────────────────────────────
-export function ToastItem({ toast: t }: { toast: any }) {
+export function ToastItem({ toast: t }: { toast: ToastRootToastObject }) {
   const variant = typeToVariant(t.type)
   return (
     <Toast.Root

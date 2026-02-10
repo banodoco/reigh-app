@@ -53,12 +53,12 @@ let isFlushScheduled = false;
 // ===== HELPERS =====
 
 function getEnvFlag(viteKey: string): string | undefined {
-  // @ts-ignore - Vite uses import.meta.env, Node uses process.env
+  // @ts-expect-error - Vite uses import.meta.env which TS may not recognize depending on tsconfig
   if (typeof import.meta !== 'undefined' && import.meta.env) {
-    // @ts-ignore
+    // @ts-expect-error - dynamic key access on import.meta.env
     return import.meta.env[viteKey] as string | undefined;
   }
-  // @ts-ignore
+  // @ts-expect-error - process.env may not exist in browser context
   return typeof process !== 'undefined' ? process.env[viteKey] : undefined;
 }
 
@@ -182,8 +182,7 @@ if (typeof window !== 'undefined') {
 
 // ===== PUBLIC API =====
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function log(tag: string, ...args: any[]): void {
+export function log(tag: string, ...args: unknown[]): void {
   if (!shouldLog()) return;
   // eslint-disable-next-line no-console
   addToBuffer('INFO', tag, args);
@@ -191,8 +190,7 @@ export function log(tag: string, ...args: any[]): void {
 
 
 // Dedicated onRender callback for React Profiler so callers don't need to re-implement it.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function reactProfilerOnRender(...rawArgs: any[]): void {
+export function reactProfilerOnRender(...rawArgs: unknown[]): void {
   // Import debugConfig dynamically to avoid circular dependencies
   try {
     const { debugConfig } = require('./debugConfig');

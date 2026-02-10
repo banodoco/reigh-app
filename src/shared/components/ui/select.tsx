@@ -17,7 +17,7 @@ const SelectValue = React.forwardRef<
   }
 >(({ placeholder, children, ...props }, ref) => (
   <SelectPrimitive.Value ref={ref} {...props}>
-    {children ?? ((value: any) => value ?? placeholder ?? "")}
+    {children ?? ((value: string | null) => value ?? placeholder ?? "")}
   </SelectPrimitive.Value>
 ))
 SelectValue.displayName = "SelectValue"
@@ -257,7 +257,7 @@ interface SelectItemProps
     VariantProps<typeof selectItemVariants> {
   onTouchStart?: React.TouchEventHandler;
   onTouchEnd?: React.TouchEventHandler;
-  value: any;
+  value: string;
   disabled?: boolean;
   className?: string;
   label?: string;
@@ -281,7 +281,7 @@ const SelectItem = React.forwardRef<
     onPointerDown={onPointerDown}
     onClick={(e: React.MouseEvent) => {
       e.stopPropagation();
-      onClick?.(e as any);
+      onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
     }}
     onTouchStart={onTouchStart}
     onTouchEnd={onTouchEnd}

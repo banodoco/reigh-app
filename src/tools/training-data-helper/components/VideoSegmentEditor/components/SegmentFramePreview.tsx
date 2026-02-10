@@ -3,6 +3,10 @@ import { Video } from 'lucide-react';
 import { TrainingDataSegment } from '../../../hooks/useTrainingData';
 import { handleError } from '@/shared/lib/errorHandler';
 
+const FRAME_CAPTURE_INITIAL_DELAY_MS = 100;
+const FRAME_CAPTURE_INTER_DELAY_MS = 50;
+const FRAME_LOAD_DEBOUNCE_MS = 150;
+
 interface SegmentFramePreviewProps {
   segment: TrainingDataSegment;
   captureFrameAtTime: (timeInSeconds: number) => Promise<string | null>;
@@ -20,14 +24,14 @@ export function SegmentFramePreview({ segment, captureFrameAtTime, videoReady }:
 
     try {
       // Reduced wait time for better performance
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, FRAME_CAPTURE_INITIAL_DELAY_MS));
 
       // Capture frames with optimized timing
       const startImg = await captureFrameAtTime(segment.startTime / 1000);
       setStartFrame(startImg);
 
       // Minimal delay between captures
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, FRAME_CAPTURE_INTER_DELAY_MS));
 
       const endImg = await captureFrameAtTime(segment.endTime / 1000);
       setEndFrame(endImg);
@@ -48,7 +52,7 @@ export function SegmentFramePreview({ segment, captureFrameAtTime, videoReady }:
     // Optimized debounce for frame loading
     const timeoutId = setTimeout(() => {
       loadFrames();
-    }, 150);
+    }, FRAME_LOAD_DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
   }, [segment.id, videoReady]);

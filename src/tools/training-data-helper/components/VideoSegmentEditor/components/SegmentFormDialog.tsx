@@ -4,6 +4,8 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Scissors, Trash2, Plus, Video } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 
+const ASSUMED_FPS = 30;
+
 interface SegmentFormDialogProps {
   segmentStartTime: number | null;
   segmentEndTime: number | null;
@@ -186,7 +188,7 @@ export function SegmentFormDialog({
                     End at ({formatTimeWithMs(currentTime)})
                   </div>
                   <div className="text-xs text-red-600 mb-2 font-medium">
-                    {Math.round((currentTime - segmentStartTime) * 30)} frames
+                    {Math.round((currentTime - segmentStartTime) * ASSUMED_FPS)} frames
                   </div>
                   <div className="flex gap-1">
                     <Tooltip>
@@ -273,7 +275,7 @@ export function SegmentFormDialog({
               <div className="text-sm text-green-700 font-light">
                 Duration: {formatTimeWithMs(segmentEndTime - segmentStartTime)}
                 <span className="ml-2 text-xs">
-                  (~{Math.round((segmentEndTime - segmentStartTime) * 30)} frames @ 30fps)
+                  (~{Math.round((segmentEndTime - segmentStartTime) * ASSUMED_FPS)} frames @ {ASSUMED_FPS}fps)
                 </span>
               </div>
             </div>
