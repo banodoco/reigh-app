@@ -49,21 +49,6 @@ export const TimeStamp: React.FC<TimeStampProps> = ({
   });
   
   // Debug logging for timestamp updates (development only)
-  // ⚠️ Must be before early return to comply with React hooks rules
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && updateTrigger > 0 && date) {
-      console.log('[TimeStamp] Update triggered:', {
-        updateTrigger,
-        isVisible,
-        shouldUpdate,
-        isMobile,
-        showOnHover,
-        isHovered,
-        date: date.toISOString(),
-        timestamp: Date.now()
-      });
-    }
-  }, [updateTrigger, isVisible, shouldUpdate, isMobile, showOnHover, isHovered, date]);
   
   // Early return AFTER all hooks are called
   if (!date) return null;

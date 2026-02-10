@@ -1,7 +1,7 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { handleError } from '@/shared/lib/errorHandler';
-import { useAutoSaveSettings, AutoSaveStatus } from '@/shared/hooks/useAutoSaveSettings';
+import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { VideoTravelSettings, DEFAULT_PHASE_CONFIG, videoTravelSettings } from '../settings';
 import { STORAGE_KEYS } from '../storageKeys';
@@ -74,11 +74,6 @@ export const useShotSettings = (
         sessionStorage.removeItem(storageKey);
         appliedInheritanceRef.current = shotId;
         
-        console.log('[useShotSettings] 📦 Found inherited settings for new shot:', {
-          shotId: shotId.substring(0, 8),
-          hasPrompt: !!defaults.prompt,
-        });
-        
         // Merge with defaults, ensuring proper nested object initialization
         const { _uiSettings, ...validSettings } = defaults;
         return {
@@ -120,7 +115,6 @@ export const useShotSettings = (
     // 3. DB did NOT have existing settings (hasShotSettings is false)
     if (inheritedSettings && shotId && autoSave.status === 'ready') {
       if (!autoSave.hasShotSettings) {
-        console.log('[useShotSettings] 💾 Saving inherited settings to DB (new shot confirmed - no DB settings)');
         // Use 'immediate' mode - inherited settings should persist right away
         updateToolSettingsSupabase({
           scope: 'shot',
@@ -130,8 +124,6 @@ export const useShotSettings = (
         }, undefined, 'immediate').catch(err => {
           console.error('[useShotSettings] Failed to save inherited settings:', err);
         });
-      } else {
-        console.log('[useShotSettings] ⚠️ Skipping inherited settings save - shot already has DB settings');
       }
     }
   }, [inheritedSettings, shotId, autoSave.status, autoSave.hasShotSettings]);
@@ -190,8 +182,6 @@ export const useShotSettings = (
       return;
     }
     
-    console.log('[useShotSettings] 🔀 Applying settings from shot:', sourceShotId.substring(0, 8));
-    
     try {
       const { data, error: fetchError } = await supabase
         .from('shots')
@@ -221,8 +211,6 @@ export const useShotSettings = (
       return;
     }
     
-    console.log('[useShotSettings] 🔀 Applying project defaults');
-    
     try {
       const { data, error: fetchError } = await supabase
         .from('projects')
@@ -246,7 +234,6 @@ export const useShotSettings = (
   
   // Reset to hardcoded defaults
   const resetToDefaults = useCallback(() => {
-    console.log('[useShotSettings] 🔄 Resetting to defaults');
     autoSave.updateFields(videoTravelSettings.defaults);
   }, [autoSave]);
   

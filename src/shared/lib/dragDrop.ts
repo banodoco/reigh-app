@@ -147,7 +147,6 @@ export function getGenerationDropData(e: React.DragEvent): GenerationDropData | 
     
     // Validate required fields
     if (!data.generationId || !data.imageUrl) {
-      console.warn('[dragDrop] Invalid generation drop data - missing required fields:', data);
       return null;
     }
     

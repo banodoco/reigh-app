@@ -20,12 +20,9 @@ installWindowOnlyInstrumentation();
 const getOrCreateSupabaseClient = (): ReturnType<typeof createClient<Database>> => {
   // Check if we already have a client from a previous module execution
   if (typeof window !== 'undefined' && window.__supabase_client__) {
-    console.log('[Supabase] Reusing existing client from window (HMR reload detected)');
     return window.__supabase_client__ as ReturnType<typeof createClient<Database>>;
   }
 
-  console.log('[Supabase] Creating new client');
-  
   let client: ReturnType<typeof createClient<Database>>;
   
   try {

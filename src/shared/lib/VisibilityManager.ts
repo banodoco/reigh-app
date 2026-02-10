@@ -77,11 +77,6 @@ class VisibilityManagerImpl {
   private initialize() {
     if (this.isInitialized) return;
     
-    console.log('[VisibilityManager] 🚀 Initializing centralized visibility manager', {
-      initialState: this.state,
-      timestamp: Date.now()
-    });
-
     // Bind event handlers to preserve 'this' context
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
     this.handlePageShow = this.handlePageShow.bind(this);
@@ -127,13 +122,6 @@ class VisibilityManagerImpl {
 
       this.updateGlobalTimestamp();
 
-      console.log('[VisibilityManager] 📱 Visibility changed', {
-        from: wasVisible ? 'visible' : 'hidden',
-        to: nowVisible ? 'visible' : 'hidden',
-        changeCount: this.state.changeCount,
-        timestamp: now,
-        subscribers: this.subscriptions.size
-      });
     }
 
     // Notify subscribers
@@ -149,12 +137,6 @@ class VisibilityManagerImpl {
     };
     this.updateGlobalTimestamp();
 
-    console.log('[VisibilityManager] 📱 Page show event', {
-      persisted: event && 'persisted' in event ? (event as PageTransitionEvent).persisted : false,
-      timestamp: now,
-      subscribers: this.subscriptions.size
-    });
-
     this.notifySubscribers('pageshow', event, true);
   }
 
@@ -166,12 +148,6 @@ class VisibilityManagerImpl {
       lastVisibilityChangeAt: now,
     };
     this.updateGlobalTimestamp();
-
-    console.log('[VisibilityManager] 📱 Page hide event', {
-      persisted: event && 'persisted' in event ? (event as PageTransitionEvent).persisted : false,
-      timestamp: now,
-      subscribers: this.subscriptions.size
-    });
 
     this.notifySubscribers('pagehide', event, true);
   }
@@ -208,18 +184,6 @@ class VisibilityManagerImpl {
       }
     }
 
-    if (notifiedCount > 0) {
-      console.log(`[VisibilityManager] 📡 Notified ${notifiedCount} subscribers for ${eventType}`, {
-        eventType,
-        hasChange,
-        signals: {
-          isVisible: signals.isVisible,
-          justBecameVisible: signals.justBecameVisible,
-          justHidden: signals.justHidden,
-          changeCount: signals.changeCount
-        }
-      });
-    }
   }
 
   /**
@@ -235,10 +199,6 @@ class VisibilityManagerImpl {
   ): string {
     const id = options.id || `sub_${++this.subscriptionCounter}`;
     
-    if (this.subscriptions.has(id)) {
-      console.warn(`[VisibilityManager] Subscription ${id} already exists, replacing it`);
-    }
-
     const subscription: VisibilitySubscription = {
       id,
       callback,
@@ -247,12 +207,6 @@ class VisibilityManagerImpl {
     };
 
     this.subscriptions.set(id, subscription);
-
-    console.log(`[VisibilityManager] ➕ Added subscription ${id}`, {
-      eventTypes: options.eventTypes || 'all',
-      includeNoChange: options.includeNoChange ?? false,
-      totalSubscriptions: this.subscriptions.size
-    });
 
     // Return unsubscribe function
     return id;
@@ -264,14 +218,6 @@ class VisibilityManagerImpl {
   unsubscribe(id: string): boolean {
     const existed = this.subscriptions.delete(id);
     
-    if (existed) {
-      console.log(`[VisibilityManager] ➖ Removed subscription ${id}`, {
-        remainingSubscriptions: this.subscriptions.size
-      });
-    } else {
-      console.warn(`[VisibilityManager] Attempted to remove non-existent subscription ${id}`);
-    }
-
     return existed;
   }
 
@@ -318,7 +264,6 @@ class VisibilityManagerImpl {
     this.subscriptions.clear();
     this.isInitialized = false;
 
-    console.log('[VisibilityManager] 🧹 Destroyed visibility manager');
   }
 }
 

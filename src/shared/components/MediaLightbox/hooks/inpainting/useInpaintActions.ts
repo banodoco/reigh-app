@@ -46,10 +46,6 @@ export function useInpaintActions({
     }
     redrawStrokes(newStrokes);
 
-    console.log('[Inpaint] Undo stroke', {
-      remainingCount: newStrokes.length,
-      mode: isAnnotateMode ? 'annotate' : 'inpaint'
-    });
   }, [brushStrokes, redrawStrokes, isAnnotateMode, setInpaintStrokes, setAnnotationStrokes]);
 
   /**
@@ -64,7 +60,6 @@ export function useInpaintActions({
     }
     setSelectedShapeId(null);
     redrawStrokes([]);
-    console.log('[Inpaint] Cleared all strokes', { mode: isAnnotateMode ? 'annotate' : 'inpaint' });
   }, [redrawStrokes, isAnnotateMode, setInpaintStrokes, setAnnotationStrokes, setSelectedShapeId]);
 
   /**
@@ -83,10 +78,6 @@ export function useInpaintActions({
     setSelectedShapeId(null);
     redrawStrokes(newStrokes);
 
-    console.log('[Inpaint] Deleted selected shape', {
-      shapeId: selectedShapeId,
-      mode: isAnnotateMode ? 'annotate' : 'inpaint'
-    });
   }, [selectedShapeId, brushStrokes, redrawStrokes, isAnnotateMode, setInpaintStrokes, setAnnotationStrokes, setSelectedShapeId]);
 
   /**
@@ -113,7 +104,6 @@ export function useInpaintActions({
         points: [{ x: minX, y: minY }, { x: maxX, y: maxY }],
         isFreeForm: false
       };
-      console.log('[FreeForm] Converted to regular rectangle');
     } else {
       // Convert to free-form (4 independent corners)
       const corners = getRectangleCorners(selectedShape);
@@ -122,7 +112,6 @@ export function useInpaintActions({
         points: corners,
         isFreeForm: true
       };
-      console.log('[FreeForm] Converted to free-form quadrilateral');
     }
 
     const newStrokes = brushStrokes.map(s => s.id === selectedShapeId ? updatedShape : s);

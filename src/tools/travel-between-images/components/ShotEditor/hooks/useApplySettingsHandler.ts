@@ -94,7 +94,6 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
   // Return stable callback that reads from ref
   return useCallback(async (taskId: string, replaceImages: boolean, inputImages: string[]) => {
     const startTime = Date.now();
-    console.log('[ApplySettings] 🎬 Starting apply settings from task');
     
     // Get latest values from ref (no stale closures!)
     const ctx = contextRef.current;
@@ -103,22 +102,9 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
     // We need id (shot_generations.id) for mutations
     const hasMissingIds = ctx.simpleFilteredImages.some(img => !img.id);
     if (hasMissingIds && replaceImages) {
-      console.warn('[ApplySettings] ⚠️  Some images missing shotImageEntryId (Phase 2 incomplete). Waiting for metadata...');
       toast.error('Loading shot data... please try again in a moment.');
       return;
     }
-    
-    console.log('[ApplySettings] Context check:', {
-      hasCtx: !!ctx,
-      hasProjectId: !!ctx.projectId,
-      hasSelectedShot: !!ctx.selectedShot,
-      selectedShotId: ctx.selectedShot?.id?.substring(0, 8),
-      hasCallbacks: !!ctx.onBatchVideoPromptChange,
-      taskId: taskId.substring(0, 8),
-      replaceImages,
-      inputImagesCount: inputImages.length,
-      timestamp: startTime
-    });
     
     let pairPromptSnapshot: Array<{
       id: string;
@@ -136,7 +122,6 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
       let taskData;
       try {
         taskData = await ApplySettingsService.fetchTask(taskId);
-        console.log('[ApplySettings] fetchTask returned:', { hasData: !!taskData, dataType: typeof taskData });
       } catch (fetchError) {
         console.error('[ApplySettings] ❌ fetchTask threw error:', fetchError);
         throw fetchError;
@@ -146,14 +131,11 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
         console.error('[ApplySettings] ❌ Task not found (returned null/undefined)');
         return;
       }
-      console.log('[ApplySettings] ✅ Task data fetched successfully');
       
       // Step 2: Extract all settings
       const settings = ApplySettingsService.extractSettings(taskData);
-      console.log('[ApplySettings] ✅ Settings extracted:', Object.keys(settings));
       
       // Step 3: Build apply context with all callbacks and current state
-      console.log('[ApplySettings] Building apply context...');
       const applyContext: ApplySettingsService.ApplyContext = {
         // Current state
         currentGenerationMode: ctx.generationMode,
@@ -194,13 +176,10 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
         generationTypeMode: ctx.generationTypeMode,
       };
       
-      console.log('[ApplySettings] ✅ Apply context built');
-      
       // Step 4: Apply all settings in sequence
       const results: ApplySettingsService.ApplyResult[] = [];
       
       // Replace images first if requested
-      console.log('[ApplySettings] Step 4a: Replace images check...');
       results.push(await ApplySettingsService.replaceImagesIfRequested(
         settings,
         replaceImages,
@@ -214,10 +193,6 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
       
       // CRITICAL: Reload shotGenerations if images were replaced
       if (replaceImages && inputImages.length > 0) {
-        console.log('[ApplySettings] Step 4b: Images replaced, reloading...');
-        console.log('[ApplySettings] - queryClient exists:', !!queryClient);
-        console.log('[ApplySettings] - queryClient type:', typeof queryClient);
-        console.log('[ApplySettings] - queryClient.invalidateQueries type:', typeof queryClient?.invalidateQueries);
         
         try {
           // Invalidate cache using centralized hook
@@ -233,13 +208,10 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
         }
         
         await new Promise(resolve => setTimeout(resolve, 50));
-        console.log('[ApplySettings] - 50ms delay complete');
         
         await ctx.loadPositions({ silent: true });
-        console.log('[ApplySettings] - Load positions complete');
         
         // Query DB for fresh data
-        console.log('[ApplySettings] - Fetching fresh shot_generations from DB...');
         const { data: freshGens, error: freshGensError } = await supabase
           .from('shot_generations')
           .select(`
@@ -253,21 +225,15 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
           .order('timeline_frame', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: true });
 
-        console.log('[ApplySettings] - Fresh data query complete:', { hasData: !!freshGens, hasError: !!freshGensError, count: freshGens?.length });
-        
         if (freshGensError) {
           console.error('[ApplySettings] Error fetching fresh data:', freshGensError);
         } else {
           pairPromptSnapshot = freshGens || [];
-          console.log('[ApplySettings] - Pair prompt snapshot set:', pairPromptSnapshot.length, 'items');
         }
-      } else {
-        console.log('[ApplySettings] Step 4b: No image replacement, skipping reload');
       }
 
       // Get snapshot if not loaded yet
       if ((!pairPromptSnapshot || pairPromptSnapshot.length === 0) && ctx.selectedShot?.id) {
-        console.log('[ApplySettings] Step 4c: Loading snapshot (not loaded yet)...');
         const { data: snapshotRows } = await supabase
           .from('shot_generations')
           .select(`id, timeline_frame, metadata, generation:generations!shot_generations_generation_id_generations_id_fk(id, type, location)`)
@@ -277,13 +243,9 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
           .order('created_at', { ascending: true });
         
         pairPromptSnapshot = snapshotRows || [];
-        console.log('[ApplySettings] - Snapshot loaded:', pairPromptSnapshot.length, 'items');
-      } else {
-        console.log('[ApplySettings] Step 4c: Snapshot already loaded, skipping');
       }
 
       // Filter and sort snapshot
-      console.log('[ApplySettings] Step 4d: Filtering and sorting snapshot...');
       let preparedPairPromptTargets = pairPromptSnapshot
         .filter(row => {
           const generation = row.generation;
@@ -294,37 +256,25 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
         })
         .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
       
-      console.log('[ApplySettings] - Filtered to', preparedPairPromptTargets.length, 'non-video items');
-
       // Step 5: Apply settings (using actual exported functions)
-      console.log('[ApplySettings] 🚀 Step 5: Starting settings application...');
       
       results.push(await ApplySettingsService.applyModelSettings(settings, applyContext));
-      console.log('[ApplySettings] - Model settings done');
       
       results.push(await ApplySettingsService.applyPromptSettings(settings, applyContext));
-      console.log('[ApplySettings] - Prompt settings done');
       
       results.push(await ApplySettingsService.applyGenerationSettings(settings, applyContext));
-      console.log('[ApplySettings] - Generation settings done');
       
       results.push(await ApplySettingsService.applyModeSettings(settings, applyContext));
-      console.log('[ApplySettings] - Mode settings done');
       
       results.push(await ApplySettingsService.applyAdvancedModeSettings(settings, applyContext));
-      console.log('[ApplySettings] - Advanced mode settings done');
       
       results.push(await ApplySettingsService.applyTextPromptAddons(settings, applyContext));
-      console.log('[ApplySettings] - Text prompt addons done');
       
       results.push(await ApplySettingsService.applyMotionSettings(settings, applyContext));
-      console.log('[ApplySettings] - Motion settings done');
       
       results.push(await ApplySettingsService.applyLoRAs(settings, applyContext));
-      console.log('[ApplySettings] - LoRAs done');
       
       results.push(await ApplySettingsService.applyStructureVideo(settings, applyContext, taskData));
-      console.log('[ApplySettings] - Structure video done');
       
       // Apply pair prompts using frame positions
       results.push(await ApplySettingsService.applyFramePositionsToExistingImages(
@@ -334,14 +284,11 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
         ctx.projectId,
         ctx.updatePairPromptsByIndex
       ));
-      console.log('[ApplySettings] - Pair prompts done');
       
       // Step 6: Log summary
       const successCount = results.filter(r => r.success).length;
-      console.log('[ApplySettings] ✅ Complete:', `${successCount}/${results.length} categories applied`);
       
       // Force reload
-      console.log('[ApplySettings] Step 7: Force reload...');
       if (ctx.selectedShot?.id) {
         invalidateGenerationsSync(queryClient, ctx.selectedShot.id, {
           reason: 'apply-settings-force-reload',
@@ -353,12 +300,6 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
       await ctx.loadPositions({ silent: true });
       
       const duration = Date.now() - startTime;
-      console.log('[ApplySettings] 🎉 FULLY COMPLETE:', {
-        duration: `${duration}ms`,
-        successCount,
-        totalSteps: results.length,
-        timestamp: Date.now()
-      });
       
     } catch (e) {
       const duration = Date.now() - startTime;

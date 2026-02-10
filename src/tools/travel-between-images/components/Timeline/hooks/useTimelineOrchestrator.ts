@@ -658,13 +658,6 @@ export function useTimelineOrchestrator({
       posMap.set(shotGenId, index);
     });
     // [PositionTrace] Log when rendered positions change
-    if (imageOnlyPositions.size > 0) {
-      console.log('[PositionTrace] RENDER using positions:', {
-        shotId: shotId?.substring(0, 8),
-        positions: sortedEntries.map(([id, frame]) => ({ id: id.substring(0, 8), frame })),
-        timestamp: Date.now()
-      });
-    }
     return posMap;
   }, [imageOnlyPositions, shotId]);
 

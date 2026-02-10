@@ -138,32 +138,6 @@ export const VideoTravelVideosGallery: React.FC<VideoTravelVideosGalleryProps> =
   // For videos, use fewer columns than images (hardcoded for now to verify it works)
   const effectiveColumnsPerRow = columnsPerRow ?? 3;
 
-  console.log('[VideoLayoutFix] VideoTravelVideosGallery:', {
-    columnsPerRow_received: columnsPerRow,
-    effectiveColumnsPerRow,
-    itemsPerPage,
-  });
-
-  console.log('[VideoSkeletonDebug] === RENDER DECISION ===', {
-    selectedProjectId,
-    videosLoading,
-    videosFetching,
-    hasValidData,
-    videosViewJustEnabled,
-    shouldShowSkeleton,
-    skeletonCount,
-    videosDataTotal: videosData?.total,
-    videosDataItemsLength: videosData?.items?.length,
-    decisionBreakdown: {
-      condition1_noProject: !selectedProjectId,
-      condition2_loadingNoData: isLoadingOrFetching && !hasValidData,
-      condition3_justEnabled: videosViewJustEnabled,
-      result: `${!selectedProjectId} || (${isLoadingOrFetching} && ${!hasValidData}) || ${videosViewJustEnabled} = ${shouldShowSkeleton}`
-    },
-    willRender: shouldShowSkeleton ? 'SKELETON' : 'GALLERY',
-    timestamp: Date.now()
-  });
-
   if (shouldShowSkeleton) {
     return (
       <div className="px-4 max-w-7xl mx-auto">

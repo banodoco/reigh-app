@@ -127,7 +127,6 @@ export const useMediaGalleryPagination = ({
       lastCorrectionRef.current.clamped !== correction.clamped
     ) {
       lastCorrectionRef.current = correction;
-      console.log('[Pagination] Page clamped from', rawPage, 'to', page, '(totalPages:', totalPages, ')');
     }
     // Sync the raw state to avoid drift (this won't cause re-render loops because page is derived)
     // Using setTimeout to avoid state update during render
@@ -146,7 +145,6 @@ export const useMediaGalleryPagination = ({
       if (lastServerPageNotificationRef.current === currentServerPage) return;
       lastServerPageNotificationRef.current = currentServerPage;
 
-      console.log('[Pagination] Server page out of bounds, notifying parent:', currentServerPage, '→', totalPages);
       onServerPageChange(totalPages);
     } else {
       // Reset the ref when page is valid
@@ -174,7 +172,6 @@ export const useMediaGalleryPagination = ({
   // Explicit method for callers to reset to first page
   // This replaces the auto-reset effect - callers now declare their intent
   const goToFirstPage = useCallback(() => {
-    console.log('[Pagination] goToFirstPage called explicitly');
     if (isServerPagination && onServerPageChange) {
       onServerPageChange(1);
     } else {
@@ -184,11 +181,6 @@ export const useMediaGalleryPagination = ({
 
   // Canonical way to clear navigation state - called by onImagesReady
   const clearNavigation = useCallback(() => {
-    console.log(`[NAV_STATE] clearNavigation called`, {
-      previousStatus: navigationState.status,
-      previousDirection: navigationState.direction,
-      timestamp: Date.now()
-    });
 
     setNavigationState(INITIAL_NAVIGATION_STATE);
 
@@ -208,7 +200,6 @@ export const useMediaGalleryPagination = ({
     } else {
       // Setting loading - this shouldn't happen via setter anymore
       // but support it for backwards compatibility
-      console.warn(`[NAV_STATE] setLoadingButton called with "${button}" - prefer handlePageChange`);
       setNavigationState({
         status: 'navigating',
         direction: button,
@@ -224,7 +215,6 @@ export const useMediaGalleryPagination = ({
       clearNavigation();
     } else {
       // Setting loading without direction - used by filter changes
-      console.log(`[NAV_STATE] setIsGalleryLoading(true) - showing loading for filter change`);
       setNavigationState({
         status: 'navigating',
         direction: null, // No direction for filter changes
@@ -253,12 +243,6 @@ export const useMediaGalleryPagination = ({
     }
     lastServerDataSignatureRef.current = signature;
 
-    console.log(`[NAV_STATE] Server data changed, clearing navigation`, {
-      serverPage,
-      filteredCount: filteredImages.length,
-      signature,
-    });
-
     // Clear navigation - new page data has arrived
     clearNavigation();
 
@@ -269,11 +253,8 @@ export const useMediaGalleryPagination = ({
     // Generate unique navigation ID for tracking
     const navId = `nav-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    console.log(`[NAV_STATE] [${navId}] ${direction.toUpperCase()} pressed: ${isServerPagination ? serverPage : page} → ${newPage} (${isServerPagination ? 'server' : 'client'} mode)`);
-
     // Prevent multiple clicks while navigation is in progress
     if (navigationState.status === 'navigating') {
-      console.log(`[NAV_STATE] [${navId}] BLOCKED - already navigating (${navigationState.direction})`);
       return;
     }
 
@@ -286,8 +267,6 @@ export const useMediaGalleryPagination = ({
       startedAt: Date.now(),
     });
 
-    console.log(`[NAV_STATE] [${navId}] Navigation started - loading shown immediately`);
-
     // Clear any existing safety timeout
     if (safetyTimeoutRef.current) {
       clearTimeout(safetyTimeoutRef.current);
@@ -296,19 +275,16 @@ export const useMediaGalleryPagination = ({
     // Single safety timeout for the entire navigation
     // This is a FALLBACK only - normal completion is via onImagesReady
     safetyTimeoutRef.current = setTimeout(() => {
-      console.warn(`[NAV_STATE] [${navId}] SAFETY TIMEOUT - navigation stuck after 5s, force clearing`);
       setNavigationState(INITIAL_NAVIGATION_STATE);
       safetyTimeoutRef.current = null;
     }, 5000); // Reduced from 8s - 5s is plenty for any network condition
 
     if (isServerPagination && onServerPageChange) {
       // Server-side pagination: notify the parent, which will handle scrolling
-      console.log(`[NAV_STATE] [${navId}] Calling server pagination handler`);
       onServerPageChange(newPage, fromBottom);
       // Loading will be cleared by onImagesReady when new data renders
     } else {
       // Client-side pagination - update page state immediately
-      console.log(`[NAV_STATE] [${navId}] Client pagination - updating local page state`);
       setRawPage(newPage);
 
       // Handle scroll for bottom button clicks
@@ -319,7 +295,6 @@ export const useMediaGalleryPagination = ({
           const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           const targetPosition = rect.top + scrollTop - (isMobile ? 80 : 20);
 
-          console.log(`[NAV_STATE] [${navId}] Auto-scrolling to top (bottom button used)`);
           window.scrollTo({
             top: Math.max(0, targetPosition),
             behavior: 'smooth'

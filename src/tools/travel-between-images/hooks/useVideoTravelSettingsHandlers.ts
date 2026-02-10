@@ -138,7 +138,6 @@ export const useVideoTravelSettingsHandlers = ({
   }, [shotSettingsRef]);
 
   const handleBatchVideoStepsChange = useCallback((steps: number) => {
-    console.log('[BatchVideoSteps] User changing steps to:', steps);
     shotSettingsRef.current.updateField('batchVideoSteps', steps);
   }, [shotSettingsRef]);
 
@@ -157,7 +156,6 @@ export const useVideoTravelSettingsHandlers = ({
   // SAVE TRIGGERS
   // =============================================================================
   const handleBlurSave = useCallback(() => {
-    console.log('[PhaseConfigTrack] 🔵 Blur save triggered - saving immediately');
     shotSettingsRef.current.saveImmediate();
   }, [shotSettingsRef]);
 
@@ -171,7 +169,6 @@ export const useVideoTravelSettingsHandlers = ({
   const handleTurboModeChange = useCallback((turbo: boolean) => {
     // When enabling turbo mode, automatically disable advanced mode but keep preset
     if (turbo && shotSettingsRef.current.settings?.advancedMode) {
-      console.log('[TurboMode] Turbo mode enabled - auto-disabling advanced mode');
       shotSettingsRef.current.updateFields({
         turboMode: turbo,
         advancedMode: false,
@@ -240,24 +237,13 @@ export const useVideoTravelSettingsHandlers = ({
     // This can happen during component unmount/remount cycles when Tabs triggers onValueChange
     // Use currentShotId (same source as useShotSettings) not selectedShot which can be out of sync
     if (!currentShotId) {
-      console.log('[VTDebug] ⚠️ handleMotionModeChange ignored - no currentShotId');
       return;
     }
     
     // Prevent switching to advanced mode when turbo mode is on
     if (mode === 'advanced' && shotSettingsRef.current.settings?.turboMode) {
-      console.log('[VTDebug] ⚠️ Cannot switch to advanced mode while turbo mode is active');
       return;
     }
-    
-    console.log('[VTDebug] 🔄 handleMotionModeChange called:', {
-      from: shotSettingsRef.current.settings?.motionMode,
-      to: mode,
-      currentShotId: currentShotId?.substring(0, 8),
-      hasPhaseConfig: !!shotSettingsRef.current.settings?.phaseConfig,
-      settingsStatus: shotSettingsRef.current.status,
-      timestamp: Date.now()
-    });
     
     // When switching to advanced mode, initialize phaseConfig from basic mode settings
     if (mode === 'advanced') {
@@ -273,12 +259,6 @@ export const useVideoTravelSettingsHandlers = ({
 
         const basicConfig = buildBasicModePhaseConfig(currentMotion, currentLoras);
 
-        console.log('[MotionMode] Initializing phaseConfig from basic mode settings:', {
-          amountOfMotion: currentMotion,
-          loraCount: currentLoras.length,
-          model: basicConfig.model
-        });
-        
         shotSettingsRef.current.updateFields({
           motionMode: mode,
           advancedMode: true,
@@ -298,11 +278,6 @@ export const useVideoTravelSettingsHandlers = ({
       const defaultPresetId = isVaceMode ? BUILTIN_DEFAULT_VACE_ID : BUILTIN_DEFAULT_I2V_ID;
       const defaultConfig = isVaceMode ? DEFAULT_VACE_PHASE_CONFIG : DEFAULT_PHASE_CONFIG;
 
-      console.log('[MotionMode] Switching to basic mode - resetting to defaults:', {
-        isVaceMode,
-        presetId: defaultPresetId
-      });
-
       shotSettingsRef.current.updateFields({
         motionMode: mode,
         advancedMode: false,
@@ -313,10 +288,6 @@ export const useVideoTravelSettingsHandlers = ({
   }, [currentShotId, shotSettingsRef]);
 
   const handleGenerationTypeModeChange = useCallback((mode: 'i2v' | 'vace') => {
-    console.log('[GenerationTypeMode] Changing generation type mode:', {
-      from: shotSettingsRef.current.settings?.generationTypeMode,
-      to: mode
-    });
     
     // Update generation type mode AND the preset ID to match
     // This keeps things consistent (preset ID should match the mode's default)
@@ -364,22 +335,6 @@ export const useVideoTravelSettingsHandlers = ({
       ? { ...config, model_switch_phase: 1 }
       : config;
     
-    console.log('[PhaseConfigTrack] 📝 User changed phase config:', {
-      num_phases: adjustedConfig.num_phases,
-      model_switch_phase: adjustedConfig.model_switch_phase,
-      phases_array_length: adjustedConfig.phases?.length,
-      steps_array_length: adjustedConfig.steps_per_phase?.length,
-      phases_data: adjustedConfig.phases?.map(p => ({ 
-        phase: p.phase, 
-        guidance_scale: p.guidance_scale, 
-        loras_count: p.loras?.length,
-        lora_urls: p.loras?.map(l => l.url.split('/').pop()) // Show filenames for easier debugging
-      })),
-      steps_per_phase: adjustedConfig.steps_per_phase,
-      auto_adjusted: config.num_phases === 2 && config.model_switch_phase !== 1,
-      timestamp: Date.now()
-    });
-    
     // Clear preset reference when user manually edits config - the config no longer matches the preset
     shotSettingsRef.current.updateFields({
       phaseConfig: adjustedConfig,
@@ -388,11 +343,6 @@ export const useVideoTravelSettingsHandlers = ({
   }, [shotSettingsRef]);
 
   const handlePhasePresetSelect = useCallback((presetId: string, config: PhaseConfig, presetMetadata?: PresetMetadata) => {
-    console.log('[PhasePreset] User selected preset:', {
-      presetId: presetId.substring(0, 8),
-      generationTypeMode: presetMetadata?.generationTypeMode,
-      timestamp: Date.now()
-    });
     
     // DEEP CLONE: Create completely new config to prevent shared references
     // This ensures modifying LoRA strengths in one phase doesn't affect other phases
@@ -420,7 +370,6 @@ export const useVideoTravelSettingsHandlers = ({
   }, [shotSettingsRef]);
 
   const handlePhasePresetRemove = useCallback(() => {
-    console.log('[PhasePreset] User removed preset');
     
     // Clear preset ID but keep the current config
     shotSettingsRef.current.updateField('selectedPhasePresetId', null);
@@ -431,11 +380,6 @@ export const useVideoTravelSettingsHandlers = ({
     const currentSettings = shotSettingsRef.current.settings;
     const isVaceMode = currentSettings?.generationTypeMode === 'vace';
     const defaultPresetId = isVaceMode ? BUILTIN_DEFAULT_VACE_ID : BUILTIN_DEFAULT_I2V_ID;
-    
-    console.log('[RestoreDefaults] Restoring phase config from basic mode settings:', {
-      isVaceMode,
-      presetId: defaultPresetId
-    });
     
     // Update preset ID to match the restored config
     shotSettingsRef.current.updateField('selectedPhasePresetId', defaultPresetId);
@@ -448,12 +392,6 @@ export const useVideoTravelSettingsHandlers = ({
   // GENERATION MODE (batch vs timeline)
   // =============================================================================
   const handleGenerationModeChange = useCallback((mode: 'batch' | 'timeline') => {
-    console.log('[GenerationModeDebug] 🔄 MODE CHANGE triggered:', {
-      shotId: selectedShotRef.current?.id?.substring(0, 8),
-      newMode: mode,
-      previousMode: shotSettingsRef.current.settings?.generationMode,
-      timestamp: Date.now()
-    });
     
     // Optimistically update the cache for THIS shot immediately
     if (selectedShotRef.current?.id) {

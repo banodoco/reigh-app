@@ -1,11 +1,5 @@
-import {
-  createTask,
-  generateTaskId,
-  validateRequiredFields,
-  TaskValidationError,
-} from '../taskCreation';
+import { createTask, validateRequiredFields, TaskValidationError } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
-import { supabase } from '@/integrations/supabase/client';
 import { handleError } from '@/shared/lib/errorHandler';
 
 /**
@@ -184,7 +178,6 @@ function buildTaskParams(params: ZImageTurboI2ITaskParams): Record<string, unkno
  * (internal use only - used by createBatchZImageTurboI2ITasks)
  */
 async function createZImageTurboI2ITask(params: ZImageTurboI2ITaskParams): Promise<TaskCreationResult> {
-  console.log('[createZImageTurboI2ITask] Creating task with params:', params);
 
   try {
     // 1. Validate parameters
@@ -200,7 +193,6 @@ async function createZImageTurboI2ITask(params: ZImageTurboI2ITaskParams): Promi
       params: taskParams,
     });
 
-    console.log('[createZImageTurboI2ITask] Task created successfully:', result);
     return result;
 
   } catch (error) {
@@ -213,7 +205,6 @@ async function createZImageTurboI2ITask(params: ZImageTurboI2ITaskParams): Promi
  * Creates multiple Z Image Turbo I2I tasks in parallel (batch generation)
  */
 export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2ITaskParams): Promise<TaskCreationResult[]> {
-  console.log('[createBatchZImageTurboI2ITasks] Creating batch tasks with params:', params);
 
   try {
     // 1. Validate parameters
@@ -241,8 +232,6 @@ export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2I
       } as ZImageTurboI2ITaskParams;
     });
 
-    console.log(`[createBatchZImageTurboI2ITasks] Creating ${taskParams.length} individual tasks`);
-
     // 3. Create all tasks in parallel
     const results = await Promise.allSettled(
       taskParams.map(taskParam => createZImageTurboI2ITask(taskParam))
@@ -252,8 +241,6 @@ export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2I
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
-    console.log(`[createBatchZImageTurboI2ITasks] Batch results: ${successful} successful, ${failed} failed`);
-
     // 5. If all failed, throw the first error
     if (successful === 0) {
       const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
@@ -262,7 +249,6 @@ export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2I
 
     // 6. Log failures but continue
     if (failed > 0) {
-      console.warn(`[createBatchZImageTurboI2ITasks] ${failed} out of ${taskParams.length} tasks failed`);
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`[createBatchZImageTurboI2ITasks] Task ${index + 1} failed:`, result.reason);
@@ -275,7 +261,6 @@ export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2I
       .filter((r): r is PromiseFulfilledResult<TaskCreationResult> => r.status === 'fulfilled')
       .map(r => r.value);
 
-    console.log(`[createBatchZImageTurboI2ITasks] Batch completed: ${successfulResults.length} tasks created`);
     return successfulResults;
 
   } catch (error) {

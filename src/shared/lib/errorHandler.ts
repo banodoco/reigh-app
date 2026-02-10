@@ -15,9 +15,7 @@ import {
   isAppError,
   isAuthError,
   isNetworkError,
-  NetworkError,
-  AuthError,
-  SilentError,
+  SilentError
 } from './errors';
 
 export interface HandleErrorOptions {

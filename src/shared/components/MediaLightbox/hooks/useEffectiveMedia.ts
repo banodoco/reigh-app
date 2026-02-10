@@ -46,21 +46,12 @@ export function useEffectiveMedia({
 
   // For images, use the active variant's location when a variant is explicitly selected
   const effectiveMediaUrl = useMemo(() => {
-    console.log('[VariantClickDebug] effectiveMediaUrl computing:', {
-      hasActiveVariant: !!activeVariant,
-      activeVariantId: activeVariant?.id?.substring(0, 8),
-      activeVariantIsPrimary: activeVariant?.is_primary,
-      activeVariantLocation: activeVariant?.location?.substring(0, 50),
-      effectiveImageUrl: effectiveImageUrl?.substring(0, 50),
-    });
 
     // If an active variant is set (any variant, including primary), use its location
     if (activeVariant && activeVariant.location) {
-      console.log('[VariantClickDebug] ✅ Using active variant location:', activeVariant.location.substring(0, 50));
       return activeVariant.location;
     }
     // Otherwise use the standard effective image URL
-    console.log('[VariantClickDebug] Using effectiveImageUrl:', effectiveImageUrl?.substring(0, 50));
     return effectiveImageUrl;
   }, [activeVariant, effectiveImageUrl]);
 
@@ -79,17 +70,12 @@ export function useEffectiveMedia({
       if (resolution && resolution.includes('x')) {
         const [w, h] = resolution.split('x').map(Number);
         if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
-          console.log('[LightboxDimensions] Using project aspect ratio for effective dims:', {
-            projectAspectRatio,
-            resolution,
-          });
           return { width: w, height: h };
         }
       }
     }
 
     // Absolute last resort: 16:9 default
-    console.log('[LightboxDimensions] Using 16:9 default for effective dims');
     return { width: 1920, height: 1080 };
   }, [imageDimensions, projectAspectRatio]);
 

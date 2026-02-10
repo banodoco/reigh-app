@@ -210,7 +210,6 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
 
   const handlePairClick = useCallback((pairIndex: number, passedPairData?: PairData) => {
     const pairData = passedPairData || pairDataByIndex.get(pairIndex);
-    console.log('[PreviewLightbox] handlePairClick:', { pairIndex, hasPairData: !!pairData, pairDataByIndexSize: pairDataByIndex.size });
     if (pairData) {
       setActivePairData(pairData);
     }

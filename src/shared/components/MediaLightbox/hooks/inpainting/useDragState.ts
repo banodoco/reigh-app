@@ -96,7 +96,6 @@ export function useDragState(): UseDragStateReturn {
     if (!isDragging) return;
 
     const handleGlobalPointerUp = () => {
-      console.log('[DragState] Global pointerup - releasing drag state');
       endDrag();
     };
 

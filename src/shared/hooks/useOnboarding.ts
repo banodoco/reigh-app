@@ -34,7 +34,6 @@ export function useOnboarding() {
           .single();
 
         if (error) {
-          console.log('[Onboarding] Query error:', error);
           return;
         }
 

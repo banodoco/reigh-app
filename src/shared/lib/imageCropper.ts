@@ -63,7 +63,6 @@ const cropImageToClosestAspectRatio = async (
 
         // If aspect ratio already matches within tolerance, skip re-encoding to preserve quality
         if (minDiff < ASPECT_RATIO_TOLERANCE) {
-          console.log(`[ImageCropper] Aspect ratio matches ${closestTarget.name} within tolerance, skipping re-encode`);
           const croppedImageUrl = URL.createObjectURL(inputFile);
           resolve({
             croppedFile: inputFile,
@@ -189,21 +188,11 @@ export const cropImageToProjectAspectRatio = async (
   inputFile: File,
   targetAspectRatio: number
 ): Promise<ProjectCropResult | null> => {
-  // Debug logging for file type issues
-  console.log('[TimelineUploadDebug] cropImageToProjectAspectRatio called:', {
-    fileName: inputFile?.name,
-    fileType: inputFile?.type,
-    fileSize: inputFile?.size,
-    targetAspectRatio,
-    isFile: inputFile instanceof File,
-  });
 
   // Mobile browsers (especially iOS) sometimes provide files with an empty MIME type
   // or HEIC/HEIF types. Treat known image extensions as images even if MIME is missing.
   const hasImageMime = typeof inputFile.type === 'string' && inputFile.type.startsWith('image/');
   const looksLikeImageByName = typeof inputFile.name === 'string' && /\.(heic|heif|jpg|jpeg|png|webp|gif|bmp|tif|tiff)$/i.test(inputFile.name);
-
-  console.log('[TimelineUploadDebug] File validation:', { hasImageMime, looksLikeImageByName });
 
   if (!hasImageMime && !looksLikeImageByName) {
     console.error("[TimelineUploadDebug] Invalid file type. Only images are allowed.", {
@@ -230,7 +219,6 @@ export const cropImageToProjectAspectRatio = async (
         // If aspect ratio already matches within tolerance, skip re-encoding to preserve quality
         const aspectDiff = Math.abs(originalAspectRatio - targetAspectRatio);
         if (aspectDiff < ASPECT_RATIO_TOLERANCE) {
-          console.log(`[ImageCropper] Aspect ratio matches target (${targetAspectRatio.toFixed(3)}) within tolerance, skipping re-encode`);
           const croppedImageUrl = URL.createObjectURL(inputFile);
           resolve({
             croppedFile: inputFile,

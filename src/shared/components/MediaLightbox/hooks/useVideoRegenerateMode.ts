@@ -95,14 +95,12 @@ export function useVideoRegenerateMode({
     queryKey: queryKeys.shots.regenData(shotId!),
     queryFn: async () => {
       if (!shotId) return null;
-      console.log('[StructureVideoFix] 🔍 [useVideoRegenerateMode] Fetching shot data for:', shotId?.substring(0, 8));
       const { data, error } = await supabase
         .from('shots')
         .select('aspect_ratio, settings')
         .eq('id', shotId)
         .single();
       if (error) {
-        console.warn('[StructureVideoFix] ❌ [useVideoRegenerateMode] Query failed:', error);
         return null;
       }
 
@@ -130,7 +128,6 @@ export function useVideoRegenerateMode({
 
     const shotStructureVideos = shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null;
     if (!shotStructureVideos || shotStructureVideos.length === 0) {
-      console.warn('[useVideoRegenerateMode] No structure videos to update');
       return;
     }
 
@@ -146,12 +143,6 @@ export function useVideoRegenerateMode({
         };
       }
       return video;
-    });
-
-    console.log('[useVideoRegenerateMode] 🎬 Updating structure video defaults:', {
-      shotId: shotId.substring(0, 8),
-      updates,
-      updatedVideosCount: updatedVideos.length,
     });
 
     // Update structure video settings and await completion
@@ -174,7 +165,6 @@ export function useVideoRegenerateMode({
       queryClient.refetchQueries({ queryKey: queryKeys.settings.byTool('travel-structure-video') }),
     ]);
 
-    console.log('[useVideoRegenerateMode] ✅ Structure video defaults updated and caches refreshed');
   }, [shotId, shotDataForRegen?.structure_videos, queryClient]);
 
   // Compute effective resolution for regeneration
@@ -323,11 +313,6 @@ export function useVideoRegenerateMode({
         endVariantId: segmentSlotMode.pairData.endImage?.primaryVariantId,
         hasImages: !!(segmentSlotMode.pairData.startImage?.url || segmentSlotMode.pairData.endImage?.url),
       };
-      console.log('[SegmentImageFix] Using pairData from timeline:', {
-        pairIndex: segmentSlotMode.pairData.index,
-        startUrl: segmentImageInfo.startUrl?.substring(segmentImageInfo.startUrl.lastIndexOf('/') + 1),
-        endUrl: segmentImageInfo.endUrl?.substring(segmentImageInfo.endUrl.lastIndexOf('/') + 1),
-      });
     } else if (currentSegmentImages && (currentSegmentImages.startUrl || currentSegmentImages.endUrl)) {
       // Non-slot mode with currentSegmentImages prop (fresh timeline data)
       segmentImageInfo = {

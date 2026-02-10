@@ -92,11 +92,6 @@ export const useCreateShotWithImage = () => {
       shotName: string;
       generationId: string;
     }) => {
-      console.log('[CreateShotWithImage] Starting atomic operation:', {
-        projectId,
-        shotName,
-        generationId,
-      });
 
       const { data, error } = await supabase
         .rpc('create_shot_with_image', {
@@ -117,7 +112,6 @@ export const useCreateShotWithImage = () => {
         throw new Error('Failed to create shot with image');
       }
 
-      console.log('[CreateShotWithImage] Success:', typedData);
       return {
         shotId: typedData.shot_id,
         shotName: typedData.shot_name,
@@ -126,7 +120,6 @@ export const useCreateShotWithImage = () => {
     },
 
     onSuccess: (data, variables) => {
-      console.log('[CreateShotWithImage] Invalidating queries for project:', variables.projectId);
 
       // Mark queries stale but don't refetch immediately (performance optimization)
       queryClient.invalidateQueries({
@@ -185,14 +178,6 @@ export const useHandleExternalImageDrop = () => {
         skipOptimistic,
       } = variables;
 
-      console.log('[TimelineUploadDebug] useHandleExternalImageDrop called:', {
-        fileCount: imageFiles?.length,
-        files: imageFiles?.map(f => ({ name: f?.name, type: f?.type, size: f?.size })),
-        targetShotId,
-        currentProjectQueryKey,
-        currentShotCount,
-      });
-
       if (!currentProjectQueryKey) {
         toast.error("Cannot add image(s): current project is not identified.");
         return null;
@@ -228,22 +213,13 @@ export const useHandleExternalImageDrop = () => {
         const uploadSettings = (projectData?.settings as Record<string, unknown> | null)?.upload as Record<string, unknown> | undefined;
         shouldCrop = uploadSettings?.cropToProjectSize ?? true;
 
-        console.log(`[ImageDrop] Crop setting: ${shouldCrop ? 'enabled' : 'disabled'}`);
-
         const shotRatioStr = shotData?.aspect_ratio;
         const projectRatioStr = projectData?.aspect_ratio;
         const effectiveRatioStr = shotRatioStr || projectRatioStr;
 
-        console.log('[TimelineUploadDebug] Aspect ratio strings:', {
-          shotRatioStr,
-          projectRatioStr,
-          effectiveRatioStr,
-        });
-
         if (effectiveRatioStr) {
           targetAspectRatio = parseRatio(effectiveRatioStr);
           aspectRatioSource = shotRatioStr ? 'shot' : 'project';
-          console.log('[TimelineUploadDebug] Parsed aspect ratio:', { targetAspectRatio, aspectRatioSource });
         }
       } catch (err) {
         console.warn('Error fetching aspect ratio settings:', err);

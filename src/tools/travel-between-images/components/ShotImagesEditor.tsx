@@ -228,11 +228,6 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
 
     const visible = structureVideos.filter(v => (v.start_frame ?? 0) < maxFrame);
     if (visible.length < structureVideos.length) {
-      console.log('[ShotImagesEditor] 🧹 Pruning off-screen structure videos:', {
-        before: structureVideos.length,
-        after: visible.length,
-        maxFrame,
-      });
       onSetStructureVideos(visible);
     }
     pruneRef.current = selectedShotId;
@@ -716,7 +711,6 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
         audioUrl={audioUrl}
         initialPairIndex={previewInitialPairIndex}
         onOpenInLightbox={(segmentIndex) => {
-          console.log('[PreviewLightbox] Opening segment in lightbox:', { segmentIndex });
           setIsPreviewTogetherOpen(false);
           handlePairClick(segmentIndex);
         }}

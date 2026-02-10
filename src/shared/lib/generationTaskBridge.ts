@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/types/shots';
 import { Task } from '@/types/tasks';
@@ -194,8 +194,6 @@ export async function preloadGenerationTaskMappings(
     delayBetweenBatches = 200,
     preloadFullTaskData = false 
   } = options;
-
-  console.log('[GenerationTaskBridge] Preloading task mappings for', generationIds.length, 'generations');
 
   for (let i = 0; i < generationIds.length; i += batchSize) {
     const batch = generationIds.slice(i, i + batchSize);

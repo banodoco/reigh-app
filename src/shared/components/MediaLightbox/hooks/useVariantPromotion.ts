@@ -49,7 +49,6 @@ export function useVariantPromotion({
         projectId: selectedProjectId,
       });
 
-      console.log('[NewImage] promoted → new generation:', result.id.substring(0, 8));
       setPromoteSuccess(true);
       setTimeout(() => setPromoteSuccess(false), 2000);
     } catch (error) {
@@ -76,8 +75,6 @@ export function useVariantPromotion({
         projectId: selectedProjectId,
       });
 
-      console.log('[VariantToShot] Created generation:', newGen.id.substring(0, 8));
-
       // 2. Calculate target timeline frame by querying the TARGET shot's items
       let targetTimelineFrame: number | undefined;
       if (currentTimelineFrame !== undefined) {
@@ -96,17 +93,9 @@ export function useVariantPromotion({
         // Find the next item after current position
         const nextTimelineFrame = frames.find(f => f > currentTimelineFrame);
 
-        console.log('[VariantToShot] Frame calculation:', {
-          currentTimelineFrame,
-          nextTimelineFrame,
-          hasNext: nextTimelineFrame !== undefined,
-          totalFrames: frames.length,
-        });
-
         if (nextTimelineFrame !== undefined && nextTimelineFrame > currentTimelineFrame) {
           // Place in the middle between current and next
           targetTimelineFrame = Math.floor((currentTimelineFrame + nextTimelineFrame) / 2);
-          console.log('[VariantToShot] Midpoint:', currentTimelineFrame, '+', nextTimelineFrame, '/ 2 =', targetTimelineFrame);
           // If middle would be same as current (consecutive frames), use current + 1
           if (targetTimelineFrame === currentTimelineFrame) {
             targetTimelineFrame = currentTimelineFrame + 1;
@@ -121,11 +110,9 @@ export function useVariantPromotion({
             }
             const averageGap = Math.round(totalGap / (frames.length - 1));
             targetTimelineFrame = currentTimelineFrame + Math.max(1, averageGap);
-            console.log('[VariantToShot] No next item, using average gap:', averageGap, '-> frame:', targetTimelineFrame);
           } else {
             // Only one item in shot, use current + 1
             targetTimelineFrame = currentTimelineFrame + 1;
-            console.log('[VariantToShot] Single item in shot, using current +1:', targetTimelineFrame);
           }
         }
       }
@@ -139,7 +126,6 @@ export function useVariantPromotion({
         thumbUrl: newGen.thumbnail_url || undefined,
         timelineFrame: targetTimelineFrame,
       });
-      console.log('[VariantToShot] Added to shot at frame:', targetTimelineFrame);
       return true;
     } catch (error) {
       handleError(error, { context: 'useVariantPromotion', showToast: false });

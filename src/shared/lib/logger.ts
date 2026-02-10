@@ -186,7 +186,6 @@ if (typeof window !== 'undefined') {
 export function log(tag: string, ...args: any[]): void {
   if (!shouldLog()) return;
   // eslint-disable-next-line no-console
-  console.log(`[${tag}]`, ...args);
   addToBuffer('INFO', tag, args);
 }
 

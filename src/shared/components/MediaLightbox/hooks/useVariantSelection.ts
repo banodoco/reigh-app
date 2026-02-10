@@ -59,11 +59,6 @@ export function useVariantSelection({
 
   // Wrap setActiveVariantId with logging and mark-as-viewed
   const setActiveVariantId = useCallback((variantId: string) => {
-    console.log('[VariantClickDebug] setActiveVariantId called:', {
-      variantId: variantId?.substring(0, 8),
-      currentActiveVariant: activeVariant?.id?.substring(0, 8),
-      variantsCount: variants?.length,
-    });
     // Mark variant as viewed when selected (fire-and-forget)
     // Pass generationId for optimistic badge update
     if (variantId) {
@@ -73,16 +68,6 @@ export function useVariantSelection({
     rawSetActiveVariantId(variantId);
   }, [rawSetActiveVariantId, activeVariant, variants, markViewed, media]);
 
-  // Log when activeVariant changes
-  useEffect(() => {
-    console.log('[VariantClickDebug] activeVariant changed:', {
-      activeVariantId: activeVariant?.id?.substring(0, 8),
-      activeVariantType: activeVariant?.variant_type,
-      activeVariantIsPrimary: activeVariant?.is_primary,
-      activeVariantLocation: activeVariant?.location?.substring(0, 50),
-    });
-  }, [activeVariant]);
-
   // Set initial variant when variants load and initialVariantId is provided
   useEffect(() => {
     // Only process if we have a new initialVariantId different from what we've handled
@@ -90,7 +75,6 @@ export function useVariantSelection({
       if (handledInitialVariantRef.current !== initialVariantId) {
         const targetVariant = variants.find(v => v.id === initialVariantId);
         if (targetVariant) {
-          console.log('[VariantClickDebug] Setting initial variant from prop:', initialVariantId.substring(0, 8));
           setActiveVariantId(initialVariantId);
           handledInitialVariantRef.current = initialVariantId;
         }
@@ -109,11 +93,6 @@ export function useVariantSelection({
     if (!media) return;
     if (activeVariant && activeVariant.id && markedViewedVariantRef.current !== activeVariant.id) {
       const generationId = getGenerationId(media);
-      console.log('[VariantViewed] Marking initial variant as viewed:', {
-        variantId: activeVariant.id.substring(0, 8),
-        isPrimary: activeVariant.is_primary,
-        generationId: generationId.substring(0, 8),
-      });
       markViewed({ variantId: activeVariant.id, generationId });
       markedViewedVariantRef.current = activeVariant.id;
     }
@@ -126,16 +105,6 @@ export function useVariantSelection({
 
   // Compute isViewingNonPrimaryVariant early for edit hooks
   const isViewingNonPrimaryVariant = !!(activeVariant && !activeVariant.is_primary);
-
-  // Log variant info for edit tracking
-  useEffect(() => {
-    console.log('[VariantRelationship] Edit mode variant info:');
-    console.log('[VariantRelationship] - isViewingNonPrimaryVariant:', isViewingNonPrimaryVariant);
-    console.log('[VariantRelationship] - activeVariantId:', activeVariant?.id);
-    console.log('[VariantRelationship] - activeVariantType:', activeVariant?.variant_type);
-    console.log('[VariantRelationship] - activeVariantIsPrimary:', activeVariant?.is_primary);
-    console.log('[VariantRelationship] - willPassSourceVariantId:', isViewingNonPrimaryVariant ? activeVariant?.id : null);
-  }, [activeVariant, isViewingNonPrimaryVariant]);
 
   return {
     setActiveVariantId,

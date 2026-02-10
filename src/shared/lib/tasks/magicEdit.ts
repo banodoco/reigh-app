@@ -1,10 +1,8 @@
 import {
   createTask,
-  generateTaskId,
   resolveProjectResolution,
   validateRequiredFields,
-  TaskValidationError,
-  BaseTaskParams,
+  TaskValidationError
 } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import type { HiresFixApiParams } from './imageGeneration';
@@ -176,13 +174,6 @@ function buildMagicEditTaskParams(
   // Always add add_in_position as false for magic edit tasks (unpositioned by default)
   taskParams.add_in_position = false;
   
-  console.log('[MagicEditTaskDebug] Creating magic edit task with params:', {
-    shot_id: params.shot_id,
-    add_in_position: false,
-    tool_type: params.tool_type,
-    taskParams: taskParams
-  });
-
   // Add tool_type override if provided (for generation association)
   if (params.tool_type) {
     taskParams.tool_type = params.tool_type;
@@ -201,13 +192,11 @@ function buildMagicEditTaskParams(
   // Add source_variant_id if provided (for variant relationship tracking)
   if (params.source_variant_id) {
     taskParams.source_variant_id = params.source_variant_id;
-    console.log('[VariantRelationship] Adding source_variant_id to task params:', params.source_variant_id);
   }
 
   // Add create_as_generation if true (create new generation instead of variant)
   if (params.create_as_generation) {
     taskParams.create_as_generation = true;
-    console.log('[MagicEdit] Will create as new generation instead of variant');
   }
 
   // Add hires fix / inference params if provided
@@ -235,7 +224,6 @@ function buildMagicEditTaskParams(
     if (params.hires_fix.additional_loras && Object.keys(params.hires_fix.additional_loras).length > 0) {
       taskParams.additional_loras = params.hires_fix.additional_loras;
     }
-    console.log('[MagicEdit] Added inference/hires params:', params.hires_fix);
   }
 
   return taskParams;
@@ -250,7 +238,6 @@ function buildMagicEditTaskParams(
  * @returns Promise resolving to the created task
  */
 async function createMagicEditTask(params: MagicEditTaskParams): Promise<TaskCreationResult> {
-  console.log("[createMagicEditTask] Creating task with params:", params);
 
   try {
     // 1. Validate parameters
@@ -272,7 +259,6 @@ async function createMagicEditTask(params: MagicEditTaskParams): Promise<TaskCre
       params: taskParams,
     });
 
-    console.log("[createMagicEditTask] Task created successfully:", result);
     return result;
 
   } catch (error) {
@@ -289,7 +275,6 @@ async function createMagicEditTask(params: MagicEditTaskParams): Promise<TaskCre
  * @returns Promise resolving to array of created tasks
  */
 export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams): Promise<TaskCreationResult[]> {
-  console.log("[createBatchMagicEditTasks] Creating batch tasks with params:", params);
 
   try {
     // 1. Validate parameters
@@ -329,8 +314,6 @@ export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams
       } as MagicEditTaskParams;
     });
 
-    console.log(`[createBatchMagicEditTasks] Creating ${taskParams.length} individual tasks`);
-
     // 4. Create all tasks in parallel
     const results = await Promise.allSettled(
       taskParams.map(taskParam => createMagicEditTask(taskParam))
@@ -340,8 +323,6 @@ export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
-    console.log(`[createBatchMagicEditTasks] Batch results: ${successful} successful, ${failed} failed`);
-
     // 6. If all failed, throw the first error
     if (successful === 0) {
       const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
@@ -350,7 +331,6 @@ export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams
 
     // 7. If some failed, log warnings but return successful results
     if (failed > 0) {
-      console.warn(`[createBatchMagicEditTasks] ${failed} out of ${taskParams.length} tasks failed`);
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`[createBatchMagicEditTasks] Task ${index + 1} failed:`, result.reason);
@@ -363,7 +343,6 @@ export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams
       .filter((r): r is PromiseFulfilledResult<TaskCreationResult> => r.status === 'fulfilled')
       .map(r => r.value);
 
-    console.log(`[createBatchMagicEditTasks] Batch completed: ${successfulResults.length} tasks created`);
     return successfulResults;
 
   } catch (error) {

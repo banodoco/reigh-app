@@ -254,10 +254,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     // If the last image changed, clear trailing video URL
     if (lastImageIdRef.current !== null &&
         currentLastImageId !== lastImageIdRef.current) {
-      console.log('[TrailingDebug] Last image changed:', {
-        from: lastImageIdRef.current?.substring(0, 8),
-        to: currentLastImageId?.substring(0, 8),
-      });
       if (trailingVideoUrl) {
         setTrailingVideoUrl(null);
       }
@@ -349,14 +345,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
 
   // Build pair click handler for SegmentOutputStrip
   const handleOpenPairSettings = useCallback((pairIndex: number, passedFrameData?: { frames: number; startFrame: number; endFrame: number }) => {
-    console.log('[TrailingGen] handleOpenPairSettings called:', {
-      pairIndex,
-      hasOnPairClick: !!onPairClick,
-      imagesLength: images.length,
-      trailingEndFrame,
-      pairInfoLength: pairInfo.length,
-      passedFrameData,
-    });
 
     if (!onPairClick) return;
 
@@ -389,7 +377,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
 
     // Handle multi-image trailing segment (pairIndex is after all regular pairs)
     if (pairIndex === pairInfo.length && trailingEndFrame !== undefined && imagePositions.size > 0) {
-      console.log('[TrailingGen] Multi-image trailing segment detected');
       const sortedEntries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
       const lastEntry = sortedEntries[sortedEntries.length - 1];
       if (lastEntry) {
@@ -419,12 +406,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
           } : null,
           endImage: null,
         };
-        console.log('[TrailingGen] Calling onPairClick with:', {
-          pairIndex,
-          frames: pairData.frames,
-          hasStartImage: !!pairData.startImage,
-          hasEndImage: !!pairData.endImage,
-        });
         onPairClick(pairIndex, pairData);
       }
       return;
@@ -810,19 +791,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               const isMultiImage = images.length > 1;
               const hasTrailingSegment = trailingEndFrame !== undefined;
 
-              console.log('[TrailingStateDebug] TrailingEndpoint render check:', {
-                isMultiImage,
-                hasTrailingSegment,
-                trailingEndFrame,
-                hasExistingTrailingVideo,
-                trailingVideoUrl: trailingVideoUrl?.substring(0, 30),
-                willRender: !(isMultiImage && !hasTrailingSegment && !hasExistingTrailingVideo),
-              });
-
               // Don't render anything on the timeline if multi-image without trailing segment
               // UNLESS a trailing video already exists - then we need to show the marker
               if (isMultiImage && !hasTrailingSegment && !hasExistingTrailingVideo) {
-                console.log('[TrailingStateDebug] TrailingEndpoint NOT rendering (multi-image, no segment, no video)');
                 return null;
               }
 

@@ -35,18 +35,8 @@ export function useBackgroundThumbnailGenerator({
 
   // Identify videos without thumbnails
   useEffect(() => {
-    // ALWAYS log hook state
-    console.log('[BackgroundThumbnailGenerator] Hook running:', {
-      enabled,
-      projectId: projectId?.substring(0, 8) || 'none',
-      videosCount: videos.length,
-      videosWithUrl: videos.filter(v => v.location || v.url).length,
-      videosWithIsVideo: videos.filter(v => v.isVideo).length,
-      timestamp: Date.now()
-    });
 
     if (!enabled || !projectId) {
-      console.log('[BackgroundThumbnailGenerator] Hook disabled:', { enabled, hasProjectId: !!projectId });
       return;
     }
 
@@ -66,22 +56,6 @@ export function useBackgroundThumbnailGenerator({
       
       const currentStatus = statuses[video.id]?.status;
       
-      console.log('[BackgroundThumbnailGenerator] Checking video:', {
-        id: video.id?.substring(0, 8),
-        isVideo: video.isVideo,
-        urlLooksLikeVideo,
-        isDefinitelyVideo,
-        hasUrl,
-        hasThumbUrl: !!video.thumbUrl,
-        thumbUrl: video.thumbUrl?.substring(video.thumbUrl.lastIndexOf('/') + 1) || 'none',
-        thumbIsImageFile,
-        thumbIsDifferentFromVideo,
-        location: videoUrl?.substring(videoUrl.lastIndexOf('/') + 1) || 'none',
-        hasRealThumbnail,
-        currentStatus: currentStatus || 'none',
-        passesFilter: isDefinitelyVideo && hasUrl && !hasRealThumbnail && currentStatus !== 'processing' && currentStatus !== 'success' && currentStatus !== 'error'
-      });
-      
       // Must be a video (check isVideo property or URL extension)
       if (!isDefinitelyVideo) return false;
       
@@ -98,11 +72,6 @@ export function useBackgroundThumbnailGenerator({
     });
 
     if (videosWithoutThumbnails.length > 0) {
-      console.log('[BackgroundThumbnailGenerator] Found videos without thumbnails:', {
-        count: videosWithoutThumbnails.length,
-        videoIds: videosWithoutThumbnails.map(v => v.id?.substring(0, 8)),
-        timestamp: Date.now()
-      });
 
       // Add to queue (avoid duplicates)
       const newVideoIds = videosWithoutThumbnails
@@ -135,10 +104,6 @@ export function useBackgroundThumbnailGenerator({
       const video = videos.find(v => v.id === generationId);
       
       if (!video) {
-        console.warn('[BackgroundThumbnailGenerator] Video not found in list:', {
-          generationId: generationId?.substring(0, 8),
-          timestamp: Date.now()
-        });
         queueRef.current.shift();
         processingRef.current = false;
         return;
@@ -146,21 +111,10 @@ export function useBackgroundThumbnailGenerator({
 
       const videoUrl = video.location || video.url;
       if (!videoUrl) {
-        console.warn('[BackgroundThumbnailGenerator] Video has no URL:', {
-          generationId: generationId?.substring(0, 8),
-          timestamp: Date.now()
-        });
         queueRef.current.shift();
         processingRef.current = false;
         return;
       }
-
-      console.log('[BackgroundThumbnailGenerator] Processing video:', {
-        generationId: generationId.substring(0, 8),
-        queuePosition: 1,
-        remainingInQueue: queueRef.current.length - 1,
-        timestamp: Date.now()
-      });
 
       // Update status to processing
       setStatuses(prev => ({
@@ -172,11 +126,6 @@ export function useBackgroundThumbnailGenerator({
       const result = await generateAndUploadThumbnail(videoUrl, generationId, projectId);
 
       if (result.success && result.thumbnailUrl) {
-        console.log('[BackgroundThumbnailGenerator] Success:', {
-          generationId: generationId.substring(0, 8),
-          thumbnailUrl: result.thumbnailUrl.substring(0, 50) + '...',
-          timestamp: Date.now()
-        });
 
         // Update status
         setStatuses(prev => ({

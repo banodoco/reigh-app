@@ -61,19 +61,12 @@ export function useMakeMainVariant({
   const [isMakingMainVariant, setIsMakingMainVariant] = useState(false);
 
   const handleMakeMainVariant = useCallback(async () => {
-    console.log('[VariantClickDebug] handleMakeMainVariant called in MediaLightbox', {
-      canMakeMainVariantFromChild,
-      canMakeMainVariantFromVariant,
-      activeVariantId: activeVariant?.id?.substring(0, 8),
-    });
 
     setIsMakingMainVariant(true);
     try {
       // Case 2: We're viewing a non-primary variant - just set it as primary
       if (canMakeMainVariantFromVariant && activeVariant) {
-        console.log('[VariantClickDebug] Setting existing variant as primary:', activeVariant.id.substring(0, 8));
         await setPrimaryVariant(activeVariant.id);
-        console.log('[VariantClickDebug] Successfully set variant as primary');
         // Refetch variants to update UI
         refetchVariants();
         return;
@@ -81,19 +74,10 @@ export function useMakeMainVariant({
 
       // Case 1: We're viewing a child generation - create variant on parent
       if (!sourceGenerationData || !media.location) {
-        console.log('[VariantClickDebug] handleMakeMainVariant bailing - missing data:', {
-          hasSourceGenerationData: !!sourceGenerationData,
-          hasMediaLocation: !!media.location,
-        });
         return;
       }
 
       const parentGenId = sourceGenerationData.id;
-      console.log('[VariantClickDebug] Creating variant on parent generation', {
-        parentId: parentGenId.substring(0, 8),
-        currentId: media.id.substring(0, 8),
-        currentLocation: media.location.substring(0, 50)
-      });
       // 1. Create a new variant on the parent generation with current media's location
       const { data: insertedVariant, error: insertError } = await supabase
         .from('generation_variants')
@@ -119,8 +103,6 @@ export function useMakeMainVariant({
         throw insertError;
       }
 
-      console.log('[VariantClickDebug] Created variant:', insertedVariant?.id?.substring(0, 8));
-
       // 2. Update the parent generation's location and thumbnail
       const { error: updateError } = await supabase
         .from('generations')
@@ -129,12 +111,6 @@ export function useMakeMainVariant({
           thumbnail_url: media.thumbUrl || media.thumbnail_url
         })
         .eq('id', parentGenId);
-
-      if (updateError) {
-        console.warn('[VariantClickDebug] Failed to update parent generation:', updateError);
-      }
-
-      console.log('[VariantClickDebug] Successfully made current media the main variant');
 
       // Invalidate caches so all views update (timeline, shot editor, galleries, variants list).
       // Use selectedShotId if available (most likely current context), else fall back to shotId.

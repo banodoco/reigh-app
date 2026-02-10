@@ -77,7 +77,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
       if (rawStyleReferenceImage &&
           rawStyleReferenceImage.startsWith('data:image/') &&
           selectedProjectId) {
-        console.log('[ImageGenerationForm] Migrating legacy base64 style reference to URL');
 
         try {
           // Convert base64 to file
@@ -96,7 +95,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
             styleReferenceImageOriginal: uploadedUrl
           });
 
-          console.log('[ImageGenerationForm] Successfully migrated base64 style reference to URL:', uploadedUrl);
         } catch (error) {
           handleError(error, { context: 'ImageGenerationForm.migrateBase64ToUrl', toastTitle: 'Failed to migrate style reference image' });
         }
@@ -122,7 +120,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
                                   !projectImageSettings.references;
 
       if (hasLegacyFlatFormat) {
-        console.log('[RefSettings] 🔧 Migrating legacy flat reference to array format');
         needsMigration = true;
 
         const legacyReference: ReferenceImage = {
@@ -159,7 +156,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
                                             !projectImageSettings.selectedReferenceIdByShot;
 
       if (hasLegacyProjectWideSelection && !hasLegacyFlatFormat) {
-        console.log('[RefSettings] 🔧 Migrating project-wide selection to shot-specific');
         needsMigration = true;
 
         // Apply the old project-wide selection to the current shot
@@ -172,7 +168,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
       if (needsMigration) {
         try {
           await updateProjectImageSettings('project', updates);
-          console.log('[RefSettings] ✅ Successfully migrated legacy reference settings');
         } catch (error) {
           handleError(error, { context: 'ImageGenerationForm.migrateLegacyReference', showToast: false });
         }
@@ -205,7 +200,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
         return;
       }
 
-      console.log('[RefSettings] 🔧 Migrating references for scene mode updates');
       sceneMigrationStateRef.current[selectedProjectId] = true;
 
       const updatedReferences = referencePointers.map(ref => {
@@ -224,7 +218,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
 
       try {
         await updateProjectImageSettings('project', { references: updatedReferences });
-        console.log('[RefSettings] ✅ Successfully migrated scene settings');
       } catch (error) {
         handleError(error, { context: 'ImageGenerationForm.runSceneMigration', showToast: false });
         sceneMigrationStateRef.current[selectedProjectId] = false;
@@ -254,7 +247,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
         return;
       }
 
-      console.log('[RefMigration] 🔄 Starting bulk migration of', referencePointers.length, 'legacy references to resources table');
       migrationCompleteRef.current = true;
 
       try {
@@ -279,12 +271,9 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
           }
 
           if (!pointer.styleReferenceImage) {
-            console.warn('[RefMigration] ⚠️ Skipping pointer with no image data:', pointer.id);
             migratedPointers.push(pointer);
             continue;
           }
-
-          console.log('[RefMigration] 📦 Migrating reference:', pointer.id, pointer.name);
 
           const now = new Date().toISOString();
           const metadata: StyleReferenceMetadata = {
@@ -313,8 +302,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
             metadata,
           });
 
-          console.log('[RefMigration] ✅ Created resource:', resource.id);
-
           migratedPointers.push({
             id: pointer.id,
             resourceId: resource.id,
@@ -325,7 +312,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
           references: migratedPointers
         });
 
-        console.log('[RefMigration] 🎉 Successfully migrated all references to resources table');
       } catch (error) {
         handleError(error, { context: 'ImageGenerationForm.migrateToResources', toastTitle: 'Failed to migrate references' });
         migrationCompleteRef.current = false;
@@ -397,14 +383,6 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
       if (selectedId && invalidIds.has(selectedId)) {
         cleanedSelections[shotKey] = fallbackId;
       }
-    });
-
-    console.warn('[RefCleanup] Removing invalid reference pointers:', {
-      projectId: selectedProjectId.substring(0, 8),
-      invalidCount: invalidPointers.length,
-      invalidPointerIds: invalidPointers.map(p => p.id.substring(0, 8)),
-      referencesBefore: referencePointers.length,
-      referencesAfter: cleanedReferences.length,
     });
 
     hasCleanedInvalidPointersRef.current[selectedProjectId] = true;

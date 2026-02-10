@@ -12,31 +12,21 @@ import React, { useEffect, useState, ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
   DialogFooter
 } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Badge } from '@/shared/components/ui/badge';
-import { Separator } from '@/shared/components/ui/separator';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useLargeModal } from '@/shared/hooks/useModal';
 import { Label } from '@/shared/components/ui/label';
-import { ScrollArea } from '@/shared/components/ui/scroll-area';
-import { Task } from '@/types/tasks';
-import { supabase } from '@/integrations/supabase/client';
-import { useCreateGeneration } from '@/shared/hooks/useGenerationMutations';
 import { useGetTaskIdForGeneration } from '@/shared/lib/generationTaskBridge';
 import { useGetTask } from '@/shared/hooks/useTasks';
-import { Check, X, Copy } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { LoraModel } from '@/shared/components/LoraSelectorModal';
-
 
 interface TaskDetailsModalProps {
   generationId: string;
@@ -101,8 +91,6 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
     return [];
   }, [task]);
 
-
-
   useEffect(() => {
     let cancelled = false; // guard to avoid state updates after unmount
     const fetchTaskDetails = async () => {
@@ -115,7 +103,6 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
         if (cancelled) return;
 
         if (!result.taskId) {
-            console.log(`[TaskDetailsModal] No task ID found for generation ID: ${generationId}`);
             setTaskId(null);
             return;
         }

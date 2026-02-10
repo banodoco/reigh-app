@@ -264,7 +264,6 @@ export function useTrainingData() {
         setSelectedBatchId(remainingBatches.length > 0 ? remainingBatches[0].id : null);
       }
 
-
     } catch (error) {
       handleError(error, { context: 'useTrainingData.deleteBatch', toastTitle: 'Failed to delete batch' });
     }
@@ -284,13 +283,6 @@ export function useTrainingData() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       
-      console.log('[Upload] Starting upload:', {
-        originalFilename: file.name,
-        storageFileName: fileName,
-        fileSize: file.size,
-        fileType: file.type
-      });
-
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('training-data')
         .upload(fileName, file);
@@ -299,8 +291,6 @@ export function useTrainingData() {
         console.error('[Upload] Storage upload error:', uploadError);
         throw uploadError;
       }
-
-      console.log('[Upload] Storage upload successful:', uploadData);
 
       // Create database record
       const { data, error } = await supabase
@@ -322,8 +312,6 @@ export function useTrainingData() {
         console.error('[Upload] Database insert error:', error);
         throw error;
       }
-
-      console.log('[Upload] Database record created:', data);
 
       // Update local state
       setVideos(prev => [transformVideo(data), ...prev]);
@@ -396,7 +384,6 @@ export function useTrainingData() {
        // Refresh one more time to ensure URLs are generated
        await fetchVideos();
        
-       
      } catch (error) {
        console.error('Error uploading videos:', error);
        throw error;
@@ -414,8 +401,6 @@ export function useTrainingData() {
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
     
-
-
     const { error: uploadError, data: uploadData } = await supabase.storage
       .from('training-data')
       .upload(fileName, file);
@@ -424,8 +409,6 @@ export function useTrainingData() {
       console.error('[Upload] Storage upload error:', uploadError);
       throw uploadError;
     }
-
-    console.log('[Upload] Storage upload successful:', uploadData);
 
     // Create database record
     const { data, error } = await supabase
@@ -449,8 +432,6 @@ export function useTrainingData() {
       throw error;
     }
 
-    console.log('[Upload] Database record created:', data);
-
     // Update local state
     setVideos(prev => [transformVideo(data), ...prev]);
     return data.id;
@@ -462,7 +443,6 @@ export function useTrainingData() {
       const video = document.createElement('video');
       video.preload = 'metadata';
       video.onloadedmetadata = () => {
-        console.log(`[GetVideoDuration] File: ${file.name}, Duration: ${video.duration} seconds`);
         resolve(video.duration);
         URL.revokeObjectURL(video.src);
       };
@@ -487,7 +467,6 @@ export function useTrainingData() {
       // First try to get duration from local state
       const localVideo = videos.find(v => v.id === videoId);
       if (localVideo?.duration) {
-        console.log(`[CreateSegmentForVideo] Using local duration: ${localVideo.duration} seconds`);
         endTimeMs = Math.round(localVideo.duration * 1000);
       } else {
         // Fall back to database
@@ -498,17 +477,14 @@ export function useTrainingData() {
           .single();
         
         if (!error && data?.duration) {
-          console.log(`[CreateSegmentForVideo] Using database duration: ${data.duration} seconds`);
           endTimeMs = Math.round(data.duration * 1000);
         } else {
-          console.warn(`[CreateSegmentForVideo] Could not get duration for video ${videoId}, using default 10 seconds`);
           // Default to 10 seconds if we can't get duration
           endTimeMs = 10000;
         }
       }
     }
 
-    console.log(`[CreateSegmentForVideo] Final segment times: ${startTimeMs}ms - ${endTimeMs}ms (duration: ${endTimeMs - startTimeMs}ms)`);
     await createSegment(videoId, startTimeMs, endTimeMs, description);
   };
 
@@ -564,17 +540,6 @@ export function useTrainingData() {
     description?: string
   ): Promise<string> => {
     try {
-      console.log('[CreateSegment] Attempting to create segment with data:', {
-        training_data_id: trainingDataId,
-        start_time: startTime,
-        end_time: endTime,
-        start_time_rounded: Math.round(startTime),
-        end_time_rounded: Math.round(endTime),
-        description,
-        duration: endTime - startTime,
-        duration_rounded: Math.round(endTime - startTime),
-        selectedBatchId
-      });
 
       // Verify the training data exists first
       const { data: trainingDataCheck, error: checkError } = await supabase
@@ -587,8 +552,6 @@ export function useTrainingData() {
         console.error('[CreateSegment] Training data not found:', checkError);
         throw new Error(`Training data with ID ${trainingDataId} not found`);
       }
-
-      console.log('[CreateSegment] Training data found:', trainingDataCheck);
 
       const { data, error } = await supabase
         .from('training_data_segments')
@@ -614,8 +577,6 @@ export function useTrainingData() {
         });
         throw error;
       }
-
-      console.log('[CreateSegment] Segment created successfully:', data);
 
       // Update local state
       setSegments(prev => [transformSegment(data), ...prev]);

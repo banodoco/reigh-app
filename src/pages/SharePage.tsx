@@ -138,18 +138,7 @@ const SharePage: React.FC = () => {
       supabase.rpc('increment_share_view_count', {
         share_slug_param: shareId
       }).then(() => {
-        console.log('[LiveShareDebug] View count incremented');
       }).catch((err) => {
-        console.warn('[LiveShareDebug] Failed to increment view count:', err);
-      });
-
-      console.log('[LiveShareDebug] Loaded share data:', {
-        shotId: data.shot_id,
-        shotName: data.shot_name,
-        imagesCount: data.images?.length,
-        generationMode: data.settings?.generationMode,
-        settings: data.settings,
-        firstImage: data.images?.[0],
       });
 
       // RPC returns same format as useShotImages

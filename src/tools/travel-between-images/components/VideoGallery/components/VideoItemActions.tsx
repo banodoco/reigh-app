@@ -103,17 +103,10 @@ export const VideoItemActions: React.FC<VideoItemActionsProps> = ({
         size="icon"
         onClick={(e) => {
           e.stopPropagation();
-          console.log('[MobileButtonDebug] [InfoButton] Button clicked START:', {
-            isMobile,
-            videoId: video.id,
-            timestamp: Date.now()
-          });
 
           if (isMobile) {
-            console.log('[MobileButtonDebug] [InfoButton] Setting modal state...');
             onMobileModalOpen(video);
           } else {
-            console.log('[MobileButtonDebug] [InfoButton] Desktop - opening lightbox');
             onLightboxOpen(originalIndex);
           }
         }}
@@ -134,25 +127,12 @@ export const VideoItemActions: React.FC<VideoItemActionsProps> = ({
                 size="icon"
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log('[ApplySettings] Button clicked:', {
-                    videoId: video.id?.substring(0, 8),
-                    taskId,
-                    settingsApplied,
-                    onApplySettingsFromTaskType: typeof onApplySettingsFromTask,
-                    timestamp: Date.now()
-                  });
                   if (taskId && !settingsApplied) {
-                    console.log('[ApplySettings] Calling onApplySettingsFromTask...');
                     onApplySettingsFromTask(taskId, true, []);
                     setSettingsApplied(true);
                     setTimeout(() => {
                       setSettingsApplied(false);
                     }, 2000);
-                  } else {
-                    console.log('[ApplySettings] Click ignored:', {
-                      hasTaskId: !!taskId,
-                      settingsApplied
-                    });
                   }
                 }}
                 disabled={settingsApplied}
@@ -184,14 +164,7 @@ export const VideoItemActions: React.FC<VideoItemActionsProps> = ({
               size="icon"
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('[MobileButtonDebug] [DeleteButton] Button clicked:', {
-                  videoId: video.id,
-                  deletingVideoId,
-                  isDisabled: deletingVideoId === video.id,
-                  timestamp: Date.now()
-                });
                 onDelete(video.id);
-                console.log('[MobileButtonDebug] [DeleteButton] onDelete called');
               }}
               disabled={deletingVideoId === video.id}
               className="h-6 w-6 sm:h-7 sm:w-7 p-0 rounded-full"

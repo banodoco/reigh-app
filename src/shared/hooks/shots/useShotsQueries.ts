@@ -4,7 +4,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Shot, GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/types/shots';
 import { mapShotGenerationToRow } from './mappers';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -129,15 +129,6 @@ export const useListShots = (
 
         const unpositionedCount = unpositionedGenIds.size;
 
-        console.log('[SkeletonCountDebug] 📊 Computing stats for shot:', {
-          shotId: shot.id?.substring(0, 8),
-          shotName: shot.name,
-          totalRecords: images.length,
-          uniqueGenerations: uniqueGenIds.size,
-          positionedCount: positionedGenIds.size,
-          unpositionedCount: unpositionedCount,
-        });
-
         return {
           ...shot,
           images,
@@ -185,12 +176,6 @@ export const useProjectImageStats = (projectId?: string | null) => {
         .or('shot_data.is.null,shot_data.eq.{}');
 
       if (noShotErr) throw noShotErr;
-
-      console.log('[SkeletonCountDebug] 📊 Project-wide stats:', {
-        allCount,
-        noShotCount,
-        projectId: projectId?.substring(0, 8),
-      });
 
       return {
         allCount: allCount || 0,

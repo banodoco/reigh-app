@@ -1,4 +1,12 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useEffect,
+  useRef,
+  useMemo
+} from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 
@@ -42,11 +50,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         lastProcessedState.userId === currentUserId;
 
       if (isDuplicateEvent) {
-        console.log(`[AuthContext:AuthDebounce] Skipping duplicate auth event: ${event}, userId: ${!!currentUserId}`);
         return;
       }
-
-      console.log(`[AuthContext:AuthDebounce] Processing auth change: ${event}, userId: ${!!currentUserId}`);
 
       // Update user ID
       setUserId(currentUserId);
@@ -57,7 +62,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const handleAuthStateChange = (event: string, session: Session | null) => {
       authStateChangeCount++;
-      console.log(`[AuthContext:AuthDebounce] Auth change #${authStateChangeCount}:`, event, !!session?.user?.id);
 
       // Store the latest auth state
       pendingAuthState = { event, session };
@@ -80,7 +84,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log(`[AuthContext] Initial session:`, !!session?.user?.id);
       setUserId(session?.user?.id);
       lastProcessedState = { event: 'INITIAL_SESSION', userId: session?.user?.id };
     });

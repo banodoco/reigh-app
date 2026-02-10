@@ -81,24 +81,17 @@ export function useAudio({
     url: string | null,
     metadata: AudioMetadata | null
   ) => {
-    console.log('[useAudio] handleAudioChange called:', {
-      url: url ? url.substring(0, 50) + '...' : null,
-      hasMetadata: !!metadata,
-      shotId: shotIdRef.current?.substring(0, 8)
-    });
 
     setAudioUrl(url);
     setAudioMetadata(metadata);
 
     // Save to database
     if (url) {
-      console.log('[useAudio] 💾 SAVING audio to database');
       updateAudioSettingsRef.current('shot', {
         url: url,
         metadata: metadata || null
       });
     } else {
-      console.log('[useAudio] 🗑️ CLEARING audio from database');
       updateAudioSettingsRef.current('shot', {
         url: null,
         metadata: null

@@ -51,7 +51,6 @@ export function useMobileGestures({
     
     // If this tap is a double-tap, also open the lightbox
     if (timeDiff < DOUBLE_TAP_THRESHOLD && timeDiff > 10 && isSameImage) {
-      console.log('[MobileDebug:ShotImageManager] ✅ Double-tap detected! Opening lightbox.');
       const image = currentImages[index];
       if (image?.imageUrl) {
         setLightboxIndex(index);
@@ -69,16 +68,8 @@ export function useMobileGestures({
   // Mobile move-here functionality
   const handleMobileMoveHere = useCallback(async (targetIndex: number) => {
     if (mobileSelectedIds.length === 0) {
-      console.log('[MobileReorder] No items selected for reordering');
       return;
     }
-    
-    console.log('[MobileReorder] 🔄 STARTING mobile reorder:', {
-      selectedCount: mobileSelectedIds.length,
-      selectedIds: mobileSelectedIds.map(id => id.substring(0, 8)),
-      targetIndex,
-      currentImagesLength: currentImages.length
-    });
     
     try {
       // Get the selected images and their current indices
@@ -90,7 +81,6 @@ export function useMobileGestures({
       }).filter(item => item.image && item.currentIndex !== -1);
       
       if (selectedItems.length === 0) {
-        console.log('[MobileReorder] No valid selected items found');
         return;
       }
       
@@ -117,21 +107,12 @@ export function useMobileGestures({
       // For single item moves, pass the dragged item ID for midpoint insertion
       const draggedItemId = selectedItems.length === 1 ? selectedItems[0].id : undefined;
       
-      console.log('[MobileReorder] 🎯 Calling unified reorder system:', {
-        originalOrder: currentImages.map(img => img.id.substring(0, 8)),
-        newOrder: orderedIds.map(id => id.substring(0, 8)),
-        movedItems: selectedItems.map(item => item.id.substring(0, 8)),
-        targetIndex,
-        draggedItemId: draggedItemId?.substring(0, 8),
-      });
-
       // Use the unified position system
       await onImageReorder(orderedIds, draggedItemId);
       
       // Clear selection after successful reorder
       setMobileSelectedIds(() => []);
       
-      console.log('[MobileReorder] ✅ Mobile reorder completed successfully');
     } catch (error) {
       handleError(error, { context: 'useMobileGestures', showToast: false });
     }

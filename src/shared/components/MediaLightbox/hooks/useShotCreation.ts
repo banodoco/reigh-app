@@ -39,10 +39,6 @@ export const useShotCreation = ({
   // We need to use media.generation_id (actual generations table ID) for creating new shot associations
   const actualGenerationId = useMemo(() => {
     const genId = getGenerationId(media);
-    console.log('[useShotCreation] Computed actualGenerationId:', {
-      mediaId: media.id,
-      actualGenerationId: genId,
-    });
     return genId;
   }, [media]);
 
@@ -62,11 +58,6 @@ export const useShotCreation = ({
 
   // Custom navigation handler that uses onNavigateToShot callback
   const handleQuickCreateSuccess = useCallback(() => {
-    console.log('[useShotCreation] handleQuickCreateSuccess called', {
-      quickCreateSuccess,
-      hasOnNavigateToShot: !!onNavigateToShot,
-      allShotsCount: allShots?.length || 0,
-    });
 
     if (quickCreateSuccess.shotId && onNavigateToShot) {
       // Try to find the shot in the list first

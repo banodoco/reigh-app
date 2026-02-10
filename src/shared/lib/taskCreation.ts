@@ -46,10 +46,6 @@ export async function resolveProjectResolution(
       .eq("id", projectId)
       .single();
 
-    if (projectError) {
-      console.warn("[resolveProjectResolution] Project fetch error:", projectError.message);
-    }
-
     const aspectRatioKey = project?.aspect_ratio ?? DEFAULT_ASPECT_RATIO;
     const resolution = ASPECT_RATIO_TO_RESOLUTION[aspectRatioKey] ?? ASPECT_RATIO_TO_RESOLUTION[DEFAULT_ASPECT_RATIO];
 
@@ -79,7 +75,6 @@ export function generateUUID(): string {
     try {
       return crypto.randomUUID();
     } catch (error) {
-      console.warn('[generateUUID] crypto.randomUUID failed, falling back to nanoid:', error);
     }
   }
   
@@ -160,28 +155,8 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
   const timeoutMs = 20000; // 20s safety timeout to avoid indefinite UI stall
   const controller = new AbortController();
   const timeout = setTimeout(() => {
-    console.warn('[PollingBreakageIssue] [createTask] Aborting invoke due to timeout', {
-      requestId,
-      timeoutMs,
-      taskType: taskParams.task_type,
-      projectId: taskParams.project_id,
-      timestamp: Date.now(),
-    });
     controller.abort();
   }, timeoutMs);
-
-  console.log('[TabResumeDebug] [createTask] Invoking edge function', {
-    requestId,
-    taskType: taskParams.task_type,
-    projectId: taskParams.project_id,
-    hasParams: !!taskParams.params,
-    timestamp: startTime,
-    visibilityState: document.visibilityState,
-    hasSession: !!session,
-    sessionValid: session ? (session.expires_at * 1000 > Date.now()) : false,
-    tokenPreview: session?.access_token?.slice(0, 20),
-    userAgent: navigator.userAgent.slice(0, 50)
-  });
 
   try {
     const { data, error } = await supabase.functions.invoke('create-task', {
@@ -198,19 +173,6 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
     });
 
     const durationMs = Date.now() - startTime;
-    console.log('[TabResumeDebug] [createTask] Invoke completed', {
-      requestId,
-      durationMs,
-      slow: durationMs > 5000,
-      taskType: taskParams.task_type,
-      projectId: taskParams.project_id,
-      hasError: !!error,
-      errorMessage: error?.message,
-      dataReceived: !!data,
-      dataPreview: data ? JSON.stringify(data).slice(0, 100) : null,
-      timestamp: Date.now(),
-      visibilityState: document.visibilityState
-    });
 
     if (error) {
       throw new Error(error.message || 'Failed to create task');
@@ -218,7 +180,6 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
 
     // Task creation events are now handled by DataFreshnessManager via realtime events
     // No manual invalidation needed - the smart polling system handles cache updates automatically
-    console.log('[PollingBreakageIssue] [createTask] Task created - DataFreshnessManager will handle cache updates via realtime events');
 
     return data;
   } catch (err: unknown) {

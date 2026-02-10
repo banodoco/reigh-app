@@ -198,13 +198,6 @@ export function useJoinSegmentsHandler({
         }
       }
 
-      console.log('[JoinSegments] Creating join task:', {
-        clipCount: clips.length,
-        prompt: joinPrompt,
-        contextFrames: joinContextFrames,
-        gapFrames: joinGapFrames,
-      });
-
       await createJoinClipsTask({
         project_id: projectId,
         shot_id: selectedShotId,

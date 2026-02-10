@@ -89,7 +89,6 @@ export const useListPublicResources = (type: ResourceType) => {
     return useQuery<Resource[], Error>({
         queryKey: [...queryKeys.resources.public(type), 'v2'],
         queryFn: async () => {
-            console.log('[PublicResources] Fetching public resources (v2 - paginated):', { type, timestamp: Date.now() });
             
             // Manual pagination to bypass 1000 limit
             let allData: Resource[] = [];
@@ -123,16 +122,9 @@ export const useListPublicResources = (type: ResourceType) => {
                 
                 // Safety limit to prevent infinite loops
                 if (allData.length >= 20000) {
-                    console.warn('[PublicResources] Reached safety limit of 20k resources');
                     hasMore = false;
                 }
             }
-            
-            console.log('[PublicResources] Query successful:', {
-                type,
-                count: allData.length,
-                timestamp: Date.now()
-            });
             
             return allData;
         },
@@ -241,7 +233,6 @@ export const useUpdateResource = () => {
     const queryClient = useQueryClient();
     return useMutation<Resource, Error, UpdateResourceArgs>({
         mutationFn: async ({ id, type, metadata }) => {
-            console.log('[useUpdateResource] Starting update:', { id, type, metadataKeys: Object.keys(metadata) });
             
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
@@ -249,22 +240,12 @@ export const useUpdateResource = () => {
                 throw new Error('Not authenticated');
             }
             
-            console.log('[useUpdateResource] User authenticated:', { userId: user.id });
-            
             // First, let's check if the resource exists at all (without user_id filter)
             const { data: resourceCheck, error: resourceCheckError } = await supabase
                 .from('resources')
                 .select('id, user_id, type')
                 .eq('id', id)
                 .maybeSingle();
-            
-            console.log('[useUpdateResource] Resource check (no user filter):', { 
-                found: !!resourceCheck, 
-                resourceUserId: resourceCheck?.user_id,
-                currentUserId: user.id,
-                match: resourceCheck?.user_id === user.id,
-                error: resourceCheckError 
-            });
             
             // Now verify the resource exists and belongs to the user
             const { data: existingResource, error: checkError } = await supabase
@@ -293,8 +274,6 @@ export const useUpdateResource = () => {
                 }
                 throw new Error('Resource not found or you do not have permission to update it');
             }
-            
-            console.log('[useUpdateResource] Resource verified:', existingResource);
             
             // Extract is_public from metadata for the column
             const isPublic = 'is_public' in metadata ? Boolean((metadata as Record<string, unknown>).is_public) : false;
@@ -333,15 +312,12 @@ export const useUpdateResource = () => {
                     throw new Error('Update may have succeeded but failed to fetch updated resource');
                 }
                 
-                console.log('[useUpdateResource] Successfully fetched updated resource');
                 return fetchedData;
             }
             
-            console.log('[useUpdateResource] Update successful:', { id, type });
             return data;
         },
         onSuccess: (data) => {
-            console.log('[useUpdateResource] onSuccess - invalidating queries for type:', data.type, 'id:', data.id);
             // Invalidate both v2 query keys to ensure fresh data
             queryClient.invalidateQueries({ queryKey: [...queryKeys.resources.all, data.type, 'v2'] });
             queryClient.invalidateQueries({ queryKey: [...queryKeys.resources.public(data.type), 'v2'] });

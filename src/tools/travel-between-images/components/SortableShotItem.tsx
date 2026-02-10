@@ -58,9 +58,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
   dataTour,
   finalVideo,
 }) => {
-  // [ShotReorderDebug] Debug tag for shot reordering issues
-  const REORDER_DEBUG_TAG = '[ShotReorderDebug]';
-  
   const {
     attributes,
     listeners,
@@ -202,14 +199,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
       // Only handle if this event is for our shot
       if (shotId !== shot.id) return;
       
-      console.log('[ShotDrop] Received shot-pending-upload event:', {
-        shotId: shotId.substring(0, 8),
-        shotName: shot.name,
-        expectedCount,
-        currentImageCount: nonVideoImageIds.length,
-        timestamp: Date.now()
-      });
-      
       // Trigger the same skeleton setup as drag-drop
       setWithPositionDropState('loading');
       
@@ -278,14 +267,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
     // Try generation drop first
     const generationData = getGenerationDropData(e);
     if (generationData && onGenerationDrop) {
-      console.log('[ShotDrop] Dropping generation onto shot:', {
-        shotId: shot.id.substring(0, 8),
-        shotName: shot.name,
-        generationId: generationData.generationId?.substring(0, 8),
-        currentImageCount: nonVideoImageIds.length,
-        withoutPosition,
-        timestamp: Date.now()
-      });
 
       if (withoutPosition) {
         // For "without position" drops: show loading in the drop zone, no skeleton
@@ -355,19 +336,9 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
       const validFiles = files.filter(file => validImageTypes.includes(file.type));
       
       if (validFiles.length === 0) {
-        console.warn('[ShotDrop] No valid image files in drop');
         setIsDropTarget(false);
         return;
       }
-
-      console.log('[ShotDrop] Dropping files onto shot:', {
-        shotId: shot.id.substring(0, 8),
-        shotName: shot.name,
-        fileCount: validFiles.length,
-        currentImageCount: nonVideoImageIds.length,
-        withoutPosition,
-        timestamp: Date.now()
-      });
 
       if (withoutPosition) {
         // For "without position" drops: show loading in the drop zone, no skeleton
@@ -467,19 +438,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
     }
   }, []);
 
-  // [ShotReorderDebug] Log dragging state changes (only when actually dragging to reduce noise)
-  React.useEffect(() => {
-    if (isDragging) {
-      console.log(`${REORDER_DEBUG_TAG} Shot ${shot.id} is being dragged:`, {
-        shotId: shot.id,
-        shotName: shot.name,
-        shotPosition: shot.position,
-        shotIndex,
-        isDragging,
-        timestamp: Date.now()
-      });
-    }
-  }, [isDragging]);
 
   const style = {
     transform: CSS.Transform.toString(transform),

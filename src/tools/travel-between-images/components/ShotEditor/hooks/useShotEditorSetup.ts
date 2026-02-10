@@ -10,7 +10,7 @@
  * @see Phase 3 of shot-settings-context-cleanup.md
  */
 
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useShotImages, useTimelineImages, useUnpositionedImages, useVideoOutputs } from '@/shared/hooks/useShotImages';
@@ -91,20 +91,6 @@ export function useShotEditorSetup({
   // Only use cache fallback if shots is undefined/null (loading), not if it's an empty array (loaded but missing)
   const selectedShot = foundShot || optimisticShotData || (shots === undefined ? lastValidShotRef.current : undefined);
 
-  // [SelectorDebug] Track shot selection changes
-  useEffect(() => {
-    console.log('[SelectorDebug] 🎯 Shot selection state:', {
-      selectedShotId: selectedShotId?.substring(0, 8),
-      foundShotId: foundShot?.id?.substring(0, 8),
-      optimisticShotId: optimisticShotData?.id?.substring(0, 8),
-      lastValidShotId: lastValidShotRef.current?.id?.substring(0, 8),
-      resolvedShotId: selectedShot?.id?.substring(0, 8),
-      shotsArrayLength: shots?.length,
-      shotsUndefined: shots === undefined,
-      foundShotImagesCount: foundShot?.images?.length,
-    });
-  }, [selectedShotId, foundShot, optimisticShotData, selectedShot, shots]);
-
   // ============================================================================
   // STABILITY REFS
   // ============================================================================
@@ -146,24 +132,8 @@ export function useShotEditorSetup({
   // Always enable query to get full data (needed for mutations and pair prompts)
   const queryKey = shouldLoadDetailedData ? selectedShotId : null;
 
-  console.log('[VideoLoadSpeedIssue] ShotEditor optimization decision:', {
-    selectedShotId,
-    contextImagesCount: contextImages.length,
-    hasContextData,
-    shouldLoadDetailedData,
-    queryKey,
-    willQueryDatabase: shouldLoadDetailedData,
-    timestamp: Date.now(),
-  });
-
   // CRITICAL: Only call useShotImages when we genuinely need detailed data
   // Using disabled query when context data is available
-  console.log('[ShotNavPerf] 🎬 ShotEditor calling useShotImages', {
-    queryKey: queryKey?.substring(0, 8) || 'null',
-    selectedShotId: selectedShotId?.substring(0, 8),
-    hasContextImages: contextImages.length > 0,
-    timestamp: Date.now(),
-  });
 
   // [ShotNavPerf] CRITICAL FIX: Pass disableRefetch during initial load to prevent query storm
   // The query will still run once, but won't refetch on every render
@@ -173,17 +143,6 @@ export function useShotEditorSetup({
 
   const fullShotImages = fullImagesQueryResult.data || [];
   const isLoadingFullImages = fullImagesQueryResult.isLoading;
-
-  console.log('[ShotNavPerf] ✅ ShotEditor useShotImages result:', {
-    imagesCount: fullShotImages.length,
-    isLoading: fullImagesQueryResult.isLoading,
-    isFetching: fullImagesQueryResult.isFetching,
-    isError: fullImagesQueryResult.isError,
-    error: fullImagesQueryResult.error?.message,
-    dataUpdatedAt: fullImagesQueryResult.dataUpdatedAt,
-    fetchStatus: fullImagesQueryResult.fetchStatus,
-    timestamp: Date.now(),
-  });
 
   // [SelectorPattern] Use selector hooks for filtered views of shot data.
   // Cache is primed by VideoTravelToolPage, so selectors have data immediately.
@@ -244,52 +203,11 @@ export function useShotEditorSetup({
       });
   }, [videoOutputs]);
 
-  console.log('[SelectorPattern] Shot data from selectors:', {
-    shotId: selectedShotId?.substring(0, 8),
-    allImages: allShotImages.length,
-    fullQueryImages: fullShotImages.length,
-    contextImages: contextImages.length,
-    sources: {
-      all: fullShotImages.length > 0 ? 'query' : 'context',
-      timeline: timelineImagesQuery.data?.length ? 'query' : 'context',
-      unpositioned: unpositionedImagesQuery.data?.length ? 'query' : 'context',
-      videos: videoOutputsQuery.data?.length ? 'query' : 'context',
-    },
-    counts: {
-      timelineImages: timelineImages.length,
-      unpositionedImages: unpositionedImages.length,
-      videoOutputs: videoOutputs.length,
-    },
-    cacheStatus: fullImagesQueryResult.isFetching ? 'fetching' : 'ready',
-  });
-
   // Refs for stable access inside callbacks (avoid callback recreation on data changes)
   const allShotImagesRef = useRef<GenerationRow[]>(allShotImages);
   allShotImagesRef.current = allShotImages;
   const batchVideoFramesRef = useRef(batchVideoFrames);
   batchVideoFramesRef.current = batchVideoFrames;
-
-  // [SelectorPattern] Track image data loading progress
-  useEffect(() => {
-    console.log('[SelectorPattern] ShotEditor image data update:', {
-      selectedShotId,
-      allShotImagesCount: allShotImages.length,
-      timelineImagesCount: timelineImages.length,
-      unpositionedImagesCount: unpositionedImages.length,
-      videoOutputsCount: videoOutputs.length,
-      isLoadingFullImages,
-      hasContextData,
-      timestamp: Date.now(),
-    });
-  }, [
-    selectedShotId,
-    allShotImages.length,
-    timelineImages.length,
-    unpositionedImages.length,
-    videoOutputs.length,
-    isLoadingFullImages,
-    hasContextData,
-  ]);
 
   return {
     // Shot resolution

@@ -3,8 +3,7 @@ import {
   generateTaskId,
   resolveProjectResolution,
   validateRequiredFields,
-  TaskValidationError,
-  BaseTaskParams,
+  TaskValidationError
 } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import { ASPECT_RATIO_TO_RESOLUTION } from '../aspectRatios';
@@ -79,8 +78,6 @@ function filterReferenceSettingsByMode(
 
   const filtered: Partial<typeof settings> = {};
   
-  console.log(`[ReferenceFilter] Filtering settings for mode: ${referenceMode}`, { input: settings });
-
   switch (referenceMode) {
     case 'style':
       // Style mode: only pass style strength, exclude subject and scene
@@ -119,8 +116,6 @@ function filterReferenceSettingsByMode(
       break;
   }
   
-  console.log(`[ReferenceFilter] Filtered result for mode ${referenceMode}:`, { output: filtered });
-
   return filtered;
 }
 
@@ -285,7 +280,6 @@ async function calculateTaskResolution(
 
   // 1. If explicit custom resolution is provided, use it as-is (assumes it's already final)
   if (options.customResolution?.trim()) {
-    console.log(`[calculateTaskResolution] Using provided custom resolution: ${options.customResolution}`);
     return options.customResolution.trim();
   }
 
@@ -295,12 +289,10 @@ async function calculateTaskResolution(
   if (resolution_mode === 'custom' && custom_aspect_ratio) {
     // Use custom aspect ratio
     baseResolution = ASPECT_RATIO_TO_RESOLUTION[custom_aspect_ratio] ?? '902x508';
-    console.log(`[calculateTaskResolution] Using custom aspect ratio ${custom_aspect_ratio} → ${baseResolution}`);
   } else {
     // Use project resolution
     const { resolution } = await resolveProjectResolution(projectId);
     baseResolution = resolution;
-    console.log(`[calculateTaskResolution] Using project resolution: ${baseResolution}`);
   }
 
   // 3. Apply scaling for image generation models
@@ -311,7 +303,6 @@ async function calculateTaskResolution(
     const scaledWidth = Math.round(width * scale);
     const scaledHeight = Math.round(height * scale);
     const scaledResolution = `${scaledWidth}x${scaledHeight}`;
-    console.log(`[calculateTaskResolution] Scaling resolution from ${baseResolution} (×${scale}) to ${scaledResolution} for ${options.modelName}`);
     return scaledResolution;
   }
 
@@ -327,16 +318,6 @@ async function calculateTaskResolution(
  * @returns Promise resolving to the created task
  */
 async function createImageGenerationTask(params: ImageGenerationTaskParams): Promise<TaskCreationResult> {
-  console.log("[createImageGenerationTask] Creating task with params:", params);
-  console.log("[createImageGenerationTask] Hires fix params check:", {
-    hires_scale: params.hires_scale,
-    hires_steps: params.hires_steps,
-    hires_denoise: params.hires_denoise,
-    lightning_lora_strength_phase_1: params.lightning_lora_strength_phase_1,
-    lightning_lora_strength_phase_2: params.lightning_lora_strength_phase_2,
-    additional_loras: params.additional_loras,
-    steps: params.steps,
-  });
 
   try {
     // 1. Validate parameters
@@ -437,17 +418,12 @@ async function createImageGenerationTask(params: ImageGenerationTaskParams): Pro
       }),
     };
     
-    console.log("[createImageGenerationTask] Sending clean params to backend:", JSON.stringify(taskParamsToSend, null, 2));
-    
     const result = await createTask({
       project_id: params.project_id,
       task_type: taskType,
       params: taskParamsToSend
     });
     
-    console.log("[createImageGenerationTask] Backend returned task with params:", JSON.stringify(result?.params, null, 2));
-
-    console.log("[createImageGenerationTask] Task created successfully:", result);
     return result;
 
   } catch (error) {
@@ -464,16 +440,6 @@ async function createImageGenerationTask(params: ImageGenerationTaskParams): Pro
  * @returns Promise resolving to array of created tasks
  */
 export async function createBatchImageGenerationTasks(params: BatchImageGenerationTaskParams): Promise<TaskCreationResult[]> {
-  console.log("[createBatchImageGenerationTasks] Creating batch tasks with params:", params);
-  console.log("[createBatchImageGenerationTasks] Hires fix params check:", {
-    hires_scale: params.hires_scale,
-    hires_steps: params.hires_steps,
-    hires_denoise: params.hires_denoise,
-    lightning_lora_strength_phase_1: params.lightning_lora_strength_phase_1,
-    lightning_lora_strength_phase_2: params.lightning_lora_strength_phase_2,
-    additional_loras: params.additional_loras,
-    steps: params.steps,
-  });
 
   try {
     // 1. Validate parameters
@@ -532,8 +498,6 @@ export async function createBatchImageGenerationTasks(params: BatchImageGenerati
       });
     });
 
-    console.log(`[createBatchImageGenerationTasks] Creating ${taskParams.length} individual tasks`);
-
     // 4. Create all tasks in parallel (matching original behavior)
     const results = await Promise.allSettled(
       taskParams.map(taskParam => createImageGenerationTask(taskParam))
@@ -543,8 +507,6 @@ export async function createBatchImageGenerationTasks(params: BatchImageGenerati
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
-    console.log(`[createBatchImageGenerationTasks] Batch results: ${successful} successful, ${failed} failed`);
-
     // 6. If all failed, throw the first error
     if (successful === 0) {
       const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
@@ -553,7 +515,6 @@ export async function createBatchImageGenerationTasks(params: BatchImageGenerati
 
     // 7. If some failed, log warnings but return successful results
     if (failed > 0) {
-      console.warn(`[createBatchImageGenerationTasks] ${failed} out of ${taskParams.length} tasks failed`);
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(`[createBatchImageGenerationTasks] Task ${index + 1} failed:`, result.reason);
@@ -566,7 +527,6 @@ export async function createBatchImageGenerationTasks(params: BatchImageGenerati
       .filter((r): r is PromiseFulfilledResult<TaskCreationResult> => r.status === 'fulfilled')
       .map(r => r.value);
 
-    console.log(`[createBatchImageGenerationTasks] Batch completed: ${successfulResults.length} tasks created`);
     return successfulResults;
 
   } catch (error) {

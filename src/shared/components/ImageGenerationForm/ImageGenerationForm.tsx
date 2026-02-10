@@ -270,7 +270,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     privacyDefaults,
   });
   
-  
   // Mark that we've visited this page in the session
   React.useEffect(() => {
     try {
@@ -424,11 +423,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   // Clear model override once server settings reflect the change
   useEffect(() => {
     if (modelOverride && projectImageSettings?.selectedModel === modelOverride) {
-      console.log('[ModelFlipIssue] Server settings now match override. Clearing override.', {
-        serverModel: projectImageSettings?.selectedModel,
-        override: modelOverride,
-        isUpdating: isSavingProjectSettings
-      });
       setModelOverride(undefined);
     }
   }, [projectImageSettings?.selectedModel, modelOverride, isSavingProjectSettings, setModelOverride]);
@@ -646,7 +640,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   // Helper to update selected reference ID - routes to shot settings
   const setEffectiveSelectedReferenceId = useCallback((newRefId: string | null) => {
     if (associatedShotId) {
-      console.log('[ImageGenerationForm] setSelectedReferenceId for shot:', associatedShotId.substring(0, 8), newRefId);
       shotPromptSettings.updateField('selectedReferenceId', newRefId);
       markAsInteracted();
     }
@@ -661,14 +654,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   // Consolidated debug logging (enable via VITE_DEBUG_IMAGE_GEN=true)
   useEffect(() => {
     if (!DEBUG_IMAGE_GEN) return;
-    console.log('[ImageGenerationForm] State:', {
-      ready,
-      isSaving,
-      projectId: selectedProjectId,
-      shotId: associatedShotId,
-      promptsCount: prompts.length,
-      shotPromptStatus: shotPromptSettings.status,
-    });
   }, [DEBUG_IMAGE_GEN, ready, isSaving, associatedShotId, selectedProjectId, prompts.length, shotPromptSettings.status]);
 
   // Apply initialShotId once after hydration (takes precedence over persisted value)
@@ -700,7 +685,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     if (associatedShotId && shots) {
       const shotExists = shots.some(shot => shot.id === associatedShotId);
       if (!shotExists) {
-        console.log('[ImageGenerationForm] Selected shot', associatedShotId, 'no longer exists, resetting to None');
         setAssociatedShotId(null);
         markAsInteracted();
       }
@@ -779,11 +763,9 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   // NOTE: Prompt handlers (handleAddPrompt, handleUpdatePrompt, handleRemovePrompt, handleDeleteAllPrompts,
   //       handleSavePromptsFromModal) now come from usePromptManagement hook
 
-
   const handleOpenMagicPrompt = useCallback(() => {
     uiActions.openMagicPrompt();
   }, [uiActions]);
-
 
   // Handle creating a new shot
   const handleCreateShot = useCallback(async (shotName: string, files: File[]) => {
@@ -803,11 +785,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
       // Error already shown by useShotCreation
       return;
     }
-
-    console.log('[ImageGenerationForm] Shot created:', {
-      shotId: result.shotId.substring(0, 8),
-      shotName: result.shotName,
-    });
 
     // Note: Settings inheritance is handled automatically by useShotCreation
     

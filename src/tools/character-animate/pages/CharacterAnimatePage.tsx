@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
-import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Upload, Film, Play, X } from 'lucide-react';
@@ -134,10 +133,6 @@ const CharacterAnimatePage: React.FC = () => {
     if (videosViewJustEnabled && videosData?.items) {
       // Data has loaded, clear the flag
       setVideosViewJustEnabled(false);
-      console.log('[CharacterAnimate] Data loaded, clearing videosViewJustEnabled flag', {
-        itemsCount: videosData.items.length,
-        timestamp: Date.now()
-      });
     }
   }, [videosViewJustEnabled, videosData?.items]);
   
@@ -344,8 +339,6 @@ const CharacterAnimatePage: React.FC = () => {
         seed: generateRandomSeed(), // Always use a random seed
         random_seed: true, // Always random
       };
-      
-      console.log('[CharacterAnimate] Creating task with params:', taskParams);
       
       const result = await createCharacterAnimateTask(taskParams);
       return result;

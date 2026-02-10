@@ -50,23 +50,12 @@ class DataFreshnessManager {
     // 🎯 KEY FIX: Ignore duplicate status changes to keep lastStatusChange stable
     // This allows the "recently connected" grace period in getPollingInterval to actually expire
     if (previousStatus === status) {
-      console.log(`[DataFreshness] ⏸️  Duplicate status ignored: ${status}${reason ? ` (${reason})` : ''}`, {
-        status,
-        stableFor: Math.round((now - previousChangeAt) / 1000) + 's',
-        reason: 'Prevents resetting lastStatusChange on redundant calls',
-        timestamp: now
-      });
       return; // Don't update state or notify subscribers for duplicates
     }
     
     // Actual status transition - update state
     this.state.realtimeStatus = status;
     this.state.lastStatusChange = now;
-
-    console.log(`[DataFreshness] 🔄 Status change: ${previousStatus} → ${status}${reason ? ` (${reason})` : ''}`, {
-      timestamp: now,
-      timeSinceLastChange: Math.round((now - previousChangeAt) / 1000) + 's'
-    });
 
     // Notify all subscribers that polling intervals may have changed
     this.notifySubscribers();
@@ -83,13 +72,6 @@ class DataFreshnessManager {
       const key = JSON.stringify(queryKey);
       this.state.lastEventTimes.set(key, now);
       updatedQueries++;
-    });
-
-    console.log(`[DataFreshness] 📨 Event received: ${eventType}`, {
-      affectedQueries: affectedQueries.length,
-      updatedQueries,
-      timestamp: now,
-      realtimeStatus: this.state.realtimeStatus
     });
 
     // Notify subscribers that data freshness has changed
@@ -131,19 +113,9 @@ class DataFreshnessManager {
       // Use very light polling as safety net only
       if (timeSinceStatusChange > 5 * 60 * 1000) {
         // Realtime been stable for >5 minutes - fully trust it
-        console.log('[DataFreshness:Polling] 🟢 Realtime stable, DISABLING polling (idle is normal)', {
-          queryKey: queryKey[0],
-          hasEvents: !!lastEvent,
-          stableDuration: Math.round(timeSinceStatusChange / 1000) + 's'
-        });
         return false; // ✨ DISABLE POLLING - realtime is stable, idle is OK
       } else {
         // Realtime stable for 30s-5min - use safety net polling
-        console.log('[DataFreshness:Polling] 🟡 Realtime stable, light safety polling', {
-          queryKey: queryKey[0],
-          hasEvents: !!lastEvent,
-          stableDuration: Math.round(timeSinceStatusChange / 1000) + 's'
-        });
         return 60000; // 60 seconds - safety net while realtime proves long-term stability
       }
     }
@@ -183,15 +155,6 @@ class DataFreshnessManager {
       reason = 'Disconnected >5m, maximum backoff';
     }
 
-    console.log('[DataFreshness:Polling] 🔴 Realtime not connected, graduated polling', {
-      queryKey: queryKey[0],
-      realtimeStatus: this.state.realtimeStatus,
-      disconnectedFor: Math.round(disconnectedDuration / 1000) + 's',
-      pollingInterval: pollingInterval + 'ms',
-      reason,
-      failureCount: failureInfo?.count || 0
-    });
-
     return pollingInterval;
   }
 
@@ -212,15 +175,6 @@ class DataFreshnessManager {
     const isCircuitBreakerTriggered = newCount >= this.CIRCUIT_BREAKER_THRESHOLD;
 
     const errorType = this.classifyError(error);
-
-    console.log(`[DataFreshness:Error] ${isCircuitBreakerTriggered ? '🔴 CIRCUIT BREAKER' : '⚠️'} Fetch failure`, {
-      queryKey: queryKey[0],
-      errorMessage: error.message,
-      errorType,
-      failureCount: newCount,
-      circuitBreakerTriggered: isCircuitBreakerTriggered,
-      timestamp: now
-    });
 
     // Notify subscribers so polling intervals can adjust
     if (isCircuitBreakerTriggered) {
@@ -274,11 +228,6 @@ class DataFreshnessManager {
 
       // Reset failure count on success
       this.state.fetchFailures.delete(key);
-      console.log('[DataFreshness:Success] ✅ Fetch succeeded, resetting failure count', {
-        queryKey: queryKey[0],
-        previousFailureCount: existing.count,
-        wasCircuitBreakerActive
-      });
 
       // Show recovery toast if circuit breaker was active
       if (wasCircuitBreakerActive) {
@@ -367,7 +316,6 @@ class DataFreshnessManager {
    * Clear all event history (useful for testing or project changes)
    */
   reset() {
-    console.log(`[DataFreshness] 🔄 Resetting state (had ${this.state.lastEventTimes.size} tracked queries, ${this.state.fetchFailures.size} failure records)`);
     this.state.lastEventTimes.clear();
     this.state.fetchFailures.clear();
     this.state.realtimeStatus = 'disconnected';
@@ -383,11 +331,6 @@ class DataFreshnessManager {
     queryKeys.forEach(queryKey => {
       const key = JSON.stringify(queryKey);
       this.state.lastEventTimes.set(key, now);
-    });
-
-    console.log(`[DataFreshness] ✅ Manually marked ${queryKeys.length} queries as fresh`, {
-      queries: queryKeys,
-      timestamp: now
     });
 
     this.notifySubscribers();

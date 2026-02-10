@@ -85,36 +85,13 @@ async function createSingleAnnotatedEditTask(params: Omit<CreateAnnotatedImageEd
 export async function createAnnotatedImageEditTask(params: CreateAnnotatedImageEditTaskParams): Promise<string> {
   const { num_generations, ...singleTaskParams } = params;
 
-  console.log('[AnnotatedImageEdit] Creating annotated image edit tasks:', {
-    project_id: params.project_id.substring(0, 8),
-    image_url: params.image_url.substring(0, 60),
-    mask_url: params.mask_url.substring(0, 60),
-    prompt: params.prompt.substring(0, 50),
-    num_generations,
-    generation_id: params.generation_id?.substring(0, 8),
-    shot_id: params.shot_id?.substring(0, 8),
-    tool_type: params.tool_type,
-  });
-
-  console.log('[AnnotatedImageEdit] 🔍 Detailed params check:', {
-    has_shot_id: !!params.shot_id,
-    shot_id_value: params.shot_id,
-    has_tool_type: !!params.tool_type,
-    tool_type_value: params.tool_type
-  });
-
   // For single generation, create one task directly
   if (num_generations === 1) {
     const taskId = await createSingleAnnotatedEditTask(singleTaskParams);
-    console.log('[AnnotatedImageEdit] ✅ Annotated image edit task created successfully:', {
-      count: 1,
-      taskIds: [taskId.substring(0, 8)],
-    });
     return taskId;
   }
 
   // For multiple generations, create tasks in parallel
-  console.log(`[AnnotatedImageEdit] Creating ${num_generations} tasks in parallel`);
 
   const results = await Promise.allSettled(
     Array.from({ length: num_generations }, () => createSingleAnnotatedEditTask(singleTaskParams))
@@ -124,8 +101,6 @@ export async function createAnnotatedImageEditTask(params: CreateAnnotatedImageE
   const successful = results.filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled');
   const failed = results.filter(r => r.status === 'rejected');
 
-  console.log(`[AnnotatedImageEdit] Batch results: ${successful.length} successful, ${failed.length} failed`);
-
   // If all failed, throw the first error
   if (successful.length === 0) {
     const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
@@ -134,7 +109,6 @@ export async function createAnnotatedImageEditTask(params: CreateAnnotatedImageE
 
   // If some failed, log warnings
   if (failed.length > 0) {
-    console.warn(`[AnnotatedImageEdit] ${failed.length} out of ${num_generations} tasks failed`);
     failed.forEach((result, index) => {
       if (result.status === 'rejected') {
         console.error(`[AnnotatedImageEdit] Task ${index + 1} failed:`, result.reason);
@@ -143,10 +117,6 @@ export async function createAnnotatedImageEditTask(params: CreateAnnotatedImageE
   }
 
   const taskIds = successful.map(r => r.value);
-  console.log('[AnnotatedImageEdit] ✅ Annotated image edit tasks created successfully:', {
-    count: taskIds.length,
-    taskIds: taskIds.map(id => id.substring(0, 8)),
-  });
 
   return taskIds[0]; // Return first task ID for compatibility
 }

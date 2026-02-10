@@ -52,13 +52,6 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
   const openaiApiKey = getApiKey('openai_api_key');
 
   const handleGenerate = useCallback(async (taskParams: BatchImageGenerationTaskParams) => {
-    console.log('[ImageGenerationModal] handleGenerate called with:', {
-      hasTaskParams: !!taskParams,
-      promptCount: taskParams?.prompts?.length,
-      imagesPerPrompt: taskParams?.imagesPerPrompt,
-      modelName: taskParams?.model_name,
-      selectedProjectId,
-    });
 
     if (!selectedProjectId) {
       toast.error("No project selected. Please select a project before generating images.");
@@ -71,13 +64,11 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
       label: taskParams.prompts?.[0]?.text?.substring(0, 50) || 'Generating images...',
     });
     try {
-      console.log('[ImageGenerationModal] Creating batch image generation tasks with params:', taskParams);
       await createBatchImageGenerationTasks(taskParams);
 
       // Invalidate generations to ensure they refresh when tasks complete
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
 
-      console.log('[ImageGenerationModal] Image generation tasks created successfully');
       setJustQueued(true);
 
       if (justQueuedTimeoutRef.current) {
@@ -123,13 +114,11 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
       onOpenChange={(open) => {
         // Check tour status fresh (not stale render-time value)
         const tourActiveNow = isTourActive();
-        console.log('[ProductTour] Modal onOpenChange:', { open, tourActiveNow });
 
         // During tour, the modal is controlled entirely by the isOpen prop
         // (which is set by the closeGenerationModal event from ProductTour)
         // So we ignore onOpenChange during the tour
         if (!open && tourActiveNow) {
-          console.log('[ProductTour] Blocking modal close (tour active)');
           return;
         }
         if (!open) onClose();

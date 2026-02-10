@@ -1,4 +1,3 @@
-import React from "react";
 import { NumberField } from "@base-ui-components/react/number-field";
 import { Slider } from "./slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";

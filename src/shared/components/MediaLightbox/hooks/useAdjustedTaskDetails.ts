@@ -97,7 +97,6 @@ export function useAdjustedTaskDetails({
     queryKey: queryKeys.tasks.single(variantSourceTaskId!),
     queryFn: async () => {
       if (!variantSourceTaskId) return null;
-      console.log('[VariantTaskDetails] Fetching task:', variantSourceTaskId.substring(0, 8));
       const { data, error } = await supabase
         .from('tasks')
         .select('*')

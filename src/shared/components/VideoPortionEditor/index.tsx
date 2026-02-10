@@ -5,8 +5,18 @@ import { Switch } from '@/shared/components/ui/switch';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/shared/components/ui/tooltip';
-import { Loader2, Check, Film, Wand2, AlertTriangle, Trash2, ChevronDown, ChevronUp, X, Plus } from 'lucide-react';
+import { TooltipProvider } from '@/shared/components/ui/tooltip';
+import {
+  Loader2,
+  Check,
+  Film,
+  Wand2,
+  AlertTriangle,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Plus
+} from 'lucide-react';
 import { LoraManager } from '@/shared/components/LoraManager';
 import type { LoraModel, UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
 import { cn } from '@/shared/lib/utils';

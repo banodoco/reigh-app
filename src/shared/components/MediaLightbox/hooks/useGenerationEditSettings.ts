@@ -14,8 +14,7 @@ import {
   type GenerationEditSettings,
   type SyncedEditSettings,
   DEFAULT_EDIT_SETTINGS,
-  DEFAULT_ADVANCED_SETTINGS,
-  DEFAULT_ENHANCE_SETTINGS,
+  DEFAULT_ENHANCE_SETTINGS
 } from './editSettingsTypes';
 
 // Re-export types for backwards compatibility
@@ -110,7 +109,6 @@ async function loadGenerationSettings(generationId: string): Promise<GenerationE
     .maybeSingle();
 
   if (error) {
-    console.warn('[useGenerationEditSettings] Load failed:', error.message);
     return null;
   }
 

@@ -54,11 +54,8 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
   }, []);
 
   const startRecording = useCallback(async () => {
-    console.log('[useVoiceRecording] startRecording called');
     try {
-      console.log('[useVoiceRecording] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('[useVoiceRecording] Microphone access granted');
       
       // Set up audio analysis for visual feedback
       try {
@@ -89,7 +86,6 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
         };
         updateLevel();
       } catch (audioAnalysisError) {
-        console.warn("[useVoiceRecording] Audio analysis not available:", audioAnalysisError);
         // Continue without audio level monitoring
       }
       
@@ -158,7 +154,6 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
             return;
           }
 
-          console.log("[useVoiceRecording] Result:", data);
           onResult?.({
             transcription: data.transcription,
             prompt: data.prompt,
@@ -238,15 +233,10 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
   }, [cleanupAudioAnalysis]);
 
   const toggleRecording = useCallback(() => {
-    console.log('[useVoiceRecording] toggleRecording called, state:', state);
     if (state === "recording") {
-      console.log('[useVoiceRecording] Stopping recording');
       stopRecording();
     } else if (state === "idle") {
-      console.log('[useVoiceRecording] Starting recording');
       startRecording();
-    } else {
-      console.log('[useVoiceRecording] Ignoring - state is:', state);
     }
     // If processing, do nothing
   }, [state, startRecording, stopRecording]);

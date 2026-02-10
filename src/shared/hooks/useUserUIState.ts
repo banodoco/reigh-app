@@ -132,7 +132,6 @@ export function useUserUIState<K extends keyof UISettings>(
         patch: { [key]: fallbackToSave },
       }, undefined, 'immediate');
       
-      console.log(`[useUserUIState] Successfully saved fallback for key "${key}"`);
       // Invalidate cache so other components see the backfilled values
       const cacheKey = `user_settings_${userId}`;
       settingsCache.delete(cacheKey);
@@ -149,7 +148,6 @@ export function useUserUIState<K extends keyof UISettings>(
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           // Skip loading for unauthenticated users (e.g., on public share pages)
-          console.debug('[useUserUIState] Skipping - no authenticated user');
           setIsLoading(false);
           return;
         }
@@ -200,7 +198,6 @@ export function useUserUIState<K extends keyof UISettings>(
         } else {
           // Key doesn't exist in database - this is an existing user who hasn't set preferences yet
           // Save fallback values to backfill them (only runs when completely empty)
-          console.log(`[useUserUIState] No value found for key "${key}", saving fallback to database`);
           const normalizedFallback = normalizeIfGenerationMethods(fallback);
           setValue(normalizedFallback); // Set normalized fallback immediately for responsive UI
           
@@ -279,7 +276,6 @@ export function useUserUIState<K extends keyof UISettings>(
           // Invalidate cache so other components see the update
           const cacheKey = `user_settings_${userId}`;
           settingsCache.delete(cacheKey);
-          console.log(`[useUserUIState] Cache invalidated for user ${userId} after update`);
         }
       } catch (error) {
         handleError(error, { context: 'useUserUIState.update', showToast: false });

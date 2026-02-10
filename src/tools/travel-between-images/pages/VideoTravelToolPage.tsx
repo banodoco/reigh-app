@@ -2,7 +2,6 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from
 import { useLocation } from 'react-router-dom';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
-import { timeEnd } from '@/shared/lib/logger';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import {
   useVideoTravelData,
@@ -116,11 +115,6 @@ const VideoTravelToolPage: React.FC = () => {
   const isLoading = shotsLoading || initializingFromHash || (!!selectedProjectId && projectUISettings === undefined);
   const showStableSkeleton = useStableSkeletonVisibility(isLoading);
 
-  // Stop navigation timers once page mounts
-  useEffect(() => {
-    timeEnd('NavPerf', 'ClickLag:travel-between-images');
-    timeEnd('NavPerf', 'PageLoad:/tools/travel-between-images');
-  }, []);
 
   // Handle no project selected
   const [showProjectError, setShowProjectError] = useState(false);

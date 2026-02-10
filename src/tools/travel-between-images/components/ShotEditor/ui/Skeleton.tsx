@@ -1,6 +1,5 @@
 import React from 'react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { CardHeader, CardTitle, CardContent } from '@/shared/components/ui/card';
 import { GenerationRow } from '@/types/shots';
 import { Image } from 'lucide-react';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
@@ -39,14 +38,6 @@ export const ImageManagerSkeleton: React.FC<ImageManagerSkeletonProps> = ({
           unpositionedFiltered++;
         }
       }
-    });
-    
-    console.log('[PROFILING] Skeleton - Real shot composition:', {
-      totalImages: shotImages.length,
-      positionedNonVideoCount,
-      videosFiltered,
-      unpositionedFiltered,
-      projectAspectRatio
     });
     
     return positionedNonVideoCount;

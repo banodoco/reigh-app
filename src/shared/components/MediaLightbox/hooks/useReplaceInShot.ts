@@ -39,12 +39,6 @@ export function useReplaceInShot({
     parentTimelineFrame: number,
     shotIdParam: string
   ) => {
-    console.log('[ReplaceInShot] Handler started', {
-      parentId: parentGenerationId.substring(0, 8),
-      currentId: currentMediaId.substring(0, 8),
-      frame: parentTimelineFrame,
-      shotId: shotIdParam.substring(0, 8)
-    });
 
     try {
       // 1. Remove timeline_frame from parent's shot_generation record
@@ -89,8 +83,6 @@ export function useReplaceInShot({
 
         if (createError) throw createError;
       }
-
-      console.log('[ReplaceInShot] Handler completed successfully');
 
       // Close lightbox to force refresh when reopened
       onClose();

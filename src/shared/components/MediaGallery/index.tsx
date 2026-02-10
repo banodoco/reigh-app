@@ -19,7 +19,6 @@ import {
 } from "@/shared/components/ui/select";
 import { cn } from "@/shared/lib/utils";
 import { safeAreaCalc } from "@/shared/lib/safeArea";
-import { MediaGalleryPagination } from "@/shared/components/MediaGalleryPagination";
 import { handleError } from '@/shared/lib/errorHandler';
 
 // Import hooks
@@ -41,11 +40,7 @@ import {
 } from './components';
 
 // Import utils
-import {
-  DEFAULT_ITEMS_PER_PAGE,
-  GRID_COLUMN_CLASSES,
-  getLayoutForAspectRatio,
-} from './utils';
+import { GRID_COLUMN_CLASSES, getLayoutForAspectRatio } from './utils';
 
 // Import types
 import type { Shot, GenerationRow } from "@/types/shots";
@@ -146,11 +141,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     const imagesLength = images?.length ?? 0;
     if (videoGalleryDebugRef.current.lastImagesLength !== imagesLength) {
       videoGalleryDebugRef.current.lastImagesLength = imagesLength;
-      console.log('[VideoSkeletonDebug] MediaGallery props:', {
-        imagesLength,
-        totalCount,
-        timestamp: Date.now()
-      });
     }
   }, [images?.length, totalCount, currentToolType, initialMediaTypeFilter]);
 
@@ -179,7 +169,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   React.useEffect(() => {
     if (prevMobileRef.current !== isMobile) {
       prevMobileRef.current = isMobile;
-      console.log('[MobileDebug] Mobile detection changed:', { isMobile });
     }
   }, [isMobile]);
 
@@ -194,7 +183,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
           windowHeight: window.innerHeight,
           touchSupported: 'ontouchstart' in window,
         };
-        console.log('[MobileDebug] Debug info:', debugInfo);
         return debugInfo;
       };
     }
@@ -220,15 +208,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   const effectiveColumnsPerRow = columnsPerRow === 'auto' ? aspectRatioLayout.columns : columnsPerRow;
   const defaultItemsPerPage = aspectRatioLayout.itemsPerPage;
 
-  // Debug log for video layout issues
-  console.log('[VideoLayoutFix] MediaGallery computing layout:', {
-    columnsPerRow_prop: columnsPerRow,
-    columnsPerRow_isAuto: columnsPerRow === 'auto',
-    aspectRatioLayout_columns: aspectRatioLayout.columns,
-    effectiveColumnsPerRow,
-    willUseGridClass: GRID_COLUMN_CLASSES[effectiveColumnsPerRow as keyof typeof GRID_COLUMN_CLASSES] ? 'YES' : 'NO - FALLBACK',
-    containerWidth,
-  });
   // Ensure itemsPerPage is a multiple of columns to guarantee full rows
   const rawItemsPerPage = itemsPerPage ?? defaultItemsPerPage;
   const actualItemsPerPage = Math.floor(rawItemsPerPage / effectiveColumnsPerRow) * effectiveColumnsPerRow || effectiveColumnsPerRow;
@@ -302,7 +281,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   // Handle page bounds exceeded (e.g., deleted all items on last page)
   const handlePageBoundsExceeded = useCallback((newLastPage: number) => {
     if (onServerPageChange) {
-      console.log('[BackfillV2] Navigating to new last page:', newLastPage);
       onServerPageChange(newLastPage);
     }
   }, [onServerPageChange]);
@@ -416,21 +394,12 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
 
   // Memoized navigation handler to prevent re-creation
   const handleNavigateToShot = useCallback((shot: Shot) => {
-    console.log('[VisitShotDebug] 6. MediaGallery handleNavigateToShot called', {
-      shot,
-      hasNavigateToShot: !!navigateToShot,
-      hasHandleCloseLightbox: !!actionsHook.handleCloseLightbox,
-      timestamp: Date.now()
-    });
     
     try {
-      console.log('[VisitShotDebug] 7. MediaGallery calling navigateToShot');
       navigateToShot(shot);
-      console.log('[VisitShotDebug] 8. MediaGallery navigateToShot completed, now closing lightbox');
       
       // Now we close the lightbox from the component that owns its state
       actionsHook.handleCloseLightbox();
-      console.log('[VisitShotDebug] 9. MediaGallery handleCloseLightbox completed');
     } catch (error) {
       handleError(error, { context: 'MediaGallery', showToast: false });
     }
@@ -438,10 +407,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
 
   // Memoized visit shot handler
   const handleVisitShotFromNotifier = useCallback((shotId: string) => {
-    console.log('[VisitShotDebug] 1. MediaGallery handleVisitShotFromNotifier called', {
-      shotId,
-      timestamp: Date.now()
-    });
     
     // Find the shot object from the shot ID
     const shot = simplifiedShotOptions.find(s => s.id === shotId);
@@ -457,14 +422,8 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
       return;
     }
     
-    console.log('[VisitShotDebug] 2. MediaGallery found shot, calling navigateToShot', {
-      shot: fullShot,
-      timestamp: Date.now()
-    });
-    
     try {
       navigateToShot(fullShot);
-      console.log('[VisitShotDebug] 3. MediaGallery navigateToShot completed');
     } catch (error) {
       handleError(error, { context: 'MediaGallery', showToast: false });
     }
@@ -479,32 +438,11 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     const currentSignature = `${filtersHook.filteredImages.length}-${filtersHook.filteredImages[0]?.id?.substring(0,8) ?? 'none'}-${filtersHook.filteredImages[filtersHook.filteredImages.length-1]?.id?.substring(0,8) ?? 'none'}`;
     const signatureChanged = currentSignature !== prevFilteredImagesRef.current;
 
-    console.log('[CrossPageNav] 🔄 Effect fired:', {
-      pendingTarget: stateHook.state.pendingLightboxTarget,
-      filteredImagesLength: filtersHook.filteredImages.length,
-      currentSignature,
-      signatureChanged,
-      prevSignature: prevFilteredImagesRef.current,
-      serverPage,
-      timeSincePendingSet: pendingTargetSetTimeRef.current ? Date.now() - pendingTargetSetTimeRef.current : null,
-      activeLightboxId: stateHook.state.activeLightboxMedia?.id?.substring(0,8),
-      timestamp: Date.now()
-    });
-
     prevFilteredImagesRef.current = currentSignature;
 
     if (stateHook.state.pendingLightboxTarget && filtersHook.filteredImages.length > 0) {
       const targetIndex = stateHook.state.pendingLightboxTarget === 'first' ? 0 : filtersHook.filteredImages.length - 1;
       const targetImage = filtersHook.filteredImages[targetIndex];
-
-      console.log('[CrossPageNav] ✅ Opening target image:', {
-        pendingTarget: stateHook.state.pendingLightboxTarget,
-        targetIndex,
-        targetImageId: targetImage?.id?.substring(0,8),
-        firstImageId: filtersHook.filteredImages[0]?.id?.substring(0,8),
-        lastImageId: filtersHook.filteredImages[filtersHook.filteredImages.length-1]?.id?.substring(0,8),
-        elapsedMs: pendingTargetSetTimeRef.current ? Date.now() - pendingTargetSetTimeRef.current : null,
-      });
 
       if (targetImage) {
         actionsHook.handleOpenLightbox(targetImage);
@@ -512,7 +450,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         pendingTargetSetTimeRef.current = null;
       }
     } else if (stateHook.state.pendingLightboxTarget && filtersHook.filteredImages.length === 0) {
-      console.log('[CrossPageNav] ⏳ Waiting for data - filteredImages is empty');
     }
   }, [filtersHook.filteredImages, stateHook.state.pendingLightboxTarget, actionsHook.handleOpenLightbox, stateHook.setPendingLightboxTarget, serverPage]);
 
@@ -520,7 +457,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   useEffect(() => {
     const handleSelectShotForAddition = (event: CustomEvent<{ shotId: string; shotName: string }>) => {
       const { shotId, shotName } = event.detail;
-      console.log('[MediaGallery] Selecting shot for addition:', { shotId, shotName });
       // Use handleShotChange to update both selectedShotIdLocal AND lastAffectedShotId
       // This ensures handleAddToShot will use the correct target shot
       actionsHook.handleShotChange(shotId);
@@ -552,29 +488,13 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   const handleNextImage = useCallback(() => {
     const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage, totalPages } = navigationDataRef.current;
 
-    console.log('[CrossPageNav] ➡️ handleNextImage called:', {
-      activeLightboxId: activeLightboxMedia?.id?.substring(0,8),
-      filteredImagesLength: filteredImages.length,
-      isServerPagination,
-      currentServerPage,
-      totalPages,
-      hasOnServerPageChange: !!onServerPageChange,
-    });
-
     if (!activeLightboxMedia) return;
     const currentIndex = filteredImages.findIndex(img => img.id === activeLightboxMedia.id);
-
-    console.log('[CrossPageNav] ➡️ Current position:', {
-      currentIndex,
-      isLastOnPage: currentIndex === filteredImages.length - 1,
-      canGoNextPage: currentServerPage < totalPages,
-    });
 
     if (isServerPagination) {
       // For server pagination, handle page boundaries
       if (currentIndex < filteredImages.length - 1) {
         // Move to next item on current page
-        console.log('[CrossPageNav] ➡️ Moving to next item on same page');
         actionsHook.handleOpenLightbox(filteredImages[currentIndex + 1]);
       } else {
         // At the end of current page, go to next page if available
@@ -582,21 +502,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         if (page < totalPages && onServerPageChange) {
           // Keep lightbox open showing current image, set pending target for new page
           // When new page data arrives, the pendingLightboxTarget effect will swap in the new image
-          console.log('[CrossPageNav] ➡️ 🚀 TRIGGERING CROSS-PAGE NAVIGATION:', {
-            fromPage: page,
-            toPage: page + 1,
-            settingPendingTarget: 'first',
-          });
           pendingTargetSetTimeRef.current = Date.now();
           stateHook.setPendingLightboxTarget('first'); // Open first item of next page
           onServerPageChange(page + 1);
-        } else {
-          console.log('[CrossPageNav] ➡️ ❌ Cannot go to next page:', {
-            page,
-            totalPages,
-            hasOnServerPageChange: !!onServerPageChange,
-            reason: page >= totalPages ? 'already on last page' : 'no onServerPageChange handler',
-          });
         }
       }
     } else {
@@ -610,29 +518,13 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   const handlePreviousImage = useCallback(() => {
     const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage, totalPages } = navigationDataRef.current;
 
-    console.log('[CrossPageNav] ⬅️ handlePreviousImage called:', {
-      activeLightboxId: activeLightboxMedia?.id?.substring(0,8),
-      filteredImagesLength: filteredImages.length,
-      isServerPagination,
-      currentServerPage,
-      totalPages,
-      hasOnServerPageChange: !!onServerPageChange,
-    });
-
     if (!activeLightboxMedia) return;
     const currentIndex = filteredImages.findIndex(img => img.id === activeLightboxMedia.id);
-
-    console.log('[CrossPageNav] ⬅️ Current position:', {
-      currentIndex,
-      isFirstOnPage: currentIndex === 0,
-      canGoPrevPage: currentServerPage > 1,
-    });
 
     if (isServerPagination) {
       // For server pagination, handle page boundaries
       if (currentIndex > 0) {
         // Move to previous item on current page
-        console.log('[CrossPageNav] ⬅️ Moving to previous item on same page');
         actionsHook.handleOpenLightbox(filteredImages[currentIndex - 1]);
       } else {
         // At the beginning of current page, go to previous page if available
@@ -640,20 +532,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         if (page > 1 && onServerPageChange) {
           // Keep lightbox open showing current image, set pending target for new page
           // When new page data arrives, the pendingLightboxTarget effect will swap in the new image
-          console.log('[CrossPageNav] ⬅️ 🚀 TRIGGERING CROSS-PAGE NAVIGATION:', {
-            fromPage: page,
-            toPage: page - 1,
-            settingPendingTarget: 'last',
-          });
           pendingTargetSetTimeRef.current = Date.now();
           stateHook.setPendingLightboxTarget('last'); // Open last item of previous page
           onServerPageChange(page - 1);
-        } else {
-          console.log('[CrossPageNav] ⬅️ ❌ Cannot go to previous page:', {
-            page,
-            hasOnServerPageChange: !!onServerPageChange,
-            reason: page <= 1 ? 'already on first page' : 'no onServerPageChange handler',
-          });
         }
       }
     } else {
@@ -668,21 +549,8 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   const handleSetActiveLightboxIndex = useCallback((index: number) => {
     const { filteredImages } = navigationDataRef.current;
     
-    console.log('[BasedOnDebug] handleSetActiveLightboxIndex called', { 
-      index, 
-      filteredImagesLength: filteredImages.length,
-      targetImageId: filteredImages[index]?.id 
-    });
-    
     if (index >= 0 && index < filteredImages.length) {
-      console.log('[BasedOnDebug] Opening lightbox for image at index', { 
-        index, 
-        imageId: filteredImages[index].id 
-      });
       actionsHook.handleOpenLightbox(filteredImages[index]);
-      console.log('[BasedOnDebug] handleOpenLightbox called');
-    } else {
-      console.warn('[BasedOnDebug] Invalid index for navigation', { index, filteredImagesLength: filteredImages.length });
     }
   }, [actionsHook.handleOpenLightbox]);
 
@@ -717,9 +585,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
 
   // Task details handlers
   const handleShowTaskDetails = useCallback(() => {
-    console.log('[TaskToggle] MediaGallery: handleShowTaskDetails called', { 
-      activeLightboxMedia: stateHook.state.activeLightboxMedia?.id,
-    });
     if (stateHook.state.activeLightboxMedia) {
       // Set up task details modal state first
       stateHook.setSelectedImageForDetails(stateHook.state.activeLightboxMedia);
@@ -728,11 +593,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         stateHook.setShowTaskDetailsModal(true);
         // Close lightbox after modal is set to open
         stateHook.setActiveLightboxMedia(null);
-        console.log('[TaskToggle] MediaGallery: State updated for task details modal', {
-          newSelectedImage: stateHook.state.activeLightboxMedia?.id,
-          newShowModal: true,
-          closedLightbox: true
-        });
       }, 100);
     } else {
       console.error('[TaskToggle] MediaGallery: No active lightbox media found');

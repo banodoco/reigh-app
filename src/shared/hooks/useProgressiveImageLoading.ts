@@ -10,9 +10,8 @@
  * This addresses the mobile stalling issues caused by competing progressive loading sessions.
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { hasLoadedImage } from '@/shared/lib/preloading';
-import { getUnifiedBatchConfig, getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
 
 interface ImageWithId {
   id: string;
@@ -73,8 +72,6 @@ export const useProgressiveImageLoading = ({
   // Helper function to safely cancel a loading session
   const cancelActiveSession = (reason: string) => {
     if (activeSessionRef.current?.isActive) {
-      console.log(`🧹 [PAGELOADINGDEBUG] [PROG:${activeSessionRef.current.id}] Canceling session: ${reason}`);
-
       // Abort any ongoing operations
       activeSessionRef.current.abortController.abort();
 
@@ -100,18 +97,9 @@ export const useProgressiveImageLoading = ({
     const now = Date.now();
     const timeSinceLastTrigger = now - lastTriggerTimeRef.current;
     
-    console.log(`🔍 [PAGELOADINGDEBUG] [PROG:${instanceId}] Effect triggered - imageSetId: ${imageSetId.substring(0, 20)}...`);
-    
     if (!enabled || images.length === 0 || isLightboxOpen) {
-      console.log(`❌ [PAGELOADINGDEBUG] [PROG:${instanceId}] Effect skipped:`, {
-        enabled,
-        imagesLength: images.length,
-        isLightboxOpen,
-        reason: !enabled ? 'disabled' : images.length === 0 ? 'no images' : 'lightbox open'
-      });
       // Call onImagesReady even for empty images to clear loading states
       if (images.length === 0 && stableOnImagesReady.current) {
-        console.log(`✅ [PAGELOADINGDEBUG] [PROG] Ready callback for empty page`);
         stableOnImagesReady.current();
       }
       cancelActiveSession('disabled, no images, or lightbox open');
@@ -122,7 +110,6 @@ export const useProgressiveImageLoading = ({
     const prevPage = currentPageRef.current;
     const isPageChange = prevPage !== page;
     if (!isPageChange && timeSinceLastTrigger < 50) {
-      console.log(`⏸️ [PAGELOADINGDEBUG] [PROG] Effect DEBOUNCED (${timeSinceLastTrigger}ms since last trigger, isPageChange: ${isPageChange})`);
       return;
     }
 
@@ -151,8 +138,6 @@ export const useProgressiveImageLoading = ({
     activeSessionRef.current = session;
     currentPageRef.current = page;
     
-    console.log(`🎬 [PAGELOADINGDEBUG] [PROG:${sessionId}] Starting immediate load: ${images.length} images (${isPageChange ? 'page change' : 'image set change'})`);
-
     // Helper to check if this session is still active
     const isSessionActive = () => {
       return activeSessionRef.current?.id === sessionId && 
@@ -167,7 +152,6 @@ export const useProgressiveImageLoading = ({
         setShowImageIndices(updater);
         return true;
       }
-      console.log(`❌ [PAGELOADINGDEBUG] [PROG:${sessionId}] State update skipped - session inactive`);
       return false;
     };
 
@@ -198,8 +182,6 @@ export const useProgressiveImageLoading = ({
       }
     }
       
-    console.log(`📦 [PAGELOADINGDEBUG] [PROG:${sessionId}] Immediate load: ${images.length} images (${cachedCount}/${images.length} cached)`);
-    
     // Notify that images are ready (for skeleton cleanup etc)
     // NOTE: Navigation clearing is now handled by actual image onLoad events in MediaGalleryGrid
     if (stableOnImagesReady.current && isSessionActive()) {
@@ -208,7 +190,6 @@ export const useProgressiveImageLoading = ({
         if (!isSessionActive()) return;
         const rafId2 = requestAnimationFrame(() => {
           if (isSessionActive()) {
-            console.log(`✅ [PAGELOADINGDEBUG] [PROG:${sessionId}] Ready callback (after paint)`);
             stableOnImagesReady.current?.();
           }
         });
@@ -217,27 +198,14 @@ export const useProgressiveImageLoading = ({
       rafIds.push(rafId1);
     }
     
-    console.log(`✅ [PAGELOADINGDEBUG] [PROG:${sessionId}] Complete - all images shown immediately`);
-    
     // Cleanup function that runs when dependencies change or component unmounts
     return () => {
       if (activeSessionRef.current?.id === sessionId) {
-        console.log(`🧹 [PAGELOADINGDEBUG] [PROG:${sessionId}] Cleanup - canceling ${timeouts.length} timers`);
         cancelActiveSession('effect cleanup');
       }
     };
   }, [imageSetId, page, enabled, isMobile, useIntersectionObserver, isLightboxOpen]);
   
-  // Debug: Track when images prop changes
-  useEffect(() => {
-    console.log(`📝 [PAGELOADINGDEBUG] [PROG] Images prop changed: ${images.length} images, first ID: ${images[0]?.id?.substring(0, 8)}...`);
-  }, [images]);
-  
-  // Debug: Track when page prop changes
-  useEffect(() => {
-    console.log(`📄 [PAGELOADINGDEBUG] [PROG] Page prop changed: ${page}`);
-  }, [page]);
-
   // Cleanup on unmount - ensure all sessions are properly canceled
   useEffect(() => {
     return () => {

@@ -112,40 +112,11 @@ export const WorkflowControlsBar: React.FC<WorkflowControlsBarProps> = ({
   
   React.useEffect(() => {
     const prevLength = prevShotsLengthRef.current;
-    if (prevLength === 0 && currentShotsLength > 0) {
-      console.log('[ShotSelectorDebug] ⚠️ WorkflowControlsBar: Shots loaded AFTER initial render (race condition)!', {
-        prevLength,
-        currentShotsLength,
-        willNowShowSelector: !!(onAddToShot && !isVideo),
-        timestamp: Date.now()
-      });
-    }
     prevShotsLengthRef.current = currentShotsLength;
   }, [currentShotsLength, onAddToShot, isVideo]);
   
-  // Debug logging
-  console.log('[ShotSelectorDebug] WorkflowControlsBar render check', {
-    component: 'WorkflowControlsBar',
-    hasOnAddToShot: !!onAddToShot,
-    hasOnDelete: !!onDelete,
-    hasOnApplySettings: !!onApplySettings,
-    passedFirstCheck: !!(onAddToShot || onDelete || onApplySettings),
-    allShotsLength: allShots?.length || 0,
-    isVideo,
-    isSpecialEditMode,
-    willRenderShotSelector: !!(onAddToShot && allShots?.length > 0 && !isVideo),
-    selectedShotId: selectedShotId,
-    mediaId: mediaId
-  });
-
   // Don't render if no workflow actions available
   if (!(onAddToShot || onDelete || onApplySettings)) {
-    console.log('[ShotSelectorDebug] WorkflowControlsBar NOT rendering - no workflow actions', {
-      component: 'WorkflowControlsBar',
-      hasOnAddToShot: !!onAddToShot,
-      hasOnDelete: !!onDelete,
-      hasOnApplySettings: !!onApplySettings
-    });
     return null;
   }
 

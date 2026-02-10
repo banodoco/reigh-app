@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { GenerationRow } from '@/types/shots';
-import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { TextAction } from '@/shared/components/ui/text-action';
 import { Star, Loader2 } from 'lucide-react';
@@ -46,20 +45,6 @@ export const SourceGenerationDisplay: React.FC<SourceGenerationDisplayProps> = (
 }) => {
   const [isMakingMainVariant, setIsMakingMainVariant] = useState(false);
 
-  // [VariantClickDebug] Log component render with all variant-related props
-  console.log('[VariantClickDebug] SourceGenerationDisplay render:', {
-    sourceGenerationId: sourceGeneration?.id?.substring(0, 8),
-    sourceGenerationLocation: sourceGeneration?.location?.substring(0, 50),
-    sourceGenerationThumbUrl: sourceGeneration?.thumbUrl?.substring(0, 50),
-    hasPrimaryVariant: !!sourcePrimaryVariant,
-    primaryVariantId: sourcePrimaryVariant?.id?.substring(0, 8),
-    primaryVariantLocation: sourcePrimaryVariant?.location?.substring(0, 50),
-    primaryVariantThumbnail: sourcePrimaryVariant?.thumbnail_url?.substring(0, 50),
-    primaryVariantType: sourcePrimaryVariant?.variant_type,
-    canMakeMainVariant,
-    hasOnMakeMainVariant: !!onMakeMainVariant,
-    currentMediaId: currentMediaId?.substring(0, 8),
-  });
   // Check if parent is positioned in the current shot
   const parentShotAssociation = currentShotId
     ? sourceGeneration.all_shot_associations?.find(
@@ -77,38 +62,9 @@ export const SourceGenerationDisplay: React.FC<SourceGenerationDisplayProps> = (
   // Show "Replace in shot" CTA if parent is positioned but current item is not
   const showReplaceCTA = isParentPositioned && !isCurrentMediaPositioned && onReplaceInShot && currentMediaId;
   
-  // Debug logging
-  console.log('[ReplaceInShot] SourceGenerationDisplay render', {
-    hasCurrentShotId: !!currentShotId,
-    currentShotId: currentShotId?.substring(0, 8),
-    allShotsCount: allShots?.length || 0,
-    allShotsIds: allShots?.map(s => ({ id: s.id.substring(0, 8), name: s.name })),
-    foundShotName: shotName,
-    usedCurrentShotName: !!currentShotName,
-    hasParentAssociations: !!sourceGeneration.all_shot_associations,
-    parentAssociationsCount: sourceGeneration.all_shot_associations?.length || 0,
-    parentAssociations: sourceGeneration.all_shot_associations?.map((a) => ({
-      shotId: a.shot_id?.substring(0, 8),
-      frame: a.timeline_frame
-    })),
-    isParentInCurrentShot,
-    parentTimelineFrame,
-    isParentPositioned,
-    isCurrentMediaPositioned,
-    hasOnReplaceInShot: !!onReplaceInShot,
-    hasCurrentMediaId: !!currentMediaId,
-    showReplaceCTA
-  });
   const handleClick = async () => {
-    console.log('[BasedOnNav] 🖼️ SourceGenerationDisplay clicked - Navigating to source generation', {
-      sourceId: sourceGeneration.id.substring(0, 8),
-      clearingDerivedContext: true,
-      timestamp: Date.now()
-    });
     // Clear derived context by not passing it - exits derived nav mode
-    console.log('[BasedOnNav] 🎯 Calling onNavigate WITHOUT derivedContext to exit derived mode');
     await onNavigate(sourceGeneration.id);
-    console.log('[BasedOnNav] ✅ onNavigate completed');
   };
 
   const handleReplace = async () => {
@@ -116,27 +72,14 @@ export const SourceGenerationDisplay: React.FC<SourceGenerationDisplayProps> = (
       return;
     }
     
-    console.log('[ReplaceInShot] Replace button clicked', {
-      parentId: sourceGeneration.id.substring(0, 8),
-      currentMediaId: currentMediaId.substring(0, 8),
-      parentFrame: parentTimelineFrame,
-      shotId: currentShotId.substring(0, 8)
-    });
-    
     await onReplaceInShot(sourceGeneration.id, currentMediaId, parentTimelineFrame, currentShotId);
   };
 
   const handleMakeMainVariant = async () => {
-    console.log('[VariantClickDebug] handleMakeMainVariant clicked:', {
-      hasOnMakeMainVariant: !!onMakeMainVariant,
-      sourceGenerationId: sourceGeneration?.id?.substring(0, 8),
-      currentMediaId: currentMediaId?.substring(0, 8),
-    });
     if (!onMakeMainVariant) return;
     setIsMakingMainVariant(true);
     try {
       await onMakeMainVariant();
-      console.log('[VariantClickDebug] handleMakeMainVariant completed successfully');
     } catch (error) {
       handleError(error, { context: 'SourceGenerationDisplay', showToast: false });
     } finally {
@@ -149,14 +92,6 @@ export const SourceGenerationDisplay: React.FC<SourceGenerationDisplayProps> = (
     sourcePrimaryVariant?.location || 
     sourceGeneration.thumbUrl ||
     sourceGeneration.location;
-
-  console.log('[VariantClickDebug] SourceGenerationDisplay displayThumbnail:', {
-    displayThumbnail: displayThumbnail?.substring(0, 50),
-    usedPrimaryVariantThumbnail: !!sourcePrimaryVariant?.thumbnail_url,
-    usedPrimaryVariantLocation: !sourcePrimaryVariant?.thumbnail_url && !!sourcePrimaryVariant?.location,
-    usedSourceThumbUrl: !sourcePrimaryVariant?.thumbnail_url && !sourcePrimaryVariant?.location && !!sourceGeneration.thumbUrl,
-    usedSourceLocation: !sourcePrimaryVariant?.thumbnail_url && !sourcePrimaryVariant?.location && !sourceGeneration.thumbUrl,
-  });
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>

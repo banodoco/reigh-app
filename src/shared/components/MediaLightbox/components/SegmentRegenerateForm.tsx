@@ -223,14 +223,10 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   useEffect(() => {
     if (!variantParamsToLoad) return;
 
-    console.log('[LoadVariantSettings] Loading from external trigger:', variantParamsToLoad);
-
     const variantSettings = extractSettingsFromParams(variantParamsToLoad, {
       numFrames: currentFrameCount ?? settings.numFrames,
       makePrimaryVariant: settings.makePrimaryVariant,
     });
-
-    console.log('[LoadVariantSettings] Extracted settings from external params:', variantSettings);
 
     // Update all settings from the variant
     updateSettings({
@@ -283,18 +279,8 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     // Read current enhance state from ref (avoids stale closure issue)
     const shouldEnhance = enhancePromptRef.current;
 
-    // Log the enhance decision
-    console.log('[EnhancedPromptSave] 🔍 Submit handler called:', {
-      shouldEnhance,
-      hasPromptToEnhance: !!promptToEnhance,
-      promptToEnhancePreview: promptToEnhance?.substring(0, 50) || '(empty)',
-      pairShotGenerationId: pairShotGenerationId?.substring(0, 8) || '(none)',
-      existingEnhancedPrompt: enhancedPrompt?.substring(0, 50) || '(none)',
-    });
-
     // If enhance is enabled, use background submission pattern
     if (shouldEnhance && promptToEnhance) {
-      console.log('[EnhancedPromptSave] 🚀 Starting background submission with prompt enhancement');
 
       // Add placeholder for immediate feedback
       const taskLabel = `Segment ${segmentIndex + 1}`;
@@ -312,7 +298,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
           }
 
           // 1. Call edge function to enhance prompt
-          console.log('[SegmentRegenerateForm] 📝 Calling ai-prompt edge function to enhance prompt...');
           const { data: enhanceResult, error: enhanceError } = await supabase.functions.invoke('ai-prompt', {
             body: {
               task: 'enhance_segment_prompt',
@@ -327,7 +312,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
           }
 
           const enhancedPromptResult = enhanceResult?.enhanced_prompt?.trim() || promptToEnhance;
-          console.log('[SegmentRegenerateForm] ✅ Enhanced prompt:', enhancedPromptResult.substring(0, 80) + '...');
 
           // 2. Apply before/after text to both original and enhanced prompts
           const beforeText = effectiveSettings.textBeforePrompts?.trim() || '';
@@ -336,12 +320,9 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
           const originalPromptWithPrefixes = [beforeText, effectiveSettings.prompt?.trim() || '', afterText].filter(Boolean).join(' ');
           // Enhanced prompt with before/after (the AI-enhanced version)
           const enhancedPromptWithPrefixes = [beforeText, enhancedPromptResult, afterText].filter(Boolean).join(' ');
-          console.log('[SegmentRegenerateForm] 📝 Original prompt with before/after:', originalPromptWithPrefixes.substring(0, 100) + '...');
-          console.log('[SegmentRegenerateForm] 📝 Enhanced prompt with before/after:', enhancedPromptWithPrefixes.substring(0, 100) + '...');
 
           // 3. Store enhanced prompt in metadata
           if (pairShotGenerationId && enhancedPromptResult !== promptToEnhance) {
-            console.log('[EnhancedPromptSave] 📥 Fetching current metadata for pairShotGenerationId:', pairShotGenerationId.substring(0, 8));
             const { data: current, error: fetchError } = await supabase
               .from('shot_generations')
               .select('metadata')
@@ -353,11 +334,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
             }
 
             const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
-            console.log('[EnhancedPromptSave] 📝 Saving enhanced_prompt to metadata:', {
-              pairShotGenerationId: pairShotGenerationId.substring(0, 8),
-              enhancedPromptPreview: enhancedPromptResult.substring(0, 50) + '...',
-              basePromptPreview: (effectiveSettings.prompt?.trim() || '').substring(0, 50) + '...',
-            });
 
             const { error: updateError } = await supabase
               .from('shot_generations')
@@ -373,16 +349,9 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
 
             if (updateError) {
               console.error('[EnhancedPromptSave] ❌ Error saving enhanced_prompt to metadata:', updateError);
-            } else {
-              console.log('[EnhancedPromptSave] ✅ Enhanced prompt saved to metadata successfully');
             }
 
             queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(pairShotGenerationId) });
-          } else {
-            console.log('[EnhancedPromptSave] ⏭️ Skipping save:', {
-              hasPairShotGenerationId: !!pairShotGenerationId,
-              enhancedPromptMatchesInput: enhancedPromptResult === promptToEnhance,
-            });
           }
 
           // 4. Build task params with original prompt as base_prompt, enhanced as separate field
@@ -415,7 +384,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
             throw new Error(result.error || 'Failed to create task');
           }
 
-          console.log('[SegmentRegenerateForm] ✅ Task created successfully:', result.task_id);
         } catch (error) {
           handleError(error, { context: 'SegmentRegenerateForm', toastTitle: 'Failed to create task' });
         } finally {

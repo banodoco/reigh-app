@@ -405,7 +405,6 @@ function buildJoinClipsPayload(
  * @returns Promise resolving to the created task
  */
 export async function createJoinClipsTask(params: JoinClipsTaskParams): Promise<TaskCreationResult> {
-  console.log("[createJoinClipsTask] Creating task with params:", params);
 
   try {
     // 1. Validate parameters
@@ -430,7 +429,6 @@ export async function createJoinClipsTask(params: JoinClipsTaskParams): Promise<
       params: orchestratorPayload
     });
 
-    console.log("[createJoinClipsTask] Task created successfully:", result);
     return result;
 
   } catch (error) {

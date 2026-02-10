@@ -86,7 +86,6 @@ const LoraCardComponent: React.FC<LoraCardProps> = ({
                   size="sm"
                   className="h-6 px-2 text-xs"
                   onClick={() => {
-                    console.log('[LoraRemovalDebug] Remove button clicked in LoraSelectorModal for LoRA:', { id: lora["Model ID"], name: lora.Name });
                     onRemoveLora(lora["Model ID"]);
                   }}
                 >

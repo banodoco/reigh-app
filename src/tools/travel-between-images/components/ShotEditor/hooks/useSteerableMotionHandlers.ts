@@ -9,7 +9,7 @@
  * - Model selection based on turbo mode
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '../state/types';
 
 interface UseSteerableMotionHandlersOptions {
@@ -106,7 +106,6 @@ export function useSteerableMotionHandlers({
     const currentModelName = steerableMotionSettings?.model_name;
     const targetModel = turboMode ? 'vace_14B_fake_cocktail_2_2' : 'wan_2_2_i2v_lightning_baseline_2_2_2';
     if (currentModelName !== targetModel) {
-      console.log(`[ShotEditor] Setting model based on turbo mode: ${targetModel} (turbo: ${turboMode})`);
       setSteerableMotionSettings({ model_name: targetModel });
     }
   }, [turboMode, steerableMotionSettings?.model_name, setSteerableMotionSettings]);

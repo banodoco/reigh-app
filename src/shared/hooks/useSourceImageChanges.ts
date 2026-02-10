@@ -62,15 +62,7 @@ export function useSourceImageChanges(
         genIds.add(seg.startGenId);
       }
 
-      console.log('[SourceChange] 🔍 Segment ' + seg.segmentId.substring(0, 8) +
-        ' startGenId=' + (seg.startGenId?.substring(0, 8) || 'none') +
-        ' endGenId=' + (seg.endGenId?.substring(0, 8) || 'none'));
     });
-
-    if (genIds.size > 0) {
-      console.log('[SourceChange] 🔍 Hook init: ' + segments.length + ' segments, ' +
-        genIds.size + ' startGenIds, enabled=' + enabled);
-    }
 
     return Array.from(genIds);
   }, [segments, enabled]);
@@ -80,8 +72,6 @@ export function useSourceImageChanges(
     queryKey: ['source-slot-generations', ...startGenIds.sort()],
     queryFn: async () => {
       if (startGenIds.length === 0) return {};
-
-      console.log('[SourceChange] 📡 Fetching timeline data for ' + startGenIds.length + ' startGenIds');
 
       // Step 1: Find where each start generation is on the timeline
       const { data: startSlots, error: startError } = await supabase
@@ -96,7 +86,6 @@ export function useSourceImageChanges(
       }
 
       if (!startSlots || startSlots.length === 0) {
-        console.log('[SourceChange] ⚠️ No positioned slots found for start generations');
         return {};
       }
 
@@ -118,7 +107,6 @@ export function useSourceImageChanges(
 
       // Build ordered list for finding "next" generation
       const orderedSlots = allSlots || [];
-      console.log('[SourceChange] 📡 Shot has ' + orderedSlots.length + ' positioned slots');
 
       // Build map: startGenId -> { startSlotInfo, nextGenId, nextSlotUpdatedAt }
       const startGenToNext: Record<string, { startSlot: typeof startSlots[number]; nextGenId: string | null; nextSlotUpdatedAt: Date | null }> = {};
@@ -131,10 +119,6 @@ export function useSourceImageChanges(
           // Track when the next slot was last updated (for timeline reorder detection)
           nextSlotUpdatedAt: nextSlot?.updated_at ? new Date(nextSlot.updated_at) : null,
         };
-        console.log('[SourceChange] 📡 StartGen ' + slot.generation_id.substring(0, 8) +
-          ' at frame ' + slot.timeline_frame +
-          ' -> nextGen=' + (nextSlot?.generation_id?.substring(0, 8) || 'none') +
-          ' nextSlotUpdatedAt=' + (nextSlot?.updated_at || 'none'));
       });
 
       // Step 3: Get all generation IDs we need (start + next)
@@ -156,7 +140,6 @@ export function useSourceImageChanges(
       // Get generation IDs to look up their primary variants
       const genIds = (slotData || []).map(s => s.generation_id).filter(Boolean);
       if (genIds.length === 0) {
-        console.log('[SourceChange] ⚠️ No generation IDs found for slots');
         return {};
       }
 
@@ -202,11 +185,6 @@ export function useSourceImageChanges(
         };
       });
 
-
-      // Log data summary
-      console.log('[SourceChange] 📥 Data: ' + orderedSlots.length + ' slots, ' +
-        Object.keys(genToVariant).length + ' gens with variants');
-
       // Return everything needed for comparison
       return {
         genToVariant, // genId -> { location, updated_at }
@@ -238,8 +216,6 @@ export function useSourceImageChanges(
         return url;
       }
     };
-
-    console.log('[SourceChange] 🔄 Comparing ' + segments.length + ' segments...');
 
     segments.forEach(seg => {
       // Extract stored URLs from segment params
@@ -273,16 +249,6 @@ export function useSourceImageChanges(
       const endStoredFile = endUrl ? normalizeUrl(endUrl).split('/').pop() : 'none';
       const endCurrentFile = currentEndUrl ? normalizeUrl(currentEndUrl).split('/').pop() : 'none';
 
-      console.log('[SourceChange] 📊 COMPARE seg=' + seg.segmentId.substring(0, 8) +
-        ' | START stored=' + startStoredFile +
-        ' current=' + startCurrentFile +
-        ' match=' + !startMismatch +
-        ' | END stored=' + endStoredFile +
-        ' current=' + endCurrentFile +
-        ' (nextGenId=' + (nextGenId?.substring(0, 8) || 'none') + ')' +
-        ' match=' + !endMismatch +
-        ' | hasMismatch=' + hasMismatch);
-
       if (hasMismatch) {
         // Find the most recent change
         // For start image: use generation's updated_at (reflects variant changes)
@@ -297,12 +263,9 @@ export function useSourceImageChanges(
           if (isReorderMismatch && startGenInfo?.nextSlotUpdatedAt) {
             // Timeline was reordered - use the slot's updated_at
             endChangedAt = startGenInfo.nextSlotUpdatedAt;
-            console.log('[SourceChange] 📅 END mismatch is REORDER (nextGenId=' + nextGenId?.substring(0, 8) +
-              ' vs stored endGenId=' + seg.endGenId?.substring(0, 8) + '), using slot updated_at=' + endChangedAt.toISOString());
           } else if (currentEndInfo?.updated_at) {
             // Same generation but different variant - use generation's updated_at
             endChangedAt = currentEndInfo.updated_at;
-            console.log('[SourceChange] 📅 END mismatch is VARIANT CHANGE, using gen updated_at=' + endChangedAt.toISOString());
           }
         }
 
@@ -319,11 +282,7 @@ export function useSourceImageChanges(
 
         const minutesAgo = changedAt ? Math.round((now - changedAt.getTime()) / 60000) : null;
         if (isRecent) {
-          console.log('[SourceChange] ⚠️ RECENT MISMATCH seg=' + seg.segmentId.substring(0, 8) +
-            ' start=' + startMismatch + ' end=' + endMismatch + ' changedAt=' + minutesAgo + 'min ago - SHOULD SHOW WARNING');
         } else if (hasMismatch) {
-          console.log('[SourceChange] ℹ️ OLD MISMATCH seg=' + seg.segmentId.substring(0, 8) +
-            ' changedAt=' + minutesAgo + 'min ago - warning expired');
         }
 
         map.set(seg.segmentId, {
@@ -342,7 +301,6 @@ export function useSourceImageChanges(
       const warningIds = Array.from(map.entries())
         .filter(([, info]) => info.isRecent)
         .map(([id]) => id.substring(0, 8));
-      console.log('[SourceChange] 📋 Summary: ' + map.size + ' mismatches, ' + recentCount + ' recent (warning IDs: ' + warningIds.join(', ') + ')');
     }
 
     return map;
@@ -353,9 +311,6 @@ export function useSourceImageChanges(
     return (segmentId: string): boolean => {
       const info = mismatchMap.get(segmentId);
       const result = info?.isRecent ?? false;
-      if (result) {
-        console.log('[SourceChange] ✅ hasRecentMismatch(' + segmentId.substring(0, 8) + ')=TRUE');
-      }
       return result;
     };
   }, [mismatchMap]);

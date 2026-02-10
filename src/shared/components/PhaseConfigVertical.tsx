@@ -21,7 +21,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/
 import { TextAction } from '@/shared/components/ui/text-action';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Info, RotateCcw, Trash2, Download, Search, Save, Library, FilePlus, AlertTriangle } from 'lucide-react';
-import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import type { PresetMetadata } from '@/shared/types/presetMetadata';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
@@ -629,12 +628,6 @@ export const PhaseConfigVertical: React.FC<PhaseConfigVerticalProps> = ({
           if (activePhaseForLoraSelection !== null) {
             // Extract URL from the huggingface_url property
             const loraUrl = lora.huggingface_url || '';
-
-            console.log('[PhaseConfig] Adding LoRA from search:', {
-              lora,
-              loraUrl,
-              loraKeys: Object.keys(lora)
-            });
 
             // IMMUTABLE UPDATE: Create new phase with filtered loras + new searched one
             const newPhases = phaseConfig.phases.map((p, pIdx) =>

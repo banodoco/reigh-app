@@ -1,17 +1,31 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo
+} from 'react';
 import { GenerationRow } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
-import { Loader2, Check, Plus, Trash2, Play, Pause, Scissors, RefreshCw, X, Sparkles } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Play,
+  Pause,
+  Scissors,
+  RefreshCw,
+  X,
+  Sparkles
+} from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { VideoPortionEditor } from './VideoPortionEditor';
 import { useEditVideoSettings } from '../hooks/useEditVideoSettings';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import type { LoraModel } from '@/shared/hooks/useLoraManager';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
@@ -577,13 +591,6 @@ export function InlineEditVideoView({
       // Convert selections to frame-accurate ranges with per-segment settings
       const portionFrameRanges = selectionsToFrameRanges(selections, videoFps, videoDuration, gapFrameCount, prompt);
       
-      console.log('[EditVideo] Frame-accurate selections:', {
-        fps: videoFps,
-        duration: videoDuration,
-        totalFrames: Math.round(videoDuration * videoFps),
-        selections: portionFrameRanges,
-      });
-      
       // Convert selected LoRAs
       const lorasForTask = loraManager.selectedLoras.map(lora => ({
         path: lora.path,
@@ -646,10 +653,6 @@ export function InlineEditVideoView({
       const safeMaxContextFrames = Math.max(1, minKeeperFrames - 1);
       const cappedContextFrameCount = Math.min(contextFrameCount, safeMaxContextFrames);
       
-      if (cappedContextFrameCount < contextFrameCount) {
-        console.log(`[EditVideo] Capped context_frame_count from ${contextFrameCount} to ${cappedContextFrameCount} (min keeper clip: ${minKeeperFrames} frames, safe max: ${safeMaxContextFrames})`);
-      }
-
       // Build orchestrator details for edit_video_orchestrator
       const orchestratorDetails: Record<string, unknown> = {
         run_id: generateRunId(),
@@ -702,13 +705,6 @@ export function InlineEditVideoView({
       if (lorasForTask.length > 0) {
         orchestratorDetails.loras = lorasForTask;
       }
-
-      console.log('[EditVideo] Creating edit_video_orchestrator task:', {
-        video_fps: videoFps,
-        video_duration: videoDuration,
-        total_frames: Math.round(videoDuration * videoFps),
-        portions_to_regenerate: portionFrameRanges,
-      });
 
       // Create the task using the createTask function
       // Note: tool_type must be at top level for complete_task to pick it up for variant creation

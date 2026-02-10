@@ -80,12 +80,6 @@ export function useUpdatingTimestamp({
   // Debug logging for task timestamps
   React.useEffect(() => {
     if (parsedDate && parsedDate.getTime() > Date.now() - 24 * 60 * 60 * 1000) { // Only log for recent tasks
-      console.log('[TimestampDebug] Task timestamp hook:', {
-        date: parsedDate.toISOString(),
-        updateTrigger,
-        age: Date.now() - parsedDate.getTime(),
-        timestamp: Date.now()
-      });
     }
   }, [updateTrigger, parsedDate]);
   
@@ -95,14 +89,6 @@ export function useUpdatingTimestamp({
     
     const formatted = formatDistanceToNow(parsedDate, { addSuffix: true });
     const abbreviated = abbreviate(formatted);
-    
-    // DEBUG: Log what date-fns returns vs what we output
-    console.log('[TimestampDebug] date-fns vs abbreviated:', {
-      original: formatted,
-      abbreviated: abbreviated,
-      date: parsedDate.toISOString(),
-      timestamp: Date.now()
-    });
     
     return abbreviated;
   }, [parsedDate?.getTime(), updateTrigger, abbreviate]);

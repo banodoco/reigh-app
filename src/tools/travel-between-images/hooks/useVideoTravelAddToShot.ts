@@ -75,29 +75,11 @@ export const useVideoTravelAddToShot = ({
       ? (shots?.find(shot => shot.id === targetShotIdForButton)?.name || 'Selected Shot')
       : (shots && shots.length > 0 ? shots[0].name : 'Last Shot');
     
-    console.log('[VideoTravelAddToShot] targetShotInfo computed:', {
-      targetShotIdForButton: targetShotIdForButton?.substring(0, 8),
-      targetShotNameForButtonTooltip,
-      lastAffectedShotId: lastAffectedShotId?.substring(0, 8),
-      shotsCount: shots?.length || 0,
-      firstShotId: shots?.[0]?.id?.substring(0, 8)
-    });
-    
     return { targetShotIdForButton, targetShotNameForButtonTooltip };
   }, [lastAffectedShotId, shots]);
   
   // Handle adding a video/image to target shot WITH position
   const handleAddVideoToTargetShot = useCallback(async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-    console.log('[VideoTravelAddToShot] 🎯 handleAddVideoToTargetShot called:', {
-      generationId: generationId?.substring(0, 8),
-      targetShotId: targetShotInfo.targetShotIdForButton?.substring(0, 8),
-      targetShotName: targetShotInfo.targetShotNameForButtonTooltip,
-      lastAffectedShotId: lastAffectedShotId?.substring(0, 8),
-      selectedProjectId,
-      hasImageUrl: !!imageUrl,
-      hasThumbUrl: !!thumbUrl,
-      timestamp: Date.now()
-    });
     
     if (!targetShotInfo.targetShotIdForButton) {
       console.error('[VideoTravelAddToShot] ❌ No target shot available');
@@ -116,11 +98,6 @@ export const useVideoTravelAddToShot = ({
     }
 
     try {
-      console.log('[VideoTravelAddToShot] 📤 Calling addImageToShotMutation with:', {
-        shot_id: targetShotInfo.targetShotIdForButton?.substring(0, 8),
-        generation_id: generationId?.substring(0, 8),
-        project_id: selectedProjectId
-      });
       
       await addImageToShotMutation.mutateAsync({
         shot_id: targetShotInfo.targetShotIdForButton,
@@ -130,11 +107,9 @@ export const useVideoTravelAddToShot = ({
         project_id: selectedProjectId, 
       });
       
-      console.log('[VideoTravelAddToShot] ✅ Mutation success! Setting lastAffectedShotId to:', targetShotInfo.targetShotIdForButton?.substring(0, 8));
       setLastAffectedShotId(targetShotInfo.targetShotIdForButton);
       
       // Force refresh of generations data to show updated positioning
-      console.log('[VideoTravelAddToShot] 🔄 Invalidating unified-generations query');
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId!) });
       
       return true;
@@ -146,11 +121,6 @@ export const useVideoTravelAddToShot = ({
 
   // Handle adding a video/image to target shot WITHOUT position
   const handleAddVideoToTargetShotWithoutPosition = useCallback(async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-    console.log('[VideoTravelAddToShot] handleAddVideoToTargetShotWithoutPosition called:', {
-      generationId: generationId?.substring(0, 8),
-      targetShotId: targetShotInfo.targetShotIdForButton?.substring(0, 8),
-      selectedProjectId
-    });
     
     if (!targetShotInfo.targetShotIdForButton) {
       console.error('[VideoTravelAddToShot] No target shot available (without position)');
@@ -169,7 +139,6 @@ export const useVideoTravelAddToShot = ({
     }
 
     try {
-      console.log('[VideoTravelAddToShot] Calling addImageToShotWithoutPositionMutation...');
       await addImageToShotWithoutPositionMutation.mutateAsync({
         shot_id: targetShotInfo.targetShotIdForButton,
         generation_id: generationId,
@@ -178,7 +147,6 @@ export const useVideoTravelAddToShot = ({
         project_id: selectedProjectId, 
       });
       
-      console.log('[VideoTravelAddToShot] Success (without position)! Setting lastAffectedShotId');
       setLastAffectedShotId(targetShotInfo.targetShotIdForButton);
       
       // Force refresh of generations data to show updated association

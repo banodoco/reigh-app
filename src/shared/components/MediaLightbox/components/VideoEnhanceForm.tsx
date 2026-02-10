@@ -65,7 +65,6 @@ function useDetectVideoFps(videoUrl: string | undefined): number | null {
       const elapsed = metadata.mediaTime - startTime;
       if (elapsed >= 0.5 && frameCount > 2) {
         const fps = Math.round((frameCount - 1) / elapsed);
-        console.log('[VideoEnhanceForm] Detected FPS:', fps, 'from', frameCount - 1, 'frames in', elapsed.toFixed(2), 's');
         setDetectedFps(fps);
         video.pause();
         return;
@@ -81,18 +80,15 @@ function useDetectVideoFps(videoUrl: string | undefined): number | null {
         rafId = video.requestVideoFrameCallback(countFrame);
         video.play().catch(() => {
           // If autoplay blocked, fall back to default
-          console.log('[VideoEnhanceForm] Autoplay blocked, using default FPS');
           setDetectedFps(DEFAULT_VIDEO_FPS);
         });
       } else {
         // Browser doesn't support requestVideoFrameCallback, use default
-        console.log('[VideoEnhanceForm] requestVideoFrameCallback not supported, using default FPS');
         setDetectedFps(DEFAULT_VIDEO_FPS);
       }
     });
 
     video.addEventListener('error', () => {
-      console.log('[VideoEnhanceForm] Video error, using default FPS');
       setDetectedFps(DEFAULT_VIDEO_FPS);
     });
 

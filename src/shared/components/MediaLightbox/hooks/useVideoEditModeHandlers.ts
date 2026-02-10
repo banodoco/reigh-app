@@ -81,13 +81,10 @@ export function useVideoEditModeHandlers({
 
     // Auto-fallback: if restoring to 'regenerate' but it's not available, use 'trim' instead
     if (restoredMode === 'regenerate' && !canRegenerate) {
-      console.log('[EDIT_DEBUG] 🎬 handleEnterVideoEditMode: regenerate unavailable, falling back to trim');
       restoredMode = 'trim';
     }
 
-    console.log('[EDIT_DEBUG] 🎬 handleEnterVideoEditMode: restoring to', restoredMode, '(persisted:', persistedVideoEditSubMode, ', canRegenerate:', canRegenerate, ')');
     setVideoEditSubMode(restoredMode);
-    console.log('[PanelRestore] SAVING panelMode: edit (video entered edit mode)');
     setPersistedPanelMode('edit');
 
     // Set the appropriate mode flags based on restored sub-mode
@@ -120,9 +117,7 @@ export function useVideoEditModeHandlers({
 
   // Handle exiting video edit mode entirely
   const handleExitVideoEditMode = useCallback(() => {
-    console.log('[EDIT_DEBUG] 🎬 handleExitVideoEditMode: switching to Info panel');
     setVideoEditSubMode(null);
-    console.log('[PanelRestore] SAVING panelMode: info (exited video edit mode)');
     setPersistedPanelMode('info');
     resetTrim();
     videoEditingSetIsVideoEditMode(false);
@@ -131,7 +126,6 @@ export function useVideoEditModeHandlers({
 
   // Handle switching to trim sub-mode
   const handleEnterVideoTrimMode = useCallback(() => {
-    console.log('[EDIT_DEBUG] 🎬 handleEnterVideoTrimMode');
     setVideoEditSubMode('trim');
     videoEditingSetIsVideoEditMode(false);
     onTrimModeChange?.(true);
@@ -142,7 +136,6 @@ export function useVideoEditModeHandlers({
 
   // Handle switching to replace (portion) sub-mode
   const handleEnterVideoReplaceMode = useCallback(() => {
-    console.log('[EDIT_DEBUG] 🎬 handleEnterVideoReplaceMode');
     setVideoEditSubMode('replace');
     videoEditingSetIsVideoEditMode(true);
     resetTrim();
@@ -150,7 +143,6 @@ export function useVideoEditModeHandlers({
 
   // Handle switching to regenerate (full segment) sub-mode
   const handleEnterVideoRegenerateMode = useCallback(() => {
-    console.log('[EDIT_DEBUG] 🎬 handleEnterVideoRegenerateMode');
     setVideoEditSubMode('regenerate');
     videoEditingSetIsVideoEditMode(false);
     resetTrim();
@@ -158,7 +150,6 @@ export function useVideoEditModeHandlers({
 
   // Handle switching to enhance (interpolation/upscale) sub-mode
   const handleEnterVideoEnhanceMode = useCallback(() => {
-    console.log('[EDIT_DEBUG] 🎬 handleEnterVideoEnhanceMode');
     setVideoEditSubMode('enhance');
     videoEditingSetIsVideoEditMode(false);
     resetTrim();
@@ -166,7 +157,6 @@ export function useVideoEditModeHandlers({
 
   // Legacy handler for exiting trim mode specifically
   const handleExitVideoTrimMode = useCallback(() => {
-    console.log('[EDIT_DEBUG] 🎬 handleExitVideoTrimMode');
     setVideoEditSubMode(null);
     resetTrim();
     onTrimModeChange?.(false);

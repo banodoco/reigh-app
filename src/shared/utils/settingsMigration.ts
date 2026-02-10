@@ -294,11 +294,6 @@ export function writeSegmentOverrides(
   }
 
   const savedOverrides = metadata.segmentOverrides as Record<string, unknown> | undefined;
-  console.log(`[PairPromptDebug] writeSegmentOverrides result:`, {
-    hasSegmentOverrides: !!savedOverrides,
-    segmentOverridesPrompt: (savedOverrides?.prompt as string | undefined)?.substring(0, 30),
-    segmentOverridesNegPrompt: (savedOverrides?.negativePrompt as string | undefined)?.substring(0, 30),
-  });
 
   return metadata;
 }

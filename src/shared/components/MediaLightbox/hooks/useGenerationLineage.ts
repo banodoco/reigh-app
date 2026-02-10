@@ -45,23 +45,10 @@ export const useGenerationLineage = ({
   
   const paginatedDerived = useMemo(() => {
     if (!derivedItems) {
-      console.log('[DerivedItems] paginatedDerived: no derivedItems');
       return [];
     }
     const start = (derivedPage - 1) * derivedPerPage;
     const paginated = derivedItems.slice(start, start + derivedPerPage);
-    console.log('[DerivedItems] paginatedDerived calculated', {
-      derivedItemsCount: derivedItems.length,
-      derivedPage,
-      start,
-      end: start + derivedPerPage,
-      paginatedCount: paginated.length,
-      paginatedItems: paginated.map(d => ({ 
-        id: d.id, 
-        itemType: d.itemType, 
-        hasThumbUrl: !!d.thumbUrl 
-      }))
-    });
     return paginated;
   }, [derivedItems, derivedPage, derivedPerPage]);
 

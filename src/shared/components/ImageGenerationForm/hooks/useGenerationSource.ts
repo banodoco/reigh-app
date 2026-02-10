@@ -135,7 +135,6 @@ export function useGenerationSource(props: UseGenerationSourceProps): UseGenerat
 
   const handleGenerationSourceChange = useCallback(async (source: GenerationSource) => {
     const previousSource = generationSource;
-    console.log('[useGenerationSource] handleGenerationSourceChange:', { previousSource, newSource: source, selectedTextModel });
     setGenerationSource(source);
     markAsInteracted();
 
@@ -187,7 +186,6 @@ export function useGenerationSource(props: UseGenerationSourceProps): UseGenerat
 
   const handleTextModelChange = useCallback(async (model: TextToImageModel) => {
     const previousModel = selectedTextModel;
-    console.log('[useGenerationSource] handleTextModelChange:', { previousModel, newModel: model, generationSource });
     const previousCategory = getLoraCategoryForModel(previousModel);
     const newCategory = getLoraCategoryForModel(model);
 
@@ -236,7 +234,6 @@ export function useGenerationSource(props: UseGenerationSourceProps): UseGenerat
   // ============================================================================
 
   const handleModelChange = useCallback(async (value: GenerationMode) => {
-    console.log('[useGenerationSource] handleModelChange:', { to: value });
 
     // Optimistic UI flip
     setModelOverride(value);
@@ -248,7 +245,6 @@ export function useGenerationSource(props: UseGenerationSourceProps): UseGenerat
           updateSettingsCache<ProjectImageSettings>(prev, { selectedModel: value })
         );
       } catch (e) {
-        console.warn('[useGenerationSource] Failed to set optimistic cache data', e);
       }
     }
 

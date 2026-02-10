@@ -138,10 +138,6 @@ function buildIndividualTravelSegmentParams(
     ? Math.floor(Math.random() * 1000000) 
     : (params.seed ?? baseSeed);
   
-  if (params.random_seed) {
-    console.log(`[IndividualTravelSegment] Generated random seed: ${finalSeed}`);
-  }
-
   // Build additional_loras from params.loras or original
   // If params.loras is explicitly provided (even as empty array), use it - user may have removed all LoRAs
   // Only fall back to original if params.loras is undefined
@@ -151,13 +147,10 @@ function buildIndividualTravelSegmentParams(
     params.loras.forEach(lora => {
       additionalLoras[lora.path] = lora.strength;
     });
-    console.log('[IndividualTravelSegment] Using provided loras:', params.loras.length > 0 ? params.loras : '(none - cleared by user)');
   } else if (orig.additional_loras) {
     Object.assign(additionalLoras, orig.additional_loras);
-    console.log('[IndividualTravelSegment] Using original additional_loras');
   } else if (orchDetails.additional_loras) {
     Object.assign(additionalLoras, orchDetails.additional_loras);
-    console.log('[IndividualTravelSegment] Using orchestrator_details additional_loras');
   }
 
   // Determine model settings FIRST (needed for basic mode phase config)
@@ -219,18 +212,6 @@ function buildIndividualTravelSegmentParams(
     : "wan_2_2_i2v_lightning_baseline_2_2_2";
   const modelName = orig.model_name || orchDetails.model_name || defaultModelName;
   
-  // Log model selection for debugging
-  console.log('[IndividualTravelSegment] Model selection:', {
-    origModelName: orig.model_name,
-    orchModelName: orchDetails.model_name,
-    hasStructureVideos,
-    hasStructureGuidance: !!structureGuidance,
-    structureGuidanceTarget: structureGuidance?.target,
-    isUni3c,
-    useVaceModel,
-    defaultModelName,
-    finalModelName: modelName,
-  });
   // Extract flat fields from phaseConfig (when available) or fallback to orig/orchDetails
   const flowShift = phaseConfig?.flow_shift ?? orig.flow_shift ?? orchDetails.flow_shift ?? 5;
   const sampleSolver = phaseConfig?.sample_solver ?? orig.sample_solver ?? orchDetails.sample_solver ?? "euler";
@@ -256,20 +237,6 @@ function buildIndividualTravelSegmentParams(
   // When present, worker should prefer this over base_prompt
   const enhancedPrompt = params.enhanced_prompt ?? orig.enhanced_prompt;
 
-  // [SegmentPromptDebug] Log prompt resolution to verify UI values are being used
-  console.log('[IndividualTravelSegment] [SegmentPromptDebug] Prompt resolution:', {
-    hasParamsBasePrompt: params.base_prompt !== undefined && params.base_prompt !== null,
-    paramsBasePrompt: params.base_prompt?.substring(0, 50),
-    hasEnhancedPrompt: !!enhancedPrompt,
-    enhancedPromptPreview: enhancedPrompt?.substring(0, 50),
-    origBasePrompt: orig.base_prompt?.substring(0, 50),
-    origPrompt: orig.prompt?.substring(0, 50),
-    finalBasePrompt: basePrompt?.substring(0, 50),
-    hasParamsNegativePrompt: params.negative_prompt !== undefined && params.negative_prompt !== null,
-    finalNegativePrompt: negativePrompt?.substring(0, 50),
-    source: params.base_prompt !== undefined ? 'UI override (user-input)' : 'original params',
-  });
-  
   // Build input_image_paths_resolved for orchestrator_details
   // Include all input images from the original orchestrator if available
   // For trailing segments (single-image-to-video), end_image_url is undefined
@@ -336,11 +303,6 @@ function buildIndividualTravelSegmentParams(
       finalStructureGuidance.preprocessing = preprocessingMap[firstVideo.structure_type ?? 'flow'] ?? 'flow';
     }
 
-    console.log('[IndividualTravelSegment] Built structure_guidance from UI params.structure_videos:', {
-      target: finalStructureGuidance.target,
-      videosCount: cleanedVideos.length,
-      firstVideoPath: firstVideo.path?.substring(0, 50),
-    });
   }
 
   if (!finalStructureGuidance) {
@@ -378,26 +340,9 @@ function buildIndividualTravelSegmentParams(
         finalStructureGuidance.preprocessing = preprocessingMap[firstVideo.structure_type ?? 'flow'] ?? 'flow';
       }
 
-      console.log('[IndividualTravelSegment] Converted legacy structure_videos to unified format:', {
-        target: finalStructureGuidance.target,
-        videosCount: cleanedVideos.length,
-      });
     }
   }
   
-  // Log the structure guidance data being preserved
-  console.log('[IndividualTravelSegment] Preserving orchestrator data:', {
-    hasStructureGuidance: !!finalStructureGuidance,
-    structureGuidanceTarget: finalStructureGuidance?.target,
-    structureGuidanceVideosCount: (finalStructureGuidance?.videos as unknown[] | undefined)?.length ?? 0,
-    hasSegmentFramesExpanded: !!segmentFramesExpanded,
-    segmentFramesExpandedLength: segmentFramesExpanded?.length ?? 0,
-    hasFrameOverlapExpanded: !!frameOverlapExpanded,
-    frameOverlapExpandedLength: frameOverlapExpanded?.length ?? 0,
-    fpsHelpers,
-    segmentIndex: params.segment_index,
-  });
-
   const orchestratorDetails: Record<string, unknown> = {
     ...orchDetailsWithoutOrchestratorRefs,
     // Common identifier for comparing batch vs individual segment generation
@@ -638,17 +583,6 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
   // Detect trailing segment mode (single-image-to-video, no end image)
   const isTrailingSegment = !params.end_image_url;
 
-  console.log("[TrailingGen] createTask called:", {
-    project_id: params.project_id?.substring(0, 8),
-    parent_generation_id: params.parent_generation_id?.substring(0, 8),
-    shot_id: params.shot_id?.substring(0, 8),
-    segment_index: params.segment_index,
-    isTrailingSegment,
-    hasStartImageUrl: !!params.start_image_url,
-    hasEndImageUrl: !!params.end_image_url,
-    hasOriginalParams: !!params.originalParams,
-  });
-
   try {
     // 1. Validate parameters
     validateIndividualTravelSegmentParams(params);
@@ -657,7 +591,6 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
     let effectiveParentGenerationId = params.parent_generation_id;
     
     if (!effectiveParentGenerationId && params.shot_id) {
-      console.log("[IndividualTravelSegment] No parent_generation_id provided, creating placeholder parent");
       
       // Create a placeholder parent generation
       const newParentId = crypto.randomUUID();
@@ -695,7 +628,6 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
         throw new Error(`Failed to create placeholder parent generation: ${parentError.message}`);
       }
       
-      console.log("[IndividualTravelSegment] Created placeholder parent:", newParentId);
       effectiveParentGenerationId = newParentId;
       
       // Link the parent to the shot using the RPC
@@ -708,8 +640,6 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
       if (linkError) {
         console.error("[IndividualTravelSegment] Error linking parent to shot:", linkError);
         // Don't fail - the generation was created, just not linked
-      } else {
-        console.log("[IndividualTravelSegment] Linked parent to shot:", params.shot_id);
       }
     }
     
@@ -722,19 +652,10 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
     // This ensures we regenerate the correct video even if timeline was reordered
     let effectiveChildGenerationId = params.child_generation_id;
     
-    console.log("[IndividualTravelSegment] 🔍 CHILD LOOKUP START:", {
-      providedChildGenId: params.child_generation_id?.substring(0, 8) || null,
-      parentGenId: effectiveParentGenerationId?.substring(0, 8) || null,
-      pairShotGenId: params.pair_shot_generation_id?.substring(0, 8) || null,
-      segmentIndex: params.segment_index,
-      willSkipLookup: !!effectiveChildGenerationId,
-    });
-    
     if (!effectiveChildGenerationId && effectiveParentGenerationId) {
       // Strategy 1: Look for child with matching pair_shot_generation_id (most accurate)
       // Query the FK column (source of truth with referential integrity)
       if (params.pair_shot_generation_id) {
-        console.log("[IndividualTravelSegment] 🔍 Strategy 1: Looking for child by pair_shot_generation_id column...");
         const { data: childByPairId, error: pairIdError } = await supabase
           .from('generations')
           .select('id')
@@ -744,26 +665,15 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
           .maybeSingle();
 
         if (pairIdError) {
-          console.log("[IndividualTravelSegment] ⚠️ Strategy 1 query error:", pairIdError.message);
         } else if (childByPairId) {
           effectiveChildGenerationId = childByPairId.id;
-          console.log("[IndividualTravelSegment] ✅ Strategy 1 SUCCESS - Found child by pair_shot_generation_id column:", {
-            parent_generation_id: effectiveParentGenerationId?.substring(0, 8),
-            pair_shot_generation_id: params.pair_shot_generation_id?.substring(0, 8),
-            existing_child_id: effectiveChildGenerationId?.substring(0, 8),
-          });
-        } else {
-          console.log("[IndividualTravelSegment] ❌ Strategy 1 MISS - No child found with pair_shot_generation_id:", params.pair_shot_generation_id?.substring(0, 8));
         }
-      } else {
-        console.log("[IndividualTravelSegment] ⏭️ Strategy 1 SKIPPED - No pair_shot_generation_id provided");
       }
 
       // Strategy 2: Fallback to child_order match (legacy ONLY - skip if pair_shot_generation_id was provided)
       // If pair_shot_generation_id was provided but no match found, we want a NEW child for that pair,
       // not a variant on some unrelated video that happens to have the same child_order
       if (!effectiveChildGenerationId && params.segment_index !== undefined && !params.pair_shot_generation_id) {
-        console.log("[IndividualTravelSegment] 🔍 Strategy 2: Looking for child by child_order (legacy fallback)...");
         const { data: childByOrder, error: orderError } = await supabase
           .from('generations')
           .select('id')
@@ -773,28 +683,13 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
           .maybeSingle();
 
         if (orderError) {
-          console.log("[IndividualTravelSegment] ⚠️ Strategy 2 query error:", orderError.message);
         } else if (childByOrder) {
           effectiveChildGenerationId = childByOrder.id;
-          console.log("[IndividualTravelSegment] ✅ Strategy 2 SUCCESS - Found child by child_order:", {
-            parent_generation_id: effectiveParentGenerationId?.substring(0, 8),
-            segment_index: params.segment_index,
-            existing_child_id: effectiveChildGenerationId?.substring(0, 8),
-          });
-        } else {
-          console.log("[IndividualTravelSegment] ❌ Strategy 2 MISS - No child found with child_order:", params.segment_index);
         }
       } else if (!effectiveChildGenerationId && params.pair_shot_generation_id) {
-        console.log("[IndividualTravelSegment] ⏭️ Strategy 2 SKIPPED - pair_shot_generation_id was provided but no match found, will create NEW child for this pair");
       }
     }
     
-    console.log("[IndividualTravelSegment] 🔍 CHILD LOOKUP RESULT:", {
-      finalChildGenId: effectiveChildGenerationId?.substring(0, 8) || null,
-      willCreateVariant: !!effectiveChildGenerationId,
-      willCreateNewChild: !effectiveChildGenerationId,
-    });
-
     // Update params with the effective IDs
     const paramsWithIds = {
       ...params,
@@ -813,21 +708,6 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
     // 5. Build task params matching travel_segment structure
     const taskParams = buildIndividualTravelSegmentParams(paramsWithIds, finalResolution);
 
-    console.log("[TrailingGen] Built task params:", {
-      model_name: taskParams.model_name,
-      segment_index: taskParams.segment_index,
-      num_frames: taskParams.num_frames,
-      seed_to_use: taskParams.seed_to_use,
-      parsed_resolution_wh: taskParams.parsed_resolution_wh,
-      child_generation_id: taskParams.child_generation_id,
-      is_last_segment: taskParams.is_last_segment,
-      origResolution,
-      finalResolution,
-      hasPhaseConfig: !!taskParams.phase_config,
-      hasOrchestratorDetails: !!taskParams.orchestrator_details,
-      additionalLorasCount: Object.keys(taskParams.additional_loras as Record<string, number> || {}).length,
-    });
-
     // 6. Create task using unified create-task function
     const result = await createTask({
       project_id: params.project_id,
@@ -835,7 +715,6 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
       params: taskParams
     });
 
-    console.log("[IndividualTravelSegment] Task created successfully:", result);
     return result;
 
   } catch (error) {

@@ -145,7 +145,6 @@ export const uploadVideoToStorage = async (
   const fileName = storagePaths.upload(userId, filename);
 
   const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-  console.log(`[VideoUpload] Starting upload for ${file.name} (${fileSizeMB}MB) to path: ${fileName} (max retries: ${maxRetries}, timeout: ${timeoutMs}ms)`);
 
   let lastError: Error | null = null;
 
@@ -162,7 +161,6 @@ export const uploadVideoToStorage = async (
     }
 
     try {
-      console.log(`[VideoUpload] Upload attempt ${attempt + 1}/${maxRetries}:`, fileName);
 
       const bucketUrl = `${SUPABASE_URL}/storage/v1/object/${MEDIA_BUCKET}/${fileName}`;
 
@@ -189,7 +187,6 @@ export const uploadVideoToStorage = async (
         stallCheckInterval = setInterval(() => {
           const timeSinceLastProgress = Date.now() - lastProgressTime;
           if (timeSinceLastProgress > STALL_TIMEOUT_MS) {
-            console.warn(`[VideoUpload] Upload stalled for ${file.name} - no progress for ${timeSinceLastProgress}ms`);
             cleanup();
             xhr.abort();
             reject(new Error(`Upload stalled - no progress for ${STALL_TIMEOUT_MS}ms`));
@@ -250,7 +247,6 @@ export const uploadVideoToStorage = async (
         .from(MEDIA_BUCKET)
         .getPublicUrl(fileName);
 
-      console.log(`[VideoUpload] Upload successful: ${publicUrl.substring(0, 60)}...`);
       return publicUrl;
 
     } catch (error) {
@@ -265,7 +261,6 @@ export const uploadVideoToStorage = async (
       if (attempt < maxRetries - 1) {
         // Wait before retrying (exponential backoff)
         const delay = Math.pow(2, attempt) * 1000;
-        console.log(`[VideoUpload] Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }

@@ -61,7 +61,6 @@ async function getUserWithTimeout(timeoutMs = 15000) {
     // This is critical because getSession() can take 600ms-16s!
     if (cachedUser && (Date.now() - cachedUserAt) < USER_CACHE_MS) {
       clearTimeout(timeoutId);
-      console.log('[GenerationModeDebug] ⚡ Using cached user (skipping getSession)');
       return { data: { user: { id: cachedUser.id } }, error: null };
     }
 
@@ -77,7 +76,6 @@ async function getUserWithTimeout(timeoutMs = 15000) {
     
     const { data: sessionData } = await inflightGetSession;
     const sessionDuration = Date.now() - sessionStart;
-    console.log('[GenerationModeDebug] ⏱️ getSession took:', sessionDuration + 'ms');
     
     const sessionUser = sessionData?.session?.user || null;
     if (sessionUser) {
@@ -121,12 +119,6 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
     const singleFlightKey = JSON.stringify({ toolId, projectId: ctx.projectId ?? null, shotId: ctx.shotId ?? null });
     const existingPromise = inflightSettingsFetches.get(singleFlightKey);
     if (existingPromise) {
-      if (ctx.shotId) {
-        console.log('[GenerationModeDebug] ♻️ DEDUPE hit - reusing existing request:', {
-          toolId,
-          shotId: ctx.shotId?.substring(0, 8),
-        });
-      }
       return existingPromise;
     }
 
@@ -134,14 +126,6 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
       const fetchStart = Date.now();
       
       // [GenerationModeDebug] Log which tool is making the query
-      if (ctx.shotId) {
-        console.log('[GenerationModeDebug] 🚀 Query START:', {
-          toolId,
-          shotId: ctx.shotId?.substring(0, 8),
-          singleFlightKey,
-          timestamp: Date.now()
-        });
-      }
       
       // Mobile optimization: Cache user info to avoid repeated auth calls
       // Add timeout to prevent hanging on mobile connections (aligned with Supabase global timeout)
@@ -150,14 +134,6 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
       const authDuration = Date.now() - fetchStart;
       
       // [GenerationModeDebug] Log auth timing
-      if (ctx.shotId) {
-        console.log('[GenerationModeDebug] ⏱️ Auth completed:', {
-          toolId,
-          shotId: ctx.shotId?.substring(0, 8),
-          authDuration: `${authDuration}ms`,
-          timestamp: Date.now()
-        });
-      }
       
       if (authError || !user) {
         throw new Error('Authentication required');
@@ -200,25 +176,8 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
       const totalDuration = Date.now() - fetchStart;
       
       // [GenerationModeDebug] Log timing
-      if (ctx.shotId) {
-        console.log('[GenerationModeDebug] ⏱️ DB queries completed:', {
-          shotId: ctx.shotId?.substring(0, 8),
-          dbQueryDuration: `${dbQueryDuration}ms`,
-          totalDuration: `${totalDuration}ms`,
-          timestamp: Date.now()
-        });
-      }
 
       // Handle errors more gracefully for mobile
-      if (userResult.error && !userResult.error.message.includes('No rows found')) {
-        console.warn('[fetchToolSettingsSupabase] User settings error:', userResult.error);
-      }
-      if (projectResult.error && !projectResult.error.message.includes('No rows found')) {
-        console.warn('[fetchToolSettingsSupabase] Project settings error:', projectResult.error);
-      }
-      if (shotResult.error && !shotResult.error.message.includes('No rows found')) {
-        console.warn('[fetchToolSettingsSupabase] Shot settings error:', shotResult.error);
-      }
 
       // Extract tool-specific settings from the full settings JSON
       const userSettingsData = userResult.data?.settings as Record<string, unknown> | null;
@@ -232,20 +191,6 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
       const hasShotSettings = shotSettings && Object.keys(shotSettings).length > 0;
 
       // [GenerationModeDebug] Log what we're getting from each source
-      if (toolId === 'travel-between-images' && ctx.shotId) {
-        console.log('[GenerationModeDebug] 🗄️ useToolSettings raw data:', {
-          shotId: ctx.shotId?.substring(0, 8),
-          shotRawSettings: shotResult.data?.settings,
-          shotToolSettings: shotSettings,
-          hasShotSettings,
-          shot_generationMode: shotSettings?.generationMode,
-          project_generationMode: projectSettings?.generationMode,
-          user_generationMode: userSettings?.generationMode,
-          defaults_generationMode: (toolDefaults[toolId] as Record<string, unknown>)?.generationMode,
-          timestamp: Date.now()
-        });
-      }
-
 
       // Merge in priority order: defaults → user → project → shot
       const merged = deepMerge(
@@ -257,13 +202,6 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
       );
 
       // [GenerationModeDebug] Log merged result
-      if (toolId === 'travel-between-images' && ctx.shotId) {
-        console.log('[GenerationModeDebug] 🔀 useToolSettings merged result:', {
-          shotId: ctx.shotId?.substring(0, 8),
-          merged_generationMode: (merged as Record<string, unknown>)?.generationMode,
-          timestamp: Date.now()
-        });
-      }
 
       // Return both the merged settings and metadata about what was found
       return { settings: merged, hasShotSettings };
@@ -293,12 +231,6 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
       };
 
       if (errorMsg.includes('Auth timeout') || errorMsg.includes('Auth request was cancelled')) {
-        console.warn('[ToolSettingsAuth] Auth unavailable/timeout, falling back to defaults', {
-          toolId,
-          projectId: ctx.projectId,
-          shotId: ctx.shotId,
-          ...contextInfo,
-        });
         // Return defaults rather than erroring, so UI remains usable
         return { settings: deepMerge({}, toolDefaults[toolId] ?? {}), hasShotSettings: false };
       }
@@ -516,35 +448,15 @@ export function useToolSettings<T>(
   const { data: queryResult, isLoading, error, fetchStatus, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
     queryFn: async ({ signal }) => {
-      console.log('[ShotNavPerf] 🔍 useToolSettings queryFn START', {
-        toolId,
-        shotId: shotId?.substring(0, 8) || 'none',
-        timestamp: Date.now()
-      });
       try {
         const result = await fetchToolSettingsSupabase(toolId, { projectId, shotId }, signal);
-        console.log('[ShotNavPerf] ✅ useToolSettings queryFn COMPLETE', {
-          toolId,
-          shotId: shotId?.substring(0, 8) || 'none',
-          timestamp: Date.now()
-        });
         return result;
       } catch (err: unknown) {
         // For cancelled requests, throw a specific error that retry logic handles
         // (React Query doesn't allow returning undefined from query functions)
         if (isCancellationError(err)) {
-          console.log('[ShotNavPerf] ⏹️ useToolSettings request cancelled', {
-            toolId,
-            shotId: shotId?.substring(0, 8) || 'none',
-          });
           throw new Error('Request was cancelled');
         }
-        console.log('[ShotNavPerf] ❌ useToolSettings queryFn FAILED', {
-          toolId,
-          shotId: shotId?.substring(0, 8) || 'none',
-          error: getErrorMessage(err),
-          timestamp: Date.now()
-        });
         throw err;
       }
     },
@@ -564,7 +476,6 @@ export function useToolSettings<T>(
       // Don't retry on network exhaustion - retrying just makes it worse
       if (error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
           error?.message?.includes('Network exhaustion')) {
-        console.warn('[useToolSettings] Network exhaustion - not retrying');
         return false;
       }
       // Retry up to 3 times for network errors on mobile
@@ -580,7 +491,6 @@ export function useToolSettings<T>(
   const settings = hasSettingsWrapper ? queryResult?.settings : queryResult;
   const hasShotSettings = hasSettingsWrapper ? (queryResult?.hasShotSettings ?? false) : false;
 
-
   // Log errors for debugging (except expected cancellations)
   if (error && !error?.message?.includes('Request was cancelled')) {
     console.error('[useToolSettings] Query error:', error);
@@ -591,15 +501,6 @@ export function useToolSettings<T>(
   React.useEffect(() => {
     const statusKey = `${toolId}-${shotId}-${isLoading}-${fetchStatus}`;
     if (prevStatusRef.current !== statusKey) {
-      console.log('[ShotNavPerf] 📊 useToolSettings status CHANGED:', {
-        toolId,
-        shotId: shotId?.substring(0, 8) || 'none',
-        isLoading,
-        fetchStatus,
-        hasData: !!settings,
-        hasShotSettings,
-        timestamp: Date.now()
-      });
       prevStatusRef.current = statusKey;
     }
   }, [toolId, shotId, isLoading, fetchStatus, settings]);
@@ -623,7 +524,6 @@ export function useToolSettings<T>(
           idForScope = user?.id;
           // Gracefully skip if user is not authenticated (e.g., on public share pages)
           if (!idForScope) {
-            console.debug('[useToolSettings] Skipping user settings update - not authenticated');
             return null;
           }
         } else if (scope === 'project') {
@@ -696,7 +596,6 @@ export function useToolSettings<T>(
                                    error?.message?.includes('Failed to fetch');
       
       if (isNetworkExhaustion) {
-        console.warn('[useToolSettings] Network exhaustion detected - backing off, not invalidating');
         return; // Don't invalidate - that would just make more requests
       }
       

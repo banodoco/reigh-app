@@ -110,7 +110,6 @@ export const useTimelineSelection = ({
 
     setSelectedIds(prev => {
       if (prev.includes(id)) return prev;
-      console.log('[TimelineSelection] Adding to selection:', id.substring(0, 8));
       return [...prev, id];
     });
   }, [isEnabled]);
@@ -120,29 +119,24 @@ export const useTimelineSelection = ({
 
     setSelectedIds(prev => {
       if (!prev.includes(id)) return prev;
-      console.log('[TimelineSelection] Removing from selection:', id.substring(0, 8));
       return prev.filter(selectedId => selectedId !== id);
     });
   }, [isEnabled]);
 
   const clearSelection = useCallback(() => {
-    console.log('[TimelineSelection] Clearing selection');
     setSelectedIds([]);
   }, []);
 
   const setSelection = useCallback((ids: string[]) => {
     if (!isEnabled || isLockedRef.current) return;
-    console.log('[TimelineSelection] Setting selection:', ids.map(id => id.substring(0, 8)));
     setSelectedIds(ids);
   }, [isEnabled]);
 
   const lockSelection = useCallback(() => {
-    console.log('[TimelineSelection] Locking selection');
     isLockedRef.current = true;
   }, []);
 
   const unlockSelection = useCallback(() => {
-    console.log('[TimelineSelection] Unlocking selection');
     isLockedRef.current = false;
   }, []);
 

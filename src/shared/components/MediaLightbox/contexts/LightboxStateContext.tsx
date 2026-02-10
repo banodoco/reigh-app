@@ -12,7 +12,7 @@
  * Components should prefer these hooks over prop drilling for commonly-used values.
  */
 
-import React, { createContext, useContext, RefObject, useMemo } from 'react';
+import React, { createContext, useContext, RefObject } from 'react';
 import type { GenerationRow } from '@/types/shots';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import type { CurrentSegmentImagesData } from '@/shared/components/VariantSelector/utils';

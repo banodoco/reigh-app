@@ -143,11 +143,9 @@ export function usePrefetchTaskById() {
     // Check if already cached
     const cached = queryClient.getQueryData(queryKeys.tasks.single(taskId));
     if (cached) {
-      console.log('[TaskPrefetch] Task already cached:', taskId.substring(0, 8));
       return;
     }
 
-    console.log('[TaskPrefetch] Prefetching task by ID:', taskId.substring(0, 8));
     try {
       await queryClient.fetchQuery({
         queryKey: queryKeys.tasks.single(taskId),

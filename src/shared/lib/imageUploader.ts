@@ -67,7 +67,6 @@ export const uploadImageToStorage = async (
 
   // Add debug logging for large file uploads
   const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-  console.log(`[ImageUpload] Starting upload for ${file.name} (${fileSizeMB}MB) to path: ${filePath} (max retries: ${maxRetries}, timeout: ${timeoutMs}ms)`);
 
   let lastError: unknown;
 
@@ -86,7 +85,6 @@ export const uploadImageToStorage = async (
     }
 
     try {
-      console.log(`[ImageUpload] Upload attempt ${attempt}/${maxRetries} for ${file.name}`);
 
       let data: { path: string } | null, error: Error | null;
 
@@ -116,7 +114,6 @@ export const uploadImageToStorage = async (
           stallCheckInterval = setInterval(() => {
             const timeSinceLastProgress = Date.now() - lastProgressTime;
             if (timeSinceLastProgress > STALL_TIMEOUT_MS) {
-              console.warn(`[ImageUpload] Upload stalled for ${file.name} - no progress for ${timeSinceLastProgress}ms`);
               cleanup();
               xhr.abort();
               reject(new Error(`Upload stalled - no progress for ${STALL_TIMEOUT_MS}ms`));
@@ -182,12 +179,6 @@ export const uploadImageToStorage = async (
 
       if (error) {
         lastError = error;
-        console.warn(`[ImageUpload] Upload attempt ${attempt} failed for ${file.name} after ${uploadDuration}ms:`, {
-          error: error.message || error,
-          fileName: file.name,
-          fileSizeMB,
-          attempt
-        });
 
         // Don't retry for certain permanent errors or user cancellation
         if (error.message?.includes('413') || error.message?.includes('too large')) {
@@ -204,12 +195,9 @@ export const uploadImageToStorage = async (
 
         // Wait before retrying (exponential backoff: 1s, 2s, 4s...)
         const waitTime = 1000 * Math.pow(2, attempt - 1);
-        console.log(`[ImageUpload] Waiting ${waitTime}ms before retry ${attempt + 1} for ${file.name}`);
         await wait(waitTime);
         continue;
       }
-
-      console.log(`[ImageUpload] Upload successful for ${file.name} in ${uploadDuration}ms on attempt ${attempt}`);
 
       if (!data || !data.path) {
         console.error(`[ImageUpload] No data or path returned for ${file.name}`);
@@ -226,15 +214,12 @@ export const uploadImageToStorage = async (
         throw new Error('Failed to obtain a public URL for the uploaded image.');
       }
 
-      console.log(`[ImageUpload] Upload complete for ${file.name}: ${publicUrl.substring(0, 60)}...`);
       return publicUrl;
 
     } catch (uploadError: unknown) {
       lastError = uploadError;
       const uploadDuration = Date.now() - uploadStartTime;
       const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError);
-
-      console.warn(`[ImageUpload] Upload attempt ${attempt} exception for ${file.name} after ${uploadDuration}ms:`, errorMsg);
 
       // Don't retry for certain permanent errors or user cancellation
       if (errorMsg.includes('413') || errorMsg.includes('too large')) {
@@ -251,7 +236,6 @@ export const uploadImageToStorage = async (
 
       // Wait before retrying (exponential backoff)
       const waitTime = 1000 * Math.pow(2, attempt - 1);
-      console.log(`[ImageUpload] Waiting ${waitTime}ms before retry ${attempt + 1} for ${file.name}`);
       await wait(waitTime);
     }
   }

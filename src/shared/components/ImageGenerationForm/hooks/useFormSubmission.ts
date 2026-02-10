@@ -405,7 +405,6 @@ export function useFormSubmission(props: UseFormSubmissionProps): UseFormSubmiss
   // ============================================================================
 
   const handleGenerateAndQueue = useCallback((updatedPrompts: PromptEntry[]) => {
-    console.log('[useFormSubmission] Generate & Queue:', updatedPrompts.length, 'prompts');
 
     // Save prompts to state
     const seenIds = new Set<string>();

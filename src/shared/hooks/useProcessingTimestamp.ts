@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { formatDistanceToNow, isValid } from 'date-fns';
+import { useMemo } from 'react';
+import { isValid } from 'date-fns';
 import { useTimestampUpdater } from './useTimestampUpdater';
 
 /**

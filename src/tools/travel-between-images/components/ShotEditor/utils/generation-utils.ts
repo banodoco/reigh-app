@@ -1,4 +1,3 @@
-import { GenerationRow } from "@/types/shots";
 import { isVideoGeneration } from "@/shared/lib/typeGuards";
 
 /**

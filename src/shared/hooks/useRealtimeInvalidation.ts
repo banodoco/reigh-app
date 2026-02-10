@@ -73,11 +73,6 @@ export function useRealtimeInvalidation(): void {
 // =============================================================================
 
 function handleTasksUpdated(queryClient: QueryClient, event: TasksUpdatedEvent): void {
-  console.log('[RealtimeInvalidation] Tasks updated:', {
-    count: event.tasks.length,
-    completeCount: event.tasks.filter(t => t.isComplete).length,
-    failedCount: event.tasks.filter(t => t.isFailed).length,
-  });
 
   // Track affected queries for freshness manager
   const affectedQueries: string[][] = [
@@ -158,7 +153,6 @@ function handleTasksUpdated(queryClient: QueryClient, event: TasksUpdatedEvent):
 }
 
 function handleTasksCreated(queryClient: QueryClient, event: TasksCreatedEvent): void {
-  console.log('[RealtimeInvalidation] Tasks created:', { count: event.tasks.length });
 
   // Only invalidate task queries - new tasks haven't completed yet
   queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
@@ -172,11 +166,6 @@ function handleTasksCreated(queryClient: QueryClient, event: TasksCreatedEvent):
 }
 
 function handleGenerationsInserted(queryClient: QueryClient, event: GenerationsInsertedEvent): void {
-  console.log('[RealtimeInvalidation] Generations inserted:', {
-    count: event.generations.length,
-    withParent: event.generations.filter(g => g.parentGenerationId).length,
-    withShot: event.generations.filter(g => g.shotId).length,
-  });
 
   // Invalidate generation queries
   queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
@@ -215,17 +204,10 @@ function handleGenerationsUpdated(queryClient: QueryClient, event: GenerationsUp
   );
 
   if (meaningfulUpdates.length === 0) {
-    console.log('[RealtimeInvalidation] Skipping generation update - shot sync only');
     return;
   }
 
   const starredUpdates = event.generations.filter((g) => g.starredChanged);
-
-  console.log('[RealtimeInvalidation] Generations updated:', {
-    total: event.generations.length,
-    meaningful: meaningfulUpdates.length,
-    starred: starredUpdates.length,
-  });
 
   // Invalidate generation queries
   queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
@@ -248,9 +230,6 @@ function handleGenerationsUpdated(queryClient: QueryClient, event: GenerationsUp
 }
 
 function handleGenerationsDeleted(queryClient: QueryClient, event: GenerationsDeletedEvent): void {
-  console.log('[RealtimeInvalidation] Generations deleted:', {
-    count: event.generations.length,
-  });
 
   // Notify preloading service to clear deleted images from tracker
   const deletedIds = event.generations.map((g) => g.id).filter((id): id is string => !!id);
@@ -278,11 +257,6 @@ function handleShotGenerationsChanged(
   queryClient: QueryClient,
   event: ShotGenerationsChangedEvent
 ): void {
-  console.log('[RealtimeInvalidation] Shot generations changed:', {
-    count: event.changes.length,
-    affectedShots: event.affectedShotIds.length,
-    allInserts: event.allInserts,
-  });
 
   // BUSINESS LOGIC: For INSERT-only batches, skip broad invalidation to prevent flicker
   // (optimistic updates handle these). For UPDATE/DELETE, need broader invalidation.
@@ -325,10 +299,6 @@ function handleShotGenerationsChanged(
 }
 
 function handleVariantsChanged(queryClient: QueryClient, event: VariantsChangedEvent): void {
-  console.log('[RealtimeInvalidation] Variants changed:', {
-    count: event.variants.length,
-    affectedGenerations: event.affectedGenerationIds.length,
-  });
 
   // Invalidate variant queries for affected generations
   event.affectedGenerationIds.forEach((generationId) => {
@@ -358,10 +328,6 @@ function handleVariantsChanged(queryClient: QueryClient, event: VariantsChangedE
 }
 
 function handleVariantsDeleted(queryClient: QueryClient, event: VariantsDeletedEvent): void {
-  console.log('[RealtimeInvalidation] Variants deleted:', {
-    count: event.variants.length,
-    affectedGenerations: event.affectedGenerationIds.length,
-  });
 
   // Invalidate variant queries for affected generations
   event.affectedGenerationIds.forEach((generationId) => {

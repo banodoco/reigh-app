@@ -18,9 +18,6 @@ export const performanceMonitoredTimeout = (
       callback();
     } finally {
       const duration = performance.now() - startTime;
-      if (duration > 16) {
-        console.warn(`[PerformanceMonitor] setTimeout in ${context} took ${duration.toFixed(1)}ms (target: <16ms)`);
-      }
     }
   }, delay);
 };
@@ -39,14 +36,9 @@ export const measureAsync = async <T>(
     const result = await operation();
     const duration = performance.now() - startTime;
     
-    if (duration > warnThreshold) {
-      console.warn(`[PerformanceMonitor] ${context} took ${duration.toFixed(1)}ms (threshold: ${warnThreshold}ms)`);
-    }
-    
     return result;
   } catch (error) {
     const duration = performance.now() - startTime;
-    console.warn(`[PerformanceMonitor] ${context} failed after ${duration.toFixed(1)}ms:`, error);
     throw error;
   }
 };

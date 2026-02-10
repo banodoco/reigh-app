@@ -133,13 +133,6 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
     try {
       // CRITICAL: Pass selectedShotId (the dropdown value) as targetShotId
       // This ensures the image is added to the shot the user SELECTED, not the shot being viewed
-      console.log('[ShotSelectorWithAdd] Adding to shot', {
-        targetShotId: selectedShotId,
-        imageId,
-        hasImageUrl: !!imageUrl,
-        hasThumbUrl: !!thumbUrl,
-        timestamp: Date.now()
-      });
       const success = await onAddToShot(selectedShotId, imageId, imageUrl, thumbUrl);
       
       if (success) {

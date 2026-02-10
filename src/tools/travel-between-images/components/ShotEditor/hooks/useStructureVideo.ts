@@ -151,12 +151,6 @@ function migrateToArrayFormat(
     resource_id: settings.resource_id ?? settings.resourceId ?? null,
   };
   
-  console.log('[useStructureVideo] 🔄 Migrated legacy single-video to array format:', {
-    path: singleVideo.path.substring(0, 50) + '...',
-    start_frame: singleVideo.start_frame,
-    end_frame: singleVideo.end_frame,
-  });
-  
   return [singleVideo];
 }
 
@@ -225,15 +219,6 @@ export function useStructureVideo({
       setStructureVideosState(migratedVideos);
       setHasInitialized(shotId);
 
-      console.log('[useStructureVideo] ✅ Loaded structure videos:', {
-        shotId: shotId.substring(0, 8),
-        count: migratedVideos.length,
-        videos: migratedVideos.map(v => ({
-          path: v.path.substring(0, 30) + '...',
-          start_frame: v.start_frame,
-          end_frame: v.end_frame,
-        }))
-      });
     }
   }, [structureVideoSettings, isStructureVideoSettingsLoading, shotId, hasInitialized, timelineEndFrame]);
 
@@ -259,11 +244,6 @@ export function useStructureVideo({
     const videosChanged = JSON.stringify(prevVideos) !== JSON.stringify(currentVideos);
 
     if (videosChanged && currentVideos !== undefined) {
-      console.log('[useStructureVideo] 🔄 External settings change detected, syncing:', {
-        shotId: shotId?.substring(0, 8),
-        prevCount: prevVideos?.length ?? 0,
-        newCount: currentVideos?.length ?? 0,
-      });
 
       const migratedVideos = migrateToArrayFormat(currentSettings, timelineEndFrame);
       setStructureVideosState(migratedVideos);
@@ -278,9 +258,6 @@ export function useStructureVideo({
 
   // Save structure videos to database
   const saveToDatabase = useCallback((videos: StructureVideoConfigWithMetadata[]) => {
-    console.log('[useStructureVideo] 💾 Saving structure videos to database:', {
-      count: videos.length,
-    });
     
     if (videos.length > 0) {
       // Save in new array format (also save legacy format for backwards compat)
@@ -321,17 +298,11 @@ export function useStructureVideo({
   // ============ NEW: Array manipulation methods ============
   
   const setStructureVideos = useCallback((videos: StructureVideoConfigWithMetadata[]) => {
-    console.log('[useStructureVideo] setStructureVideos:', { count: videos.length });
     setStructureVideosState(videos);
     saveToDatabase(videos);
   }, [saveToDatabase]);
 
   const addStructureVideo = useCallback((video: StructureVideoConfigWithMetadata) => {
-    console.log('[useStructureVideo] addStructureVideo:', {
-      path: video.path.substring(0, 50) + '...',
-      start_frame: video.start_frame,
-      end_frame: video.end_frame,
-    });
     
     setStructureVideosState(prev => {
       const newVideos = [...prev, video];
@@ -341,11 +312,9 @@ export function useStructureVideo({
   }, [saveToDatabase]);
 
   const updateStructureVideo = useCallback((index: number, updates: Partial<StructureVideoConfigWithMetadata>) => {
-    console.log('[useStructureVideo] updateStructureVideo:', { index, updates });
     
     setStructureVideosState(prev => {
       if (index < 0 || index >= prev.length) {
-        console.warn('[useStructureVideo] Invalid index for updateStructureVideo:', index);
         return prev;
       }
       
@@ -357,11 +326,9 @@ export function useStructureVideo({
   }, [saveToDatabase]);
 
   const removeStructureVideo = useCallback((index: number) => {
-    console.log('[useStructureVideo] removeStructureVideo:', { index });
     
     setStructureVideosState(prev => {
       if (index < 0 || index >= prev.length) {
-        console.warn('[useStructureVideo] Invalid index for removeStructureVideo:', index);
         return prev;
       }
       
@@ -372,7 +339,6 @@ export function useStructureVideo({
   }, [saveToDatabase]);
 
   const clearAllStructureVideos = useCallback(() => {
-    console.log('[useStructureVideo] clearAllStructureVideos');
     setStructureVideosState([]);
     saveToDatabase([]);
   }, [saveToDatabase]);
@@ -382,7 +348,6 @@ export function useStructureVideo({
   const legacyConfig = useMemo(() => arrayToLegacyConfig(structureVideos), [structureVideos]);
 
   const setStructureVideoConfig = useCallback((config: LegacyStructureVideoConfig) => {
-    console.log('[useStructureVideo] [LEGACY] setStructureVideoConfig called');
     
     if (config.structure_video_path) {
       // Convert legacy config to array format
@@ -412,7 +377,6 @@ export function useStructureVideo({
     _structureType: 'uni3c' | 'flow' | 'canny' | 'depth',  // Ignored - always uni3c now
     resourceId?: string
   ) => {
-    console.log('[useStructureVideo] [LEGACY] handleStructureVideoChange called');
     setStructureVideoConfig({
       structure_video_path: videoPath,
       structure_video_treatment: treatment,

@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useContext, useMemo, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback
+} from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
 import { LayoutGrid, Upload, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react';
@@ -162,7 +168,6 @@ export default function EditImagesPage() {
       publicUrl = uploadResult.imageUrl;
       thumbnailUrl = uploadResult.thumbnailUrl;
     } catch (thumbnailError) {
-      console.warn('[EditImages] Client-side thumbnail generation failed:', thumbnailError);
       publicUrl = await uploadImageToStorage(file, 3);
       thumbnailUrl = publicUrl;
     }

@@ -79,15 +79,6 @@ export function useSegmentPromptMetadata({
       throw new Error('No shotId provided');
     }
 
-    console.log('[PairPromptFlow] useTimelinePositionUtils.updatePairPrompts START:', {
-      shotGenerationId: shotGenerationId.substring(0, 8),
-      shotId: shotId.substring(0, 8),
-      promptLength: prompt?.length || 0,
-      negativePromptLength: negativePrompt?.length || 0,
-      hasPrompt: !!prompt,
-      hasNegativePrompt: !!negativePrompt,
-    });
-
     // Look up by shot_generation.id
     const shotGen = shotGenerations.find(sg => sg.id === shotGenerationId);
     if (!shotGen?.id) {
@@ -98,13 +89,6 @@ export function useSegmentPromptMetadata({
       });
       throw new Error(`Shot generation not found for shot_generation.id ${shotGenerationId}`);
     }
-
-    console.log('[PairPromptFlow] Found shot_generation, preparing metadata update:', {
-      shotGenerationId: shotGen.id.substring(0, 8),
-      existingPairPrompt: shotGen.metadata?.pair_prompt?.substring(0, 30) || '(none)',
-      newPairPrompt: prompt?.substring(0, 30) || '(empty)',
-      existingMetadataKeys: Object.keys(shotGen.metadata || {}),
-    });
 
     // Use new format for writing
     let updatedMetadata = writeSegmentOverrides(
@@ -118,12 +102,6 @@ export function useSegmentPromptMetadata({
     delete updatedMetadata.pair_prompt;
     delete updatedMetadata.pair_negative_prompt;
 
-    console.log('[PairPromptFlow] Executing Supabase UPDATE on shot_generations table...', {
-      table: 'shot_generations',
-      shotGenerationId: shotGen.id.substring(0, 8),
-      updatingFields: ['metadata.pair_prompt', 'metadata.pair_negative_prompt'],
-    });
-
     const { data, error } = await supabase
       .from('shot_generations')
       .update({ metadata: updatedMetadata as unknown as Json })
@@ -135,15 +113,6 @@ export function useSegmentPromptMetadata({
       throw error;
     }
 
-    console.log('[PairPromptFlow] Supabase UPDATE SUCCESS');
-    console.log('[PairPromptFlow] Updated record returned from DB:', {
-      id: data?.[0]?.id?.substring(0, 8),
-      metadata: data?.[0]?.metadata,
-      metadata_pair_prompt: (data?.[0]?.metadata as Record<string, unknown> | undefined)?.pair_prompt as string | undefined,
-      metadata_pair_negative_prompt: (data?.[0]?.metadata as Record<string, unknown> | undefined)?.pair_negative_prompt as string | undefined,
-    });
-    console.log('[PairPromptFlow] Refetching query caches in background...');
-
     // Refetch instead of invalidate
     queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
     queryClient.refetchQueries({ queryKey: queryKeys.generations.meta(shotId) });
@@ -154,7 +123,6 @@ export function useSegmentPromptMetadata({
     // Also invalidate pair-metadata cache used by useSegmentSettings modal
     queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(shotGen.id) });
 
-    console.log('[PairPromptFlow] Refetch queued - UI should refresh with new data');
   }, [shotId, shotGenerations, queryClient, projectId]);
 
   /**
@@ -165,8 +133,6 @@ export function useSegmentPromptMetadata({
     if (!shotId) {
       throw new Error('No shotId provided');
     }
-
-    console.log('[PairPromptFlow] Clearing enhanced prompt for shot_generation:', shotGenerationId.substring(0, 8));
 
     // Look up by shot_generation.id
     const shotGen = shotGenerations.find(sg => sg.id === shotGenerationId);
@@ -180,8 +146,6 @@ export function useSegmentPromptMetadata({
 
     const existingMetadata = shotGen.metadata || {};
     const { enhanced_prompt, ...restMetadata } = existingMetadata;
-
-    console.log('[PairPromptFlow] Clearing enhanced_prompt from metadata...');
 
     // Optimistic update: immediately update the cache
     queryClient.setQueryData<GenerationRow[]>(
@@ -209,7 +173,6 @@ export function useSegmentPromptMetadata({
       throw error;
     }
 
-    console.log('[PairPromptFlow] Enhanced prompt cleared, background refetch...');
     queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
     queryClient.refetchQueries({ queryKey: queryKeys.generations.meta(shotId) });
     if (projectId) {
@@ -219,7 +182,6 @@ export function useSegmentPromptMetadata({
     // Also invalidate pair-metadata cache used by useSegmentSettings modal
     queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(shotGenerationId) });
 
-    console.log('[PairPromptFlow] Refetch queued');
   }, [shotId, shotGenerations, queryClient, projectId]);
 
   return {

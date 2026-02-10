@@ -7,11 +7,9 @@ import { Label } from '@/shared/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { CheckCircle, Loader2, Move, Paintbrush, Pencil, Save, Sparkles, Type, XCircle, Layers, Wand2, Plus, ArrowUp } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { SourceGenerationDisplay } from './SourceGenerationDisplay';
 import { GenerationRow } from '@/types/shots';
-import type { LoraMode, QwenEditModel } from '../hooks';
 import type { SourceVariantData } from '../hooks/useSourceGeneration';
-import { ActiveLoRAsDisplay, ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import { ActiveLoRAsDisplay } from '@/shared/components/ActiveLoRAsDisplay';
 import { LoraSelectorModal, LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
 import { EditAdvancedSettings } from './EditAdvancedSettings';
@@ -243,7 +241,6 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
 
     // If switching TO inpaint or annotate mode (from any other mode), reset LoRA to none
     if (prevMode !== editMode && (editMode === 'inpaint' || editMode === 'annotate')) {
-      console.log('[LoraReset] Switching to', editMode, 'mode - resetting LoRA to none');
       setLoraMode('none');
     }
 

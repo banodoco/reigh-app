@@ -94,11 +94,6 @@ export function useShareGeneration(
   };
 
   const handleShare = useCallback(async (e: React.MouseEvent | React.TouchEvent) => {
-    console.log('[ShareButtonFix] handleShare called', {
-      eventType: e.type,
-      shareSlug: shareSlug?.substring(0, 8),
-      generationId: generationId?.substring(0, 8)
-    });
     e.stopPropagation();
     e.preventDefault();
 
@@ -114,7 +109,6 @@ export function useShareGeneration(
     // If share already exists (in local state), copy to clipboard
     if (shareSlug) {
       const shareUrl = `${window.location.origin}/share/${shareSlug}`;
-      console.log('[ShareButtonFix] Copying existing share URL:', shareUrl);
 
       // Use fallback for iOS compatibility
       let copied = false;
@@ -137,7 +131,6 @@ export function useShareGeneration(
         document.body.removeChild(textarea);
       }
 
-      console.log('[ShareButtonFix] Copy result:', copied);
       setShareCopied(true);
       toast({
         title: "Link copied!",
@@ -297,16 +290,8 @@ export function useShareGeneration(
               },
             };
 
-            console.log('[Share] Cached shot data:', {
-              generationMode: cachedShotData.generation_mode,
-              imagesCount: (cachedShotData.images as unknown[])?.length,
-              settings: cachedShotData.settings,
-            });
-          } else {
-            console.warn('[Share] Failed to fetch shot data:', { shotError, genError });
           }
         } catch (shotFetchError) {
-          console.warn('[Share] Error fetching shot data (non-fatal):', shotFetchError);
         }
       }
 
@@ -425,6 +410,4 @@ export function useShareGeneration(
     shareSlug
   };
 }
-
-
 

@@ -104,20 +104,6 @@ export const VideoItem = React.memo<VideoItemProps>(({
     inBrowserCache
   } = thumbnailLoader;
 
-  // DEEP DEBUG: Log thumbnail state changes
-  useEffect(() => {
-    console.log(`[VideoGalleryPreload] VIDEO_ITEM_THUMBNAIL_STATE:`, {
-      videoId: video.id?.substring(0, 8),
-      thumbnailLoaded,
-      thumbnailError,
-      hasThumbnail,
-      isInitiallyCached,
-      inPreloaderCache,
-      inBrowserCache,
-      timestamp: Date.now()
-    });
-  }, [video.id, thumbnailLoaded, thumbnailError, hasThumbnail, isInitiallyCached, inPreloaderCache, inBrowserCache]);
-
   // Hook for video element integration
   const containerRef = useRef<HTMLDivElement>(null);
   useVideoElementIntegration(video, index, shouldLoad, shouldPreload, videoLoader, isMobile, containerRef);
@@ -244,38 +230,12 @@ export const VideoItem = React.memo<VideoItemProps>(({
     return null; // No source available
   })();
 
-  // ALWAYS log to help diagnose autoplay issues
-  console.log('[MobileAutoplayDebug]', {
-    videoId: video.id?.substring(0, 8),
-    index,
-    isMobile,
-    shouldUsePosterOnMobile,
-    hasThumbnail: !!video.thumbUrl,
-    hasImageUrl: !!video.imageUrl,
-    posterImageSrc: posterImageSrc ? 'exists' : 'NULL',
-    showCollage,
-    childCount: childGenerations.length,
-    willRender: showCollage ? 'COLLAGE' : (shouldUsePosterOnMobile ? (posterImageSrc ? 'STATIC_IMG' : 'PLACEHOLDER_ICON') : 'VIDEO_ELEMENT_WITH_SCRUBBING'),
-    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.substring(0, 50) : 'no-ua',
-    timestamp: Date.now()
-  });
-
   // Normalize URLs - don't add query parameters as they break browser caching
   const resolvedPosterUrl = posterImageSrc ? getDisplayUrl(posterImageSrc) : '/placeholder.svg';
   const posterSrcStable = resolvedPosterUrl;
 
   const resolvedThumbUrl = video.thumbUrl ? getDisplayUrl(video.thumbUrl) : null;
   const thumbSrcStable = resolvedThumbUrl;
-
-  if (process.env.NODE_ENV === 'development' && shouldUsePosterOnMobile) {
-    console.log('[AutoplayDebugger:GALLERY] 📱 Using poster optimization', {
-      videoId: video.id?.substring(0, 8),
-      hasThumbnail,
-      posterSrc: posterImageSrc?.substring(posterImageSrc.lastIndexOf('/') + 1) || 'none',
-      reason: 'Mobile optimization - ALL gallery videos use posters to maximize lightbox autoplay budget',
-      timestamp: Date.now()
-    });
-  }
 
   return (
     <div className="relative group" style={{ contain: 'layout style paint' }} data-tour={dataTour}>
@@ -487,7 +447,6 @@ export const VideoItem = React.memo<VideoItemProps>(({
             )}
           </>
         )}
-
 
         {/* Top Overlay - Timestamp in top-left (always visible on mobile, hover-only on desktop) */}
         <div className="absolute top-0 left-0 p-3 transition-opacity duration-300 z-20 pointer-events-none">

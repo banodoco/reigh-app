@@ -10,7 +10,6 @@ import {
 import { DraggableImage } from "@/shared/components/DraggableImage";
 import { getDisplayUrl } from "@/shared/lib/utils";
 import { TimeStamp } from "@/shared/components/TimeStamp";
-import { GeneratedImageWithMetadata } from "./MediaGallery";
 import type { Shot } from "@/types/shots";
 import type { MediaGalleryItemProps } from "./MediaGalleryItem/types";
 import { ActionButtons, InfoTooltip, VideoContent, ImageContent, ShotActions } from "./MediaGalleryItem/components";

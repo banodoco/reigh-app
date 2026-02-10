@@ -211,13 +211,6 @@ export const STANDARD_RETRY = (failureCount: number, error: Error) => {
   }
 
   // Log retry attempts for debugging
-  if (failureCount > 0) {
-    console.log(`[QueryRetry] Attempt ${failureCount + 1}/${classification.maxRetries + 1} for ${classification.type} error:`, {
-      errorType: classification.type,
-      message: error?.message?.substring(0, 100),
-      willRetry: failureCount < classification.maxRetries
-    });
-  }
 
   return failureCount < classification.maxRetries;
 };

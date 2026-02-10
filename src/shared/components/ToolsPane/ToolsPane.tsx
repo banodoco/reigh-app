@@ -9,7 +9,15 @@ import { toolsUIManifest, type ToolUIDefinition } from '@/tools';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useDarkMode } from '@/shared/hooks/useDarkMode';
 import { useClickRipple } from '@/shared/hooks/useClickRipple';
-import { Paintbrush, Video, Edit, Clapperboard, Link2, Users, Sparkles, LayoutGrid } from 'lucide-react';
+import {
+  Paintbrush,
+  Video,
+  Edit,
+  Clapperboard,
+  Link2,
+  Users,
+  LayoutGrid
+} from 'lucide-react';
 import { AppEnv, type AppEnvValue } from '@/types/env';
 
 // Tool definitions matching ToolSelectorPage

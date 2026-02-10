@@ -209,24 +209,19 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
       setUploadProgress(0);
 
       // Extract metadata
-      console.log('[BatchGuidanceVideo] Extracting metadata...');
       const metadata = await extractVideoMetadata(file);
-      console.log('[BatchGuidanceVideo] Metadata extracted:', metadata);
       setUploadProgress(25);
 
       // Upload to storage
-      console.log('[BatchGuidanceVideo] Uploading to storage...');
       const uploadedVideoUrl = await uploadVideoToStorage(
         file,
         projectId,
         shotId,
         (progress) => setUploadProgress(25 + (progress * 0.65)) // Map 0-100 to 25-90
       );
-      console.log('[BatchGuidanceVideo] Upload complete:', uploadedVideoUrl);
       setUploadProgress(90);
 
       // Create resource for reuse
-      console.log('[BatchGuidanceVideo] Creating resource...');
       const { data: { user } } = await supabase.auth.getUser();
       const now = new Date().toISOString();
       const resourceMetadata: StructureVideoMetadata = {
@@ -246,7 +241,6 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
         type: 'structure-video',
         metadata: resourceMetadata,
       });
-      console.log('[BatchGuidanceVideo] Resource created:', resource.id);
       setUploadProgress(100);
 
       // Notify parent with resource ID
@@ -314,11 +308,6 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
   // Handle selecting a video from the browser
   const handleResourceSelect = useCallback((resource: Resource) => {
     const metadata = resource.metadata as StructureVideoMetadata;
-    console.log('[BatchGuidanceVideo] Resource selected from browser:', {
-      resourceId: resource.id,
-      videoUrl: metadata.videoUrl,
-      metadata: metadata.videoMetadata,
-    });
     onVideoUploaded(metadata.videoUrl, metadata.videoMetadata, resource.id);
     setShowBrowser(false);
   }, [onVideoUploaded]);

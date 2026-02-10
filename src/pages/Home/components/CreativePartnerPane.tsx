@@ -59,7 +59,6 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
               />
             </div>
             
-  
           </div>
 
           <div className="space-y-3">
@@ -93,21 +92,17 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
                 <Tooltip
                   open={ecosystemTipOpen}
                   onOpenChange={(o) => {
-                    console.log('[EcosystemTooltip] onOpenChange:', o, 'disabled:', ecosystemTipDisabled);
                     if (!ecosystemTipDisabled) setEcosystemTipOpen(o);
                   }}
                 >
                   <TooltipTrigger asChild>
                     <span
                       onMouseEnter={() => {
-                        console.log('[EcosystemTooltip] Mouse enter, disabled:', ecosystemTipDisabled);
                       }}
                       onMouseLeave={() => {
-                        console.log('[EcosystemTooltip] Mouse leave, disabled:', ecosystemTipDisabled);
                         if (ecosystemTipDisabled) setEcosystemTipDisabled(false);
                       }}
                       onClick={() => {
-                        console.log('[EcosystemTooltip] Click/Touch, current state:', ecosystemTipOpen, 'disabled:', ecosystemTipDisabled);
                         if (isMobile) {
                           // On mobile, toggle the tooltip on click
                           if (ecosystemTipOpen) {
@@ -129,14 +124,12 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
                     align="center"
                     className="group p-2 sm:p-3 rounded-lg border border-border/25 bg-popover/45 text-popover-foreground shadow-sm backdrop-blur-md"
                     onPointerEnter={() => {
-                      console.log('[EcosystemTooltip] Pointer entered content – holding open');
                       if (!isMobile) {
                         setEcosystemTipDisabled(true);
                         setEcosystemTipOpen(true);
                       }
                     }}
                     onPointerLeave={() => {
-                      console.log('[EcosystemTooltip] Pointer left content – releasing hold');
                       if (!isMobile) {
                         setEcosystemTipDisabled(false);
                         setEcosystemTipOpen(false);
@@ -147,8 +140,6 @@ export const CreativePartnerPane: React.FC<CreativePartnerPaneProps> = ({
                       <iframe
                         title="Open Source Ecosystem"
                         style={{ width: '360px', height: '270px', border: 0 }}
-                        onLoad={() => console.log('[EcosystemTooltip] Iframe loaded')}
-                        onError={() => console.log('[EcosystemTooltip] Iframe error')}
                         src={`/ecosystem-embed.html?scale=1.1&dark=true`}
                       />
                     </div>

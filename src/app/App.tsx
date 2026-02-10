@@ -26,7 +26,6 @@ import { IncomingTasksProvider } from '@/shared/contexts/IncomingTasksContext';
 import '@/shared/lib/mobileProjectDebug';
 import { getNetworkStatusManager } from '@/shared/lib/NetworkStatusManager';
 // [MobileHeatDebug] Import performance monitor for mobile heating issues
-import { perfMonitor } from '@/shared/utils/mobilePerformanceMonitor';
 // [RefactorMetrics] Temporary component for baseline measurements - remove after refactor
 import { RefactorMetricsCollector } from '@/shared/components/debug/RefactorMetricsCollector';
 // Initialize task type config cache early
@@ -194,10 +193,6 @@ const AppInternalContent = () => {
         if (!result) {
           throw new Error('Failed to create new shot.');
         }
-        console.log('[App] New shot created via drag & drop:', {
-          shotId: result.shotId.substring(0, 8),
-          shotName: result.shotName,
-        });
       }
     } catch (error) {
       handleError(error, { context: 'App', showToast: false });
@@ -239,22 +234,8 @@ const AppInternalContent = () => {
 };
 
 function App() {
-  // Simplified initialization - removed legacy debug instrumentations
   React.useEffect(() => {
-    // Initialize NetworkStatusManager for centralized network status handling
-    try { 
-      getNetworkStatusManager(); 
-    } catch (error) {
-      console.warn('[App] Failed to initialize NetworkStatusManager:', error);
-    }
-    
-    // [MobileHeatDebug] Auto-start performance monitoring on mobile
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      console.log('[MobileHeatDebug] 📱 Mobile device detected - performance monitor available');
-      console.log('[MobileHeatDebug] Run __perfMonitor.start() in console to begin monitoring');
-      console.log('[MobileHeatDebug] Run __perfMonitor.stop() to stop monitoring');
-    }
+    try { getNetworkStatusManager(); } catch {}
   }, []);
 
   return (

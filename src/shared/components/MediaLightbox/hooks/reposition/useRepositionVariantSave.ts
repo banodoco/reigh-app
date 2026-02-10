@@ -88,10 +88,6 @@ export function useRepositionVariantSave({
     setIsSavingAsVariant(true);
 
     try {
-      console.log('[Reposition] Saving as variant...', {
-        mediaId: media.id,
-        transform
-      });
 
       const transformedCanvas = await createTransformedCanvas();
 
@@ -164,15 +160,11 @@ export function useRepositionVariantSave({
         uploadImageToStorage(thumbnailFile)
       ]);
 
-      console.log('[Reposition] Uploaded transformed image:', transformedUrl);
-      console.log('[Reposition] Uploaded thumbnail:', thumbnailUrl);
-
       // Get the actual generation ID
       const actualGenerationId = getGenerationId(media);
 
       if (createAsGeneration) {
         // Create a new generation with based_on pointing to the source
-        console.log('[Reposition] Creating as new generation (not variant)');
         const generationParams = {
           // Note: transform is baked into the image, we only save it for historical reference
           transform_applied: transform,
@@ -211,8 +203,6 @@ export function useRepositionVariantSave({
           params: generationParams,
         });
 
-        console.log('[Reposition] Saved as new generation:', insertedGeneration?.id);
-
         // Clear the transform cache for the current variant (we don't want to restore the editing transform)
         const currentCacheKey = getCacheKey();
         if (currentCacheKey) {
@@ -246,8 +236,6 @@ export function useRepositionVariantSave({
           console.error('[Reposition] Failed to create variant:', insertError);
           throw insertError;
         }
-
-        console.log('[Reposition] Saved as variant:', insertedVariant?.id);
 
         // Clear the transform cache and skip re-caching on variant switch
         const currentCacheKey = getCacheKey();

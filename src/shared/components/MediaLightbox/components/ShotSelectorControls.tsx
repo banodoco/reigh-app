@@ -100,30 +100,17 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
   // Handle add without position
   // CRITICAL: Pass selectedShotId (the dropdown value) as targetShotId
   const handleAddWithoutPosition = async () => {
-    console.log('[AddWithoutPosDebug] 1️⃣ handleAddWithoutPosition CALLED');
-    console.log('[AddWithoutPosDebug] selectedShotId:', selectedShotId);
-    console.log('[AddWithoutPosDebug] mediaId:', mediaId);
-    console.log('[AddWithoutPosDebug] hasOnAddToShotWithoutPosition:', !!onAddToShotWithoutPosition);
     
     if (!selectedShotId) {
-      console.log('[AddWithoutPosDebug] ❌ No selectedShotId, returning early');
       return;
     }
 
     // Check if we should jump instead of add
     const isAlreadyAdded = isAlreadyAssociatedWithoutPosition || showTickForSecondaryImageId === mediaId;
     
-    console.log('[AddWithoutPosDebug] 2️⃣ State check:');
-    console.log('[AddWithoutPosDebug] isAlreadyAssociatedWithoutPosition:', isAlreadyAssociatedWithoutPosition);
-    console.log('[AddWithoutPosDebug] showTickForSecondaryImageId:', showTickForSecondaryImageId);
-    console.log('[AddWithoutPosDebug] isAlreadyAdded:', isAlreadyAdded);
-    console.log('[AddWithoutPosDebug] hasOnNavigateToShot:', !!onNavigateToShot);
-
     if (isAlreadyAdded) {
-      console.log('[AddWithoutPosDebug] 3️⃣ Already added - will navigate');
       if (onNavigateToShot) {
         const targetShot = allShots.find(s => s.id === selectedShotId);
-        console.log('[AddWithoutPosDebug] Navigating to shot:', targetShot?.name);
         if (targetShot) {
           onNavigateToShot(targetShot);
         }
@@ -132,22 +119,14 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
     }
 
     if (!onAddToShotWithoutPosition) {
-      console.log('[AddWithoutPosDebug] ❌ No onAddToShotWithoutPosition callback, returning');
       return;
     }
     
     try {
-      console.log('[AddWithoutPosDebug] 4️⃣ Calling onAddToShotWithoutPosition...');
-      console.log('[AddWithoutPosDebug] Args: shotId=', selectedShotId?.substring(0, 8), ', mediaId=', mediaId?.substring(0, 8));
       const success = await onAddToShotWithoutPosition(selectedShotId, mediaId, imageUrl, thumbUrl);
-      console.log('[AddWithoutPosDebug] 5️⃣ onAddToShotWithoutPosition returned:', success);
       if (success) {
-        console.log('[AddWithoutPosDebug] 6️⃣ Success! Calling onShowSecondaryTick');
-        console.log('[AddWithoutPosDebug] hasOnShowSecondaryTick:', !!onShowSecondaryTick);
         onShowSecondaryTick?.(mediaId);
         onOptimisticUnpositioned?.(mediaId, selectedShotId);
-      } else {
-        console.log('[AddWithoutPosDebug] ⚠️ Success was falsy:', success);
       }
     } catch (error) {
       handleError(error, { context: 'ShotSelectorControls', showToast: false });
@@ -156,16 +135,8 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
 
   // Handle adding variant as a new generation to shot
   const handleAddVariantAsNewGeneration = async () => {
-    console.log('[VariantToShot] 🔵 BLUE BUTTON CLICKED!');
-    console.log('[VariantToShot] Starting with:', {
-      selectedShotId: selectedShotId?.substring(0, 8),
-      activeVariantId: activeVariantId?.substring(0, 8),
-      hasCallback: !!onAddVariantAsNewGeneration,
-      currentTimelineFrame,
-    });
 
     if (!selectedShotId || !activeVariantId || !onAddVariantAsNewGeneration) {
-      console.log('[VariantToShot] Missing required params, returning');
       return;
     }
 
@@ -179,7 +150,6 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
         activeVariantId,
         currentTimelineFrame
       );
-      console.log('[VariantToShot] Result:', success);
       if (success) {
         setAddedVariantAsNewSuccess(true);
         // Reset success state after delay
@@ -231,14 +201,6 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
         const isShowingTick = isAlreadyAssociatedWithoutPosition || showTickForSecondaryImageId === mediaId;
         const isDisabled = !selectedShotId || isAddingWithoutPosition;
         
-        console.log('[AddWithoutPosDebug] 🔘 Button render state:');
-        console.log('[AddWithoutPosDebug] showTickForSecondaryImageId:', showTickForSecondaryImageId);
-        console.log('[AddWithoutPosDebug] mediaId:', mediaId?.substring(0, 8));
-        console.log('[AddWithoutPosDebug] isAlreadyAssociatedWithoutPosition:', isAlreadyAssociatedWithoutPosition);
-        console.log('[AddWithoutPosDebug] isShowingTick:', isShowingTick);
-        console.log('[AddWithoutPosDebug] isDisabled:', isDisabled);
-        console.log('[AddWithoutPosDebug] isAddingWithoutPosition:', isAddingWithoutPosition);
-        
         return (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -272,12 +234,6 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
       })()}
 
         {/* Add variant as new generation to shot button - show by default, disable when no variant */}
-        {console.log('[VariantToShot] Blue button render check:', {
-          hasCallback: !!onAddVariantAsNewGeneration,
-          activeVariantId: activeVariantId?.substring(0, 8),
-          selectedShotId: selectedShotId?.substring(0, 8),
-          willRender: !!(onAddVariantAsNewGeneration && selectedShotId)
-        })}
         {onAddVariantAsNewGeneration && selectedShotId && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -285,11 +241,9 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  console.log('[VariantToShot] 🔵 BUTTON onClick fired!');
                   handleAddVariantAsNewGeneration();
                 }}
                 onPointerDown={(e) => {
-                  console.log('[VariantToShot] 🔵 BUTTON onPointerDown!');
                 }}
                 disabled={isAddingVariantAsNew || !activeVariantId}
                 data-testid="add-variant-as-new-button"

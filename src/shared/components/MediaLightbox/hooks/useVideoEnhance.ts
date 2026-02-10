@@ -82,7 +82,6 @@ export function useVideoEnhance({
   // Handle generate action
   const handleGenerate = useCallback(async () => {
     if (!canSubmit || !projectId || !videoUrl) {
-      console.warn('[useVideoEnhance] Cannot generate - missing required data');
       return;
     }
 
@@ -129,7 +128,6 @@ export function useVideoEnhance({
       await createVideoEnhanceTask(params);
       setGenerateSuccess(true);
 
-      console.log('[useVideoEnhance] Task created successfully');
     } catch (error) {
       console.error('[useVideoEnhance] Error creating task:', error);
       handleError(error, { context: 'useVideoEnhance', toastTitle: 'Failed to create video enhancement task' });

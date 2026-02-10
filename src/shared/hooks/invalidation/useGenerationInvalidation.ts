@@ -26,7 +26,6 @@
 
 import { useQueryClient, QueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { debugConfig } from '../../lib/debugConfig';
 import { queryKeys } from '../../lib/queryKeys';
 
 export type InvalidationScope =
@@ -98,15 +97,6 @@ function performInvalidation(
   } = options;
   
   // Debug logging via centralized config
-  if (debugConfig.isEnabled('invalidation')) {
-    console.log(`[Invalidation] ${reason}`, { 
-      shotId: shotId.substring(0, 8), 
-      scope,
-      includeShots,
-      includeProjectUnified,
-      timestamp: Date.now()
-    });
-  }
   
   // Invalidate based on scope
   if (scope === 'all' || scope === 'images') {
@@ -195,12 +185,6 @@ export function invalidateAllShotGenerations(
   queryClient: QueryClient,
   reason: string
 ): void {
-  if (debugConfig.isEnabled('invalidation')) {
-    console.warn(`[Invalidation] ⚠️ GLOBAL invalidation: ${reason}`, {
-      message: 'Consider scoping to specific shotIds if possible',
-      timestamp: Date.now()
-    });
-  }
   
   // Use predicate to invalidate all shot-generations queries regardless of shotId
   queryClient.invalidateQueries({
@@ -230,15 +214,6 @@ export async function invalidateVariantChange(
   // Apply delay if specified (e.g., for DB trigger to complete)
   if (delayMs && delayMs > 0) {
     await new Promise(resolve => setTimeout(resolve, delayMs));
-  }
-  
-  if (debugConfig.isEnabled('invalidation')) {
-    console.log(`[Invalidation] Variant change: ${reason}`, {
-      generationId: generationId.substring(0, 8),
-      shotId: shotId?.substring(0, 8) || 'unknown',
-      projectId: projectId?.substring(0, 8) || 'unknown',
-      timestamp: Date.now()
-    });
   }
   
   // 1. Invalidate variant-specific queries
@@ -278,9 +253,6 @@ export async function invalidateVariantChange(
 
   // 7. Invalidate source image change detection (for video warning indicators)
   // This ensures warnings appear immediately when source images change
-  if (debugConfig.isEnabled('invalidation')) {
-    console.log('[SourceChange] Invalidating source-slot-generations query (variant change)');
-  }
   queryClient.invalidateQueries({
     predicate: (query) => query.queryKey[0] === queryKeys.segments.sourceSlotAll[0]
   });
@@ -309,14 +281,6 @@ function invalidateGenerationUpdate(
   options: GenerationUpdateOptions
 ): void {
   const { reason, generationId, projectId } = options;
-
-  if (debugConfig.isEnabled('invalidation')) {
-    console.log(`[Invalidation] Generation update: ${reason}`, {
-      generationId: generationId.substring(0, 8),
-      projectId: projectId?.substring(0, 8) || 'unknown',
-      timestamp: Date.now()
-    });
-  }
 
   // 1. Invalidate the specific generation
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.detail(generationId) });

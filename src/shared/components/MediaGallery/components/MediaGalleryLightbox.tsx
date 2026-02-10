@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useCallback } from "react";
+import React, { useMemo, useEffect } from "react";
 import MediaLightbox from "@/shared/components/MediaLightbox";
 import TaskDetailsModal from '@/shared/components/TaskDetailsModal';
 import { GenerationRow, Shot } from "@/types/shots";
@@ -131,35 +131,11 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     const fromMetadata = activeLightboxMedia?.metadata?.__autoEnterEditMode as boolean | undefined;
     const result = fromMetadata ?? autoEnterEditMode ?? false;
     
-    console.log('[EditModeDebug] MediaGalleryLightbox computing effective autoEnterEditMode:', {
-      fromProps: autoEnterEditMode,
-      fromMetadata,
-      effectiveValue: result,
-      activeLightboxMediaId: activeLightboxMedia?.id,
-      timestamp: Date.now()
-    });
-    
     return result;
   }, [activeLightboxMedia?.metadata?.__autoEnterEditMode, autoEnterEditMode, activeLightboxMedia?.id]);
   
   // Detect tablet/iPad size (768px+) for side-by-side task details layout
   const { isTabletOrLarger } = useDeviceDetection();
-  
-  // [ShotNavDebug] confirm plumbing into Lightbox
-  React.useEffect(() => {
-    console.log('[ShotNavDebug] [MediaGalleryLightbox] props snapshot', {
-      activeLightboxMediaId: activeLightboxMedia?.id,
-      selectedShotIdLocal,
-      hasOnAddToShot: !!onAddToShot,
-      hasOnAddToShotWithoutPosition: !!onAddToShotWithoutPosition,
-      showTickForImageId,
-      showTickForSecondaryImageId,
-      hasOptimisticPositioned: !!optimisticPositionedIds,
-      hasOptimisticUnpositioned: !!optimisticUnpositionedIds,
-      hasOnNavigateToShot: !!onNavigateToShot,
-      timestamp: Date.now()
-    });
-  }, [activeLightboxMedia?.id, selectedShotIdLocal, onAddToShot, onAddToShotWithoutPosition, showTickForImageId, showTickForSecondaryImageId, optimisticPositionedIds, optimisticUnpositionedIds, onNavigateToShot]);
   
   // Calculate navigation availability for MediaLightbox
   const { hasNext, hasPrevious } = useMemo(() => {
@@ -191,13 +167,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   const starredValue = useMemo(() => {
     const foundImage = filteredImages.find(img => img.id === activeLightboxMedia?.id);
     const starred = foundImage?.starred || false;
-    console.log('[StarDebug:MediaGallery] MediaLightbox starred prop', {
-      mediaId: activeLightboxMedia?.id,
-      foundImage: !!foundImage,
-      starredValue: starred,
-      foundImageKeys: foundImage ? Object.keys(foundImage) : [],
-      timestamp: Date.now()
-    });
     return starred;
   }, [filteredImages, activeLightboxMedia?.id]);
 
@@ -245,7 +214,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       // Only trigger on mutations that might affect starred state
       if (event.type === 'updated' && event.query.queryKey[0] === queryKeys.unified.all[0]) {
-        console.log('[StarPersist] 📡 Cache updated, forcing enhancedMedia recompute');
         setCacheVersion(v => v + 1);
       }
     });
@@ -268,11 +236,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           const cacheItem = (data as { items: GeneratedImageWithMetadata[] }).items.find((g: GeneratedImageWithMetadata) => g.id === activeLightboxMedia.id);
           if (cacheItem) {
             foundImage = cacheItem;
-            console.log('[StarPersist] 📦 Found values in React Query cache:', {
-              mediaId: activeLightboxMedia.id,
-              starred: cacheItem.starred,
-              source: 'queryCache'
-            });
             break;
           }
         }
@@ -280,14 +243,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     }
     
     const starred = foundImage?.starred || false;
-    
-    console.log('[StarPersist] 🎨 Enhanced media created:', {
-      mediaId: activeLightboxMedia.id,
-      starred,
-      foundInFilteredImages: !!filteredImages.find(img => img.id === activeLightboxMedia.id),
-      source: foundImage ? 'found' : 'default',
-      cacheVersion
-    });
     
     // Clean up internal flags from metadata before passing to MediaLightbox
     const { __autoEnterEditMode, ...cleanMetadata } = activeLightboxMedia.metadata || {};
@@ -302,15 +257,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   // Compute positioned/associated state from gallery source record (mirrors MediaGalleryItem logic)
   const sourceRecord = useMemo(() => {
     const found = filteredImages.find(img => img.id === activeLightboxMedia?.id);
-    console.log('[ShotNavDebug] [MediaGalleryLightbox] sourceRecord lookup', {
-      mediaId: activeLightboxMedia?.id,
-      foundRecord: !!found,
-      shot_id: found?.shot_id,
-      position: found?.position,
-      all_shot_associations: found?.all_shot_associations,
-      filteredImagesCount: filteredImages.length,
-      timestamp: Date.now()
-    });
     return found;
   }, [filteredImages, activeLightboxMedia?.id]);
   
@@ -320,23 +266,12 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   
   const positionedInSelectedShot = useMemo(() => {
     if (!sourceRecord || !effectiveShotIdForOverride) {
-      console.log('[ShotNavDebug] [MediaGalleryLightbox] positionedInSelectedShot: early return undefined', {
-        hasSourceRecord: !!sourceRecord,
-        effectiveShotIdForOverride,
-        timestamp: Date.now()
-      });
       return undefined;
     }
     
     let result: boolean;
     if (sourceRecord.shot_id === effectiveShotIdForOverride) {
       result = sourceRecord.position !== null && sourceRecord.position !== undefined;
-      console.log('[ShotNavDebug] [MediaGalleryLightbox] positionedInSelectedShot: direct shot_id match', {
-        shot_id: sourceRecord.shot_id,
-        position: sourceRecord.position,
-        result,
-        timestamp: Date.now()
-      });
       return result;
     }
     
@@ -344,42 +279,20 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     if (Array.isArray(shotAssociations)) {
       const matchedAssociation = shotAssociations.find(assoc => assoc.shot_id === effectiveShotIdForOverride);
       result = !!(matchedAssociation && matchedAssociation.position !== null && matchedAssociation.position !== undefined);
-      console.log('[ShotNavDebug] [MediaGalleryLightbox] positionedInSelectedShot: all_shot_associations check', {
-        associationsCount: shotAssociations.length,
-        foundMatch: !!matchedAssociation,
-        matchPosition: matchedAssociation?.position,
-        result,
-        effectiveShotIdForOverride,
-        timestamp: Date.now()
-      });
       return result;
     }
     
-    console.log('[ShotNavDebug] [MediaGalleryLightbox] positionedInSelectedShot: fallback false', {
-      timestamp: Date.now()
-    });
     return false;
   }, [sourceRecord, effectiveShotIdForOverride]);
   
   const associatedWithoutPositionInSelectedShot = useMemo(() => {
     if (!sourceRecord || !effectiveShotIdForOverride) {
-      console.log('[ShotNavDebug] [MediaGalleryLightbox] associatedWithoutPositionInSelectedShot: early return undefined', {
-        hasSourceRecord: !!sourceRecord,
-        effectiveShotIdForOverride,
-        timestamp: Date.now()
-      });
       return undefined;
     }
     
     let result: boolean;
     if (sourceRecord.shot_id === effectiveShotIdForOverride) {
       result = sourceRecord.position === null || sourceRecord.position === undefined;
-      console.log('[ShotNavDebug] [MediaGalleryLightbox] associatedWithoutPositionInSelectedShot: direct shot_id match', {
-        shot_id: sourceRecord.shot_id,
-        position: sourceRecord.position,
-        result,
-        timestamp: Date.now()
-      });
       return result;
     }
     
@@ -387,76 +300,22 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     if (Array.isArray(shotAssociations)) {
       const matchedAssociation = shotAssociations.find(assoc => assoc.shot_id === effectiveShotIdForOverride);
       result = !!(matchedAssociation && (matchedAssociation.position === null || matchedAssociation.position === undefined));
-      console.log('[ShotNavDebug] [MediaGalleryLightbox] associatedWithoutPositionInSelectedShot: all_shot_associations check', {
-        associationsCount: shotAssociations.length,
-        foundMatch: !!matchedAssociation,
-        matchPosition: matchedAssociation?.position,
-        result,
-        effectiveShotIdForOverride,
-        timestamp: Date.now()
-      });
       return result;
     }
     
-    console.log('[ShotNavDebug] [MediaGalleryLightbox] associatedWithoutPositionInSelectedShot: fallback false', {
-      timestamp: Date.now()
-    });
     return false;
   }, [sourceRecord, effectiveShotIdForOverride]);
 
-  // Log what's being passed to MediaLightbox
-  useEffect(() => {
-    if (activeLightboxMedia) {
-      console.log('[ShotNavDebug] [MediaGalleryLightbox] Passing to MediaLightbox', {
-        mediaId: activeLightboxMedia.id,
-        selectedShotIdLocal,
-        positionedInSelectedShot,
-        associatedWithoutPositionInSelectedShot,
-        optimisticPositionedCount: optimisticPositionedIds?.size || 0,
-        optimisticUnpositionedCount: optimisticUnpositionedIds?.size || 0,
-        timestamp: Date.now()
-      });
-    }
-  }, [activeLightboxMedia?.id, selectedShotIdLocal, positionedInSelectedShot, associatedWithoutPositionInSelectedShot, optimisticPositionedIds, optimisticUnpositionedIds]);
-
   // Handle navigation to a specific generation by ID
   const handleNavigateToGeneration = React.useCallback((generationId: string) => {
-    console.log('[DerivedNav:Gallery] 📍 handleNavigateToGeneration called', { 
-      generationId: generationId.substring(0, 8),
-      fullGenerationId: generationId,
-      hasSetActiveLightboxIndex: !!setActiveLightboxIndex,
-      filteredImagesCount: filteredImages.length,
-      currentMedia: activeLightboxMedia?.id.substring(0, 8),
-      timestamp: Date.now()
-    });
     
     // Find the generation in the filtered images
     const index = filteredImages.findIndex(img => img.id === generationId);
     
-    console.log('[DerivedNav:Gallery] 🔍 Search result', {
-      searchedId: generationId.substring(0, 8),
-      foundIndex: index,
-      wasFound: index !== -1,
-      sampleImages: filteredImages.slice(0, 3).map(img => ({
-        id: img.id.substring(0, 8),
-        matches: img.id === generationId
-      }))
-    });
-    
     if (index !== -1) {
-      console.log('[DerivedNav:Gallery] ✅ Found generation in filtered images', { 
-        index, 
-        generationId: generationId.substring(0, 8),
-        willSetIndex: true 
-      });
       
       if (setActiveLightboxIndex) {
-        console.log('[DerivedNav:Gallery] 🎯 Calling setActiveLightboxIndex', { 
-          currentMedia: activeLightboxMedia?.id.substring(0, 8),
-          toIndex: index 
-        });
         setActiveLightboxIndex(index);
-        console.log('[DerivedNav:Gallery] ✨ setActiveLightboxIndex completed');
       } else {
         console.error('[DerivedNav:Gallery] ❌ setActiveLightboxIndex is not available!');
       }
@@ -475,27 +334,15 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
 
   // Handle opening external generation (not in current filtered list)
   const handleOpenExternalGeneration = React.useCallback(async (generationId: string, derivedContext?: string[]) => {
-    console.log('[DerivedNav:Gallery] 🌐 handleOpenExternalGeneration called', {
-      generationId: generationId.substring(0, 8),
-      hasDerivedContext: !!derivedContext,
-      derivedContextLength: derivedContext?.length || 0
-    });
 
     // First try to find in current filtered images
     const index = filteredImages.findIndex(img => img.id === generationId);
     if (index !== -1 && setActiveLightboxIndex) {
-      console.log('[DerivedNav:Gallery] ✅ Found in filtered images, navigating locally', {
-        index,
-        generationId: generationId.substring(0, 8)
-      });
       setActiveLightboxIndex(index);
       return;
     }
 
     // Not in filtered images, fetch from Supabase and open it directly
-    console.log('[DerivedNav:Gallery] 📥 Fetching external generation from database', {
-      generationId: generationId.substring(0, 8)
-    });
 
     try {
       const { data, error } = await supabase
@@ -510,10 +357,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
       if (error) throw error;
 
       if (data) {
-        console.log('[DerivedNav:Gallery] ✅ Fetched external generation, opening in lightbox', {
-          generationId: data.id.substring(0, 8),
-          type: data.type
-        });
 
         // Transform to GeneratedImageWithMetadata format
         // Database uses 'params' field for metadata
@@ -542,19 +385,10 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           shot_id: shotGenerations[0]?.shot_id,
         };
         
-        console.log('[DerivedNav:Gallery] 🎯 Opening external generation in lightbox', {
-          generationId: transformedData.id.substring(0, 8),
-          hasBasedOn: !!basedOnValue,
-          isVideo: transformedData.isVideo
-        });
-        
         // Check if already in filtered images (e.g., from a previous navigation)
         const existingIndex = filteredImages.findIndex(img => img.id === transformedData.id);
         if (existingIndex !== -1) {
           // Already exists, just navigate to it
-          console.log('[DerivedNav:Gallery] External generation already in filtered images, navigating to existing', {
-            existingIndex
-          });
           if (setActiveLightboxIndex) {
             setActiveLightboxIndex(existingIndex);
           }
@@ -565,36 +399,18 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           // callback for opening external generations.
           filteredImages.push(transformedData);
           
-          console.log('[DerivedNav:Gallery] Added external generation to filtered images', {
-            newIndex: filteredImages.length - 1,
-            totalFiltered: filteredImages.length
-          });
-          
           // Navigate to the newly added item (last index)
           if (setActiveLightboxIndex) {
             setActiveLightboxIndex(filteredImages.length - 1);
           }
         }
       } else {
-        console.log('[DerivedNav:Gallery] ⚠️ No data returned from query');
         toast.error('Generation not found');
       }
     } catch (error) {
       handleError(error, { context: 'MediaGalleryLightbox', toastTitle: 'Failed to load generation' });
     }
   }, [filteredImages, setActiveLightboxIndex]);
-
-  // Debug: Log when navigation handler is created
-  React.useEffect(() => {
-    console.log('[DerivedNav:Gallery] 🔧 Navigation handler state', {
-      hasHandleNavigateToGeneration: !!handleNavigateToGeneration,
-      hasHandleOpenExternalGeneration: !!handleOpenExternalGeneration,
-      hasSetActiveLightboxIndex: !!setActiveLightboxIndex,
-      filteredImagesCount: filteredImages.length,
-      handlerType: typeof handleNavigateToGeneration,
-      timestamp: Date.now()
-    });
-  }, [handleNavigateToGeneration, handleOpenExternalGeneration, setActiveLightboxIndex, filteredImages.length]);
 
   // Track previous shots length to detect race condition
   const prevShotsLengthRef = React.useRef(simplifiedShotOptions?.length || 0);
@@ -605,35 +421,12 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     const prevShotsLength = prevShotsLengthRef.current;
     
     // Detect race condition: lightbox was open with 0 shots, now shots have loaded
-    if (enhancedMedia && prevShotsLength === 0 && currentShotsLength > 0) {
-      console.log('[ShotSelectorDebug] ⚠️ RACE CONDITION DETECTED: Shots loaded while lightbox was open!', {
-        prevShotsLength,
-        currentShotsLength,
-        mediaId: enhancedMedia.id?.substring(0, 8),
-        timestamp: Date.now()
-      });
-    }
     
     prevShotsLengthRef.current = currentShotsLength;
     
     if (enhancedMedia) {
       const isVideo = !!(activeLightboxMedia.type || '').includes('video');
       const willShowShotSelector = !!(onAddToShot && simplifiedShotOptions?.length > 0 && !isVideo);
-      console.log('[ShotSelectorDebug] MediaGalleryLightbox -> MediaLightbox props:', {
-        component: 'MediaGalleryLightbox',
-        mediaId: enhancedMedia.id?.substring(0, 8),
-        // Key conditions for shot selector visibility:
-        allShotsLength: simplifiedShotOptions?.length || 0,
-        hasOnAddToShot: !!onAddToShot,
-        isVideo,
-        willShowShotSelector, // This should match what you see in the UI
-        // Other context:
-        hasOnAddToShotWithoutPosition: !!onAddToShotWithoutPosition,
-        selectedShotIdLocal,
-        lightboxSelectedShotId,
-        mediaType: activeLightboxMedia.type,
-        timestamp: Date.now()
-      });
     }
   }, [enhancedMedia, simplifiedShotOptions, onAddToShot, onAddToShotWithoutPosition, selectedShotIdLocal, lightboxSelectedShotId, activeLightboxMedia?.type]);
 
@@ -661,7 +454,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           selectedShotId={lightboxSelectedShotId || (selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined)}
           shotId={selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined}
           onShotChange={(shotId) => {
-            console.log('[MediaGalleryLightbox] Shot selector changed to:', shotId);
             setLightboxSelectedShotId(shotId);
             onShotChange(shotId);
           }}

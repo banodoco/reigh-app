@@ -2,7 +2,12 @@ import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Slider } from "@/shared/components/ui/slider";
 import { Label } from "@/shared/components/ui/label";
-import { Info, ZoomOut, ZoomIn, RotateCcw, MoveLeft } from 'lucide-react';
+import {
+  ZoomOut,
+  ZoomIn,
+  RotateCcw,
+  MoveLeft
+} from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { framesToSeconds, quantizeGap } from './utils/time-utils';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';

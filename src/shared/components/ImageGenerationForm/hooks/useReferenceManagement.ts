@@ -178,7 +178,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
     // If it's base64 data, return null to trigger re-upload
     if (imageToDisplay.startsWith('data:image/')) {
-      console.warn('[useReferenceManagement] Found legacy base64 style reference, needs conversion');
       return null;
     }
 
@@ -196,7 +195,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
     // If it's base64 data, return null
     if (rawStyleReferenceImage.startsWith('data:image/')) {
-      console.warn('[useReferenceManagement] Found legacy base64 style reference, needs conversion');
       return null;
     }
 
@@ -225,7 +223,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   useEffect(() => {
     const currentReferenceMode = selectedReference?.referenceMode || 'style';
     if (pendingReferenceModeUpdate.current && currentReferenceMode === pendingReferenceModeUpdate.current) {
-      console.log('[useReferenceManagement] Database caught up with pending mode update:', currentReferenceMode);
       pendingReferenceModeUpdate.current = null;
     }
   }, [selectedReference?.referenceMode]);
@@ -235,7 +232,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   useEffect(() => {
     // Only sync when reference ID actually changes (not on every re-render)
     if (selectedReference && selectedReference.id !== lastSyncedReferenceId.current) {
-      console.log('[useReferenceManagement] Syncing local state from reference:', selectedReference.id);
       lastSyncedReferenceId.current = selectedReference.id;
 
       // Sync all reference settings to local state
@@ -254,7 +250,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   // ============================================================================
 
   const handleUpdateReference = useCallback(async (referenceId: string, updates: Partial<HydratedReferenceImage>) => {
-    console.log('[useReferenceManagement] Updating reference settings:', { referenceId, updates });
 
     // Find the current pointer
     const currentPointer = referencePointers.find(r => r.id === referenceId);
@@ -284,7 +279,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
       await updateProjectImageSettings('project', {
         references: updatedReferences,
       });
-      console.log('[useReferenceManagement] Project settings updated successfully');
     } catch (error) {
       handleError(error, { context: 'useReferenceManagement.handleUpdateReference', toastTitle: 'Failed to update reference settings' });
     }
@@ -301,7 +295,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
     // GUARD: Don't add references while settings are loading
     if (isLoadingProjectSettings) {
-      console.warn('[useReferenceManagement] Cannot upload reference while settings are loading');
       toast.error('Please wait for settings to load');
       return;
     }
@@ -401,8 +394,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
         updatedAt: now,
       };
 
-      console.log('[useReferenceManagement] Creating new reference resource:', metadata.name);
-
       // Create resource in resources table
       const resource = await createStyleReference.mutateAsync({
         type: 'style-reference',
@@ -433,7 +424,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
           }))
         );
       } catch (e) {
-        console.warn('[useReferenceManagement] Failed to set optimistic cache data', e);
       }
 
       // Read from cache after optimistic update
@@ -449,7 +439,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
       markAsInteracted();
       setStyleReferenceOverride(originalUploadedUrl);
 
-      console.log('[useReferenceManagement] Style reference upload completed successfully!');
     } catch (error) {
       handleError(error, { context: 'useReferenceManagement.handleStyleReferenceUpload', toastTitle: 'Failed to upload reference image' });
     } finally {
@@ -473,7 +462,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
   const handleResourceSelect = useCallback(async (resource: Resource) => {
     if (isLoadingProjectSettings) {
-      console.warn('[useReferenceManagement] Cannot add reference while settings are loading');
       toast.error('Please wait for settings to load');
       return;
     }
@@ -483,7 +471,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
       const existingPointer = referencePointers.find(ptr => ptr.resourceId === resource.id);
 
       if (existingPointer) {
-        console.log('[useReferenceManagement] Resource already linked, switching to existing reference:', existingPointer.id);
 
         const optimisticUpdate = {
           ...selectedReferenceIdByShot,
@@ -495,7 +482,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
             updateSettingsCache<ProjectImageSettings>(prev, { selectedReferenceIdByShot: optimisticUpdate })
           );
         } catch (e) {
-          console.warn('[useReferenceManagement] Failed to set optimistic cache data', e);
         }
 
         await updateProjectImageSettings('project', {
@@ -520,11 +506,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
         createdAt: new Date().toISOString(),
         ...modeDefaults,
       };
-
-      console.log('[useReferenceManagement] Linking existing resource:', {
-        resourceId: resource.id,
-        pointerId: newPointer.id,
-      });
 
       // Optimistic UI update
       try {
@@ -576,7 +557,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   // ============================================================================
 
   const handleSelectReference = useCallback(async (referenceId: string) => {
-    console.log('[useReferenceManagement] Selecting reference for shot', effectiveShotId, ':', referenceId);
 
     // Also update shot-level settings for inheritance
     if (associatedShotId && shotPromptSettings) {
@@ -594,7 +574,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
         updateSettingsCache<ProjectImageSettings>(prev, { selectedReferenceIdByShot: optimisticUpdate })
       );
     } catch (e) {
-      console.warn('[useReferenceManagement] Failed to set optimistic cache data', e);
     }
 
     await updateProjectImageSettings('project', {
@@ -608,7 +587,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   // ============================================================================
 
   const handleDeleteReference = useCallback(async (referenceId: string) => {
-    console.log('[useReferenceManagement] Deleting reference:', referenceId);
 
     const hydratedRef = hydratedReferences.find(r => r.id === referenceId);
     if (!hydratedRef) {
@@ -647,7 +625,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
         })
       );
     } catch (e) {
-      console.warn('[useReferenceManagement] Failed to set optimistic cache data', e);
     }
 
     await updateProjectImageSettings('project', {
@@ -663,7 +640,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   // ============================================================================
 
   const handleUpdateReferenceName = useCallback(async (referenceId: string, name: string) => {
-    console.log('[useReferenceManagement] Updating reference name:', referenceId, name);
 
     // Find the hydrated reference to get the resourceId
     const hydratedRef = hydratedReferences.find(r => r.id === referenceId);
@@ -698,7 +674,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
         metadata: updatedMetadata,
       });
 
-      console.log('[useReferenceManagement] Name updated successfully');
     } catch (error) {
       handleError(error, { context: 'useReferenceManagement.handleUpdateReferenceName', toastTitle: 'Failed to update name' });
     }
@@ -709,7 +684,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   // ============================================================================
 
   const handleToggleVisibility = useCallback(async (resourceId: string, currentIsPublic: boolean) => {
-    console.log('[useReferenceManagement] Toggling visibility:', { resourceId, currentIsPublic, newValue: !currentIsPublic });
 
     const hydratedRef = hydratedReferences.find(r => r.resourceId === resourceId);
     if (!hydratedRef) {
@@ -742,7 +716,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
         metadata: updatedMetadata,
       });
 
-      console.log('[useReferenceManagement] Visibility toggled successfully');
     } catch (error) {
       handleError(error, { context: 'useReferenceManagement.handleToggleVisibility', toastTitle: 'Failed to update visibility' });
     }
@@ -811,7 +784,6 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
 
   const handleReferenceModeChange = useCallback(async (mode: ReferenceMode) => {
     if (!selectedReferenceId) return;
-    console.log('[useReferenceManagement] User changed mode to:', mode);
 
     // Get defaults for this mode and generation environment
     const defaults = getReferenceModeDefaults(mode, isLocalGenerationEnabled);

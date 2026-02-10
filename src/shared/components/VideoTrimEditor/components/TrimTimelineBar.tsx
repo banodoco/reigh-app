@@ -5,7 +5,7 @@
  * Shows the "keep" region highlighted in the middle.
  */
 
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import { cn, formatTime } from '@/shared/lib/utils';
 import type { TrimTimelineBarProps } from '../types';
 

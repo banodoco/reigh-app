@@ -27,7 +27,6 @@ class MobilePerformanceMonitor {
     if (this.isMonitoring) return;
     
     this.isMonitoring = true;
-    console.log('[MobileHeatDebug] Performance monitoring started');
     
     // Track FPS
     this.trackFPS();
@@ -48,7 +47,6 @@ class MobilePerformanceMonitor {
       clearInterval(this.logInterval);
       this.logInterval = null;
     }
-    console.log('[MobileHeatDebug] Performance monitoring stopped');
   }
 
   private trackFPS() {
@@ -95,22 +93,13 @@ class MobilePerformanceMonitor {
   private logMetrics() {
     const metrics = this.getMetrics();
     
-    console.log('[MobileHeatDebug] === Performance Metrics ===');
-    console.log('[MobileHeatDebug] FPS:', metrics.fps);
-    if (metrics.memory) {
-      console.log('[MobileHeatDebug] Memory (MB):', metrics.memory);
-    }
-    console.log('[MobileHeatDebug] Total renders (last interval):', metrics.renderCount);
-    
     // Log top rendering components
     if (this.renderCounts.size > 0) {
-      console.log('[MobileHeatDebug] Top rendering components:');
       const sorted = Array.from(this.renderCounts.entries())
         .sort(([, a], [, b]) => b - a)
         .slice(0, 10);
       
       sorted.forEach(([name, count]) => {
-        console.log(`[MobileHeatDebug]   ${name}: ${count} renders`);
       });
     }
     
@@ -118,27 +107,15 @@ class MobilePerformanceMonitor {
     this.renderCounts.clear();
     
     // Warnings
-    if (metrics.fps < 30) {
-      console.warn('[MobileHeatDebug] ⚠️ LOW FPS - Possible cause of heating');
-    }
-    if (metrics.memory && metrics.memory > 500) {
-      console.warn('[MobileHeatDebug] ⚠️ HIGH MEMORY USAGE');
-    }
   }
 
   // Track specific operations
   async measureOperation<T>(name: string, operation: () => Promise<T>): Promise<T> {
     const start = performance.now();
-    console.log(`[MobileHeatDebug] Starting: ${name}`);
     
     try {
       const result = await operation();
       const duration = performance.now() - start;
-      console.log(`[MobileHeatDebug] Completed: ${name} (${duration.toFixed(2)}ms)`);
-      
-      if (duration > 100) {
-        console.warn(`[MobileHeatDebug] ⚠️ SLOW OPERATION: ${name} took ${duration.toFixed(2)}ms`);
-      }
       
       return result;
     } catch (error) {

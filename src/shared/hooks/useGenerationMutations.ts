@@ -21,7 +21,6 @@ import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import type { GenerationRow } from '@/types/shots';
-import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery';
 import type { GenerationsPaginatedResponse } from './useProjectGenerations';
 
 // ===== Helper Functions (internal) =====

@@ -94,13 +94,6 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
                 </span>
                 <button
                   onClick={() => {
-                    console.log('[JoinSegmentsDebug] Toggle clicked (swap button):', {
-                      shotId: selectedShotId?.substring(0, 8),
-                      from: generationMode.generateMode,
-                      to: generationMode.generateMode === 'batch' ? 'join' : 'batch',
-                      joinValidationData: joinState.joinValidationData,
-                      videoOutputsCount: videoOutputs.length,
-                    });
                     generationMode.setGenerateMode(generationMode.generateMode === 'batch' ? 'join' : 'batch');
                   }}
                   className={`p-1 rounded-full transition-colors ${

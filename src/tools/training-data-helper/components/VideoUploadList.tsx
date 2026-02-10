@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
@@ -7,7 +7,6 @@ import { TrainingDataVideo, TrainingDataSegment } from '../hooks/useTrainingData
 import { useTrainingData } from '../hooks/useTrainingData';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/shared/components/ui/alert-dialog';
 import { cropFilename } from '@/shared/lib/utils';
-import { formatDistanceToNow, isValid } from 'date-fns';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
 import { handleError } from '@/shared/lib/errorHandler';
 

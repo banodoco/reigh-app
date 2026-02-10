@@ -190,7 +190,6 @@ export function useSwipeNavigation({
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch (err) {
       // setPointerCapture may fail in some edge cases
-      console.log('[SwipeNav] Could not capture pointer:', err);
     }
   }, [disabled]);
   
@@ -209,13 +208,6 @@ export function useSwipeNavigation({
       // Use a ratio to decide - if vertical movement is dominant, it's a scroll
       state.isHorizontal = absDeltaX > absDeltaY * 0.8;
       state.isLocked = true;
-      
-      console.log('[SwipeNav] Direction locked:', {
-        isHorizontal: state.isHorizontal,
-        deltaX,
-        deltaY,
-        ratio: absDeltaX / Math.max(absDeltaY, 1),
-      });
       
       // If vertical, abort swipe and let normal scroll happen
       if (!state.isHorizontal) {
@@ -252,15 +244,6 @@ export function useSwipeNavigation({
     const velocity = Math.abs(deltaX) / duration;
     const absDeltaX = Math.abs(deltaX);
     
-    console.log('[SwipeNav] Pointer up:', {
-      deltaX,
-      duration,
-      velocity,
-      threshold,
-      velocityThreshold,
-      isHorizontal: state.isHorizontal,
-    });
-    
     // Only trigger if we had a horizontal swipe
     if (state.isLocked && state.isHorizontal) {
       // Check if swipe meets threshold (distance or velocity)
@@ -270,17 +253,11 @@ export function useSwipeNavigation({
       if (metDistanceThreshold || metVelocityThreshold) {
         if (deltaX < 0 && hasNext) {
           // Swiped left -> go to next
-          console.log('[SwipeNav] ✓ Triggering swipe LEFT (next)');
           onSwipeLeft?.();
         } else if (deltaX > 0 && hasPrevious) {
           // Swiped right -> go to previous
-          console.log('[SwipeNav] ✓ Triggering swipe RIGHT (previous)');
           onSwipeRight?.();
-        } else {
-          console.log('[SwipeNav] ✗ Swipe direction blocked (no prev/next)');
         }
-      } else {
-        console.log('[SwipeNav] ✗ Swipe did not meet threshold');
       }
     }
     
@@ -296,7 +273,6 @@ export function useSwipeNavigation({
   }, [threshold, velocityThreshold, hasNext, hasPrevious, onSwipeLeft, onSwipeRight]);
   
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
-    console.log('[SwipeNav] Pointer cancelled');
     
     // Release pointer capture
     try {
@@ -319,14 +295,4 @@ export function useSwipeNavigation({
     isSwiping,
   };
 }
-
-
-
-
-
-
-
-
-
-
 

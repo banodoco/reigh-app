@@ -107,10 +107,6 @@ export function useStructureVideoUpload(
     if (!onAddSegmentStructureVideo || !structureVideoFrameRange) return;
 
     const metadata = resource.metadata as StructureVideoMetadata;
-    console.log('[SegmentSettingsForm] Video selected from browser:', {
-      resourceId: resource.id,
-      videoUrl: metadata.videoUrl,
-    });
 
     const newVideo: StructureVideoConfigWithMetadata = {
       path: metadata.videoUrl,

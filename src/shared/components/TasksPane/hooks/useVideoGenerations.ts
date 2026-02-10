@@ -31,24 +31,9 @@ export function useVideoGenerations({
   // State to track if user clicked the button (not just hovered)
   const [waitingForVideoToOpen, setWaitingForVideoToOpen] = useState(false);
 
-  // Debug: Log hook inputs on every render
-  console.log('[VideoQueryDebug] Hook called:', {
-    taskId: task.id.substring(0, 8),
-    taskType: task.taskType,
-    status: task.status,
-    isVideoTask,
-    isCompletedVideoTask,
-    isHovering,
-    shouldFetchVideo,
-    waitingForVideoToOpen,
-    hasOutputLocation: !!task.outputLocation,
-    queryEnabled: shouldFetchVideo && isVideoTask && task.status === 'Complete',
-  });
-
   // Trigger video fetch when hovering over completed video tasks
   useEffect(() => {
     if (isHovering && isCompletedVideoTask && !shouldFetchVideo) {
-      console.log('[VideoQueryDebug] Hover triggered fetch for task:', task.id.substring(0, 8));
       setShouldFetchVideo(true);
     }
   }, [isHovering, isCompletedVideoTask, shouldFetchVideo, task.id]);
@@ -57,15 +42,8 @@ export function useVideoGenerations({
   const { data: videoGenerations, isLoading: isLoadingVideoGen } = useQuery({
     queryKey: [...queryKeys.generations.videoForTask(task.id), task.outputLocation],
     queryFn: async () => {
-      console.log('[useVideoGenerations] Starting query for task:', {
-        taskId: task.id,
-        taskType: task.taskType,
-        outputLocation: task.outputLocation?.substring(0, 50),
-        status: task.status,
-      });
 
       if (!isVideoTask || task.status !== 'Complete') {
-        console.log('[useVideoGenerations] Skipping - not a completed video task');
         return null;
       }
 
@@ -99,7 +77,6 @@ export function useVideoGenerations({
 
       // Try to find generation by output location first (most reliable)
       if (task.outputLocation) {
-        console.log('[useVideoGenerations] Trying generations by location...');
         const { data: byLocation, error: locError } = await supabase
           .from('generations')
           .select('*')
@@ -107,10 +84,8 @@ export function useVideoGenerations({
           .eq('project_id', task.projectId);
 
         if (!locError && byLocation && byLocation.length > 0) {
-          console.log('[useVideoGenerations] Found in generations table:', byLocation.length);
           return byLocation;
         }
-        console.log('[useVideoGenerations] Not found in generations, trying variants...', { locError });
 
         // If not found in generations, check generation_variants by location
         const { data: variantByLocation, error: variantError } = await supabase
@@ -118,11 +93,6 @@ export function useVideoGenerations({
           .select('id, generation_id, location, thumbnail_url, is_primary, params')
           .eq('location', task.outputLocation)
           .limit(1);
-
-        console.log('[useVideoGenerations] Variant query result:', {
-          found: variantByLocation?.length || 0,
-          error: variantError?.message,
-        });
 
         if (!variantError && variantByLocation && variantByLocation.length > 0) {
           const variant = variantByLocation[0];
@@ -133,7 +103,6 @@ export function useVideoGenerations({
             .single();
 
           if (!parentError && parentGen) {
-            console.log('[useVideoGenerations] Found via variant, returning with parent gen');
             return [{
               ...parentGen,
               location: variant.location,
@@ -142,14 +111,10 @@ export function useVideoGenerations({
               _variant_is_primary: variant.is_primary,
             }];
           }
-          console.log('[useVideoGenerations] Variant found but parent gen fetch failed:', parentError);
         }
-      } else {
-        console.log('[useVideoGenerations] No outputLocation on task, skipping location queries');
       }
 
       // Fallback: Search by task ID in the tasks JSONB array
-      console.log('[useVideoGenerations] Trying fallback: search by task ID in tasks array...');
       const { data, error } = await supabase
         .from('generations')
         .select('*')
@@ -162,7 +127,6 @@ export function useVideoGenerations({
       }
 
       if (data && data.length > 0) {
-        console.log('[useVideoGenerations] Fallback result:', { found: data.length });
         return data;
       }
 
@@ -170,7 +134,6 @@ export function useVideoGenerations({
       // create a minimal pseudo-generation from the task data
       // This handles cases where complete-task failed to create the generation record
       if (task.outputLocation) {
-        console.log('[useVideoGenerations] No generation found, creating minimal record from task.outputLocation');
         return [{
           id: task.id, // Use task ID as pseudo-generation ID
           location: task.outputLocation,
@@ -183,7 +146,6 @@ export function useVideoGenerations({
         }];
       }
 
-      console.log('[useVideoGenerations] No generation found and no outputLocation');
       return [];
     },
     enabled: shouldFetchVideo && isVideoTask && task.status === 'Complete',
@@ -221,16 +183,10 @@ export function useVideoGenerations({
 
   // Trigger fetch (for click before hover)
   const ensureFetch = useCallback(() => {
-    console.log('[VideoQueryDebug] ensureFetch called for task:', task.id.substring(0, 8));
     setShouldFetchVideo(true);
   }, [task.id]);
 
   const triggerOpen = useCallback(() => {
-    console.log('[VideoQueryDebug] triggerOpen called for task:', task.id.substring(0, 8), {
-      isVideoTask,
-      status: task.status,
-      willEnableQuery: isVideoTask && task.status === 'Complete',
-    });
     setShouldFetchVideo(true);
     setWaitingForVideoToOpen(true);
   }, [task.id, isVideoTask, task.status]);

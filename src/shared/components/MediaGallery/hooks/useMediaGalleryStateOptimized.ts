@@ -1,4 +1,9 @@
-import { useReducer, useRef, useCallback, useEffect, useMemo } from 'react';
+import {
+  useReducer,
+  useRef,
+  useEffect,
+  useMemo
+} from 'react';
 import { GenerationRow } from '@/types/shots';
 import { GeneratedImageWithMetadata } from '../index';
 
@@ -144,14 +149,6 @@ const mediaGalleryStateReducer = (
       const newUnpositioned = new Set(state.optimisticUnpositionedIds);
       newPositioned.add(key);
       newUnpositioned.delete(key);
-      console.log('[OptimisticDebug] MARK_OPTIMISTIC_POSITIONED reducer:', {
-        mediaId: mediaId?.substring(0, 8),
-        shotId: shotId?.substring(0, 8),
-        key,
-        newPositionedSize: newPositioned.size,
-        newPositionedContents: Array.from(newPositioned),
-        timestamp: Date.now()
-      });
       return {
         ...state,
         optimisticPositionedIds: newPositioned,
@@ -202,17 +199,6 @@ const mediaGalleryStateReducer = (
       
       // [OptimisticDebug] Log reconciliation
       const removedFromPositioned = Array.from(state.optimisticPositionedIds).filter(k => !newPositioned.has(k));
-      if (removedFromPositioned.length > 0 || state.optimisticPositionedIds.size > 0) {
-        console.log('[OptimisticDebug] RECONCILE_OPTIMISTIC_STATE:', {
-          beforeSize: state.optimisticPositionedIds.size,
-          beforeContents: Array.from(state.optimisticPositionedIds),
-          afterSize: newPositioned.size,
-          afterContents: Array.from(newPositioned),
-          removedKeys: removedFromPositioned,
-          currentImageIdsSize: currentImageIds.size,
-          timestamp: Date.now()
-        });
-      }
       
       const newDeleted = new Set<string>();
       for (const id of state.optimisticDeletedIds) {
@@ -342,32 +328,9 @@ export const useMediaGalleryStateOptimized = ({
     createInitialState(currentShotId, lastShotId, simplifiedShotOptions)
   );
   
-  // Debug logging for lightbox state changes (reduced frequency)
-  useEffect(() => {
-    console.log('[MobileDebug] activeLightboxMedia state changed:', {
-      hasMedia: !!state.activeLightboxMedia,
-      mediaId: state.activeLightboxMedia?.id?.substring(0, 8),
-      mediaType: state.activeLightboxMedia?.type,
-      timestamp: Date.now()
-    });
-  }, [state.activeLightboxMedia]);
-  
-  // Debug skeleton state changes
-  useEffect(() => {
-    console.log('[SKELETON_DEBUG] State changed:', {
-      isBackfillLoading: state.isBackfillLoading,
-      backfillSkeletonCount: state.backfillSkeletonCount,
-      timestamp: Date.now()
-    });
-  }, [state.isBackfillLoading, state.backfillSkeletonCount]);
-  
   // Memoized action creators to prevent unnecessary re-renders
   const actions = useMemo(() => ({
     setActiveLightboxMedia: (media: GenerationRow | null) => {
-      console.log('[CrossPageNav] 🔄 setActiveLightboxMedia:', {
-        newMediaId: media?.id?.substring(0, 8) ?? 'null',
-        timestamp: Date.now(),
-      });
       dispatch({ type: 'SET_LIGHTBOX_MEDIA', payload: media });
     },
     setAutoEnterEditMode: (value: boolean) =>
@@ -377,10 +340,6 @@ export const useMediaGalleryStateOptimized = ({
     setShowTaskDetailsModal: (show: boolean) =>
       dispatch({ type: 'SET_SHOW_TASK_DETAILS_MODAL', payload: show }),
     setPendingLightboxTarget: (target: 'first' | 'last' | null) => {
-      console.log('[CrossPageNav] 🎯 setPendingLightboxTarget:', {
-        newTarget: target,
-        timestamp: Date.now(),
-      });
       dispatch({ type: 'SET_PENDING_LIGHTBOX_TARGET', payload: target });
     },
     markOptimisticUnpositioned: (imageId: string, shotId: string) => 
@@ -443,11 +402,6 @@ export const useMediaGalleryStateOptimized = ({
     
     // Sync when lastShotId changes (user clicked into a shot)
     if (lastShotIdChanged && lastShotId !== state.selectedShotIdLocal) {
-      console.log('[ShotSelectionDebug] Syncing to new lastShotId:', {
-        oldSelection: state.selectedShotIdLocal,
-        newSelection: lastShotId,
-        context: 'shot navigation'
-      });
       actions.setSelectedShotIdLocal(lastShotId);
       return;
     }
@@ -456,14 +410,6 @@ export const useMediaGalleryStateOptimized = ({
     if (!isCurrentSelectionValid) {
       const newSelection = lastShotId || (simplifiedShotOptions.length > 0 ? simplifiedShotOptions[0].id : "");
       if (newSelection && newSelection !== state.selectedShotIdLocal) {
-        console.log('[ShotSelectionDebug] Fixing invalid selectedShotIdLocal:', {
-          oldSelection: state.selectedShotIdLocal,
-          newSelection,
-          lastShotId,
-          availableShots: simplifiedShotOptions.length,
-          firstShotId: simplifiedShotOptions[0]?.id,
-          context: 'invalid selection'
-        });
         actions.setSelectedShotIdLocal(newSelection);
       }
     }
@@ -493,14 +439,6 @@ export const useMediaGalleryStateOptimized = ({
         const urlChanged = updatedImage.url !== currentUrl;
 
         if (nameChanged || starredChanged || urlChanged) {
-          console.log('[LightboxSync] 🔄 Updating active media from list:', {
-            id: updatedImage.id,
-            oldName: state.activeLightboxMedia.name,
-            newName: updatedImage.name,
-            nameChanged,
-            starredChanged,
-            urlChanged
-          });
           // Merge updated fields into the existing media object to preserve
           // imageUrl/location mapping from handleOpenLightbox
           actions.setActiveLightboxMedia({

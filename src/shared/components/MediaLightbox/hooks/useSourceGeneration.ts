@@ -42,7 +42,6 @@ export const useSourceGeneration = ({
     const basedOnFromMetadata = (media.metadata as Record<string, unknown> | null)?.based_on as string | undefined;
     const effectMediaKeys = Object.keys(media);
     
-    console.log('[BasedOnDebug] 🔍 useSourceGeneration hook checking media:');
     console.log('  mediaId:', media.id.substring(0, 8));
     console.log('  hasBasedOnField:', !!basedOnId);
     console.log('  basedOnValue:', basedOnId);
@@ -59,17 +58,11 @@ export const useSourceGeneration = ({
     const effectiveBasedOnId = basedOnId || basedOnFromMetadata;
     
     if (!effectiveBasedOnId) {
-      console.log('[BasedOnDebug] ⚠️ No based_on ID found, setting sourceGenerationData to null');
       setSourceGenerationData(null);
       return;
     }
     
     const fetchSourceGeneration = async () => {
-      console.log('[BasedOnDebug] 📥 Fetching source generation:', {
-        currentMediaId: media.id.substring(0, 8),
-        basedOnId: effectiveBasedOnId.substring(0, 8),
-        timestamp: Date.now()
-      });
       
       try {
         // Fetch source generation with shot associations and primary variant
@@ -104,24 +97,6 @@ export const useSourceGeneration = ({
           // Find primary variant
           const primaryVariant = variants.find((v) => v.is_primary) || null;
           
-          console.log('[VariantClickDebug] ✅ Fetched source generation:', {
-            sourceId: data.id.substring(0, 8),
-            type: data.type,
-            location: data.location?.substring(0, 50),
-            variantsCount: variants.length,
-            allVariants: variants.map((v) => ({
-              id: v.id?.substring(0, 8),
-              type: v.variant_type,
-              isPrimary: v.is_primary,
-              location: v.location?.substring(0, 30),
-              thumbnail: v.thumbnail_url?.substring(0, 30),
-            })),
-            primaryVariantId: primaryVariant?.id?.substring(0, 8),
-            primaryVariantType: primaryVariant?.variant_type,
-            primaryVariantLocation: primaryVariant?.location?.substring(0, 50),
-            primaryVariantThumbnail: primaryVariant?.thumbnail_url?.substring(0, 50),
-          });
-          
           // Add shot associations to the data for easy access
           const enrichedData: SourceGenerationWithAssociations = {
             ...data as unknown as GenerationRow,
@@ -131,7 +106,6 @@ export const useSourceGeneration = ({
           setSourceGenerationData(enrichedData);
           setSourcePrimaryVariant(primaryVariant);
         } else {
-          console.log('[VariantClickDebug] ⚠️ No data returned from source generation query');
           setSourceGenerationData(null);
           setSourcePrimaryVariant(null);
         }

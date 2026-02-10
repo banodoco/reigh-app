@@ -2,7 +2,6 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { TIMELINE_PADDING_OFFSET } from './constants';
 import { Button } from '@/shared/components/ui/button';
 import { Play, Pause, Trash2, Volume2 } from 'lucide-react';
-import { formatTime } from '@/shared/lib/utils';
 
 // Frame rate for timeline (matches time-utils.ts FPS constant)
 const FRAME_RATE = 16;

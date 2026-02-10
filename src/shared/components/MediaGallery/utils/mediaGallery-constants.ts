@@ -201,19 +201,6 @@ function calculateDynamicRows(
     Math.min(ROW_LIMITS.MAX_ROWS, rows)
   );
 
-  console.log('[LayoutDebug:Rows]', {
-    containerWidth: Math.round(containerWidth),
-    containerHeight: Math.round(containerHeight),
-    usableHeight: Math.round(usableHeight),
-    columns,
-    imageWidth: Math.round(imageWidth),
-    imageHeight: Math.round(imageHeight),
-    effectiveHeight: Math.round(effectiveHeight),
-    rawRows: rows,
-    clampedRows: clamped,
-    gap,
-  });
-
   return clamped;
 }
 
@@ -280,20 +267,6 @@ export function getLayoutForAspectRatio(
   const itemsPerPage = rawColumns * rows;
   const skeletonColumns = SKELETON_COLUMNS[clampedColumns] || SKELETON_COLUMNS[5];
   const gridColumnClasses = GRID_COLUMN_CLASSES[clampedColumns];
-
-  console.log('[LayoutDebug:Layout]', {
-    aspectRatio: aspectRatioStr,
-    ratio: Math.round(ratio * 100) / 100,
-    gap,
-    reducedSpacing,
-    containerWidth: containerWidth ? Math.round(containerWidth) : undefined,
-    containerHeight: containerHeight ? Math.round(containerHeight) : undefined,
-    columns: rawColumns,
-    clampedColumns,
-    rows,
-    itemsPerPage,
-    isMobile,
-  });
 
   return { columns: rawColumns, rows, itemsPerPage, skeletonColumns, gridColumnClasses };
 }

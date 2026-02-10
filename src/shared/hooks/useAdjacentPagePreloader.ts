@@ -160,7 +160,6 @@ export function useAdjacentPagePreloader({
           }
         } catch (err) {
           // Prefetch failures are non-critical, just log
-          console.warn('[AdjacentPagePreloader] Failed to prefetch next page:', err);
         }
       }
 
@@ -192,7 +191,6 @@ export function useAdjacentPagePreloader({
             preloadingService.preloadImages(cached.items, PRIORITY_VALUES.normal);
           }
         } catch (err) {
-          console.warn('[AdjacentPagePreloader] Failed to prefetch prev page:', err);
         }
       }
 

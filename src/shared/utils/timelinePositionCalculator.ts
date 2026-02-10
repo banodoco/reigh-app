@@ -78,26 +78,12 @@ export const ensureUniqueFrame = (
     // Try higher first (more natural for timeline)
     const higher = frame + offset;
     if (!existingFrames.includes(higher)) {
-      console.log('[UniqueFrame] 🔄 Collision resolved:', {
-        original: targetFrame,
-        collision: frame,
-        resolved: higher,
-        direction: 'higher',
-        offset
-      });
       return higher;
     }
     
     // Then try lower (but not below 0)
     const lower = frame - offset;
     if (lower >= 0 && !existingFrames.includes(lower)) {
-      console.log('[UniqueFrame] 🔄 Collision resolved:', {
-        original: targetFrame,
-        collision: frame,
-        resolved: lower,
-        direction: 'lower',
-        offset
-      });
       return lower;
     }
     
@@ -107,11 +93,6 @@ export const ensureUniqueFrame = (
   // Fallback: append at end (should never reach here)
   const maxFrame = existingFrames.length > 0 ? Math.max(...existingFrames) : 0;
   const fallback = maxFrame + DEFAULT_FRAME_SPACING;
-  console.warn('[UniqueFrame] ⚠️ Fallback used:', {
-    original: targetFrame,
-    fallback,
-    existingCount: existingFrames.length
-  });
   return fallback;
 };
 
@@ -206,8 +187,4 @@ export const extractExistingFrames = (
     })
     .map(item => item.timeline_frame as number);
 };
-
-
-
-
 

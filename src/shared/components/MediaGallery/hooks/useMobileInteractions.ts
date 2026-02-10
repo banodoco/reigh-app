@@ -40,20 +40,8 @@ export const useMobileInteractions = ({
     const lastTappedImageId = lastTappedImageIdRef.current;
     const isSameImage = lastTappedImageId === image.id;
     
-    console.log('[MobileDebug] Tap detected:', {
-      imageId: image.id?.substring(0, 8),
-      lastTappedImageId: lastTappedImageId?.substring(0, 8),
-      isSameImage,
-      currentTime,
-      lastTouchTime: lastTouchTimeRef.current,
-      timeSinceLastTap,
-      isDoubleTap: timeSinceLastTap < DOUBLE_TAP_WINDOW_MS && timeSinceLastTap > MIN_TAP_INTERVAL_MS && lastTouchTimeRef.current > 0 && isSameImage,
-      hasTimeout: !!doubleTapTimeoutRef.current
-    });
-    
     if (timeSinceLastTap < DOUBLE_TAP_WINDOW_MS && timeSinceLastTap > MIN_TAP_INTERVAL_MS && lastTouchTimeRef.current > 0 && isSameImage) {
       // This is a double-tap on the same image, clear any pending timeout and open lightbox
-      console.log('[MobileDebug] ✅ Double-tap detected on same image! Opening lightbox');
       if (doubleTapTimeoutRef.current) {
         clearTimeout(doubleTapTimeoutRef.current);
         doubleTapTimeoutRef.current = null;
@@ -64,13 +52,11 @@ export const useMobileInteractions = ({
       lastTappedImageIdRef.current = null;
     } else {
       // This is a single tap or tap on different image, set a timeout to handle it if no second tap comes
-      console.log('[MobileDebug] Single tap detected, setting timeout for settings');
       if (doubleTapTimeoutRef.current) {
         clearTimeout(doubleTapTimeoutRef.current);
       }
       doubleTapTimeoutRef.current = setTimeout(() => {
         // Single tap (mobile): reveal action controls for this image
-        console.log('[MobileDebug] ⏰ Single tap timeout fired, showing settings');
         // Close any existing popover if tapping a different image
         if (mobilePopoverOpenImageId && mobilePopoverOpenImageId !== image.id) {
           setMobilePopoverOpenImageId(null);

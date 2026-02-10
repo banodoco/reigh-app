@@ -53,13 +53,10 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
   // NOTE: Use setIsOpenInternal here (not setIsOpen) to avoid notifying parent of changes
   // that originated from parent - that would create a feedback loop
   useLayoutEffect(() => {
-    console.log(`[PaneDebug][SlidingPane:${side}] useLayoutEffect sync`, { isLocked, programmaticOpen, currentIsOpen: isOpen });
     // Open if locked OR programmatically opened
     if (isLocked || programmaticOpen) {
-      console.log(`[PaneDebug][SlidingPane:${side}] -> Setting isOpen=true`);
       setIsOpenInternal(true);
     } else {
-      console.log(`[PaneDebug][SlidingPane:${side}] -> Setting isOpen=false`);
       setIsOpenInternal(false);
     }
   }, [isLocked, programmaticOpen]);
@@ -189,45 +186,35 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
   }
 
   const handlePaneLeave = () => {
-    console.log(`[PaneDebug][SlidingPane:${side}] handlePaneLeave called`, { isSmallMobile, isLocked });
     // No hover behavior on small phones
     if (isSmallMobile) return;
 
     if (isLocked) return;
-    console.log(`[PaneDebug][SlidingPane:${side}] -> Starting leave timeout`);
     leaveTimeoutRef.current = setTimeout(() => {
-      console.log(`[PaneDebug][SlidingPane:${side}] -> Leave timeout fired, closing`);
       setOpen(false);
     }, PANE_CONFIG.timing.HOVER_DELAY);
   };
 
   const handlePaneEnter = () => {
-    console.log(`[PaneDebug][SlidingPane:${side}] handlePaneEnter called`, { isSmallMobile, isLocked });
     // No hover behavior on small phones
     if (isSmallMobile) return;
 
     if (isLocked) return;
     if (leaveTimeoutRef.current) {
-      console.log(`[PaneDebug][SlidingPane:${side}] -> Clearing leave timeout`);
       clearTimeout(leaveTimeoutRef.current);
       leaveTimeoutRef.current = null;
     }
   };
 
   const toggleLock = (force?: boolean) => {
-    console.log(`[PaneDebug][SlidingPane:${side}] toggleLock called`, { force, currentIsLocked: isLocked, currentIsOpen: isOpen });
     // Allow locking on all devices including mobile
     if (force !== undefined) {
       // Force to specific state - used by UI buttons
       if (force !== isLocked) {
-        console.log(`[PaneDebug][SlidingPane:${side}] -> Calling onToggleLock (force=${force} !== isLocked=${isLocked})`);
         onToggleLock();
-      } else {
-        console.log(`[PaneDebug][SlidingPane:${side}] -> Skipping onToggleLock (force=${force} === isLocked=${isLocked})`);
       }
     } else {
       // Toggle current state
-      console.log(`[PaneDebug][SlidingPane:${side}] -> Calling onToggleLock (toggle mode)`);
       onToggleLock();
     }
   };
@@ -258,7 +245,6 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
       }
     })();
 
-    console.log(`[PaneDebug][SlidingPane:${side}] getTransformClass`, { isOpen, isLocked, isVisible, transformClass });
     return transformClass;
   };
 

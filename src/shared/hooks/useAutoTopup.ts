@@ -22,7 +22,6 @@ async function fetchAutoTopupPreferences(): Promise<AutoTopupPreferences> {
   }
 
   // Try without the problematic field first, since we know it's causing 400 errors
-  console.log('[AutoTopup:Hook] Fetching auto-top-up preferences for user:', user.id);
   
   // Fetch auto-topup preferences.
   // IMPORTANT: Stripe IDs are NOT selected client-side (column privileges revoked).
@@ -37,8 +36,6 @@ async function fetchAutoTopupPreferences(): Promise<AutoTopupPreferences> {
     `)
     .eq('id', user.id)
     .single();
-
-  console.log('[AutoTopup:Hook] Query result:', { data, error });
 
   if (error) {
     throw new Error(`Failed to fetch auto-top-up preferences: ${error.message}`);
@@ -66,7 +63,6 @@ interface UpdateAutoTopupParams {
 }
 
 async function updateAutoTopupPreferences(params: UpdateAutoTopupParams): Promise<void> {
-  console.log('[AutoTopup:Hook] Starting save operation:', params);
   
   const { data: { session }, error: authError } = await supabase.auth.getSession();
   
@@ -81,8 +77,6 @@ async function updateAutoTopupPreferences(params: UpdateAutoTopupParams): Promis
     autoTopupThreshold: params.threshold,
   };
   
-  console.log('[AutoTopup:Hook] Calling setup-auto-topup with:', requestBody);
-
   // Call the setup-auto-topup edge function
   const data = await invokeWithTimeout('setup-auto-topup', {
     body: requestBody,
@@ -92,14 +86,11 @@ async function updateAutoTopupPreferences(params: UpdateAutoTopupParams): Promis
     timeoutMs: 20000,
   });
   
-  console.log('[AutoTopup:Hook] Edge function response:', { data });
-  
   if ((data as Record<string, unknown> | null)?.error) {
     console.error('[AutoTopup:Hook] Edge function returned error:', data);
     throw new Error(((data as Record<string, unknown>).message as string) || 'Failed to update auto-top-up preferences');
   }
   
-  console.log('[AutoTopup:Hook] Save operation completed successfully');
 }
 
 // Disable auto-top-up (convenience function)
@@ -126,7 +117,6 @@ export function useAutoTopup() {
   const updatePreferencesMutation = useMutation<void, Error, UpdateAutoTopupParams>({
     mutationFn: updateAutoTopupPreferences,
     onSuccess: (data, variables) => {
-      console.log('[AutoTopup:Hook] Save successful:', variables);
       queryClient.invalidateQueries({ queryKey: queryKeys.credits.autoTopupPreferences });
       queryClient.invalidateQueries({ queryKey: queryKeys.credits.all }); // Refresh credits info
       // Removed toast notification for smoother UX

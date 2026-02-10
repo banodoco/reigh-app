@@ -142,7 +142,6 @@ export default function HomePage() {
     };
   }, []);
   
-
   // Video autoplay fix - ensures video plays on all devices
   useEffect(() => {
     const video = videoARef.current;
@@ -154,15 +153,12 @@ export default function HomePage() {
     const attemptPlay = async () => {
       try {
         await video.play();
-        console.log('[VideoAutoplay] Autoplay success');
       } catch (e) {
-        console.log('[VideoAutoplay] Autoplay blocked, waiting for interaction');
         const playOnInteraction = async () => {
           try {
             video.muted = true;
             await video.play();
           } catch (err) {
-            console.log('[VideoAutoplay] Interaction play failed:', err);
           }
           document.removeEventListener('touchstart', playOnInteraction);
           document.removeEventListener('click', playOnInteraction);
@@ -188,13 +184,11 @@ export default function HomePage() {
     if (!videoA || !videoB) return;
 
     const startPreloadingB = () => {
-      console.log('[VideoPreload] Video A loaded, starting Video B preload');
       videoB.load();
     };
 
     // When Video B is ready to play through, mark it ready
     const handleBCanPlay = () => {
-      console.log('[VideoPreload] Video B ready to play');
       setVideoBReady(true);
     };
 
@@ -212,7 +206,6 @@ export default function HomePage() {
     };
   }, [isMobile]);
 
-
   // Auth Session Management
   useEffect(() => {
     // [iPadAuthFix] Explicitly check for OAuth tokens in URL hash on mount
@@ -220,14 +213,11 @@ export default function HomePage() {
     const handleHashTokens = async () => {
       const hash = window.location.hash;
       if (hash && hash.includes('access_token')) {
-        console.log('[AuthDebug] OAuth tokens detected in URL hash, processing...');
         try {
           // Parse the hash fragment to extract tokens
           const hashParams = new URLSearchParams(hash.substring(1));
           const accessToken = hashParams.get('access_token');
           const refreshToken = hashParams.get('refresh_token');
-          
-          console.log('[AuthDebug] Parsed tokens - access_token exists:', !!accessToken, 'refresh_token exists:', !!refreshToken);
           
           if (accessToken && refreshToken) {
             // Mark OAuth as in progress BEFORE setting session
@@ -246,7 +236,6 @@ export default function HomePage() {
               // Clear the flag if session setting failed
               try { localStorage.removeItem('oauthInProgress'); } catch {}
             } else if (data.session) {
-              console.log('[AuthDebug] Successfully set session from hash tokens');
               setSession(data.session);
             }
           } else {
@@ -255,7 +244,6 @@ export default function HomePage() {
             if (error) {
               handleError(error, { context: 'HomePage', showToast: false });
             } else if (data.session) {
-              console.log('[AuthDebug] Session already exists from detectSessionInUrl');
               setSession(data.session);
             }
           }
@@ -277,13 +265,11 @@ export default function HomePage() {
                         nav.standalone === true;
     
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[AuthDebug] Initial session check:', !!session?.user?.id, 'isStandalone:', isStandalone);
       setSession(session);
       
       // If user is already signed in AND we're in standalone/PWA mode, redirect to tools
       // PWA users expect to go straight to the app, not the landing page
       if (session && isStandalone) {
-        console.log('[AuthDebug] Already signed in + PWA mode, redirecting to /tools');
         navigate('/tools');
       }
     });
@@ -296,7 +282,6 @@ export default function HomePage() {
         await new Promise(resolve => setTimeout(resolve, 500));
         const { data: { session: delayedSession } } = await supabase.auth.getSession();
         if (delayedSession) {
-          console.log('[AuthDebug] Delayed session check succeeded, redirecting PWA to /tools');
           navigate('/tools');
         }
       };
@@ -313,13 +298,11 @@ export default function HomePage() {
                               window.matchMedia('(display-mode: fullscreen)').matches ||
                               navInner.standalone === true;
       
-      console.log('[AuthDebug] Auth state change:', event, 'hasSession:', !!session?.user?.id, 'isStandalone:', isStandaloneNow);
       setSession(session);
       
       // PWA users should always go to /tools if they have a session
       // Handle both SIGNED_IN (new login) and INITIAL_SESSION (existing session on app open)
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && isStandaloneNow) {
-        console.log('[AuthDebug] PWA with session detected, redirecting to /tools');
         navigate('/tools');
         return;
       }
@@ -340,7 +323,6 @@ export default function HomePage() {
                     p_fingerprint: referralFingerprint,
                   });
                 } catch (err) {
-                  console.warn('[Referral] RPC error creating referral', err);
                 } finally {
                   try {
                     localStorage.removeItem('referralCode');
@@ -352,16 +334,11 @@ export default function HomePage() {
               })();
             }
           } catch (e) {
-            console.warn('[Referral] Failed to create referral on SIGNED_IN', e);
           }
           localStorage.removeItem('oauthInProgress');
-          console.log('[AuthDebug] OAuth flow completed, navigating to /tools');
           navigate('/tools');
         } else if (!isHomePath) {
-          console.log('[AuthDebug] SIGNED_IN outside home, navigating to /tools');
           navigate('/tools');
-        } else {
-          console.log('[AuthDebug] SIGNED_IN on home without oauth flag; staying on home');
         }
       }
     };
@@ -383,7 +360,6 @@ export default function HomePage() {
     if (!isMobile || !ecosystemTipOpen) return;
 
     const handleScroll = () => {
-      console.log('[EcosystemTooltip] Mobile scroll detected, closing tooltip');
       setEcosystemTipOpen(false);
       setEcosystemTipDisabled(false);
     };
@@ -428,7 +404,6 @@ export default function HomePage() {
 
   const handleDiscordSignIn = async () => {
     try {
-      console.log('[AuthDebug] Starting Discord OAuth flow');
       try { localStorage.setItem('oauthInProgress', 'true'); } catch {}
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
@@ -442,7 +417,6 @@ export default function HomePage() {
         return;
       }
       
-      console.log('[AuthDebug] OAuth initiated successfully');
     } catch (err) {
       handleError(err, { context: 'HomePage', toastTitle: 'An unexpected error occurred. Please try again.' });
     }
@@ -489,8 +463,6 @@ export default function HomePage() {
             poster={posterLoaded ? "/hero-background-poster.jpg" : undefined}
             src="/hero-background-mobile.mp4"
             className="absolute inset-0 w-full h-full object-cover"
-            onLoadedData={() => console.log('[VideoDebug] Mobile video loaded')}
-            onPlay={() => { console.log('[VideoDebug] Mobile video playing'); setVideoReady(true); }}
           />
         ) : (
           <>
@@ -511,18 +483,12 @@ export default function HomePage() {
                 opacity: isLoopVideo ? 0 : 1,
                 pointerEvents: isLoopVideo ? 'none' : 'auto',
               }}
-              onLoadedData={() => console.log('[VideoDebug] Video A loaded, duration:', videoARef.current?.duration)}
-              onPlay={() => { console.log('[VideoDebug] Video A playing'); setVideoReady(true); }}
               onTimeUpdate={() => {
                 const v = videoARef.current;
-                if (v && v.duration - v.currentTime < 5) {
-                  console.log('[VideoDebug] Video A near end, currentTime:', v.currentTime, 'duration:', v.duration);
-                }
               }}
               onEnded={() => {
                 // When Video A ends, switch to Video B
                 if (!isLoopVideo && videoBReady) {
-                  console.log('[VideoSwitch] Video A ended, switching to Video B');
                   const videoB = videoBRef.current;
                   if (videoB) {
                     videoB.currentTime = 0;
@@ -531,12 +497,10 @@ export default function HomePage() {
                   setIsLoopVideo(true);
                 } else if (!isLoopVideo) {
                   // Video B not ready yet, wait for it
-                  console.log('[VideoSwitch] Video A ended but Video B not ready, waiting...');
                   const checkReady = setInterval(() => {
                     const videoB = videoBRef.current;
                     if (videoB && videoB.readyState >= 3) {
                       clearInterval(checkReady);
-                      console.log('[VideoSwitch] Video B now ready, switching');
                       videoB.currentTime = 0;
                       videoB.play().catch(() => {});
                       setIsLoopVideo(true);
@@ -564,10 +528,6 @@ export default function HomePage() {
                 opacity: isLoopVideo ? 1 : 0,
                 pointerEvents: isLoopVideo ? 'auto' : 'none',
               }}
-              onLoadedData={() => console.log('[VideoDebug] Video B loaded, duration:', videoBRef.current?.duration)}
-              onCanPlayThrough={() => console.log('[VideoDebug] Video B canplaythrough')}
-              onPlay={() => console.log('[VideoDebug] Video B playing, currentTime:', videoBRef.current?.currentTime)}
-              onSeeked={() => console.log('[VideoDebug] Video B seeked to:', videoBRef.current?.currentTime)}
             />
           </>
         )}

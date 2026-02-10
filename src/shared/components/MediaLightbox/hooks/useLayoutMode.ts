@@ -1,4 +1,3 @@
-import { useState, useEffect, useMemo } from 'react';
 import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
 
 interface UseLayoutModeParams {
@@ -40,22 +39,6 @@ export const useLayoutMode = ({
   // Note: We show sidebar immediately for showTaskDetails to prevent layout jump while task loads
   // Exception: On portrait tablets (like vertical iPad), use mobile layout for better UX
   const shouldShowSidePanel = !isPortrait && ((showTaskDetails && isTabletOrLarger) || (isSpecialEditMode && isTabletOrLarger) || (isVideo && isTabletOrLarger));
-
-  // Debug layout
-  useEffect(() => {
-    if (isSpecialEditMode) {
-      console.log('[TaskDetailsSidebar] 🎨 Special edit mode layout:', {
-        isInpaintMode,
-        isMagicEditMode,
-        isSpecialEditMode,
-        isTabletOrLarger,
-        isPortrait,
-        shouldShowSidePanel,
-        windowWidth: typeof window !== 'undefined' ? window.innerWidth : 'unknown',
-        windowHeight: typeof window !== 'undefined' ? window.innerHeight : 'unknown'
-      });
-    }
-  }, [isInpaintMode, isMagicEditMode, isSpecialEditMode, isTabletOrLarger, isPortrait, shouldShowSidePanel]);
 
   return {
     isTabletOrLarger,

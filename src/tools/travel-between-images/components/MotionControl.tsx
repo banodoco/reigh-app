@@ -245,21 +245,9 @@ export const MotionControl: React.FC<MotionControlProps> = ({
   // 2. Generation type mode changes (I2V vs VACE) - only in basic mode
   // Note: We track generationTypeMode instead of hasStructureVideo because Uni3C has structure video but uses I2V
   useEffect(() => {
-    console.log('[VTDebug] 🔍 Auto-select effect running:', {
-      settingsLoading,
-      motionMode,
-      hasPhaseConfig: !!phaseConfig,
-      phaseConfigPhases: phaseConfig?.phases?.length,
-      selectedPhasePresetId,
-      hasAutoSelected: hasAutoSelectedRef.current,
-      generationTypeMode,
-      prevGenerationTypeMode: prevGenerationTypeModeRef.current,
-      timestamp: Date.now()
-    });
     
     // Skip if settings are still loading
     if (settingsLoading) {
-      console.log('[VTDebug] ⏳ Auto-select skipped - settings loading');
       return;
     }
     
@@ -267,7 +255,6 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     // In advanced mode, user has explicitly chosen to configure phaseConfig manually
     // Auto-selecting a preset would overwrite their custom configuration
     if (motionMode === 'advanced') {
-      console.log('[VTDebug] ⏭️ Auto-select skipped - user is in advanced mode');
       prevHasStructureVideoRef.current = hasStructureVideo;
       prevGenerationTypeModeRef.current = generationTypeMode;
       return;
@@ -282,7 +269,6 @@ export const MotionControl: React.FC<MotionControlProps> = ({
                           prevGenerationTypeModeRef.current !== generationTypeMode;
       
       if (!modeChanged) {
-        console.log('[VTDebug] ⏭️ Auto-select skipped - phaseConfig already exists');
         prevHasStructureVideoRef.current = hasStructureVideo;
         prevGenerationTypeModeRef.current = generationTypeMode;
         return;
@@ -295,11 +281,6 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     // When generation type mode changes, select appropriate default (only in basic mode)
     // This handles switching between I2V and VACE (including Uni3C which uses I2V with structure video)
     if (modeChanged) {
-      console.log('[MotionControl] Generation type mode changed - switching to appropriate default preset:', {
-        from: prevGenerationTypeModeRef.current,
-        to: generationTypeMode,
-        newPresetId: builtinDefaultPreset.id
-      });
       onPhasePresetSelect(
         builtinDefaultPreset.id, 
         builtinDefaultPreset.metadata.phaseConfig, 
@@ -313,21 +294,11 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     // Initial auto-select: only if no preset selected and we haven't auto-selected yet
     if (!selectedPhasePresetId && !hasAutoSelectedRef.current) {
       hasAutoSelectedRef.current = true;
-      console.log('[VTDebug] ⚡ Auto-selecting default preset:', {
-        presetId: builtinDefaultPreset.id,
-        motionMode,
-        timestamp: Date.now()
-      });
       onPhasePresetSelect(
         builtinDefaultPreset.id, 
         builtinDefaultPreset.metadata.phaseConfig, 
         builtinDefaultPreset.metadata
       );
-    } else {
-      console.log('[VTDebug] ⏭️ No auto-select needed:', {
-        hasPreset: !!selectedPhasePresetId,
-        hasAutoSelected: hasAutoSelectedRef.current
-      });
     }
     
     prevHasStructureVideoRef.current = hasStructureVideo;
@@ -340,7 +311,6 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     // GUARD: Ignore if the mode hasn't actually changed
     // This prevents spurious calls from Tabs on mount/remount
     if (newMode === motionMode) {
-      console.log('[VTDebug] ⏭️ handleModeChange ignored - already in', newMode, 'mode');
       return;
     }
     
@@ -349,7 +319,6 @@ export const MotionControl: React.FC<MotionControlProps> = ({
       return;
     }
     
-    console.log('[VTDebug] 🔄 handleModeChange:', { from: motionMode, to: newMode });
     onMotionModeChange(newMode as 'basic' | 'advanced');
   }, [turboMode, onMotionModeChange, motionMode]);
 
@@ -371,9 +340,6 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     }
     setIsPresetModalOpen(false);
   }, [onPhasePresetSelect]);
-
-  // [VTDebug] Log what value is being passed to Tabs at render time
-  console.log('[VTDebug] 🎨 Rendering Tabs with value:', motionMode);
 
   return (
     <div className="space-y-4">

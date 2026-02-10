@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { VisibilityManager, type VisibilitySignals, type VisibilityEventType } from '@/shared/lib/VisibilityManager';
 
 /**
@@ -32,21 +32,10 @@ export function usePageVisibility() {
         
         // Debug logging for polling breakage issue (only on actual changes)
         if (signals.justBecameVisible || signals.justHidden) {
-          console.log(`[PollingBreakageIssue] Page visibility changed:`, {
-            from: signals.justBecameVisible ? 'hidden' : 'visible',
-            to: signals.justBecameVisible ? 'visible' : 'hidden',
-            visibilityState: signals.visibilityState,
-            changeCount: signals.changeCount,
-            timestamp: signals.lastVisibilityChangeAt,
-            timeISOString: now.toISOString(),
-            timeSinceLastChange: signals.timeSinceLastChange
-          });
 
           // Additional context for React Query behavior
           if (signals.justHidden) {
-            console.warn(`[PollingBreakageIssue] ⚠️ Page became hidden - React Query will pause refetchInterval polling unless refetchIntervalInBackground is enabled`);
           } else if (signals.justBecameVisible) {
-            console.log(`[PollingBreakageIssue] ✅ Page became visible - React Query will resume normal polling behavior`);
           }
         }
       }
@@ -58,12 +47,6 @@ export function usePageVisibility() {
 
     // Initial log
     const initialState = VisibilityManager.getState();
-    console.log(`[PollingBreakageIssue] Page visibility hook initialized:`, {
-      initialVisibility: initialState.isVisible ? 'visible' : 'hidden',
-      visibilityState: initialState.visibilityState,
-      changeCount: initialState.changeCount,
-      timestamp: Date.now()
-    });
 
     return () => {
       VisibilityManager.unsubscribe(subscriptionId);

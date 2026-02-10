@@ -32,12 +32,6 @@ export function useImageGeneration({
     queryFn: async () => {
       if (!task.outputLocation) return null;
 
-      console.log('[useImageGeneration] Starting query for task:', {
-        taskId: task.id,
-        taskType: task.taskType,
-        outputLocation: task.outputLocation?.substring(0, 50),
-      });
-
       // First try: Look up by location in generations table
       const { data: genByLocation, error: genError } = await supabase
         .from('generations')
@@ -50,12 +44,10 @@ export function useImageGeneration({
         .maybeSingle();
 
       if (!genError && genByLocation) {
-        console.log('[useImageGeneration] Found in generations table:', genByLocation.id);
         return { generation: genByLocation, variantId: null };
       }
 
       // Second try: Check generation_variants by location (for edit tasks that create variants)
-      console.log('[useImageGeneration] Not in generations, checking variants...');
       const { data: variantByLocation, error: variantError } = await supabase
         .from('generation_variants')
         .select('id, generation_id, location, thumbnail_url, is_primary, params')
@@ -64,7 +56,6 @@ export function useImageGeneration({
 
       if (!variantError && variantByLocation && variantByLocation.length > 0) {
         const variant = variantByLocation[0];
-        console.log('[useImageGeneration] Found variant:', variant.id, 'for generation:', variant.generation_id);
 
         // Fetch the parent generation
         const { data: parentGen, error: parentError } = await supabase
@@ -77,7 +68,6 @@ export function useImageGeneration({
           .single();
 
         if (!parentError && parentGen) {
-          console.log('[useImageGeneration] Found parent generation:', parentGen.id);
           return {
             generation: {
               ...parentGen,
@@ -92,7 +82,6 @@ export function useImageGeneration({
       }
 
       // Fallback: Search by task ID in the tasks JSONB array
-      console.log('[useImageGeneration] Trying fallback: search by task ID in tasks array...');
       const { data: byTaskId, error: taskIdError } = await supabase
         .from('generations')
         .select(`
@@ -104,11 +93,9 @@ export function useImageGeneration({
         .maybeSingle();
 
       if (!taskIdError && byTaskId) {
-        console.log('[useImageGeneration] Found by task ID:', byTaskId.id);
         return { generation: byTaskId, variantId: null };
       }
 
-      console.log('[useImageGeneration] No generation found for task:', task.id);
       return null;
     },
     enabled: hasGeneratedImage && !!task.outputLocation,
@@ -190,6 +177,4 @@ export function useImageGeneration({
     variantId: generationResult?.variantId || null,
   };
 }
-
-
 

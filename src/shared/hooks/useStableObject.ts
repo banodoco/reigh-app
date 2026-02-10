@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 
 /**
  * Hook that returns a stable reference to an object, only updating when dependencies change.

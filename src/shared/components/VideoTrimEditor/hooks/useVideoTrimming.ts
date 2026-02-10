@@ -63,11 +63,6 @@ export const useVideoTrimming = ({
   const setStartTrim = useCallback(
     (seconds: number) => {
       const clamped = Math.max(0, Math.min(seconds, maxStartTrim));
-      console.log('[useVideoTrimming] setStartTrim:', {
-        requested: seconds,
-        clamped,
-        maxAllowed: maxStartTrim,
-      });
       setStartTrimState(clamped);
     },
     [maxStartTrim]
@@ -76,23 +71,16 @@ export const useVideoTrimming = ({
   const setEndTrim = useCallback(
     (seconds: number) => {
       const clamped = Math.max(0, Math.min(seconds, maxEndTrim));
-      console.log('[useVideoTrimming] setEndTrim:', {
-        requested: seconds,
-        clamped,
-        maxAllowed: maxEndTrim,
-      });
       setEndTrimState(clamped);
     },
     [maxEndTrim]
   );
 
   const setVideoDuration = useCallback((duration: number) => {
-    console.log('[useVideoTrimming] setVideoDuration:', duration);
     setVideoDurationState(duration);
   }, []);
 
   const resetTrim = useCallback(() => {
-    console.log('[useVideoTrimming] resetTrim');
     setStartTrimState(0);
     setEndTrimState(0);
   }, []);

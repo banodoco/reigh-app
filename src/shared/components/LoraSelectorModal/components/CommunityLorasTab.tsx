@@ -4,7 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Search } from 'lucide-react';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { Resource } from '@/shared/hooks/useResources';
 
 import { CommunityLorasTabProps, LoraModel, ModelFilterCategory, SortOption } from '../types';
 import { useLoraFilters } from '../hooks/useLoraFilters';

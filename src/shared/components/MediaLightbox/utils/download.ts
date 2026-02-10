@@ -93,21 +93,9 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
     filename = `media_${shortId}.${fileExt}`;
   }
 
-  console.log('[PollingBreakageIssue] [MediaLightbox] Download started', {
-    mediaId,
-    displayUrl: url,
-    isVideo,
-    contentType,
-    fileExt,
-    filename,
-    isIOSPwa: isIOSPwa(),
-    timestamp: downloadStartTime
-  });
-
   // For iOS PWA, use Web Share API or open in new tab
   // The download attribute doesn't work in standalone mode
   if (isIOSPwa()) {
-    console.log('[Download] iOS PWA detected, using alternative download method');
     
     try {
       // Try Web Share API first (allows saving to Photos or Files)
@@ -124,7 +112,6 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
             files: [file],
             title: 'Save Media',
           });
-          console.log('[Download] iOS PWA: Shared via Web Share API');
           return;
         }
       }
@@ -137,7 +124,6 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
     try {
       window.open(url, '_blank');
       toast.info('Long press the image/video to save it');
-      console.log('[Download] iOS PWA: Opened in new window');
       return;
     } catch (openError) {
       handleError(openError, { context: 'downloadMedia', toastTitle: 'Unable to download. Try opening in Safari.' });
@@ -149,11 +135,6 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
     // Add timeout to prevent hanging downloads
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.warn('[PollingBreakageIssue] [MediaLightbox] Download timeout, aborting', {
-        mediaId,
-        timeoutMs: 15000,
-        timestamp: Date.now()
-      });
       controller.abort();
     }, 15000); // 15 second timeout
 
@@ -169,12 +150,6 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
 
     const blob = await response.blob();
     const downloadDuration = Date.now() - downloadStartTime;
-    console.log('[PollingBreakageIssue] [MediaLightbox] Download blob received', {
-      mediaId,
-      blobSize: blob.size,
-      durationMs: downloadDuration,
-      timestamp: Date.now()
-    });
 
     const objectUrl = URL.createObjectURL(blob);
 
@@ -200,12 +175,6 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
       } catch {}
     }, 10000);
 
-    console.log('[PollingBreakageIssue] [MediaLightbox] Download completed successfully', {
-      mediaId,
-      totalDurationMs: Date.now() - downloadStartTime,
-      timestamp: Date.now()
-    });
-    
   } catch (error: unknown) {
     if (isAbortError(error)) {
       handleError(error, { context: 'downloadMedia', toastTitle: 'Download timed out. Please try again.' });

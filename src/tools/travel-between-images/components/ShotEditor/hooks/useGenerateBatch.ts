@@ -194,43 +194,18 @@ export function useGenerateBatch({
         // Determine the parent generation ID to use
         let effectiveParentId = selectedOutputId ?? undefined;
 
-        console.log('[ParentReuseDebug] === handleGenerateBatch START ===');
-        console.log('[ParentReuseDebug] selectedOutputId:', selectedOutputId?.substring(0, 8) || 'null');
-        console.log('[ParentReuseDebug] selectedShotId:', selectedShotId?.substring(0, 8) || 'null');
-        console.log('[ParentReuseDebug] pendingMainParentRef.current:', pendingMainParentRef.current ? {
-          shotId: pendingMainParentRef.current.shotId.substring(0, 8),
-          parentId: pendingMainParentRef.current.parentId.substring(0, 8),
-          timestamp: pendingMainParentRef.current.timestamp,
-          age: Date.now() - pendingMainParentRef.current.timestamp + 'ms'
-        } : 'null');
-
         if (!effectiveParentId && selectedShotId) {
           const pending = pendingMainParentRef.current;
 
           if (pending) {
             const age = Date.now() - pending.timestamp;
             const shotIdMatches = pending.shotId === selectedShotId;
-            console.log('[ParentReuseDebug] Checking pending parent:', {
-              pendingParentId: pending.parentId.substring(0, 8),
-              pendingShotId: pending.shotId.substring(0, 8),
-              currentShotId: selectedShotId.substring(0, 8),
-              shotIdMatches,
-              age: age + 'ms',
-              willReuse: shotIdMatches
-            });
-          } else {
-            console.log('[ParentReuseDebug] No pending parent to check');
           }
 
           // Always reuse pending parent for the same shot
           if (pending && pending.shotId === selectedShotId) {
-            console.log('[ParentReuseDebug] ✅ REUSING pending parent:', pending.parentId.substring(0, 8));
             effectiveParentId = pending.parentId;
-          } else {
-            console.log('[ParentReuseDebug] ❌ NOT reusing - will create new parent');
           }
-        } else {
-          console.log('[ParentReuseDebug] Using selectedOutputId or no shotId:', effectiveParentId?.substring(0, 8) || 'none');
         }
 
         // Call the service with all required parameters
@@ -301,21 +276,8 @@ export function useGenerateBatch({
           } : undefined,
         });
 
-        console.log('[ParentReuseDebug] generateVideo result:', {
-          success: result.success,
-          parentGenerationId: result.parentGenerationId?.substring(0, 8) || 'undefined',
-          effectiveParentIdUsed: effectiveParentId?.substring(0, 8) || 'undefined',
-          parentWasProvided: !!effectiveParentId,
-          newParentCreated: result.parentGenerationId && result.parentGenerationId !== effectiveParentId
-        });
-
         // If a new parent was created, store it and invalidate the query
         if (result.success && result.parentGenerationId && !selectedOutputId && selectedShotId) {
-          console.log('[ParentReuseDebug] ✅ STORING pending parent for future reuse:', {
-            parentId: result.parentGenerationId.substring(0, 8),
-            shotId: selectedShotId.substring(0, 8),
-            timestamp: Date.now()
-          });
           pendingMainParentRef.current = {
             shotId: selectedShotId,
             parentId: result.parentGenerationId,
@@ -323,23 +285,10 @@ export function useGenerateBatch({
           };
 
           // Invalidate segment-parent-generations so the auto-select effect picks up the new parent
-          console.log('[ParentReuseDebug] Invalidating segment-parent-generations query');
           queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === queryKeys.segments.parentsAll[0]
           });
-        } else {
-          console.log('[ParentReuseDebug] NOT storing pending parent:', {
-            success: result.success,
-            hasParentGenerationId: !!result.parentGenerationId,
-            hasSelectedOutputId: !!selectedOutputId,
-            hasSelectedShotId: !!selectedShotId,
-            reason: !result.success ? 'not successful' :
-                    !result.parentGenerationId ? 'no parent ID returned' :
-                    selectedOutputId ? 'user had selected output' :
-                    !selectedShotId ? 'no shot ID' : 'unknown'
-          });
         }
-        console.log('[ParentReuseDebug] === handleGenerateBatch END ===');
 
       } catch (error) {
         handleError(error, { context: 'handleGenerateBatch', toastTitle: 'Failed to create video task. Please try again.' });
@@ -347,7 +296,6 @@ export function useGenerateBatch({
         // Wait for task queries to refetch, then remove placeholder
         await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
         await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
-        console.log('[handleGenerateBatch] Removing incoming task placeholder:', incomingTaskId);
         removeIncomingTask(incomingTaskId);
       }
     })();

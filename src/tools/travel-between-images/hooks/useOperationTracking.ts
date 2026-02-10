@@ -28,7 +28,6 @@ export function useOperationTracking(): UseOperationTrackingResult {
 
   // Helper to signal that a shot operation has occurred
   const signalShotOperation = useCallback(() => {
-    console.log('[OperationTracking] Shot operation detected, disabling query refetch for 100ms');
 
     // Clear any existing timeout
     if (operationTimeoutRef.current) {
@@ -41,7 +40,6 @@ export function useOperationTracking(): UseOperationTrackingResult {
     // Clear flag after timeline has had time to complete position updates
     // 100ms is enough for React's batch updates + timeline's immediate state updates
     operationTimeoutRef.current = setTimeout(() => {
-      console.log('[OperationTracking] Re-enabling query refetch after safe period');
       setIsShotOperationInProgress(false);
       operationTimeoutRef.current = null;
     }, 100);

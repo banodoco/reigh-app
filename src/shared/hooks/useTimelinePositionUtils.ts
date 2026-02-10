@@ -44,19 +44,6 @@ export function useTimelinePositionUtils({ shotId, generations, projectId }: Use
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  console.log('[SWAP_OPTIMISTIC] useTimelinePositionUtils initialized:', {
-    shotId: shotId?.substring(0, 8),
-    projectId: projectId?.substring(0, 8),
-    generationsCount: generations.length
-  });
-
-  console.log('[TimelinePositionUtils] Hook state:', {
-    shotId: shotId?.substring(0, 8),
-    generationsCount: generations.length,
-    isLoading,
-    hasError: !!error,
-  });
-
   // Convert GenerationRow[] to ShotGeneration[] format for backward compatibility
   // NOTE: Include both positioned and unpositioned items
   // CRITICAL: Filter out videos at the source level using canonical function
@@ -76,13 +63,6 @@ export function useTimelinePositionUtils({ shotId, generations, projectId }: Use
         starred: gen.starred ?? undefined,
       }
     }));
-
-  console.log('[TimelinePositionUtils] Converted shotGenerations:', {
-    shotId: shotId?.substring(0, 8),
-    total: shotGenerations.length,
-    positioned: shotGenerations.filter(sg => sg.timeline_frame >= 0).length,
-    unpositioned: shotGenerations.filter(sg => sg.timeline_frame === -1).length,
-  });
 
   // Extract pair prompts from metadata
   const pairPrompts = extractPairPrompts(shotGenerations);

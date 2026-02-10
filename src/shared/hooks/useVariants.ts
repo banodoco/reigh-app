@@ -75,8 +75,6 @@ export const useVariants = ({
     queryFn: async () => {
       if (!generationId) return [];
 
-      console.log('[useVariants] Fetching variants for generation:', generationId.substring(0, 8));
-
       const { data, error } = await supabase
         .from('generation_variants')
         .select('*')
@@ -87,11 +85,6 @@ export const useVariants = ({
         console.error('[useVariants] Error fetching variants:', error);
         throw error;
       }
-
-      console.log('[useVariants] Fetched variants:', {
-        count: data?.length || 0,
-        generationId: generationId.substring(0, 8),
-      });
 
       return (data || []) as GenerationVariant[];
     },
@@ -106,7 +99,6 @@ export const useVariants = ({
     const handleVariantChange = (event: CustomEvent) => {
       const affectedIds = event.detail?.affectedGenerationIds || [];
       if (affectedIds.includes(generationId)) {
-        console.log('[useVariants] 🔄 Realtime: variant change detected for generation:', generationId.substring(0, 8));
         refetch();
       }
     };
@@ -149,7 +141,6 @@ export const useVariants = ({
   // Mutation to set a variant as primary
   const setPrimaryMutation = useMutation({
     mutationFn: async (variantId: string) => {
-      console.log('[useVariants] Setting primary variant:', variantId.substring(0, 8));
 
       // Update the variant to be primary
       // The database trigger will handle unsetting the old primary
@@ -166,7 +157,6 @@ export const useVariants = ({
       return variantId;
     },
     onSuccess: async (variantId) => {
-      console.log('[useVariants] Successfully set primary variant:', variantId.substring(0, 8));
 
       // Invalidate caches using centralized function
       if (generationId) {
@@ -206,11 +196,8 @@ export const useVariants = ({
 
         // Only propagate for single-segment parents
         if (childCount !== 1) {
-          console.log('[useVariants] Parent has multiple children, skipping propagation');
           return;
         }
-
-        console.log('[useVariants] Single-segment child - propagating to parent:', generation.parent_generation_id.substring(0, 8));
 
         // Create a new variant on the parent with the promoted video
         // Exclude task-specific fields that shouldn't propagate to parent
@@ -238,7 +225,6 @@ export const useVariants = ({
         if (insertError) {
           console.error('[useVariants] Failed to propagate to parent:', insertError);
         } else {
-          console.log('[useVariants] Successfully propagated to parent');
           // Invalidate parent's variant cache
           await invalidateVariantChange(queryClient, {
             generationId: generation.parent_generation_id,
@@ -265,7 +251,6 @@ export const useVariants = ({
   // Mutation to delete a variant
   const deleteVariantMutation = useMutation({
     mutationFn: async (variantId: string) => {
-      console.log('[useVariants] Deleting variant:', variantId.substring(0, 8));
 
       // Check if variant is primary - don't allow deleting primary
       const variant = variants.find(v => v.id === variantId);
@@ -286,7 +271,6 @@ export const useVariants = ({
       return variantId;
     },
     onSuccess: async (variantId) => {
-      console.log('[useVariants] Successfully deleted variant:', variantId.substring(0, 8));
 
       // If deleted variant was active, switch to primary
       if (activeVariantId === variantId) {

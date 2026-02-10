@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { handleError } from '@/shared/lib/errorHandler';
 import {
@@ -29,11 +28,6 @@ export const useAIInteractionService = ({
 
       try {
         // Invoke the new edge function. We pass the full params object so the server can replicate previous behaviour.
-        console.log(`[RemixContextDebug] useAIInteractionService preparing request:`, {
-          hasExistingPrompts: !!params.existingPrompts,
-          existingPromptsLength: params.existingPrompts?.length ?? 0,
-          includeExistingContext: params.includeExistingContext,
-        });
         
         const data = await invokeWithTimeout<{ prompts?: string[] }>('ai-prompt', {
           body: {
@@ -46,8 +40,6 @@ export const useAIInteractionService = ({
           },
           timeoutMs: 20000,
         });
-
-        console.log(`[RemixContextDebug] Request sent to edge function with ${params.existingPrompts?.length ?? 0} existing prompts`);
 
         const generatedTexts: string[] = data?.prompts ?? [];
 

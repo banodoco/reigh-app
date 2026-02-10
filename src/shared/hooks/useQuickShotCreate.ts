@@ -94,10 +94,6 @@ export const useQuickShotCreate = ({
   }, []);
 
   const handleQuickCreateAndAdd = useCallback(async (shotName?: string) => {
-    console.log('[useQuickShotCreate] Starting quick shot creation:', {
-      generationId: generationId?.substring(0, 8),
-      shotName: shotName || '(auto)',
-    });
 
     onLoadingStart?.();
     
@@ -115,8 +111,6 @@ export const useQuickShotCreate = ({
         // Error already shown by useShotCreation
         return;
       }
-
-      console.log('[useQuickShotCreate] Shot creation successful:', result);
 
       // Select the newly created shot in the dropdown
       onShotChange?.(result.shotId);
@@ -180,7 +174,6 @@ export const useQuickShotCreate = ({
       }, { isNewlyCreated: true });
     } else {
       // Shot not in list yet, navigate with stored data
-      console.log('[useQuickShotCreate] Shot not in list yet, navigating with stored data');
       navigateToShot({
         id: quickCreateSuccess.shotId,
         name: quickCreateSuccess.shotName || 'Shot',

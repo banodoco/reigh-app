@@ -39,16 +39,10 @@ export function useTimelineInitialization({
       throw new Error('No shotId provided');
     }
 
-    console.log('[TimelinePositionUtils] Initializing timeline frames', {
-      shotId: shotId.substring(0, 8),
-      frameSpacing
-    });
-
     // Find unpositioned generations
     const unpositioned = shotGenerations.filter(sg => sg.timeline_frame === null);
 
     if (unpositioned.length === 0) {
-      console.log('[TimelinePositionUtils] No unpositioned generations to initialize');
       return;
     }
 

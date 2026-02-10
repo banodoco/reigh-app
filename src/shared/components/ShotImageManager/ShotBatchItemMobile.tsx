@@ -51,43 +51,24 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
     const result = path
       ? path.some((el) => (el as HTMLElement)?.tagName === 'BUTTON' || (el as HTMLElement)?.closest?.('button'))
       : !!(e.target as HTMLElement).closest('button');
-    console.log('[ShotBatchItemMobile] isEventInsideButton:', {
-      result,
-      hasPath: !!path,
-      pathLength: path?.length,
-      targetTagName: (e.target as HTMLElement)?.tagName,
-      imageId: image.id?.substring(0, 8),
-    });
     return result;
   };
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    console.log('[ShotBatchItemMobile] handleContainerClick START', {
-      imageId: image.id?.substring(0, 8),
-      targetTagName: (e.target as HTMLElement)?.tagName,
-    });
     if (isEventInsideButton(e)) {
-      console.log('[ShotBatchItemMobile] handleContainerClick - SKIPPED (inside button)');
       return;
     }
     e.preventDefault();
     e.stopPropagation();
-    console.log('[ShotBatchItemMobile] handleContainerClick - calling onMobileTap');
     onMobileTap();
   };
 
   const handleContainerTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    console.log('[ShotBatchItemMobile] handleContainerTouchEnd START', {
-      imageId: image.id?.substring(0, 8),
-      targetTagName: (e.target as HTMLElement)?.tagName,
-    });
     if (isEventInsideButton(e)) {
-      console.log('[ShotBatchItemMobile] handleContainerTouchEnd - SKIPPED (inside button)');
       return;
     }
     e.preventDefault();
     e.stopPropagation();
-    console.log('[ShotBatchItemMobile] handleContainerTouchEnd - calling onMobileTap');
     onMobileTap();
   };
 
@@ -120,7 +101,6 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
           loading="lazy"
         />
 
-
         {/* Variant Count + NEW badge - bottom center */}
         <VariantBadge
           derivedCount={image.derivedCount}
@@ -140,7 +120,6 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
               variant="secondary"
               className="h-9 w-9 rounded-full bg-background/90 hover:bg-background shadow-lg pointer-events-auto"
               onClick={(e) => {
-                console.log('[ShotBatchItemMobile] Lightbox button onClick', { imageId: image.id?.substring(0, 8) });
                 e.stopPropagation();
                 onOpenLightbox();
               }}
@@ -161,7 +140,6 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
               index % 2 === 0 ? "left-1" : "right-1"
             )}
             onClick={(e) => {
-              console.log('[ShotBatchItemMobile] Copy button onClick', { imageId: image.id?.substring(0, 8) });
               e.stopPropagation();
               // Use id (shot_generations.id) for duplication
               onDuplicate(image.id, image.timeline_frame ?? index);
@@ -189,7 +167,6 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
               index % 2 === 0 ? "left-1" : "right-1"
             )}
             onClick={(e) => {
-              console.log('[ShotBatchItemMobile] Delete button onClick', { imageId: image.id?.substring(0, 8) });
               e.stopPropagation();
               onDelete();
             }}

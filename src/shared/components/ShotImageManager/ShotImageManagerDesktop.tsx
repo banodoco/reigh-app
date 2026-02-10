@@ -94,14 +94,8 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
   
   // Wrapper to log when setter is called
   const setShowTickForSecondaryImageId = useCallback((id: string | null) => {
-    console.log('[AddWithoutPosDebug] 🎯 setShowTickForSecondaryImageId CALLED with:', id);
     setShowTickForSecondaryImageIdInternal(id);
   }, []);
-  
-  // Debug: Log when secondary tick state changes
-  useEffect(() => {
-    console.log('[AddWithoutPosDebug] 📌 showTickForSecondaryImageId STATE VALUE:', showTickForSecondaryImageId);
-  }, [showTickForSecondaryImageId]);
   
   // Clear ticks after 3 seconds
   useEffect(() => {
@@ -122,28 +116,6 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
     }
   }, [showTickForSecondaryImageId]);
   
-  // Debug: Log props received
-  console.log('[ShotSelectorDebug] ShotImageManagerDesktop received props', {
-    component: 'ShotImageManagerDesktop',
-    hasOnAddToShot: !!props.onAddToShot,
-    hasOnAddToShotWithoutPosition: !!props.onAddToShotWithoutPosition,
-    allShotsLength: props.allShots?.length || 0,
-    selectedShotId: props.selectedShotId,
-    hasOnShotChange: !!props.onShotChange,
-    generationMode: props.generationMode
-  });
-
-  console.log('[PairIndicatorDebug] ShotImageManagerDesktop received pair props', {
-    component: 'ShotImageManagerDesktop',
-    hasOnPairClick: !!props.onPairClick,
-    hasPairPrompts: !!props.pairPrompts,
-    hasEnhancedPrompts: !!props.enhancedPrompts,
-    hasDefaultPrompt: !!props.defaultPrompt,
-    hasDefaultNegativePrompt: !!props.defaultNegativePrompt,
-    pairPromptsKeys: props.pairPrompts ? Object.keys(props.pairPrompts) : [],
-    enhancedPromptsKeys: props.enhancedPrompts ? Object.keys(props.enhancedPrompts) : [],
-  });
-
   // Fetch task details for current lightbox image
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
   // For ShotImageManager, id is shot_generations.id but generation_id is the actual generation ID
@@ -246,24 +218,12 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
       }
     }
 
-    // [SegmentNavDebug] Log for debugging
-    console.log('[SegmentNavDebug] ShotImageManager position-based matching:', {
-      imagePosition,
-      totalImages: lightbox.currentImages.length,
-      totalSegmentSlots: segmentSlots.length,
-      hasPrev: !!prev,
-      hasNext: !!next,
-      prevHasVideo: prev?.hasVideo,
-      nextHasVideo: next?.hasVideo,
-    });
-
     if (!prev && !next) return undefined;
 
     return {
       prev,
       next,
       onNavigateToSegment: (pairIndex: number) => {
-        console.log('[LightboxTransition] ShotImageManager onNavigateToSegment: using transition');
         if (navigateWithTransition) {
           navigateWithTransition(() => {
             lightbox.setLightboxIndex(null);
@@ -541,38 +501,6 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
               ? currentImage.timeline_frame === null || currentImage.timeline_frame === undefined
               : undefined;
 
-            // [AddToShotDebug] Detailed logging for position detection
-            console.log('[AddToShotDebug] 📊 ShotImageManagerDesktop POSITION CHECK:');
-            console.log('[AddToShotDebug] mediaId:', lightbox.currentImages[lightbox.lightboxIndex]?.id.substring(0, 8));
-            console.log('[AddToShotDebug] props.shotId:', props.shotId?.substring(0, 8));
-            console.log('[AddToShotDebug] effectiveSelectedShotId:', effectiveSelectedShotId?.substring(0, 8));
-            console.log('[AddToShotDebug] isExternalGen:', isExternalGen);
-            console.log('[AddToShotDebug] isInSelectedShot:', isInSelectedShot);
-            console.log('[AddToShotDebug] currentImage.timeline_frame:', currentImage.timeline_frame);
-            console.log('[AddToShotDebug] currentImage.shot_id:', currentImageShotId?.substring(0, 8));
-            console.log('[AddToShotDebug] positionedInSelectedShot:', positionedInSelectedShot);
-            console.log('[AddToShotDebug] associatedWithoutPositionInSelectedShot:', associatedWithoutPositionInSelectedShot);
-            console.log('[AddToShotDebug] showTickForImageId:', showTickForImageId);
-            
-            console.log('[BasedOnNav] 📊 MediaLightbox props (Desktop):', {
-              mediaId: lightbox.currentImages[lightbox.lightboxIndex]?.id.substring(0, 8),
-              showTaskDetails: true,
-              hasTaskDetailsData: !!taskDetailsData,
-              taskDetailsData: taskDetailsData ? {
-                hasTask: !!taskDetailsData.task,
-                isLoading: taskDetailsData.isLoading,
-                taskId: taskDetailsData.taskId,
-                inputImagesCount: taskDetailsData.inputImages?.length
-              } : null,
-              lightboxIndex: lightbox.lightboxIndex,
-              currentImagesLength: lightbox.currentImages.length,
-              isExternalGen,
-              isTempDerived: lightbox.lightboxIndex >= baseImagesCount + externalGens.externalGenerations.length,
-              positionedInSelectedShot,
-              associatedWithoutPositionInSelectedShot,
-              currentImageTimelineFrame: currentImage.timeline_frame
-            });
-
             return (
               <MediaLightbox
                 media={lightbox.currentImages[lightbox.lightboxIndex]}
@@ -581,16 +509,6 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                 autoEnterInpaint={lightbox.shouldAutoEnterInpaint}
                 initialVariantId={capturedVariantIdRef.current ?? undefined}
                 onClose={() => {
-                  console.log('[BasedOnNav] 🚪 MediaLightbox onClose called (Desktop)', {
-                    lightboxIndex: lightbox.lightboxIndex,
-                    currentImagesLength: lightbox.currentImages.length,
-                    hasDerivedNavContext: !!externalGens.derivedNavContext,
-                    derivedNavContext: externalGens.derivedNavContext ? {
-                      sourceId: externalGens.derivedNavContext.sourceGenerationId.substring(0, 8),
-                      derivedCount: externalGens.derivedNavContext.derivedGenerationIds.length
-                    } : null,
-                    tempDerivedCount: externalGens.tempDerivedGenerations.length
-                  });
                   capturedVariantIdRef.current = null;
                   lightbox.setLightboxIndex(null);
                   lightbox.setShouldAutoEnterInpaint(false);
@@ -632,21 +550,11 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                 onShotChange={isExternalGen ? (shotId) => {
                   externalGens.setExternalGenLightboxSelectedShot(shotId);
                 } : (shotId) => {
-                  console.log('[ShotImageManagerDesktop] Shot selector changed to:', shotId);
                   setLightboxSelectedShotId?.(shotId);
                   props.onShotChange?.(shotId);
                 }}
                 onAddToShot={(() => {
                   const result = isExternalGen ? externalGens.handleExternalGenAddToShot : props.onAddToShot;
-                  console.log('[ShotSelectorDebug] ShotImageManagerDesktop -> MediaLightbox onAddToShot', {
-                    component: 'ShotImageManagerDesktop',
-                    isExternalGen,
-                    propsOnAddToShot: !!props.onAddToShot,
-                    externalGensHandler: !!externalGens.handleExternalGenAddToShot,
-                    finalOnAddToShot: !!result,
-                    allShotsLength: props.allShots?.length || 0,
-                    selectedShotId: props.selectedShotId
-                  });
                   return result;
                 })()}
                 onAddToShotWithoutPosition={isExternalGen ? externalGens.handleExternalGenAddToShotWithoutPosition : props.onAddToShotWithoutPosition}
@@ -658,7 +566,6 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                 showTickForSecondaryImageId={showTickForSecondaryImageId}
                 onShowSecondaryTick={setShowTickForSecondaryImageId}
                 onNavigateToShot={(shot) => {
-                  console.log('[AddWithoutPosDebug] 🚀 onNavigateToShot called with:', shot?.name);
                   navigateToShot(shot, { scrollToTop: true });
                 }}
                 adjacentSegments={adjacentSegmentsData}

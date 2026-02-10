@@ -533,13 +533,6 @@ export function buildTaskParams(
   // Detect trailing segment: no end image means single-image-to-video (last segment)
   const isTrailingSegment = !context.endImageUrl;
 
-  console.log('[buildTaskParams] Building task params:', {
-    segmentIndex: context.segmentIndex,
-    hasStructureVideo: !!context.structureVideo,
-    structureVideoPath: context.structureVideo?.path?.substring(0, 50),
-    isTrailingSegment,
-  });
-
   return {
     project_id: context.projectId,
     shot_id: context.shotId,
@@ -584,34 +577,18 @@ export function extractSettingsFromParams(
   params: Record<string, unknown>,
   defaults?: Partial<SegmentSettings>
 ): SegmentSettings {
-  console.log('[extractSettingsFromParams] Input params:', params);
-  console.log('[extractSettingsFromParams] Defaults:', defaults);
 
   // Handle nested orchestrator_details (common in task params)
   const orchDetails = (params.orchestrator_details || {}) as Record<string, unknown>;
-  console.log('[extractSettingsFromParams] orchestrator_details:', orchDetails);
 
   // Extract prompt: base_prompt > prompt > orchestrator > default
   const prompt = (params.base_prompt ?? params.prompt ?? orchDetails.base_prompt ?? defaults?.prompt ?? '') as string;
-  console.log('[extractSettingsFromParams] Prompt sources:', {
-    'params.base_prompt': params.base_prompt,
-    'params.prompt': params.prompt,
-    'orchDetails.base_prompt': orchDetails.base_prompt,
-    'defaults?.prompt': defaults?.prompt,
-    'final': prompt,
-  });
 
   // Extract negative prompt
   const negativePrompt = (params.negative_prompt ?? orchDetails.negative_prompt ?? defaults?.negativePrompt ?? '') as string;
 
   // Extract num_frames
   const numFrames = (params.num_frames ?? orchDetails.num_frames ?? defaults?.numFrames ?? 25) as number;
-  console.log('[extractSettingsFromParams] numFrames sources:', {
-    'params.num_frames': params.num_frames,
-    'orchDetails.num_frames': orchDetails.num_frames,
-    'defaults?.numFrames': defaults?.numFrames,
-    'final': numFrames,
-  });
 
   // Extract seed/randomSeed
   const randomSeed = (params.random_seed ?? orchDetails.random_seed ?? defaults?.randomSeed ?? true) as boolean;
@@ -640,40 +617,25 @@ export function extractSettingsFromParams(
   // Extract LoRAs - handle multiple formats
   let loras: ActiveLora[] = [];
 
-  console.log('[extractSettingsFromParams] LoRA sources:', {
-    'params.loras': params.loras,
-    'params.additional_loras': params.additional_loras,
-    'orchDetails.loras': orchDetails.loras,
-    'orchDetails.additional_loras': orchDetails.additional_loras,
-    'defaults?.loras': defaults?.loras,
-  });
-
   // Format 1: loras array at top level (new format)
   if (Array.isArray(params.loras) && params.loras.length > 0) {
-    console.log('[extractSettingsFromParams] Using params.loras');
     loras = pairLorasToArray(params.loras as Array<{ path: string; strength: number }>);
   }
   // Format 2: additional_loras object at top level (legacy)
   else if (params.additional_loras && typeof params.additional_loras === 'object' && Object.keys(params.additional_loras as Record<string, unknown>).length > 0) {
-    console.log('[extractSettingsFromParams] Using params.additional_loras (legacy)');
     loras = legacyLorasToArray(params.additional_loras as Record<string, number>);
   }
   // Format 3: in orchestrator_details (either format)
   else if (Array.isArray(orchDetails.loras) && orchDetails.loras.length > 0) {
-    console.log('[extractSettingsFromParams] Using orchDetails.loras');
     loras = pairLorasToArray(orchDetails.loras as Array<{ path: string; strength: number }>);
   }
   else if (orchDetails.additional_loras && typeof orchDetails.additional_loras === 'object' && Object.keys(orchDetails.additional_loras as Record<string, unknown>).length > 0) {
-    console.log('[extractSettingsFromParams] Using orchDetails.additional_loras (legacy)');
     loras = legacyLorasToArray(orchDetails.additional_loras as Record<string, number>);
   }
   // Format 4: use defaults if provided
   else if (defaults?.loras) {
-    console.log('[extractSettingsFromParams] Using defaults.loras');
     loras = defaults.loras;
   }
-
-  console.log('[extractSettingsFromParams] Final loras:', loras);
 
   const result = {
     prompt,
@@ -689,7 +651,6 @@ export function extractSettingsFromParams(
     makePrimaryVariant: defaults?.makePrimaryVariant ?? false,
   };
 
-  console.log('[extractSettingsFromParams] Final result:', result);
   return result;
 }
 
@@ -697,12 +658,6 @@ export function buildMetadataUpdate(
   currentMetadata: Record<string, unknown>,
   settings: PairSettingsToSave
 ): Record<string, unknown> {
-  console.log(`[PairPromptDebug] buildMetadataUpdate called`, {
-    settingsPrompt: settings.prompt?.substring(0, 30),
-    settingsNegPrompt: settings.negativePrompt?.substring(0, 30),
-    currentMetadataKeys: Object.keys(currentMetadata || {}),
-    currentSegmentOverrides: currentMetadata?.segmentOverrides,
-  });
 
   // Convert PairSettingsToSave to SegmentOverrides format for new storage
   // Convention:

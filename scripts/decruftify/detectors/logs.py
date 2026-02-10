@@ -1,4 +1,10 @@
-"""Tagged console.log('[Tag]') detection."""
+"""Tagged console.log('[Tag]') detection.
+
+Catches:
+- Direct tags: console.log('[Tag] ...')
+- Emoji-prefixed tags: console.log('🔍 [Tag] ...')
+- Template-literal tags: console.log(`${TAG_VAR} ...`) where TAG_VAR = '[Tag]'
+"""
 
 import json
 import re
@@ -13,20 +19,39 @@ TAG_EXTRACT_RE = re.compile(r"\[([^\]]+)\]")
 
 
 def detect_logs(path: Path) -> list[dict]:
-    result = subprocess.run(
+    # Pattern 1: Direct and emoji-prefixed tags — console.log('[Tag]' or console.log('emoji [Tag]'
+    # The .{0,4} allows up to 4 chars of emoji/whitespace before the bracket
+    result1 = subprocess.run(
         ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E",
-         r"console\.(log|warn|info|debug)\s*\(\s*['\"\`]\[", str(path)],
+         r"console\.(log|warn|info|debug)\s*\(\s*['\"`].{0,4}\[", str(path)],
         capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
+
+    # Pattern 2: Template-literal tag via variable containing TAG/DEBUG/LOG in its name
+    # (catches indirect tags like REORDER_DEBUG_TAG)
+    result2 = subprocess.run(
+        ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-Ei",
+         r"console\.(log|warn|info|debug)\s*\(\s*`\$\{\w*(TAG|DEBUG|LOG)\w*\}", str(path)],
+        capture_output=True, text=True, cwd=PROJECT_ROOT,
+    )
+
+    seen: set[tuple[str, str]] = set()  # (filepath, lineno) dedup
     entries = []
-    for line in result.stdout.splitlines():
-        parts = line.split(":", 2)
-        if len(parts) < 3:
-            continue
-        filepath, lineno, content = parts[0], parts[1], parts[2]
-        tag_match = TAG_EXTRACT_RE.search(content)
-        tag = tag_match.group(1) if tag_match else "unknown"
-        entries.append({"file": filepath, "line": int(lineno), "tag": tag, "content": content.strip()})
+
+    for output in [result1.stdout, result2.stdout]:
+        for line in output.splitlines():
+            parts = line.split(":", 2)
+            if len(parts) < 3:
+                continue
+            filepath, lineno, content = parts[0], parts[1], parts[2]
+            key = (filepath, lineno)
+            if key in seen:
+                continue
+            seen.add(key)
+            tag_match = TAG_EXTRACT_RE.search(content)
+            tag = tag_match.group(1) if tag_match else "unknown"
+            entries.append({"file": filepath, "line": int(lineno), "tag": tag, "content": content.strip()})
+
     return entries
 
 

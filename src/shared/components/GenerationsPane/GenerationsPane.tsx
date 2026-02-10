@@ -18,7 +18,6 @@ import { usePanes } from '@/shared/contexts/PanesContext';
 import PaneControlTab from '../PaneControlTab';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { ShotFilter } from '@/shared/components/ShotFilter';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { useGalleryPageState } from '@/shared/hooks/useGalleryPageState';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
@@ -86,7 +85,6 @@ const GenerationsPaneComponent: React.FC = () => {
 
   const GENERATIONS_PER_PAGE = paneLayout.itemsPerPage;
   const { currentShotId } = useCurrentShot();
-
 
   // Media type filter state
   const [mediaTypeFilter, setMediaTypeFilter] = useState<'all' | 'image' | 'video'>('image');
@@ -171,40 +169,7 @@ const GenerationsPaneComponent: React.FC = () => {
       return;
     }
 
-    console.log('[GenerationsPane] Shot created:', {
-      shotId: result.shotId.substring(0, 8),
-      shotName: result.shotName,
-    });
   }, [createShot, queryClient, selectedProjectId]);
-
-  // Debug: Log the current filter state
-  useEffect(() => {
-    console.log('[PositionFix] GenerationsPane filter state:', {
-      selectedShotFilter,
-      excludePositioned,
-      mediaTypeFilter,
-      currentShotId,
-      generationsCount: paginatedData.items.length,
-      hasPositionedItems: paginatedData.items.filter(item => {
-        // Check if any item has positioned associations with the selected shot
-        if (selectedShotFilter === SHOT_FILTER.ALL) return false;
-        if (item.shot_id === selectedShotFilter) {
-          return item.position !== null && item.position !== undefined;
-        }
-        if (item.all_shot_associations) {
-          return item.all_shot_associations.some(assoc => 
-            assoc.shot_id === selectedShotFilter && 
-            assoc.position !== null && 
-            assoc.position !== undefined
-          );
-        }
-        return false;
-      }).length,
-      shouldTriggerSpecialPositioning: selectedShotFilter === currentShotId && excludePositioned,
-      targetShotForAdding: currentShotId || lastAffectedShotId,
-      timestamp: Date.now()
-    });
-  }, [selectedShotFilter, excludePositioned, mediaTypeFilter, currentShotId, paginatedData.items, lastAffectedShotId]);
 
   // Log every render with item count & page for loop detection
   useRenderLogger('GenerationsPane', { page, totalItems: totalCount });
@@ -243,20 +208,6 @@ const GenerationsPaneComponent: React.FC = () => {
     }
   }, [isOpen]);
 
-  // Debug: Log GenerationsPane state when it opens/changes
-  useEffect(() => {
-    console.log('[GenerationsPane] State changed:', {
-      isOpen,
-      location: location.pathname,
-      selectedShotFilter,
-      excludePositioned,
-      lastAffectedShotId,
-      shotsDataLength: shotsData?.length,
-      totalGenerations: totalCount,
-      timestamp: Date.now()
-    });
-  }, [isOpen, location.pathname, selectedShotFilter, excludePositioned, lastAffectedShotId, shotsData, totalCount]);
-
   // Listen for custom event to open the pane (used on mobile from other components)
   useEffect(() => {
     const handleOpenGenerationsPane = () => {
@@ -266,7 +217,6 @@ const GenerationsPaneComponent: React.FC = () => {
     window.addEventListener('openGenerationsPane', handleOpenGenerationsPane);
     return () => window.removeEventListener('openGenerationsPane', handleOpenGenerationsPane);
   }, [openPane]);
-
 
   // Prevent immediate interaction after pane opens (especially on mobile)
   const [isInteractionDisabled, setIsInteractionDisabled] = useState(false);
@@ -614,13 +564,6 @@ const GenerationsPaneComponent: React.FC = () => {
             {/* Keep MediaGallery mounted during page transitions to preserve lightbox state */}
             {paginatedData.items.length > 0 && (
                 <div className={isLoading ? 'opacity-60 pointer-events-none transition-opacity duration-200' : ''}>
-                  {console.log('[GenerationsPane] Rendering MediaGallery with:', {
-                    selectedShotFilter,
-                    currentShotId,
-                    itemsCount: paginatedData.items.length,
-                    isLoading,
-                    timestamp: Date.now()
-                  })}
                   <MediaGallery
                     images={paginatedData.items}
                     onDelete={handleDeleteGeneration}
@@ -631,29 +574,9 @@ const GenerationsPaneComponent: React.FC = () => {
                     onShotFilterChange={setSelectedShotFilter}
                     columnsPerRow={paneLayout.columns}
                     onAddToLastShot={(generationId, imageUrl, thumbUrl) => {
-                      console.log('[GenerationsPane] MediaGallery onAddToLastShot called', {
-                        generationId,
-                        imageUrl: imageUrl?.substring(0, 50) + '...',
-                        thumbUrl: thumbUrl?.substring(0, 50) + '...',
-                        lastAffectedShotId,
-                        selectedShotFilter,
-                        excludePositioned,
-                        shotsAvailable: shotsData?.map(s => ({ id: s.id, name: s.name })),
-                        timestamp: Date.now()
-                      });
                       return handleAddToShot(generationId, imageUrl, thumbUrl);
                     }}
                     onAddToLastShotWithoutPosition={(generationId, imageUrl, thumbUrl) => {
-                      console.log('[GenerationsPane] MediaGallery onAddToLastShotWithoutPosition called', {
-                        generationId,
-                        imageUrl: imageUrl?.substring(0, 50) + '...',
-                        thumbUrl: thumbUrl?.substring(0, 50) + '...',
-                        lastAffectedShotId,
-                        selectedShotFilter,
-                        excludePositioned,
-                        shotsAvailable: shotsData?.map(s => ({ id: s.id, name: s.name })),
-                        timestamp: Date.now()
-                      });
                       return handleAddToShotWithoutPosition(generationId, imageUrl, thumbUrl);
                     }}
                     offset={(page - 1) * GENERATIONS_PER_PAGE}

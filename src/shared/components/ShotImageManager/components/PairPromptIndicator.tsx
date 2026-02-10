@@ -159,7 +159,6 @@ const PairPromptIndicatorComponent: React.FC<PairPromptIndicatorProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
-                          console.log('[PairPromptIndicator] ❌ X button clicked!', { pairIndex, hasHandler: !!onClearEnhancedPrompt });
                           e.stopPropagation();
                           e.preventDefault();
                           onClearEnhancedPrompt(pairIndex);

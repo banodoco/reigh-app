@@ -176,32 +176,12 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
   const displaySlots = useMemo(() => {
     const children: typeof rawSegmentSlots = [];
 
-    // DEBUG: Log all inputs
-    console.log('[SlotDebug] ===== COMPUTING displaySlots =====');
-    console.log('[SlotDebug] rawSegmentSlots:', rawSegmentSlots.map(s => ({
-      type: s.type,
-      index: s.index,
-      pairShotGenId: s.pairShotGenerationId?.substring(0, 8),
-      childId: s.type === 'child' ? s.child.id?.substring(0, 8) : null,
-      hasLocation: s.type === 'child' ? !!s.child.location : false,
-    })));
-    console.log('[SlotDebug] segmentByPairShotGenId keys:', [...segmentByPairShotGenId.keys()].map(k => k.substring(0, 8)));
-    console.log('[SlotDebug] pairDataByIndex:', pairDataByIndex ? [...pairDataByIndex.entries()].map(([idx, pd]) => ({
-      pairIndex: idx,
-      startImageId: pd.startImage?.id?.substring(0, 8),
-      endImageId: pd.endImage?.id?.substring(0, 8),
-    })) : 'undefined');
-    console.log('[SlotDebug] pairInfo:', pairInfo.map(p => ({ index: p.index, startFrame: p.startFrame, endFrame: p.endFrame })));
-    console.log('[SlotDebug] lastImageId:', lastImageId?.substring(0, 8));
-    console.log('[SlotDebug] trailingSegmentMode:', trailingSegmentMode ? { imageId: trailingSegmentMode.imageId.substring(0, 8) } : null);
-
     // Collect child segments matched to current pairs.
     // Iterate pairInfo (matches segmentPositions count), enrich with pairDataByIndex.
     for (const pair of pairInfo) {
       const pairData = pairDataByIndex?.get(pair.index);
       const startImageId = pairData?.startImage?.id;
       const segment = startImageId ? segmentByPairShotGenId.get(startImageId) : undefined;
-      console.log('[SlotDebug] Pair', pair.index, '→ startImage:', startImageId?.substring(0, 8), '→ segment:', segment ? { type: segment.type, childId: segment.type === 'child' ? segment.child.id?.substring(0, 8) : null } : 'NOT FOUND');
       if (segment?.type === 'child') {
         children.push({ ...segment, index: pair.index });
       }
@@ -218,8 +198,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       }
     }
 
-    console.log('[SlotDebug] children collected:', children.length, children.map(c => ({ type: c.type, index: c.index, pairShotGenId: c.pairShotGenerationId?.substring(0, 8) })));
-
     // If we have actual videos, return just those — no placeholders, no empty slots
     if (children.length > 0) {
       // Add trailing placeholder only if user explicitly configured trailing but no video yet
@@ -235,11 +213,9 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
           isTrailingSegment: true,
         } as typeof rawSegmentSlots[number]);
       }
-      console.log('[SlotDebug] ✅ RETURNING children-only:', children.map(c => ({ type: c.type, index: c.index, pairShotGenId: c.pairShotGenerationId?.substring(0, 8) })));
       return children;
     }
 
-    console.log('[SlotDebug] ⚠️ No children found, falling through to placeholders');
     // No videos at all — first-time experience: show placeholders
     const placeholders: typeof rawSegmentSlots = [];
 
@@ -343,13 +319,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
   // Log when segmentSlots changes (to track what's being displayed)
   React.useEffect(() => {
     const childSlots = displaySlots.filter(s => s.type === 'child');
-    console.log('[SegmentDisplay] 📺 CURRENT DISPLAY:', {
-      totalSlots: displaySlots.length,
-      childSlots: childSlots.length,
-      placeholderSlots: displaySlots.length - childSlots.length,
-      displayedIds: childSlots.map(s => s.type === 'child' ? s.child.id : null),
-      displayedLocations: childSlots.map(s => s.type === 'child' ? s.child.location?.substring(0, 40) : null),
-    });
   }, [displaySlots]);
   
   // Mark generation as viewed (updates the primary variant's viewed_at)
@@ -362,15 +331,12 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
         .eq('generation_id', generationId)
         .eq('is_primary', true);
 
-      console.log('[SegmentOutputStrip] Checking variants for generation:', generationId.substring(0, 8), variants);
-
       if (checkError) {
         handleError(checkError, { context: 'SegmentOutputStrip', showToast: false });
         return;
       }
 
       if (!variants || variants.length === 0) {
-        console.log('[SegmentOutputStrip] No primary variant found for generation:', generationId.substring(0, 8));
         return;
       }
 
@@ -385,7 +351,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       if (error) {
         handleError(error, { context: 'SegmentOutputStrip', showToast: false });
       } else {
-        console.log('[SegmentOutputStrip] Marked variant as viewed, invalidating queries');
         // Invalidate variant badges to refresh NEW state
         queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantBadges });
       }
@@ -399,14 +364,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
   // Otherwise fall back to the local MediaLightbox
   // NOTE: We pass the slot directly to avoid array index mismatches between displaySlots and segmentSlots
   const handleSegmentClick = useCallback((slot: typeof displaySlots[number], slotIndex: number) => {
-    console.log('[SegmentClick] 2️⃣ SegmentOutputStrip.handleSegmentClick called:', {
-      slotIndex,
-      slotType: slot?.type,
-      slotPairIndex: slot?.index,
-      childId: slot?.type === 'child' ? slot.child.id?.substring(0, 8) : null,
-      childLocation: slot?.type === 'child' ? slot.child.location?.substring(0, 50) : null,
-      hasOnOpenPairSettings: !!onOpenPairSettings,
-    });
 
     // Clear scrubbing state before opening lightbox to prevent preview from getting stuck
     setActiveScrubbingIndex(null);
@@ -421,13 +378,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
     if (onOpenPairSettings && slot) {
       // Pass frame data directly from pairInfo - this is the displayed source of truth
       const pairFrameData = pairInfo.find(p => p.index === slot.index);
-      console.log('[FrameSyncDebug] 🎯 SegmentOutputStrip.handleSegmentClick:', {
-        slotIndex: slot.index,
-        pairInfoLength: pairInfo.length,
-        foundPairFrameData: !!pairFrameData,
-        frames: pairFrameData?.frames,
-        allPairInfo: pairInfo.map(p => ({ idx: p.index, frames: p.frames })),
-      });
       onOpenPairSettings(slot.index, pairFrameData ? {
         frames: pairFrameData.frames,
         startFrame: pairFrameData.startFrame,
@@ -435,7 +385,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       } : undefined);
     } else {
       // Fallback to local lightbox
-      console.log('[SegmentClickDebug] Using local lightbox with slotIndex:', slotIndex);
       setLightboxIndex(slotIndex);
     }
   }, [markGenerationViewed, onOpenPairSettings, scrubbing]);
@@ -476,7 +425,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
   const handleDeleteSegment = useCallback(async (generationId: string) => {
     setDeletingSegmentId(generationId);
     try {
-      console.log('[SegmentDelete] Start delete:', generationId.substring(0, 8));
 
       // Fetch the generation to find its parent and pair_shot_generation_id
       const { data: beforeData, error: fetchError } = await supabase
@@ -486,7 +434,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
         .single();
 
       if (!beforeData) {
-        console.log('[SegmentDelete] Generation not found before delete');
         return;
       }
 
@@ -511,12 +458,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
           .map(child => child.id);
       }
 
-      console.log('[SegmentDelete] Deleting children for pair:', {
-        pairShotGenId: pairShotGenId?.substring(0, 8) || 'none',
-        count: idsToDelete.length,
-        ids: idsToDelete.map(id => id.substring(0, 8))
-      });
-
       const { error: deleteError } = await supabase
         .from('generations')
         .delete()
@@ -527,7 +468,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       }
       
       // OPTIMISTIC UPDATE: Remove the deleted item from cache immediately
-      console.log('[SegmentDelete] Applying optimistic cache update...');
       
       // Find and update the segment-child-generations cache
       // Partial key match for all segment children
@@ -536,17 +476,11 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
         (oldData: unknown) => {
           if (!oldData || !Array.isArray(oldData)) return oldData;
           const filtered = (oldData as Array<{ id: string }>).filter((item) => !idsToDelete.includes(item.id));
-          console.log('[SegmentDelete] Optimistic update: removed from cache', {
-            before: (oldData as unknown[]).length,
-            after: filtered.length,
-            removedIds: idsToDelete.map(id => id.substring(0, 8))
-          });
           return filtered;
         }
       );
       
       // Then invalidate and refetch to get fresh data from server
-      console.log('[SegmentDelete] Invalidating and refetching caches...');
       // Partial key match for all segment children
       await queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === queryKeys.segments.childrenAll[0],
@@ -560,7 +494,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       await queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
       
-      console.log('[SegmentDelete] Delete complete');
     } catch (error) {
       handleError(error, { context: 'SegmentDelete', toastTitle: 'Failed to delete segment' });
     } finally {
@@ -694,11 +627,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
       });
     }
 
-    // Debug: log segment positions
-    console.log('[PairSlot] 📐 POSITIONS:', positions.map(p =>
-      `[${p.pairIndex}]→${p.leftPercent.toFixed(1)}%`
-    ).join(' '));
-
     return positions;
   }, [pairInfo, fullMin, fullRange, containerWidth, trailingSegmentMode]);
 
@@ -814,27 +742,19 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
         <div className="absolute left-0 right-0 top-5 bottom-1 overflow-visible">
           {displaySlots.length > 0 && segmentPositions.length > 0 ? (() => {
             const hasAnySegments = displaySlots.some(s => s.type === 'child');
-            console.log('[SlotDebug] ===== RENDERING displaySlots =====');
-            console.log('[SlotDebug] displaySlots:', displaySlots.map(s => ({ type: s.type, index: s.index, pairShotGenId: s.pairShotGenerationId?.substring(0, 8), isTrailing: 'isTrailingSegment' in s })));
-            console.log('[SlotDebug] segmentPositions:', segmentPositions.map(p => ({ pairIndex: p.pairIndex, left: p.leftPercent.toFixed(1) })));
-            console.log('[SlotDebug] hasAnySegments:', hasAnySegments);
             return (
             <div className="relative w-full h-full">
               {displaySlots.map((slot, index) => {
                 const position = segmentPositions.find(p => p.pairIndex === slot.index);
 
                 if (!position) {
-                  console.log('[SlotDebug] SKIPPED slot', index, '- no position for pairIndex:', slot.index);
                   return null;
                 }
 
                 const isTrailingSlot = 'isTrailingSegment' in slot && slot.isTrailingSegment === true;
                 if (slot.type === 'placeholder' && hasAnySegments && !isTrailingSlot) {
-                  console.log('[SlotDebug] FILTERED placeholder at index:', index, 'pairIndex:', slot.index);
                   return null;
                 }
-
-                console.log('[SlotDebug] ✅ RENDERING slot', index, '→', { type: slot.type, pairIndex: slot.index, pairShotGenId: slot.pairShotGenerationId?.substring(0, 8), leftPercent: position.leftPercent.toFixed(1), widthPercent: position.widthPercent.toFixed(1), isTrailing: isTrailingSlot, isPending: hasPendingTask(slot.pairShotGenerationId) });
 
                 const isActiveScrubbing = activeScrubbingIndex === index;
 
@@ -842,17 +762,12 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
                 const segmentId = slot.type === 'child' ? slot.child.id : null;
                 const hasSourceChanged = segmentId ? hasRecentMismatch(segmentId) : false;
 
-                if (hasSourceChanged) {
-                  console.log('[SourceChange] 🎯 Passing hasSourceChanged=true to InlineSegmentVideo seg=' + segmentId?.substring(0, 8));
-                }
-
                 return (
                   <React.Fragment key={slot.type === 'child' ? slot.child.id : `placeholder-${index}`}>
                     <InlineSegmentVideo
                       slot={slot}
                       pairIndex={slot.index}
                       onClick={() => {
-                        console.log('[SegmentClick] 1.5️⃣ SegmentOutputStrip onClick wrapper called, about to call handleSegmentClick', { slotIndex: index, pairIndex: slot.index });
                         handleSegmentClick(slot, index);
                       }}
                       projectAspectRatio={projectAspectRatio}
@@ -862,11 +777,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
                       onOpenPairSettings={onOpenPairSettings ? (pairIdx: number) => {
                         // Pass frame data from pairInfo - the displayed source of truth
                         const pairFrameData = pairInfo.find(p => p.index === pairIdx);
-                        console.log('[FrameSyncDebug] 🎯 InlineSegmentVideo.onOpenPairSettings (wrapped):', {
-                          pairIdx,
-                          foundFrameData: !!pairFrameData,
-                          frames: pairFrameData?.frames,
-                        });
                         onOpenPairSettings(pairIdx, pairFrameData ? {
                           frames: pairFrameData.frames,
                           startFrame: pairFrameData.startFrame,
@@ -909,15 +819,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
 
               {/* Add trailing segment button - shows when in multi-image mode WITHOUT any trailing segment */}
               {(() => {
-                // Debug: log ALL conditions for "+" button
-                console.log('[TrailingDebug] + button CONDITIONS:', {
-                  isMultiImage,
-                  hasOnAddTrailingSegment: !!onAddTrailingSegment,
-                  readOnly,
-                  lastImageFrame,
-                  fullRange,
-                  containerWidth,
-                });
                 return null;
               })()}
               {isMultiImage && onAddTrailingSegment && !readOnly && lastImageFrame !== undefined && fullRange > 0 && containerWidth > 0 && (() => {
@@ -925,12 +826,6 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
                 // Show "+" button when NO trailing slot exists (no config AND no existing video)
                 const trailingIndex = pairInfo.length;
                 const trailingSlot = displaySlots.find(slot => slot.index === trailingIndex);
-
-                console.log('[TrailingDebug] + button check:', {
-                  trailingSegmentMode: trailingSegmentMode ? 'SET' : 'NOT_SET',
-                  trailingSlot: trailingSlot ? trailingSlot.type : null,
-                  willRender: !trailingSlot,
-                });
 
                 // Don't show + button if any trailing slot exists
                 if (trailingSlot) return null;

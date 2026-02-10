@@ -68,22 +68,12 @@ export function useTimelineFrameUpdates({
       throw new Error('No shotId provided');
     }
 
-    console.log('[TimelinePositionUtils] Updating timeline frame', {
-      shotId: shotId.substring(0, 8),
-      generationId: generationId.substring(0, 8),
-      frame,
-      totalGenerations: shotGenerations.length,
-    });
-
     // Find the shot_generation record - try multiple lookup strategies
     let shotGen = shotGenerations.find(sg => sg.generation_id === generationId);
 
     // Fallback: maybe the passed ID is actually the shot_generation ID
     if (!shotGen) {
       shotGen = shotGenerations.find(sg => sg.id === generationId);
-      if (shotGen) {
-        console.log('[TimelinePositionUtils] Used fallback lookup by shot_generation ID (should not happen with allGenerations prop)');
-      }
     }
 
     // If still not found, this is a data consistency error
@@ -126,19 +116,9 @@ export function useTimelineFrameUpdates({
       throw new Error('No shotId provided');
     }
 
-    console.log('[TimelinePositionUtils] Batch exchanging positions', {
-      shotId: shotId.substring(0, 8),
-      exchangeCount: exchanges.length,
-      exchangeType: 'id' in exchanges[0] ? 'absolute' : 'pair-swap'
-    });
-
     // Handle pair swaps (from drag reorder)
     if (exchanges.length > 0 && 'shotGenerationIdA' in exchanges[0]) {
       const pairSwaps = exchanges as Array<{ shotGenerationIdA: string; shotGenerationIdB: string }>;
-
-      console.log('[TimelinePositionUtils] Processing pair swaps', {
-        swapCount: pairSwaps.length
-      });
 
       const swapUpdates = pairSwaps.map(async (swap) => {
         let sgA = shotGenerations.find(sg => sg.id === swap.shotGenerationIdA);
@@ -152,23 +132,11 @@ export function useTimelineFrameUpdates({
         }
 
         if (!sgA || !sgB) {
-          console.warn('[TimelinePositionUtils] Shot generation not found for swap:', {
-            swapA: swap.shotGenerationIdA.substring(0, 8),
-            swapB: swap.shotGenerationIdB.substring(0, 8),
-            foundA: !!sgA,
-            foundB: !!sgB,
-          });
           return;
         }
 
         const frameA = sgA.timeline_frame;
         const frameB = sgB.timeline_frame;
-
-        console.log('[TimelinePositionUtils] Swapping frames:', {
-          sgA: sgA.id.substring(0, 8),
-          sgB: sgB.id.substring(0, 8),
-          frameA, frameB,
-        });
 
         const updateA = supabase
           .from('shot_generations')
@@ -194,7 +162,6 @@ export function useTimelineFrameUpdates({
 
       await Promise.all(swapUpdates);
 
-      console.log('[TimelinePositionUtils] All swaps complete, refetching in background');
       refetchRelatedCaches(queryClient, shotId, projectId);
       return;
     }
@@ -206,9 +173,6 @@ export function useTimelineFrameUpdates({
 
       if (!shotGen) {
         shotGen = shotGenerations.find(sg => sg.id === id);
-        if (shotGen) {
-          console.log('[TimelinePositionUtils] Used fallback lookup for batch update');
-        }
       }
 
       if (!shotGen?.id) {
@@ -236,7 +200,6 @@ export function useTimelineFrameUpdates({
 
     await Promise.all(updates);
 
-    console.log('[TimelinePositionUtils] All absolute updates complete, refetching in background');
     refetchRelatedCaches(queryClient, shotId, projectId);
   }, [shotId, shotGenerations, queryClient, projectId, syncShotData]);
 
@@ -252,13 +215,6 @@ export function useTimelineFrameUpdates({
     if (!shotId) {
       throw new Error('No shotId provided');
     }
-
-    console.log('[DataTrace] moveItemsToMidpoint:', {
-      draggedItemIds: draggedItemIds.map(id => id.substring(0, 8)),
-      newStartIndex,
-      totalItems: allItems.length,
-      numDragged: draggedItemIds.length,
-    });
 
     // Find shot_generation records for all dragged items
     const draggedShotGens = draggedItemIds.map(id => {
@@ -286,11 +242,6 @@ export function useTimelineFrameUpdates({
 
     // Execute all updates in parallel
     const updatePromises = Array.from(uniqueUpdates.entries()).map(async ([id, payload]) => {
-      console.log('[DataTrace] Updating timeline_frame:', {
-        shotGenId: id.substring(0, 8),
-        targetFrame: payload.newFrame,
-        reason: payload.reason,
-      });
 
       const { error } = await supabase
         .from('shot_generations')
@@ -306,7 +257,6 @@ export function useTimelineFrameUpdates({
 
     await Promise.all(updatePromises);
 
-    console.log('[DataTrace] All distribution updates complete, refetching in background');
     refetchRelatedCaches(queryClient, shotId, projectId);
     // CRITICAL: Also refetch segment-live-timeline so segment videos update positions
     queryClient.refetchQueries({ queryKey: queryKeys.segments.liveTimeline(shotId) });

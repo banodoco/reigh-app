@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
-import { ImageGenerationForm, PromptEntry } from "../components/ImageGenerationForm";
+import { ImageGenerationForm } from "../components/ImageGenerationForm";
 import { ImageGenerationFormHandles } from "../components/ImageGenerationForm/types";
 import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from "@/shared/lib/tasks/imageGeneration";
-import { MediaGallery, GeneratedImageWithMetadata, DisplayableMetadata, MetadataLora } from "@/shared/components/MediaGallery";
+import { MediaGallery, GeneratedImageWithMetadata, DisplayableMetadata } from "@/shared/components/MediaGallery";
 import { useContainerDimensions } from "@/shared/components/MediaGallery/hooks";
 import { getLayoutForAspectRatio } from "@/shared/components/MediaGallery/utils";
 import SettingsModal from "@/shared/components/SettingsModal";
 import { toast } from "@/shared/components/ui/sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { Button } from "@/shared/components/ui/button";
 import { useAddImageToShot, useAddImageToShotWithoutPosition, usePositionExistingGenerationInShot } from "@/shared/hooks/useShots";
@@ -16,8 +15,6 @@ import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useProject } from "@/shared/contexts/ProjectContext";
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { nanoid } from 'nanoid';
 import { useProjectGenerations } from "@/shared/hooks/useProjectGenerations";
 import { useDeleteGeneration, useUpdateGenerationLocation, useCreateGeneration } from "@/shared/hooks/useGenerationMutations";
 // Settings inheritance is handled by useShotCreation
@@ -30,15 +27,16 @@ import { usePublicLoras, usePublicStyleReferences, useMyStyleReferences } from '
 // Removed useListTasks import - was causing performance issues with 1000+ tasks
 import { PageFadeIn } from '@/shared/components/transitions';
 import { useSearchParams } from 'react-router-dom';
-import { timeEnd } from '@/shared/lib/logger';
 import { useIsMobile, useIsTablet } from "@/shared/hooks/use-mobile";
-import { getDisplayUrl } from '@/shared/lib/utils';
-import { ShotFilter } from '@/shared/components/ShotFilter';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
-import { ChevronDown, ChevronLeft, ChevronRight, Sparkles, Settings2 } from 'lucide-react';
-import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
+import {
+  ChevronDown,
+  ChevronLeft,
+  Sparkles,
+  Settings2
+} from 'lucide-react';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import { handleError } from '@/shared/lib/errorHandler';
@@ -65,8 +63,6 @@ interface ImageGenPagePrefs {
 
 // Stable empty defaults to prevent render loops in useAutoSaveSettings
 const EMPTY_PAGE_PREFS: ImageGenPagePrefs = {};
-
-
 
 // Create a proper memo comparison - since this component has no props, it should never re-render due to props
 const ImageGenerationToolPage: React.FC = React.memo(() => {
@@ -219,7 +215,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formStateReady]); // Only depend on formStateReady to run once when ready
 
-
   const { lastAffectedShotId, setLastAffectedShotId } = useLastAffectedShot();
   const addImageToShotMutation = useAddImageToShot();
   const addImageToShotWithoutPositionMutation = useAddImageToShotWithoutPosition();
@@ -237,11 +232,9 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     const override = pagePrefs.settings.galleryFilterOverride;
     if (override !== undefined) {
       // User had explicitly set a filter for this shot - restore it
-      console.log('[GalleryFilter] Restoring saved override for shot:', formAssociatedShotId.substring(0, 8), '→', override);
       setSelectedShotFilter(override);
     } else {
       // No override - default to filtering by this shot
-      console.log('[GalleryFilter] No override, defaulting to shot:', formAssociatedShotId.substring(0, 8));
       setSelectedShotFilter(formAssociatedShotId);
     }
   }, [formAssociatedShotId, pagePrefs.status, pagePrefs.settings.galleryFilterOverride]);
@@ -256,13 +249,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       // If they chose the current shot, clear the override
       const shouldSaveOverride = newFilter !== formAssociatedShotId;
       const valueToSave = shouldSaveOverride ? newFilter : undefined;
-
-      console.log('[GalleryFilter] User changed filter:', {
-        shot: formAssociatedShotId.substring(0, 8),
-        newFilter,
-        savingOverride: shouldSaveOverride,
-        valueToSave,
-      });
 
       pagePrefs.updateField('galleryFilterOverride', valueToSave);
     }
@@ -326,14 +312,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   // Previously, 4 separate useEffects would fire sequentially on mount, each cancelling the previous query
   // Shot filter queries are slow (~2-3s) and would get cancelled before completing
   useEffect(() => {
-    console.log('[ShotFilterPagination] 📄 ANY filter changed, resetting to page 1:', {
-      selectedShotFilter,
-      excludePositioned,
-      mediaTypeFilter,
-      starredOnly,
-      searchTerm,
-      toolTypeFilterEnabled
-    });
 
     setIsFilterChange(true);
     setCurrentPage(1);
@@ -424,7 +402,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
       const upscaledImageUrl = functionData.upscaledImageUrl;
       
-
       const newMetadata: DisplayableMetadata = {
         ...(currentMetadata || {}),
         upscaled: true,
@@ -450,14 +427,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     const generateStartTime = Date.now();
     const generateId = `gen-${generateStartTime}-${Math.random().toString(36).slice(2, 6)}`;
 
-    console.log(`[GenerationDiag:${generateId}] 🚀 GENERATION START:`, {
-      selectedProjectId,
-      modelName: taskParams.model_name,
-      promptCount: taskParams.prompts?.length,
-      imagesPerPrompt: taskParams.imagesPerPrompt,
-      timestamp: generateStartTime
-    });
-
     if (!selectedProjectId) {
       toast.error("No project selected. Please select a project before generating images.");
       return [];
@@ -475,7 +444,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     });
     let createdTaskIds: string[] = [];
     try {
-      console.log('[ImageGeneration] Using unified batch task creation for model:', taskParams.model_name);
       const createdTasks = await createBatchImageGenerationTasks(taskParams);
       createdTaskIds = createdTasks.map((t) => t.task_id);
 
@@ -487,14 +455,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });
 
       const generateDuration = Date.now() - generateStartTime;
-      console.log(`[GenerationDiag:${generateId}] ✅ GENERATION COMPLETE:`, {
-        duration: `${generateDuration}ms`,
-        tasksCreated: taskParams.prompts.length * taskParams.imagesPerPrompt,
-        taskIds: createdTaskIds,
-        timestamp: Date.now()
-      });
 
-      console.log('[ImageGeneration] Image generation tasks created successfully');
       setLocalJustQueued(true);
       if (localQueuedTimeoutRef.current) {
         clearTimeout(localQueuedTimeoutRef.current);
@@ -634,18 +595,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   const scrollPosRef = useRef<number>(0);
 
   const handleServerPageChange = useCallback((page: number, fromBottom?: boolean) => {
-    console.log('[ShotFilterPagination] 🔄 Page change requested:', {
-      newPage: page,
-      currentPage,
-      fromBottom,
-      currentFilters: {
-        shotFilter: selectedShotFilter,
-        excludePositioned,
-        toolTypeEnabled: toolTypeFilterEnabled,
-        mediaType: mediaTypeFilter
-      },
-      timestamp: Date.now()
-    });
     
     if (!fromBottom) {
       scrollPosRef.current = window.scrollY;
@@ -678,17 +627,10 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   // Handle backfill request - invalidate and refetch current page data after deletion
   const handleBackfillRequest = useCallback(async (): Promise<void> => {
     if (!selectedProjectId) {
-      console.warn('[BackfillV2] No project selected for backfill');
       return;
     }
 
     try {
-      console.log('[BackfillV2] Invalidating and refetching data:', {
-        currentPage,
-        itemsPerPage,
-        selectedProjectId,
-        timestamp: Date.now()
-      });
 
       // Invalidate queries for this project - this marks data as stale
       // Partial key match for project-scoped unified generations
@@ -702,7 +644,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
         queryKey: queryKeys.unified.byProject(effectiveProjectId, currentPage, itemsPerPage, generationsFilters)
       });
 
-      console.log('[BackfillV2] Refetch completed');
     } catch (error) {
       handleError(error, { context: 'ImageGenerationToolPage.refetchGenerationsAfterChange', showToast: false });
       throw error; // Re-throw so the caller can handle it
@@ -729,11 +670,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       throw new Error('Shot creation failed');
     }
 
-    console.log('[ImageGenerationToolPage] Shot created:', {
-      shotId: result.shotId.substring(0, 8),
-      shotName: result.shotName,
-    });
-    
     // Note: lastAffectedShotId is automatically updated by useShotCreation
     // Note: We're NOT changing setSelectedShotFilter here to keep the gallery populated
   }, [createShot, queryClient, selectedProjectId]);
@@ -881,10 +817,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     };
   }, [isFormExpanded, isMobile]);
 
-  // [NavPerf] Stop timers when page has mounted
-  useEffect(() => {
-    timeEnd('NavPerf', 'PageLoad:/tools/image-generation');
-  }, []);
 
   useEffect(() => {
     if (generationsResponse && isPageChange) {
@@ -930,40 +862,19 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       const totalCount = generationsResponse?.total ?? lastKnownTotal;
       const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-      console.log('[KeyNav]', {
-        key: e.key,
-        currentPage,
-        totalPages,
-        totalCount,
-        itemsPerPage,
-        isInput,
-        targetTag: tag,
-        dialogOpen: !!dialog,
-        dialogEl: dialog?.tagName + '.' + dialog?.className?.toString().substring(0, 60),
-      });
-
       if (isInput) {
-        console.log('[KeyNav] Skipped: focus in input/textarea');
         return;
       }
       if (dialog) {
-        console.log('[KeyNav] Skipped: dialog/modal open');
         return;
       }
 
       if (e.key === 'ArrowLeft' && currentPage > 1) {
         e.preventDefault();
-        console.log('[KeyNav] Navigating to page', currentPage - 1);
         handleServerPageChange(currentPage - 1);
       } else if (e.key === 'ArrowRight' && currentPage < totalPages) {
         e.preventDefault();
-        console.log('[KeyNav] Navigating to page', currentPage + 1);
         handleServerPageChange(currentPage + 1);
-      } else {
-        console.log('[KeyNav] At boundary, no navigation', {
-          atFirst: currentPage <= 1,
-          atLast: currentPage >= totalPages,
-        });
       }
     };
 
@@ -1157,7 +1068,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
           </div>
         </>
       )}
-
 
       {/* Settings Modal */}
       <SettingsModal

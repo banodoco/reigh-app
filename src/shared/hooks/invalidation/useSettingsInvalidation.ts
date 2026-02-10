@@ -13,7 +13,6 @@
 import { useQueryClient, QueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '../../lib/queryKeys';
-import { debugConfig } from '../../lib/debugConfig';
 
 export type SettingsInvalidationScope = 'tool' | 'segment' | 'user' | 'pair' | 'all';
 
@@ -40,16 +39,6 @@ function performSettingsInvalidation(
   options: SettingsInvalidationOptions
 ): void {
   const { scope, reason, toolId, projectId, shotId, pairId } = options;
-
-  if (debugConfig.isEnabled('invalidation')) {
-    console.log(`[Invalidation] Settings: ${reason}`, {
-      scope,
-      toolId,
-      projectId: projectId?.substring(0, 8),
-      pairId: pairId?.substring(0, 8),
-      timestamp: Date.now(),
-    });
-  }
 
   if ((scope === 'tool' || scope === 'all') && toolId && projectId) {
     queryClient.invalidateQueries({

@@ -296,7 +296,6 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
                       endFrame={index * batchVideoFrames}
                       onClearEnhancedPrompt={onClearEnhancedPrompt}
                       onPairClick={() => {
-                        console.log('[PairIndicatorDebug] Cross-row pair indicator clicked (left)', { pairIndex: index - 1 });
                         onPairClick(index - 1);
                       }}
                       pairPrompt={prevPairPrompt?.prompt}
@@ -374,7 +373,6 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
                       endFrame={(index + 1) * batchVideoFrames}
                       onClearEnhancedPrompt={onClearEnhancedPrompt}
                       onPairClick={() => {
-                        console.log('[PairIndicatorDebug] Pair indicator clicked', { index });
                         onPairClick(index);
                       }}
                       pairPrompt={pairPrompt?.prompt}

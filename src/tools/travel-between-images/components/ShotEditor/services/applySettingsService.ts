@@ -128,7 +128,6 @@ export interface ApplyContext {
 // ==================== Fetch Task ====================
 
 export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
-  console.log('[ApplySettings] Fetching task:', taskId.substring(0, 8));
   
   try {
     const { data, error } = await supabase
@@ -141,8 +140,6 @@ export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
       console.error('[ApplySettings] ❌ Failed to fetch task:', error);
       return null;
     }
-    
-    console.log('[ApplySettings] ✅ Task fetched successfully');
     
     const params = (data.params || {}) as Record<string, unknown>;
     const orchestrator = (params.orchestrator_details || params.full_orchestrator_payload || {}) as Record<string, unknown>;
@@ -246,14 +243,6 @@ export const extractSettings = (taskData: TaskData): ExtractedSettings => {
     })(),
   };
   
-  console.log('[ApplySettings] 📋 Extracted settings:', {
-    model: extracted.model,
-    promptsCount: extracted.prompts?.length || 0,
-    inputImagesCount: extracted.inputImages?.length || 0,
-    hasStructureVideo: !!extracted.structureVideoPath,
-    hasLoras: !!(extracted.loras && extracted.loras.length > 0),
-  });
-  
   return extracted;
 };
 
@@ -264,14 +253,8 @@ export const applyModelSettings = async (
   context: ApplyContext
 ): Promise<ApplyResult> => {
   if (!settings.model || settings.model === context.steerableMotionSettings.model_name) {
-    console.log('[ApplySettings] ⏭️  Skipping model (no change or undefined)');
     return { success: true, settingName: 'model', details: 'skipped - no change' };
   }
-  
-  console.log('[ApplySettings] 🎨 Applying model:', {
-    from: context.steerableMotionSettings.model_name,
-    to: settings.model
-  });
   
   context.onSteerableMotionSettingsChange({ model_name: settings.model });
   
@@ -284,13 +267,11 @@ export const applyPromptSettings = async (
 ): Promise<ApplyResult> => {
   // Apply main prompt
   if (typeof settings.prompt === 'string' && settings.prompt.trim()) {
-    console.log('[ApplySettings] 💬 Applying main prompt');
     context.onBatchVideoPromptChange(settings.prompt);
   }
   
   // Apply individual prompts to pair configs (regardless of current mode)
   if (settings.prompts && settings.prompts.length > 1 && context.updatePairPromptsByIndex) {
-    console.log('[ApplySettings] 📝 Applying', settings.prompts.length, 'individual prompts');
     
     const errors: string[] = [];
     
@@ -315,13 +296,7 @@ export const applyPromptSettings = async (
   
   // Apply negative prompt
   if (settings.negativePrompt !== undefined) {
-    console.log('[ApplySettings] 🚫 Applying negative prompt:', {
-      hasContent: !!settings.negativePrompt,
-      willClear: !settings.negativePrompt
-    });
     context.onSteerableMotionSettingsChange({ negative_prompt: settings.negativePrompt || '' });
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping negative prompt (undefined)');
   }
   
   return { success: true, settingName: 'prompts' };
@@ -333,32 +308,15 @@ export const applyGenerationSettings = async (
 ): Promise<ApplyResult> => {
   // Apply frames
   if (typeof settings.frames === 'number' && !Number.isNaN(settings.frames)) {
-    console.log('[ApplySettings] 🎞️  Applying frames:', {
-      frames: settings.frames,
-      currentFrames: context.batchVideoFrames
-    });
     context.onBatchVideoFramesChange(settings.frames);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping frames (invalid or undefined)');
   }
   
   // Apply context
   // Context frames removed - now fixed at 10 frames
-  if (typeof settings.context === 'number' && !Number.isNaN(settings.context)) {
-    console.log('[ApplySettings] ⚠️ Context frames setting ignored - now fixed at 10 frames');
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping context (invalid or undefined)');
-  }
   
   // Apply steps
   if (typeof settings.steps === 'number' && !Number.isNaN(settings.steps)) {
-    console.log('[ApplySettings] 👣 Applying steps:', {
-      steps: settings.steps,
-      currentSteps: context.batchVideoSteps
-    });
     context.onBatchVideoStepsChange(settings.steps);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping steps (invalid or undefined)');
   }
   
   return { success: true, settingName: 'generation' };
@@ -370,47 +328,22 @@ export const applyModeSettings = async (
 ): Promise<ApplyResult> => {
   // Apply generation mode
   if (settings.generationMode && (settings.generationMode === 'batch' || settings.generationMode === 'timeline')) {
-    console.log('[ApplySettings] 🎬 Applying generation mode:', {
-      from: context.currentGenerationMode,
-      to: settings.generationMode
-    });
     context.onGenerationModeChange(settings.generationMode);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping generation mode (invalid or undefined)');
   }
   
   // Apply advanced mode
   if (settings.advancedMode !== undefined) {
-    console.log('[ApplySettings] 🎛️  Applying advanced mode:', {
-      from: context.currentAdvancedMode,
-      to: settings.advancedMode,
-      hasPhaseConfig: !!settings.phaseConfig
-    });
     context.onAdvancedModeChange(settings.advancedMode);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping advanced mode (undefined)');
   }
   
   // Apply motion mode
   if (settings.motionMode !== undefined && context.onMotionModeChange) {
-    console.log('[ApplySettings] 🎨 Applying motion mode:', {
-      from: context.motionMode,
-      to: settings.motionMode
-    });
     context.onMotionModeChange(settings.motionMode);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping motion mode (undefined or no handler)');
   }
   
   // Apply generation type mode (I2V vs VACE)
   if (settings.generationTypeMode !== undefined && context.onGenerationTypeModeChange) {
-    console.log('[ApplySettings] 🎬 Applying generation type mode (I2V/VACE):', {
-      from: context.generationTypeMode,
-      to: settings.generationTypeMode
-    });
     context.onGenerationTypeModeChange(settings.generationTypeMode);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping generation type mode (undefined or no handler)');
   }
   
   return { success: true, settingName: 'modes' };
@@ -437,57 +370,29 @@ export const applyAdvancedModeSettings = async (
   if (settings.phaseConfig) {
     // DEEP CLONE: Prevent shared references when applying task settings
     const clonedConfig = deepClonePhaseConfig(settings.phaseConfig)!;
-    console.log('[ApplySettings] ⚙️  Applying phase configuration (deep cloned):', {
-      num_phases: clonedConfig.num_phases,
-      phases_count: clonedConfig.phases?.length,
-      steps_per_phase: clonedConfig.steps_per_phase,
-      flow_shift: clonedConfig.flow_shift,
-      model_switch_phase: clonedConfig.model_switch_phase,
-      sample_solver: clonedConfig.sample_solver
-    });
     context.onPhaseConfigChange(clonedConfig);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping phase config (undefined)');
   }
   
   // Apply phase preset ID
   if (settings.selectedPhasePresetId !== undefined) {
-    console.log('[ApplySettings] 📌 Applying phase preset ID:', {
-      presetId: settings.selectedPhasePresetId ? settings.selectedPhasePresetId.substring(0, 8) : null
-    });
     
     if (settings.selectedPhasePresetId && context.onPhasePresetSelect && settings.phaseConfig) {
       // Note: onPhasePresetSelect also deep clones, but we pass cloned config anyway for safety
       const clonedConfig = deepClonePhaseConfig(settings.phaseConfig)!;
       context.onPhasePresetSelect(settings.selectedPhasePresetId, clonedConfig);
     } else if (!settings.selectedPhasePresetId && context.onPhasePresetRemove) {
-      console.log('[ApplySettings] 🗑️  Clearing preset (task had no preset selected)');
       context.onPhasePresetRemove();
     }
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping phase preset ID (undefined)');
   }
   
   // Apply turbo mode
   if (settings.turboMode !== undefined && context.onTurboModeChange) {
-    console.log('[ApplySettings] ⚡ Applying turbo mode:', {
-      from: context.turboMode,
-      to: settings.turboMode
-    });
     context.onTurboModeChange(settings.turboMode);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping turbo mode (undefined or no handler)');
   }
   
   // Apply enhance prompt
   if (settings.enhancePrompt !== undefined && context.onEnhancePromptChange) {
-    console.log('[ApplySettings] ✨ Applying enhance prompt:', {
-      from: context.enhancePrompt,
-      to: settings.enhancePrompt
-    });
     context.onEnhancePromptChange(settings.enhancePrompt);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping enhance prompt (undefined or no handler)');
   }
   
   return { success: true, settingName: 'advancedMode' };
@@ -499,24 +404,12 @@ export const applyTextPromptAddons = async (
 ): Promise<ApplyResult> => {
   // Apply text before prompts
   if (settings.textBeforePrompts !== undefined && context.onTextBeforePromptsChange) {
-    console.log('[ApplySettings] 📝 Applying text before prompts:', {
-      from: context.textBeforePrompts ? `"${context.textBeforePrompts.substring(0, 30)}..."` : '(empty)',
-      to: settings.textBeforePrompts ? `"${settings.textBeforePrompts.substring(0, 30)}..."` : '(empty)'
-    });
     context.onTextBeforePromptsChange(settings.textBeforePrompts);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping text before prompts (undefined or no handler)');
   }
   
   // Apply text after prompts
   if (settings.textAfterPrompts !== undefined && context.onTextAfterPromptsChange) {
-    console.log('[ApplySettings] 📝 Applying text after prompts:', {
-      from: context.textAfterPrompts ? `"${context.textAfterPrompts.substring(0, 30)}..."` : '(empty)',
-      to: settings.textAfterPrompts ? `"${settings.textAfterPrompts.substring(0, 30)}..."` : '(empty)'
-    });
     context.onTextAfterPromptsChange(settings.textAfterPrompts);
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping text after prompts (undefined or no handler)');
   }
   
   return { success: true, settingName: 'textAddons' };
@@ -528,16 +421,8 @@ export const applyMotionSettings = async (
 ): Promise<ApplyResult> => {
   // Only apply if NOT in advanced mode
   if (settings.amountOfMotion !== undefined && !settings.advancedMode && context.onAmountOfMotionChange) {
-    console.log('[ApplySettings] 🎢 Applying amount of motion:', {
-      from: context.amountOfMotion,
-      to: settings.amountOfMotion * 100,
-      rawValue: settings.amountOfMotion
-    });
     context.onAmountOfMotionChange(settings.amountOfMotion * 100);
   } else if (settings.advancedMode) {
-    console.log('[ApplySettings] ⏭️  Skipping amount of motion (advanced mode enabled)');
-  } else {
-    console.log('[ApplySettings] ⏭️  Skipping amount of motion (undefined or no handler)');
   }
   
   return { success: true, settingName: 'motion' };
@@ -549,25 +434,12 @@ export const applyLoRAs = async (
 ): Promise<ApplyResult> => {
   // Only apply if NOT in advanced mode
   if (settings.loras === undefined || settings.advancedMode) {
-    if (settings.advancedMode) {
-      console.log('[ApplySettings] ⏭️  Skipping LoRAs (advanced mode enabled)');
-    } else {
-      console.log('[ApplySettings] ⏭️  Skipping LoRAs (undefined)');
-    }
     return { success: true, settingName: 'loras', details: 'skipped' };
   }
   
   if (settings.loras && settings.loras.length > 0) {
-    console.log('[ApplySettings] 🎨 Applying LoRAs from task:', {
-      lorasCount: settings.loras.length,
-      loras: settings.loras.map(l => ({
-        path: l.path.split('/').pop(),
-        strength: l.strength
-      }))
-    });
     
     // Clear existing LoRAs first
-    console.log('[ApplySettings] 🗑️  Clearing existing LoRAs...');
     if (context.loraManager.setSelectedLoras) {
       context.loraManager.setSelectedLoras([]);
     }
@@ -575,7 +447,6 @@ export const applyLoRAs = async (
     // Map paths to available LoRAs and restore them (with delay to ensure state is cleared)
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log('[ApplySettings] 🔍 Matching and adding LoRAs...');
         let matchedCount = 0;
         
         settings.loras!.forEach(loraData => {
@@ -587,29 +458,15 @@ export const applyLoRAs = async (
           });
           
           if (matchingLora) {
-            console.log('[ApplySettings] ✅ Matched and adding LoRA:', {
-              id: matchingLora['Model ID'],
-              name: matchingLora.Name,
-              strength: loraData.strength,
-              path: loraData.path.split('/').pop()
-            });
             context.loraManager.handleAddLora(matchingLora, false, loraData.strength);
             matchedCount++;
-          } else {
-            console.warn('[ApplySettings] ⚠️  Could not find matching LoRA for path:', loraData.path.split('/').pop());
           }
-        });
-        
-        console.log('[ApplySettings] ✅ LoRAs applied successfully:', {
-          matched: matchedCount,
-          total: settings.loras!.length
         });
         
         resolve({ success: true, settingName: 'loras', details: `${matchedCount}/${settings.loras!.length} matched` });
       }, 100); // Small delay to ensure state clears
     });
   } else {
-    console.log('[ApplySettings] 🗑️  Clearing LoRAs (empty array in task)');
     if (context.loraManager.setSelectedLoras) {
       context.loraManager.setSelectedLoras([]);
     }
@@ -631,7 +488,6 @@ export const applyStructureVideo = async (
   }
   
   if (settings.structureVideoPath) {
-    console.log('[ApplySettings] 🎥 Applying structure video');
     
     if (!context.handleStructureVideoChange) {
       console.error('[ApplySettings] ❌ handleStructureVideoChange is not defined!');
@@ -643,7 +499,6 @@ export const applyStructureVideo = async (
       try {
         metadata = await extractVideoMetadataFromUrl(settings.structureVideoPath);
       } catch (metadataError) {
-        console.warn('[ApplySettings] ⚠️ Failed to extract metadata, proceeding without it');
       }
       
       context.handleStructureVideoChange(
@@ -661,7 +516,6 @@ export const applyStructureVideo = async (
       return { success: false, settingName: 'structureVideo', error: errorMessage };
     }
   } else {
-    console.log('[ApplySettings] 🗑️ Clearing structure video');
     if (context.handleStructureVideoChange) {
       context.handleStructureVideoChange(null, null, 'adjust', 1.0, 'flow');
     }
@@ -684,12 +538,10 @@ export const applyFramePositionsToExistingImages = async (
   const hasSegmentGaps = Array.isArray(segmentGaps) && segmentGaps.length > 0;
   
   if (!hasSegmentGaps) {
-    console.log('[ApplySettings] ⏭️  No segment_frames_expanded to apply to existing images');
     return { success: true, settingName: 'framePositions', details: 'no data' };
   }
   
   if (!selectedShot?.id) {
-    console.log('[ApplySettings] ⏭️  Cannot apply frame positions: missing shot');
     return { success: true, settingName: 'framePositions', details: 'skipped - no shot' };
   }
   
@@ -700,20 +552,11 @@ export const applyFramePositionsToExistingImages = async (
     cumulativePositions.push(prevPosition + segmentGaps[i]);
   }
   
-  console.log('[ApplySettings] 📐 Applying frame positions to existing images:', {
-    shotId: selectedShot.id.substring(0, 8),
-    imageCount: simpleFilteredImages.length,
-    segmentGaps,
-    cumulativePositions: cumulativePositions.slice(0, simpleFilteredImages.length),
-    positionsToApply: Math.min(simpleFilteredImages.length, cumulativePositions.length)
-  });
-  
   try {
     // Update timeline_frame for each image
     const updates = simpleFilteredImages.map(async (img, index) => {
       // img.id is the shot_generations.id
       if (!img.id) {
-        console.warn('[ApplySettings] ⚠️  Skipping image without id:', index);
         return null;
       }
       
@@ -721,14 +564,6 @@ export const applyFramePositionsToExistingImages = async (
       const newTimelineFrame = index < cumulativePositions.length 
         ? cumulativePositions[index]
         : cumulativePositions[cumulativePositions.length - 1] + (index - cumulativePositions.length + 1) * (segmentGaps[segmentGaps.length - 1] || 60);
-      
-      console.log('[ApplySettings] 🎯 Updating timeline_frame:', {
-        index,
-        id: img.id.substring(0, 8), // shot_generations.id
-        oldTimelineFrame: img.timeline_frame,
-        newTimelineFrame,
-        source: index < cumulativePositions.length ? 'cumulative position' : 'extrapolated'
-      });
       
       const { error } = await supabase
         .from('shot_generations')
@@ -745,12 +580,6 @@ export const applyFramePositionsToExistingImages = async (
     
     const results = await Promise.all(updates);
     const successCount = results.filter(r => r !== null).length;
-    
-    console.log('[ApplySettings] ✅ Frame positions applied:', {
-      total: simpleFilteredImages.length,
-      success: successCount,
-      failed: simpleFilteredImages.length - successCount
-    });
     
     return {
       success: true,
@@ -781,13 +610,11 @@ export const replaceImagesIfRequested = async (
   removeImageFromShotMutation: { mutateAsync: (params: Record<string, unknown>) => Promise<unknown> }
 ): Promise<ApplyResult> => {
   if (!replaceImages) {
-    console.log('[ApplySettings] ⏭️  Skipping image replacement (replaceImages = false)');
     // NEW: Apply frame positions to existing images even when not replacing
     return await applyFramePositionsToExistingImages(settings, selectedShot, simpleFilteredImages);
   }
   
   if (!selectedShot?.id || !projectId) {
-    console.log('[ApplySettings] ⏭️  Skipping image replacement (missing shot or project)');
     return { success: true, settingName: 'images', details: 'skipped - missing context' };
   }
   
@@ -796,33 +623,13 @@ export const replaceImagesIfRequested = async (
     ? inputImages 
     : (settings.inputImages || []);
   
-  console.log('[ApplySettings] 🖼️  === REPLACING IMAGES ===', {
-    shotId: selectedShot.id.substring(0, 8),
-    existingImagesCount: simpleFilteredImages.length,
-    passedImagesCount: inputImages.length,
-    settingsImagesCount: settings.inputImages?.length || 0,
-    effectiveImagesCount: effectiveInputImages.length,
-    usingSource: inputImages.length > 0 ? 'passed array' : 'settings.inputImages',
-    effectiveImageUrls: effectiveInputImages.map((u: string) => u.substring(u.lastIndexOf('/') + 1).substring(0, 30)),
-  });
-  
   if (effectiveInputImages.length === 0) {
-    console.warn('[ApplySettings] ⚠️ No input images to add! Both passed array and settings.inputImages are empty');
     return { success: false, settingName: 'images', error: 'No input images available' };
   }
   
   try {
     // Remove existing non-video images (only those with id)
     const imagesToDelete = simpleFilteredImages.filter(img => !!img.id);
-    console.log('[ApplySettings] 🗑️  Removing existing images:', {
-      count: imagesToDelete.length,
-      totalImages: simpleFilteredImages.length,
-      skippedWithoutId: simpleFilteredImages.length - imagesToDelete.length
-    });
-    
-    if (imagesToDelete.length < simpleFilteredImages.length) {
-      console.warn('[ApplySettings] ⚠️  Some images missing shotImageEntryId, cannot delete them. May need to wait for Phase 2 loading.');
-    }
     
     const deletions = imagesToDelete.map(img => removeImageFromShotMutation.mutateAsync({
       shotId: selectedShot.id,
@@ -832,7 +639,6 @@ export const replaceImagesIfRequested = async (
     
     if (deletions.length > 0) {
       await Promise.allSettled(deletions);
-      console.log('[ApplySettings] ✅ Existing images removed');
     }
     
     // Calculate timeline positions from segment_frames_expanded array
@@ -854,17 +660,7 @@ export const replaceImagesIfRequested = async (
     // Fallback to uniform spacing if no segment_frames_expanded
     const uniformSpacing = settings.frames || 60;
     
-    console.log('[ApplySettings] 📐 Calculating timeline positions:', {
-      hasSegmentGaps,
-      segmentGaps,
-      cumulativePositions,
-      uniformSpacingFallback: !hasSegmentGaps ? uniformSpacing : 'not used',
-      imageCount: effectiveInputImages.length,
-      extractedFrom: hasSegmentGaps ? 'task segment_frames_expanded' : (settings.frames ? 'task frames (uniform)' : 'default fallback')
-    });
-    
     // Look up generation IDs for all input image URLs
-    console.log('[ApplySettings] 🔍 Looking up generation IDs for input images...');
     const { data: generationLookup, error: lookupError } = await supabase
       .from('generations')
       .select('id, location, thumbnail_url')
@@ -882,14 +678,6 @@ export const replaceImagesIfRequested = async (
       }
     });
     
-    console.log('[ApplySettings] 📋 Generation lookup results:', {
-      inputImagesCount: effectiveInputImages.length,
-      foundGenerationsCount: urlToGeneration.size,
-      missingCount: effectiveInputImages.length - urlToGeneration.size,
-      foundUrls: Array.from(urlToGeneration.keys()).map(u => u.substring(u.lastIndexOf('/') + 1, u.lastIndexOf('/') + 30)),
-      missingUrls: effectiveInputImages.filter((u: string) => !urlToGeneration.has(u)).map((u: string) => u.substring(u.lastIndexOf('/') + 1, u.lastIndexOf('/') + 30)),
-    });
-    
     // Add input images in order with calculated timeline_frame positions
     const additions = effectiveInputImages.map((url: string, index: number) => {
       // Use cumulative position if available, otherwise fall back to uniform spacing
@@ -901,22 +689,8 @@ export const replaceImagesIfRequested = async (
       const generation = urlToGeneration.get(url);
       
       if (!generation) {
-        console.warn('[ApplySettings] ⚠️ No generation found for URL, skipping:', {
-          index,
-          filename: url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 30) + '...',
-        });
         return Promise.resolve(); // Skip this image
       }
-      
-      console.log('[ApplySettings] ➕ Adding image:', {
-        index,
-        generationId: generation.id.substring(0, 8),
-        filename: url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20) + '...',
-        timelineFrame,
-        calculation: hasSegmentGaps 
-          ? `cumulative position from gaps: ${cumulativePositions[index]}` 
-          : `uniform spacing: ${index} × ${uniformSpacing} = ${timelineFrame}`
-      });
       
       return addImageToShotMutation.mutateAsync({
         shot_id: selectedShot.id,
@@ -930,7 +704,6 @@ export const replaceImagesIfRequested = async (
     
     if (additions.length > 0) {
       await Promise.allSettled(additions);
-      console.log('[ApplySettings] ✅ New images added');
     }
     
     return {

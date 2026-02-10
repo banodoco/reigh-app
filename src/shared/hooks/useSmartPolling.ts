@@ -106,9 +106,6 @@ function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
       // 🎯 OPTIMIZATION: Only re-render if the calculated polling interval actually changes
       const currentInterval = dataFreshnessManager.getPollingInterval(queryKeyRef.current);
       if (lastIntervalRef.current !== currentInterval) {
-        if (debug) {
-          console.log(`[SmartPolling] 🔄 Polling interval changed for ${queryKeyString}: ${lastIntervalRef.current} -> ${currentInterval}`);
-        }
         // 🎯 THROTTLE: Batch rapid updates into a single re-render
         if (!pendingUpdateRef.current) {
           pendingUpdateRef.current = true;
@@ -193,27 +190,9 @@ function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
       diagnostics
     };
 
-    console.log(`[SmartPolling] 📊 Config for query ${JSON.stringify(queryKey)}:`, {
-      refetchInterval: finalInterval,
-      staleTime,
-      isDataFresh,
-      realtimeStatus: result.realtimeStatus,
-      pollingReason,
-      lastEventAge: queryAge?.ageMs,
-      freshnessManagerInterval: pollingInterval,
-      // [MobileHeatDebug] Show mobile-specific info
-      isMobile,
-      mobileMultiplier
-    });
   }
   
   // [MobileHeatDebug] Log aggressive polling on mobile for debugging
-  if (isMobile && finalInterval !== false && finalInterval < 60000) {
-    console.log(`[MobileHeatDebug] ⚠️ Active polling on mobile: ${finalInterval}ms for ${queryKey.join(':')}`, {
-      pollingReason,
-      realtimeStatus: result.realtimeStatus
-    });
-  }
 
   return result;
 }

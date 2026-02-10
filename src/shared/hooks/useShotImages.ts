@@ -37,8 +37,7 @@
 
 import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
-import { GenerationRow, Shot } from '@/types/shots';
+import { GenerationRow } from '@/types/shots';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import React from 'react';
@@ -116,10 +115,6 @@ const useAllShotGenerations = (
     // the previous shot's images would briefly appear as "placeholder" data
     queryFn: async ({ signal }) => {
       const startTime = Date.now();
-      console.log('[DataTrace] 🔍 NETWORK FETCH START - all-shot-generations:', {
-        shotId: stableShotId?.substring(0, 8),
-        timestamp: startTime
-      });
 
       // Query shot_generations with embedded generations data + primary variant
       // NOTE: Must specify FK explicitly to avoid ambiguous relationship error (PGRST201)
@@ -164,13 +159,6 @@ const useAllShotGenerations = (
         throw response.error;
       }
 
-      console.log('[PositionTrace] NETWORK FETCH from shot_generations:', {
-        shotId: stableShotId?.substring(0, 8),
-        rowCount: response.data?.length ?? 0,
-        allFrames: response.data?.map(r => ({ id: r.id?.substring(0, 8), frame: r.timeline_frame })),
-        timestamp: Date.now()
-      });
-
       // Transform to standardized GenerationRow format using shared mapper
       const baseResult: GenerationRow[] = (response.data || [])
         .map(mapShotGenerationToRow)
@@ -192,20 +180,6 @@ const useAllShotGenerations = (
       });
       const duplicateGenIds = Array.from(genIdCounts.entries()).filter(([_, count]) => count > 1);
       
-      console.log('[AddFlicker] 6️⃣ QUERY FETCH COMPLETE - all-shot-generations returned', { 
-        shotId: stableShotId?.substring(0, 8), 
-        resultCount: result.length,
-        duration: `${duration}ms`,
-        hasOptimistic: result.some(r => r.isOptimistic),
-        // Show last 3 items for debugging
-        lastItems: result.slice(-3).map(r => ({
-          id: r.id?.substring(0, 8),
-          generation_id: r.generation_id?.substring(0, 8),
-          timeline_frame: r.timeline_frame,
-          isOptimistic: r.isOptimistic
-        })),
-      });
-
       return result;
     },
     retryDelay: STANDARD_RETRY_DELAY,
@@ -261,40 +235,12 @@ export const useTimelineImages = (
       .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
 
     // [SelectorDebug] THE GOD LOG - See exactly what's inside the data
-    if (baseQuery.data.length > 0) {
-      console.log('[SelectorDebug] RAW DATA SAMPLE (First Item):', {
-        raw: baseQuery.data[0],
-        id: baseQuery.data[0]?.id,
-        timeline_frame: baseQuery.data[0]?.timeline_frame,
-        type: baseQuery.data[0]?.type,
-        location: baseQuery.data[0]?.imageUrl || baseQuery.data[0]?.location,
-        keys: Object.keys(baseQuery.data[0]),
-        isFilteredOut: result.length === 0 || !result.some(r => r.id === baseQuery.data[0].id)
-      });
-    }
 
     // [SelectorDebug] Log filtering results with WHY items were filtered
     const filteredOut = baseQuery.data.filter(g => {
       const location = g.imageUrl || g.location;
       const hasValidLocation = location && location !== '/placeholder.svg';
       return g.timeline_frame == null || g.timeline_frame < 0 || g.type?.includes('video') || !hasValidLocation;
-    });
-    console.log('[SelectorDebug] useTimelineImages filtered:', {
-      shotId: shotId?.substring(0, 8),
-      inputCount: baseQuery.data.length,
-      outputCount: result.length,
-      outputIds: result.slice(0, 5).map(r => r.id?.substring(0, 8)),
-      frames: result.slice(0, 5).map(r => r.timeline_frame),
-      // Show WHY items were filtered out
-      filteredOutCount: filteredOut.length,
-      filteredOutReasons: filteredOut.slice(0, 5).map(g => ({
-        id: g.id?.substring(0, 8),
-        timeline_frame: g.timeline_frame,
-        isNull: g.timeline_frame == null,
-        isNegative: g.timeline_frame != null && g.timeline_frame < 0,
-        isVideo: g.type?.includes('video'),
-        hasNoLocation: !(g.imageUrl || g.location) || (g.imageUrl || g.location) === '/placeholder.svg',
-      })),
     });
 
     return result;
@@ -389,25 +335,9 @@ const usePrimeShotGenerationsCache = (
                       contextImages.length > 0 && 
                       (!existingData || existingData.length === 0);
 
-    console.log('[SelectorDebug] usePrimeShotGenerationsCache check:', {
-      shotId: shotId?.substring(0, 8),
-      contextImagesCount: contextImages?.length ?? 0,
-      existingCacheCount: existingData?.length ?? 0,
-      willPrime,
-      contextImageIds: contextImages?.slice(0, 3).map(i => i.id?.substring(0, 8)),
-      contextImageFrames: contextImages?.slice(0, 5).map(i => i.timeline_frame),
-      existingCacheIds: existingData?.slice(0, 3).map(i => i.id?.substring(0, 8)),
-      existingCacheFrames: existingData?.slice(0, 5).map(i => i.timeline_frame),
-    });
-    
     if (!willPrime) {
       if (shotId && !existingData) {
-        console.log('[SelectorDebug] ⏳ Cache NOT primed - contextImages is empty or missing, waiting for real query');
       } else if (shotId) {
-        console.log('[SelectorDebug] ⏩ Cache NOT primed - already has data or invalid conditions:', {
-          shotId: shotId.substring(0, 8),
-          existingCount: existingData?.length,
-        });
       }
       return;
     }
@@ -415,11 +345,6 @@ const usePrimeShotGenerationsCache = (
     // Prime the cache with context data
     queryClient.setQueryData(queryKeys.generations.byShot(shotId!), contextImages);
     
-    console.log('[SelectorDebug] ✅ Cache PRIMED from context:', {
-      shotId: shotId.substring(0, 8),
-      imageCount: contextImages.length,
-      imageIds: contextImages.slice(0, 5).map(i => i.id?.substring(0, 8)),
-    });
   }, [shotId, contextImages, queryClient]);
 };
 

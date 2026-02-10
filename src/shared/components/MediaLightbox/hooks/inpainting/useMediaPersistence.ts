@@ -122,13 +122,7 @@ export function useMediaPersistence({
         savedAt: Date.now()
       };
       localStorage.setItem(storageKey, JSON.stringify(data));
-      console.log('[Inpaint] Saved to localStorage', {
-        storageKey: storageKey.substring(0, 30),
-        inpaintCount: inpaintStrokes.length,
-        annotationCount: annotationStrokes.length
-      });
     } catch (e) {
-      console.warn('[Inpaint] Save failed (localStorage full or disabled?)', e);
     }
   }, [inpaintStrokes, annotationStrokes, inpaintPrompt, inpaintNumGenerations, brushSize, isInpaintMode, storageKey]);
 
@@ -144,11 +138,6 @@ export function useMediaPersistence({
     const oldMediaId = prevMediaIdRef.current;
     const newMediaId = media.id;
     const newActualGenerationId = getGenerationId(media);
-
-    console.log('[Media] Media switching', {
-      from: oldMediaId.substring(0, 8),
-      to: newMediaId.substring(0, 8),
-    });
 
     // Cancel any pending transition completion callback from previous switch
     if (transitionRafRef.current !== null) {
@@ -174,11 +163,6 @@ export function useMediaPersistence({
         numGenerations: inpaintNumGenerations,
         brushSize,
       });
-      console.log('[Media] Cached state for old media', {
-        mediaId: oldMediaId.substring(0, 8),
-        inpaintCount: inpaintStrokes.length,
-        annotationCount: annotationStrokes.length
-      });
     }
 
     // 2. Clear stroke state immediately (prevents stale strokes from rendering)
@@ -188,11 +172,6 @@ export function useMediaPersistence({
     // 3. Try to load from in-memory cache first (instant, no flicker)
     const cached = mediaStrokeCacheRef.current.get(newMediaId);
     if (cached) {
-      console.log('[Media] Loaded from in-memory cache', {
-        mediaId: newMediaId.substring(0, 8),
-        inpaintCount: cached.inpaintStrokes.length,
-        annotationCount: cached.annotationStrokes.length
-      });
       setInpaintStrokes(cached.inpaintStrokes);
       setAnnotationStrokes(cached.annotationStrokes);
       setInpaintPrompt(cached.prompt);
@@ -215,14 +194,8 @@ export function useMediaPersistence({
 
           hydratedMediaIdsRef.current.add(storageKey);
 
-          console.log('[Media] Loaded from localStorage', {
-            storageKey: storageKey.substring(0, 30),
-            inpaintCount: loadedInpaintStrokes.length,
-            annotationCount: loadedAnnotationStrokes.length
-          });
         }
       } catch (e) {
-        console.warn('[Media] Failed to load from localStorage', e);
       }
     }
 
@@ -269,7 +242,6 @@ export function useMediaPersistence({
     transitionRafRef.current = requestAnimationFrame(() => {
       if (prevMediaIdRef.current === newMediaId) {
         isMediaTransitioningRef.current = false;
-        console.log('[Media] Transition complete', { mediaId: newMediaId.substring(0, 8) });
       }
       transitionRafRef.current = null;
     });
@@ -281,10 +253,6 @@ export function useMediaPersistence({
   // ============================================
   useEffect(() => {
     if (prevStorageKeyRef.current !== storageKey) {
-      console.log('[Inpaint] Variant changed, reloading strokes', {
-        oldKey: prevStorageKeyRef.current.substring(0, 30),
-        newKey: storageKey.substring(0, 30)
-      });
 
       // Save current strokes to old key before switching
       if (isInpaintMode && (inpaintStrokes.length > 0 || annotationStrokes.length > 0)) {
@@ -298,9 +266,7 @@ export function useMediaPersistence({
             savedAt: Date.now()
           };
           localStorage.setItem(prevStorageKeyRef.current, JSON.stringify(data));
-          console.log('[Inpaint] Saved strokes for previous variant');
         } catch (e) {
-          console.warn('[Inpaint] Failed to save strokes before variant switch', e);
         }
       }
 
@@ -314,14 +280,11 @@ export function useMediaPersistence({
 
           setInpaintStrokes(loadedInpaintStrokes);
           setAnnotationStrokes(loadedAnnotationStrokes);
-          console.log('[Inpaint] Loaded strokes for new variant');
         } else {
           setInpaintStrokes([]);
           setAnnotationStrokes([]);
-          console.log('[Inpaint] No strokes saved for new variant, starting fresh');
         }
       } catch (e) {
-        console.warn('[Inpaint] Failed to load strokes for new variant', e);
         setInpaintStrokes([]);
         setAnnotationStrokes([]);
       }

@@ -57,18 +57,15 @@ export const IncomingTasksProvider: React.FC<{ children: React.ReactNode }> = ({
       startedAt: new Date(),
     };
 
-    console.log('[IncomingTasks] Adding incoming task:', newTask);
     setIncomingTasks(prev => [newTask, ...prev]);
     return id;
   }, []);
 
   const removeIncomingTask = useCallback((id: string) => {
-    console.log('[IncomingTasks] Removing incoming task:', id);
     setIncomingTasks(prev => prev.filter(task => task.id !== id));
   }, []);
 
   const completeIncomingTask = useCallback((id: string, newBaseline: number) => {
-    console.log('[IncomingTasks] Completing incoming task:', id, 'new baseline for remaining:', newBaseline);
     setIncomingTasks(prev =>
       prev
         .filter(task => task.id !== id)  // Remove completed task
@@ -92,7 +89,6 @@ export const IncomingTasksProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         if (staleTasks.length > 0) {
-          console.log('[IncomingTasks] Auto-removing stale tasks:', staleTasks.map(t => t.id));
           return prev.filter(task => {
             const ageSeconds = (now.getTime() - task.startedAt.getTime()) / 1000;
             return ageSeconds <= STALE_TASK_TIMEOUT_SECONDS;

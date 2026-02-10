@@ -111,7 +111,6 @@ export const useImg2ImgMode = ({
     if (img2imgPrompt && img2imgPrompt.trim().length > 0) return;
     if (!baseGenerationPrompt) return;
 
-    console.log('[EDIT_DEBUG] 🖼️ Img2Img: defaulting prompt from base generation prompt');
     setImg2imgPrompt(baseGenerationPrompt);
   }, [img2imgPromptHasBeenSet, img2imgPrompt, baseGenerationPrompt, setImg2imgPrompt]);
 
@@ -145,7 +144,6 @@ export const useImg2ImgMode = ({
 
     // Prevent double-submits
     if (isSubmittingRef.current) {
-      console.log('[Img2Img] Already submitting, ignoring');
       return;
     }
 
@@ -166,19 +164,6 @@ export const useImg2ImgMode = ({
       // Use active variant's location if editing a variant, otherwise use sourceUrlForTasks
       const effectiveImageUrl = activeVariantLocation || sourceUrlForTasks;
 
-      console.log('[Img2Img] Starting generation...', {
-        mediaId: media.id,
-        prompt: img2imgPrompt,
-        strength: img2imgStrength,
-        enablePromptExpansion,
-        numGenerations,
-        loraCount: loras.length,
-        activeVariantLocation: activeVariantLocation?.substring(0, 50),
-        sourceUrlForTasks: sourceUrlForTasks?.substring(0, 50),
-        effectiveImageUrl: effectiveImageUrl?.substring(0, 50),
-        isUsingVariant: !!activeVariantLocation,
-      });
-
       // Get actual generation ID (handle shot_generations case)
       const actualGenerationId = getGenerationId(media);
 
@@ -197,8 +182,6 @@ export const useImg2ImgMode = ({
         tool_type: toolTypeOverride,
         shot_id: shotId,
       });
-
-      console.log('[Img2Img] ✅ Tasks created successfully');
 
       // Show success state
       setImg2imgGenerateSuccess(true);

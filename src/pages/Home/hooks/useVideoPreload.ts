@@ -21,16 +21,11 @@ export const useVideoPreload = ({ showPhilosophy, videoUrl }: UseVideoPreloadPro
         // Ensure cross-origin preloading works for public Supabase storage
         link.crossOrigin = 'anonymous';
         document.head.appendChild(link);
-        console.log('[VideoLoadSpeedIssue] Added <link rel="preload" as="video">', link.href);
       } else if (link.href !== videoUrl) {
         link.href = videoUrl;
-        console.log('[VideoLoadSpeedIssue] Updated preload link to', link.href);
       }
     } catch (e) {
-      console.log('[VideoLoadSpeedIssue] Failed to add preload link', e);
     }
   }, [showPhilosophy, videoUrl]);
 };
-
-
 

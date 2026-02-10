@@ -44,10 +44,6 @@ export function useMobileVideoPreload(
 
     // Log errors for debugging
     const handleError = () => {
-      console.warn('[MobilePreload] Video preload failed', {
-        videoId: video.id?.substring(0, 8),
-        error: preloadVideo.error,
-      });
     };
 
     preloadVideo.addEventListener('error', handleError);

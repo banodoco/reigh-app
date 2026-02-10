@@ -28,11 +28,6 @@ import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props) => {
   const isMobile = useIsMobile();
   
-  console.log('[DataTrace] 🎯 ShotImageManager received props.images:', {
-    count: props.images?.length || 0,
-    imageIds: props.images?.map(img => (img.shotImageEntryId ?? img.id)?.substring(0, 8)) || [],
-  });
-  
   // ============================================================================
   // HOOK INITIALIZATION (MUST BE BEFORE ANY EARLY RETURNS)
   // ============================================================================
@@ -124,20 +119,11 @@ export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props
   const handleSegmentClick = useCallback((slotIndex: number) => {
     const slot = segmentSlots[slotIndex];
 
-    console.log('[SegmentClick] 🔵 ShotImageManagerContainer.handleSegmentClick:', {
-      slotIndex,
-      slotPairIndex: slot?.index,
-      hasOnPairClick: !!props.onPairClick,
-      segmentSlotsLength: segmentSlots.length,
-    });
-
     // Use unified segment slot lightbox when available (enables navigation to slots without videos)
     if (props.onPairClick && slot) {
-      console.log('[SegmentClick] 🔵 Calling props.onPairClick with pairIndex:', slot.index);
       props.onPairClick(slot.index);
     } else {
       // Fallback to local lightbox
-      console.log('[SegmentClick] 🔵 Fallback: using local lightbox with slotIndex:', slotIndex);
       setSegmentLightboxIndex(slotIndex);
     }
   }, [segmentSlots, props.onPairClick]);
@@ -220,18 +206,7 @@ export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props
   // CONDITIONAL RENDERING (SAFE NOW THAT ALL HOOKS ARE CALLED)
   // ============================================================================
   
-  console.log(`[DEBUG] Checking images condition - images.length=${props.images?.length} selectedIds.length=${selection.selectedIds.length}`);
-  
-  console.log('[DataTrace] 🎨 ShotImageManager about to render:', {
-    propsImages: props.images?.length || 0,
-    optimisticOrder: optimistic.optimisticOrder.length,
-    lightboxCurrentImages: lightbox.currentImages.length,
-    isOptimisticUpdate: optimistic.isOptimisticUpdate,
-    displayingWhich: optimistic.isOptimisticUpdate ? 'optimistic' : 'props',
-  });
-  
   if (!props.images || props.images.length === 0) {
-    console.log(`[DEBUG] EARLY RETURN - No images`);
     return (
       <EmptyState
         onImageUpload={props.onImageUpload}
@@ -245,10 +220,7 @@ export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props
     );
   }
   
-  console.log(`[DEBUG] Checking mobile condition - isMobile=${isMobile} generationMode=${props.generationMode} selectedIds.length=${selection.selectedIds.length}`);
-  
   if (isMobile && props.generationMode === 'batch') {
-    console.log(`[DEBUG] EARLY RETURN - Using dedicated mobile component`);
     return (
       <>
         <ShotImageManagerMobileWrapper

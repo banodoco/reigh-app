@@ -73,7 +73,6 @@ export function useMarkVariantViewed() {
       }
     },
     onSuccess: ({ variantId }) => {
-      console.log('[useMarkVariantViewed] Marked as viewed:', variantId.substring(0, 8));
 
       // Invalidate variant-level queries (VariantSelector)
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantsAll });
@@ -133,7 +132,6 @@ export function useMarkVariantViewed() {
       );
     },
     onSuccess: ({ generationId }) => {
-      console.log('[useMarkVariantViewed] Marked all viewed for:', generationId.substring(0, 8));
 
       // Invalidate variant-level queries
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantsAll });

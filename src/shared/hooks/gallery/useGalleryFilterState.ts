@@ -127,14 +127,8 @@ export function useGalleryFilterState({
 
   // Debug: Log on mount
   useEffect(() => {
-    console.log('[StableFilter] Hook mounted, initial state:', {
-      currentShotId: currentShotId?.substring(0, 8) ?? 'null',
-      selectedShotFilter,
-      isLoadingShotSettings,
-    });
 
     return () => {
-      console.log('[StableFilter] Hook unmounted');
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -176,11 +170,6 @@ export function useGalleryFilterState({
   const setFilterStateForShot = useCallback((shotId: string, filter: string, isUserOverride: boolean) => {
     filterStateMapRef.current.set(shotId, { filter, isUserOverride });
 
-    console.log('[StableFilter] Set filter state:', {
-      shotId: shotId?.substring(0, 8),
-      filter: filter === 'all' ? 'all' : filter?.substring(0, 8),
-      isUserOverride,
-    });
   }, []);
 
   // ============================================================================
@@ -194,16 +183,11 @@ export function useGalleryFilterState({
     // Check if we already have a user override in the map
     const existingState = filterStateMapRef.current.get(currentShotId);
     if (existingState?.isUserOverride) {
-      console.log('[StableFilter] Already have user override in map, skipping settings restore');
       return;
     }
 
     // Populate map from persisted settings if user had customized
     if (shotSettings?.userHasCustomized && shotSettings.selectedShotFilter) {
-      console.log('[StableFilter] Populating map from persisted settings:', {
-        shotId: currentShotId?.substring(0, 8),
-        filter: shotSettings.selectedShotFilter === 'all' ? 'all' : shotSettings.selectedShotFilter?.substring(0, 8),
-      });
 
       setFilterStateForShot(currentShotId, shotSettings.selectedShotFilter, true);
       // Also restore excludePositioned preference
@@ -217,35 +201,18 @@ export function useGalleryFilterState({
   // ============================================================================
 
   useEffect(() => {
-    console.log('[StableFilter] Effect running:', {
-      currentShotId: currentShotId?.substring(0, 8) ?? 'null',
-      hasInitialized: hasInitializedRef.current,
-      lastAppliedShotId: lastAppliedShotIdRef.current?.substring(0, 8) ?? 'null',
-      isLoadingShotSettings,
-      selectedShotFilter,
-    });
 
     // Don't apply defaults while per-shot settings are still loading.
     if (currentShotId && isLoadingShotSettings) {
-      console.log('[StableFilter] Shot changed but settings still loading - deferring filter apply:', {
-        shotId: currentShotId.substring(0, 8),
-      });
       return;
     }
 
     // Only run when the shot actually changes (or on initial load)
     if (hasInitializedRef.current && currentShotId === lastAppliedShotIdRef.current) {
-      console.log('[StableFilter] Skipping - already initialized and shot unchanged');
       return;
     }
 
     const previousShotId = lastAppliedShotIdRef.current;
-
-    console.log('[StableFilter] Shot changed:', {
-      from: previousShotId?.substring(0, 8),
-      to: currentShotId?.substring(0, 8),
-      currentFilter: selectedShotFilter,
-    });
 
     if (!currentShotId) {
       // No shot selected - check for user override, otherwise default to 'no-shot'
@@ -254,10 +221,8 @@ export function useGalleryFilterState({
       let filterToApply: string;
       if (noShotViewState?.isUserOverride) {
         filterToApply = noShotViewState.filter;
-        console.log('[StableFilter] No current shot, using user override:', filterToApply);
       } else {
         filterToApply = SHOT_FILTER.NO_SHOT;
-        console.log('[StableFilter] No current shot, defaulting to "no-shot"');
       }
 
       setSelectedShotFilter(filterToApply);
@@ -279,19 +244,7 @@ export function useGalleryFilterState({
     let filterToApply = filterState.filter;
 
     if (isNavigatingBetweenShots && previousWasAll && !filterState.isUserOverride) {
-      console.log('[StableFilter] Preserving "all" filter during shot-to-shot navigation:', {
-        from: previousShotId?.substring(0, 8),
-        to: currentShotId?.substring(0, 8),
-        computedDefault: filterState.filter === SHOT_FILTER.ALL ? 'all' : filterState.filter?.substring(0, 8),
-        preserving: 'all',
-      });
       filterToApply = SHOT_FILTER.ALL;
-    } else {
-      console.log('[StableFilter] Applying filter for shot:', {
-        shotId: currentShotId?.substring(0, 8),
-        filter: filterState.filter === SHOT_FILTER.ALL ? 'all' : filterState.filter?.substring(0, 8),
-        isUserOverride: filterState.isUserOverride,
-      });
     }
 
     setSelectedShotFilter(filterToApply);
@@ -335,13 +288,6 @@ export function useGalleryFilterState({
         if (!existingState?.isUserOverride) {
           const newDefault = currentCount > 0 ? shot.id : SHOT_FILTER.ALL;
 
-          console.log('[StableFilter] Unpositioned count changed, updating default:', {
-            shotId: shot.id?.substring(0, 8),
-            oldCount: lastCount,
-            newCount: currentCount,
-            newDefault: newDefault === 'all' ? 'all' : 'shot',
-          });
-
           setFilterStateForShot(shot.id, newDefault, false);
 
           if (shot.id === currentShotId) {
@@ -373,16 +319,9 @@ export function useGalleryFilterState({
       };
       updateShotSettings('shot', updatedSettings);
 
-      console.log('[StableFilter] User changed filter (override):', {
-        shotId: currentShotId?.substring(0, 8),
-        newFilter: newShotFilter === SHOT_FILTER.ALL ? 'all' : newShotFilter?.substring(0, 8),
-      });
     } else {
       filterStateMapRef.current.set(NO_SHOT_VIEW_KEY, { filter: newShotFilter, isUserOverride: true });
 
-      console.log('[StableFilter] User changed filter in overall view (override):', {
-        newFilter: newShotFilter === SHOT_FILTER.ALL ? 'all' : (newShotFilter === SHOT_FILTER.NO_SHOT ? 'no-shot' : newShotFilter?.substring(0, 8)),
-      });
     }
 
     if (!isSpecialFilter(newShotFilter)) {
@@ -421,14 +360,6 @@ export function useGalleryFilterState({
       searchTerm: searchTerm.trim() || undefined,
     };
 
-    console.log('[SkeletonCountDebug] Filters changed:', {
-      shotId: computedFilters.shotId === undefined ? 'all' : computedFilters.shotId?.substring(0, 8),
-      excludePositioned: computedFilters.excludePositioned,
-      mediaType: computedFilters.mediaType,
-      starredOnly: computedFilters.starredOnly,
-      searchTerm: computedFilters.searchTerm,
-    });
-
     return computedFilters;
   }, [mediaType, toolType, selectedShotFilter, excludePositioned, starredOnly, searchTerm]);
 
@@ -445,12 +376,6 @@ export function useGalleryFilterState({
     if (lastKnown !== undefined) {
       const cappedLastKnown = Math.min(lastKnown, 60);
 
-      console.log('[SkeletonCountDebug] Using last known count:', {
-        shotId: selectedShotFilter === 'all' ? 'all' : selectedShotFilter?.substring(0, 8),
-        lastKnown,
-        cappedLastKnown,
-        source: 'cache',
-      });
       return cappedLastKnown;
     }
 
@@ -468,16 +393,6 @@ export function useGalleryFilterState({
       : shot.imageCount;
 
     const cappedCount = Math.min(count ?? 12, 60);
-
-    console.log('[SkeletonCountDebug] Using pre-computed count:', {
-      shotId: selectedShotFilter?.substring(0, 8),
-      excludePositioned,
-      allImagesCount,
-      noShotImagesCount,
-      rawCount: count,
-      cappedCount,
-      source: 'shotsData',
-    });
 
     return cappedCount;
   }, [selectedShotFilter, shotsData, excludePositioned, allImagesCount, noShotImagesCount]);
@@ -497,13 +412,6 @@ export function useGalleryFilterState({
   }, [selectedShotFilter, excludePositioned]);
 
   const applyQueryFallback = useCallback((data: QueryFallbackData, page: number) => {
-    console.log('[StableFilter] Query fallback effect running:', {
-      isLoading: data.isLoading,
-      isFetching: data.isFetching,
-      selectedShotFilter,
-      page,
-      total: data.total,
-    });
 
     // Update last known count when data is ready
     if (!data.isLoading && data.total !== undefined) {
@@ -512,9 +420,6 @@ export function useGalleryFilterState({
 
     // Only check when query has completed and we're filtering by a specific shot
     if (data.isLoading || data.isFetching || selectedShotFilter === SHOT_FILTER.ALL || page !== 1 || !data.hasResponse) {
-      console.log('[StableFilter] Query fallback - skipping (not ready or already all)', {
-        isLoading: data.isLoading, isFetching: data.isFetching, selectedShotFilter, page, hasResponse: data.hasResponse,
-      });
       return;
     }
 
@@ -523,7 +428,6 @@ export function useGalleryFilterState({
 
     // Check if this is a NEW result for this filter
     if (lastResult?.filter === selectedShotFilter && lastResult?.total === total) {
-      console.log('[StableFilter] Query fallback - skipping (same result as before)');
       return;
     }
 
@@ -535,17 +439,8 @@ export function useGalleryFilterState({
         : filterStateMapRef.current.get(selectedShotFilter);
 
       if (existingState?.isUserOverride) {
-        console.log('[StableFilter] Query returned 0 results but user intentionally selected this shot, keeping filter:', {
-          filter: selectedShotFilter?.substring(0, 8),
-          total,
-        });
         return;
       }
-
-      console.log('[StableFilter] Query returned 0 results, falling back to "all":', {
-        filter: selectedShotFilter?.substring(0, 8),
-        total,
-      });
 
       if (currentShotId) {
         setFilterStateForShot(currentShotId, SHOT_FILTER.ALL, false);
@@ -553,11 +448,6 @@ export function useGalleryFilterState({
 
       setSelectedShotFilter(SHOT_FILTER.ALL);
       lastAppliedFilterRef.current = SHOT_FILTER.ALL;
-    } else {
-      console.log('[StableFilter] Query fallback - has results, keeping filter:', {
-        filter: selectedShotFilter,
-        total,
-      });
     }
   }, [selectedShotFilter, currentShotId, setFilterStateForShot, updateLastKnownCount]);
 

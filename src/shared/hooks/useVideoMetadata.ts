@@ -36,16 +36,9 @@ export function useVideoMetadata(
   useEffect(() => {
     if (!providedMetadata && !isExtracting && !extractedMetadata) {
       setIsExtracting(true);
-      console.log('[useVideoMetadata] Extracting metadata from URL:', videoUrl.substring(0, 100) + '...');
 
       extractVideoMetadataFromUrl(videoUrl)
         .then((meta) => {
-          console.log('[useVideoMetadata] Metadata extracted:', {
-            duration: meta.duration_seconds,
-            frameRate: meta.frame_rate,
-            totalFrames: meta.total_frames,
-            dimensions: `${meta.width}x${meta.height}`,
-          });
           setExtractedMetadata(meta);
 
           if (onExtracted) {

@@ -67,7 +67,6 @@ export function useVideoFrameExtraction(
     // Skip if disabled or no metadata
     if (skip) return;
     if (!metadata) {
-      console.log('[useVideoFrameExtraction] Waiting for metadata...');
       return;
     }
 
@@ -87,12 +86,6 @@ export function useVideoFrameExtraction(
     video.load();
 
     const extractFrames = async () => {
-      console.log('[useVideoFrameExtraction] Starting extraction:', {
-        treatment,
-        totalFrames: metadata.total_frames,
-        sourceRange,
-        outputFrameCount,
-      });
       setIsExtracting(true);
 
       // Wait for video to be ready
@@ -205,7 +198,6 @@ export function useVideoFrameExtraction(
           setIsReady(true);
         }
         setIsExtracting(false);
-        console.log('[useVideoFrameExtraction] Extraction complete:', treatment, 'mode');
       } catch (error) {
         console.error('[useVideoFrameExtraction] Error:', error);
         setIsExtracting(false);

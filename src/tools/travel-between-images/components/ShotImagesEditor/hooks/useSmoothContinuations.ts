@@ -70,17 +70,11 @@ export function useSmoothContinuations({
 
     // Apply updates if any
     if (updates.length > 0) {
-      console.log('[SmoothContinuations] Compacting timeline gaps:', {
-        updatesCount: updates.length,
-        maxFrameLimit,
-        updates: updates.map(u => ({ id: u.id.substring(0, 8), newFrame: u.newFrame }))
-      });
 
       // Update each frame position
       Promise.all(
         updates.map(({ id, newFrame }) => updateTimelineFrame(id, newFrame))
       ).then(() => {
-        console.log('[SmoothContinuations] Timeline gaps compacted successfully');
       }).catch((err) => {
         handleError(err, { context: 'SmoothContinuations', showToast: false });
       });

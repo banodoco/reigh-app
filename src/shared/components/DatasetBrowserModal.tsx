@@ -176,11 +176,6 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
     };
     
     if (isOpen) {
-      console.log('[ResourceBrowser] 🚪 Modal opened:', {
-        resourceType,
-        hasOnResourceSelect: !!onResourceSelect,
-        hasOnImageSelect: !!onImageSelect,
-      });
       getUser();
     }
   }, [isOpen, onResourceSelect, onImageSelect, resourceType]);
@@ -274,7 +269,6 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
 
   // Handle toggling visibility of a resource
   const handleToggleVisibility = useCallback(async (resourceId: string, currentIsPublic: boolean) => {
-    console.log('[ResourceBrowser] 👁️ Toggling visibility:', { resourceId, currentIsPublic, newValue: !currentIsPublic });
     
     // Find the resource
     const resource = allResources.find(r => r.id === resourceId);
@@ -296,7 +290,6 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
         metadata: updatedMetadata as ResourceMetadata,
       });
       
-      console.log('[ResourceBrowser] ✅ Visibility toggled successfully');
     } catch (error) {
       handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to update visibility' });
     }
@@ -304,52 +297,34 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
 
   // Handle resource selection
   const handleResourceClick = useCallback(async (resource: Resource) => {
-    console.log('[ResourceBrowser] 🖱️ Item clicked:', {
-      resourceId: resource.id,
-      resourceType,
-      hasOnResourceSelect: !!onResourceSelect,
-      hasOnImageSelect: !!onImageSelect,
-      processingResource,
-    });
     
     if (processingResource) {
-      console.log('[ResourceBrowser] ⏸️ Already processing, ignoring click');
       return; // Prevent multiple clicks
     }
     
     setProcessingResource(resource.id);
     setSelectedResource(resource);
-    console.log('[ResourceBrowser] 🔄 Set processing state for resource:', resource.id);
 
     try {
       // If onResourceSelect is provided, use it directly (no re-upload)
       if (onResourceSelect) {
-        console.log('[ResourceBrowser] ✅ Using onResourceSelect (direct reference)');
         onResourceSelect(resource);
-        console.log('[ResourceBrowser] 📞 Called onResourceSelect, closing modal');
         onOpenChange(false);
       } else if (onImageSelect && !isVideoMode) {
-        console.log('[ResourceBrowser] 📤 Using onImageSelect (legacy upload flow)');
         // Legacy flow for images: convert to File for upload
         const metadata = resource.metadata as StyleReferenceMetadata;
         const imageUrl = metadata.styleReferenceImageOriginal;
         const filename = `${metadata.name.replace(/[^a-z0-9]/gi, '_')}.png`;
         
-        console.log('[ResourceBrowser] 🔄 Converting URL to File:', { imageUrl, filename });
         const file = await processImageUrl(imageUrl, filename);
         
-        console.log('[ResourceBrowser] ✅ File created, calling onImageSelect');
         onImageSelect([file]);
         
-        console.log('[ResourceBrowser] 📞 Called onImageSelect, closing modal');
         onOpenChange(false);
-      } else {
-        console.warn('[ResourceBrowser] ⚠️ No callback provided');
       }
     } catch (error) {
       handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to process selected resource' });
     } finally {
-      console.log('[ResourceBrowser] 🧹 Clearing processing state');
       setProcessingResource(null);
       setSelectedResource(null);
     }

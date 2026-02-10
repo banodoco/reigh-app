@@ -106,18 +106,6 @@ export function usePendingGenerationTasks(
           task_type: task.task_type,
         }));
 
-      console.log('[usePendingGenerationTasks] Query completed:', {
-        timestamp: queryStartTime,
-        generationId: generationId.substring(0, 8),
-        totalPending: data?.length || 0,
-        matchingCount: matchingTasks.length,
-        tasks: matchingTasks.map(t => ({
-          id: t.id.substring(0, 8),
-          status: t.status,
-          type: t.task_type,
-        })),
-      });
-
       return matchingTasks;
     },
     enabled: !!generationId && !!projectId,

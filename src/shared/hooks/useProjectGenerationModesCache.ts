@@ -56,7 +56,6 @@ const globalProjectGenerationModesCache = new ProjectGenerationModesCache();
  * Fetch all shot generation modes for a project
  */
 async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map<string, GenerationModeNormalized>> {
-  console.log('[ProjectGenerationModesCache] Fetching all shot generation modes for project:', projectId);
   
   // IMPORTANT:
   // This cache must match the effective settings resolution used by `useToolSettings`:
@@ -70,7 +69,6 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
   // Skip queries if user is not authenticated (e.g., on public share pages)
   // RLS will block these queries anyway, causing 406 errors
   if (!userId) {
-    console.debug('[ProjectGenerationModesCache] Skipping - no authenticated user');
     return new Map<string, GenerationModeNormalized>();
   }
 
@@ -80,12 +78,6 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
     supabase.from('shots').select('id, settings').eq('project_id', projectId),
   ]);
 
-  if (userResult.error && !userResult.error.message?.includes('No rows found')) {
-    console.warn('[ProjectGenerationModesCache] Error fetching user settings:', userResult.error);
-  }
-  if (projectResult.error && !projectResult.error.message?.includes('No rows found')) {
-    console.warn('[ProjectGenerationModesCache] Error fetching project settings:', projectResult.error);
-  }
   if (shotsResult.error) {
     console.error('[ProjectGenerationModesCache] Error fetching shot settings:', shotsResult.error);
     throw shotsResult.error;
@@ -108,17 +100,6 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
       // defaults not needed - normalizeGenerationMode handles undefined → 'timeline'
     });
     modes.set(shot.id, effectiveMode);
-  });
-  
-  console.log('[ProjectGenerationModesCache] Fetched generation modes:', {
-    projectId,
-    shotCount: modes.size,
-    batchCount: Array.from(modes.values()).filter(m => m === 'batch').length,
-    timelineCount: Array.from(modes.values()).filter(m => m === 'timeline').length,
-    modeBreakdown: Object.fromEntries(
-      Array.from(modes.entries()).map(([shotId, mode]) => [shotId.substring(0, 8), mode])
-    ),
-    timestamp: Date.now()
   });
   
   return modes;
@@ -196,32 +177,20 @@ export function useProjectGenerationModesCache(projectId: string | null, options
   
   const clearCache = useCallback((): void => {
     cacheRef.current.clear();
-    console.log('[ProjectGenerationModesCache] Cleared all cached project generation modes');
   }, []);
   
   const deleteProjectCache = useCallback((projectId: string | null): void => {
     if (!projectId) return;
     cacheRef.current.deleteProject(projectId);
-    console.log('[ProjectGenerationModesCache] Deleted cached modes for project:', projectId);
   }, []);
   
   // Debug function to log cache state
   const logCacheState = useCallback((): void => {
-    console.log('[ProjectGenerationModesCache] Current cache state:', {
-      size: cacheRef.current.size(),
-      cachedProjectIds: cacheRef.current.getCachedProjectIds(),
-      currentProjectModes: projectId ? getAllShotModes() : null,
-      timestamp: Date.now()
-    });
   }, [projectId, getAllShotModes]);
   
   // Optimistically update a single shot's mode in cache
   const updateShotMode = useCallback((shotId: string | null, mode: GenerationModeNormalized) => {
     if (!projectId || !shotId) return;
-    
-    console.log('[ProjectGenerationModesCache] 🎯 Optimistically updating shot mode:',
-      'shotId:', shotId.substring(0, 8),
-      '| newMode:', mode);
     
     // Update in-memory cache immediately
     const currentModes = cacheRef.current.getProjectModes(projectId);
@@ -248,7 +217,6 @@ export function useProjectGenerationModesCache(projectId: string | null, options
     if (projectId) {
       cacheRef.current.deleteProject(projectId);
       refetch();
-      console.log('[ProjectGenerationModesCache] Invalidated cache due to mode change for project:', projectId);
     }
   }, [projectId, refetch]);
 

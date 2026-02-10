@@ -90,14 +90,6 @@ export const useUpscale = ({
 
       const actualGenerationId = getGenerationId(media);
 
-      console.log('[ImageUpscale] Creating task:', {
-        actualGenerationId: actualGenerationId?.substring(0, 8),
-        effectiveImageUrl: effectiveImageUrl.substring(0, 50),
-        isUsingVariant: !!activeVariantLocation,
-        activeVariantId: activeVariantId?.substring(0, 8),
-        settings,
-      });
-
       await createImageUpscaleTask({
         project_id: selectedProjectId,
         image_url: effectiveImageUrl,
@@ -107,8 +99,6 @@ export const useUpscale = ({
         noise_scale: settings.noiseScale,
         shot_id: shotId,
       });
-
-      console.log('[ImageUpscale] Task created successfully');
 
       // Show success state briefly
       setUpscaleSuccess(true);

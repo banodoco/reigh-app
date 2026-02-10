@@ -6,14 +6,18 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
 import { Button } from '@/shared/components/ui/button';
-import { ArrowDown, Trash2, Loader2, FolderPlus, ExternalLink } from 'lucide-react';
+import {
+  ArrowDown,
+  Loader2,
+  FolderPlus,
+  ExternalLink
+} from 'lucide-react';
 import { handleError } from '@/shared/lib/errorHandler';
 import { cn } from '@/shared/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
-import { Checkbox } from "@/shared/components/ui/checkbox";
 import { ShotBatchItemMobile } from './ShotBatchItemMobile';
 import { BaseShotImageManagerProps } from './types';
 import type { GenerationRow } from '@/types/shots';
@@ -109,11 +113,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
     // it's likely a new shot or major data refresh - clear optimistic state
     const lengthDiff = Math.abs(images.length - prevImagesLengthRef.current);
     if (lengthDiff > 1 && isOptimisticUpdate) {
-      console.log('[MobileOptimistic] Clearing optimistic state due to major data change', {
-        prevLength: prevImagesLengthRef.current,
-        newLength: images.length,
-        diff: lengthDiff
-      });
       setIsOptimisticUpdate(false);
       setOptimisticOrder([]);
     }
@@ -172,7 +171,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
         // Safety timeout: force reconciliation after 5 seconds
         const timeout = setTimeout(() => {
           if (isOptimisticUpdate) {
-            console.warn('[MobileOptimistic] Forcing reconciliation - optimistic update took too long');
             setIsOptimisticUpdate(false);
             setOptimisticOrder([]);
           }
@@ -260,10 +258,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       const hasMissingIds = currentImages.some(img => !img.id);
       if (hasMissingIds) {
         const missingCount = currentImages.filter(img => !img.id).length;
-        console.warn('[MobileReorder] ⚠️  Some images missing id. Cannot reorder yet.', {
-          totalImages: currentImages.length,
-          missingIds: missingCount
-        });
         const message = currentImages.length > 500 
           ? `Loading metadata for ${currentImages.length} images... this may take a moment.`
           : 'Loading image metadata... please wait a moment and try again.';
@@ -305,7 +299,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       // 3. Call server update
       await onImageReorder(orderedIds, draggedItemId);
       
-
     } catch (error) {
       handleError(error, { context: 'ShotImageManagerMobile', showToast: false });
       // Don't clear selection on error so user can retry
@@ -327,7 +320,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
     });
     
     if (validIds.length < idsToDelete.length) {
-      console.warn('[MobileBatchDelete] ⚠️  Some images missing shotImageEntryId (Phase 2 incomplete). Skipping those.');
       toast.warning(`Could only delete ${validIds.length} of ${idsToDelete.length} images. Some are still loading metadata.`);
     }
 
@@ -383,15 +375,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       </p>
     );
   }
-
-  console.log('[PairIndicatorDebug] ShotImageManagerMobile render:', {
-    imagesCount: currentImages.length,
-    hasOnPairClick: !!onPairClick,
-    hasPairPrompts: !!pairPrompts,
-    hasEnhancedPrompts: !!enhancedPrompts,
-    pairPromptsKeys: pairPrompts ? Object.keys(pairPrompts) : [],
-    enhancedPromptsKeys: enhancedPrompts ? Object.keys(enhancedPrompts) : [],
-  });
 
   // Determine grid columns for positioning logic (same as effectiveColumns)
   const gridColumns = columns;
@@ -485,7 +468,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
                           isMobile={true}
                           onClearEnhancedPrompt={onClearEnhancedPrompt}
                           onPairClick={() => {
-                            console.log('[PairIndicatorDebug] Mobile: Pair indicator clicked (left)', { pairIndex: index - 1 });
                             onPairClick(index - 1);
                           }}
                           pairPrompt={prevPairPrompt?.prompt}
@@ -604,7 +586,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
                           isMobile={true}
                           onClearEnhancedPrompt={onClearEnhancedPrompt}
                           onPairClick={() => {
-                            console.log('[PairIndicatorDebug] Mobile: Pair indicator clicked (right)', { index });
                             onPairClick(index);
                           }}
                           pairPrompt={pairPrompt?.prompt}

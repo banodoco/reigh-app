@@ -91,9 +91,6 @@ export const useHydratedReferences = (
 
         if (!resource) {
           // Only warn if we're not loading anymore
-          if (!isLoading) {
-            console.warn('[useHydratedReferences] Resource not found for pointer:', pointer.id, pointer.resourceId);
-          }
           return null;
         }
 

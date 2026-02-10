@@ -108,7 +108,6 @@ async function fetchAllTaskTypesConfig(): Promise<Record<string, TaskTypeInfo>> 
     .eq('is_active', true);
 
   if (error) {
-    console.warn('[TaskTypeConfig] Failed to fetch task types config:', error);
     return {};
   }
 
@@ -120,8 +119,6 @@ async function fetchAllTaskTypesConfig(): Promise<Record<string, TaskTypeInfo>> 
   // Update the global cache
   _taskTypeConfigCache = configMap;
   _cacheInitialized = true;
-  
-  console.log('[TaskTypeConfig] Loaded', Object.keys(configMap).length, 'task types into cache');
   
   return configMap;
 }

@@ -80,7 +80,6 @@ export async function calculateDerivedCounts(
   return { derivedCounts, hasUnviewedVariants, unviewedVariantCounts };
 }
 
-
 /**
  * Raw variant record from generation_variants table (before transformation)
  */
@@ -389,7 +388,6 @@ function transformShotGeneration(
   
   if (!gen) {
     // Fallback for missing generation data
-    console.warn('[TransformerWarning] Shot generation missing nested generation:', shotGen.id);
     return {
       id: shotGen.generation_id,
       url: '',

@@ -93,21 +93,16 @@ export function usePrefetchToolSettings(projectId?: string | null, shotIds: stri
 
   useEffect(() => {
     if (!projectId) {
-      console.log('[RefLoadingDebug] ⚠️ usePrefetchToolSettings: No projectId, skipping prefetch');
       return;
     }
 
-    console.log('[RefLoadingDebug] 🚀 usePrefetchToolSettings: Starting prefetch for project:', projectId, 'toolIds:', TOOL_IDS);
-
     // Prefetch project-level settings for each tool.
     TOOL_IDS.forEach((toolId) => {
-      console.log('[RefLoadingDebug] 📡 Prefetching:', toolId);
       queryClient.prefetchQuery({
         queryKey: queryKeys.settings.tool(toolId, projectId, undefined),
         queryFn: () => fetchToolSettingsSupabase(toolId, { projectId }),
         staleTime: 5 * 60 * 1000, // keep fresh for 5 min (same as useToolSettings)
       }).then(() => {
-        console.log('[RefLoadingDebug] ✅ Prefetch completed for:', toolId);
       }).catch((error) => {
         console.error('[RefLoadingDebug] ❌ Prefetch failed for:', toolId, error);
       });

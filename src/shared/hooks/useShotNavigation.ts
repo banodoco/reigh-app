@@ -61,11 +61,9 @@ export const useShotNavigation = (): ShotNavigationResult => {
         // Use requestAnimationFrame to ensure DOM has painted
         requestAnimationFrame(() => {
           // Always scroll the window - containerRef is just a wrapper div, not a scroll container
-          console.log('[ShotNavPerf] 📜 Scrolling window to top');
           window.scrollTo({ top: 0, behavior: options.scrollBehavior });
           // Also dispatch event for custom scroll containers (e.g. mobile split view)
           window.dispatchEvent(new CustomEvent('app:scrollToTop', { detail: { behavior: options.scrollBehavior } }));
-          console.log('[ShotNavPerf] 📜 Scroll to top executed');
         });
       };
       
@@ -86,25 +84,14 @@ export const useShotNavigation = (): ShotNavigationResult => {
   const navigateToShot = (shot: Shot, options: ShotNavigationOptions = {}) => {
     const opts = { ...defaultOptions, ...options };
     
-    console.log('[ShotNavPerf] 🧭 navigateToShot called', {
-      shotId: shot.id.substring(0, 8),
-      shotName: shot.name,
-      options: opts,
-      currentUrl: window.location.href,
-      timestamp: Date.now()
-    });
-    
     preScrollToTopIfNeeded(opts);
 
     // Update the current shot context
-    console.log('[ShotNavPerf] 🎯 Setting current shot ID:', shot.id.substring(0, 8));
     const contextStart = Date.now();
     setCurrentShotId(shot.id);
-    console.log('[ShotNavPerf] ✅ Context updated in', Date.now() - contextStart, 'ms');
     
     // Navigate to the shot with hash
     const targetUrl = `/tools/travel-between-images#${shot.id}`;
-    console.log('[ShotNavPerf] 🚀 Navigating to:', targetUrl);
     const navStart = Date.now();
     navigate(targetUrl, {
       state: { 
@@ -114,15 +101,11 @@ export const useShotNavigation = (): ShotNavigationResult => {
       },
       replace: opts.replace,
     });
-    console.log('[ShotNavPerf] ✅ Navigation called in', Date.now() - navStart, 'ms');
-    
-    console.log('[ShotNavPerf] 🎬 Handling side effects (scroll/panes)');
     
     // Handle side effects
     performScroll(opts);
     closePanes(opts);
     
-    console.log('[ShotNavPerf] ✨ navigateToShot completed');
   };
 
   const navigateToShotEditor = (options: ShotNavigationOptions = {}) => {
@@ -143,48 +126,22 @@ export const useShotNavigation = (): ShotNavigationResult => {
   };
 
   const navigateToNextShot = (shots: Shot[], currentShot: Shot, options: ShotNavigationOptions = {}): boolean => {
-    console.log('[ShotNavPerf] 🔍 navigateToNextShot called', {
-      timestamp: Date.now(),
-      currentShotId: currentShot.id.substring(0, 8),
-      currentShotName: currentShot.name,
-      totalShots: shots.length
-    });
     const currentIndex = shots.findIndex(shot => shot.id === currentShot.id);
     if (currentIndex >= 0 && currentIndex < shots.length - 1) {
       const nextShot = shots[currentIndex + 1];
-      console.log('[ShotNavPerf] ➡️ Next shot found, calling navigateToShot', {
-        nextShotId: nextShot.id.substring(0, 8),
-        nextShotName: nextShot.name,
-        currentIndex,
-        nextIndex: currentIndex + 1
-      });
       navigateToShot(nextShot, { ...options, replace: true });
       return true;
     }
-    console.log('[ShotNavPerf] ⚠️ No next shot available');
     return false;
   };
 
   const navigateToPreviousShot = (shots: Shot[], currentShot: Shot, options: ShotNavigationOptions = {}): boolean => {
-    console.log('[ShotNavPerf] 🔍 navigateToPreviousShot called', {
-      timestamp: Date.now(),
-      currentShotId: currentShot.id.substring(0, 8),
-      currentShotName: currentShot.name,
-      totalShots: shots.length
-    });
     const currentIndex = shots.findIndex(shot => shot.id === currentShot.id);
     if (currentIndex > 0) {
       const previousShot = shots[currentIndex - 1];
-      console.log('[ShotNavPerf] ⬅️ Previous shot found, calling navigateToShot', {
-        prevShotId: previousShot.id.substring(0, 8),
-        prevShotName: previousShot.name,
-        currentIndex,
-        prevIndex: currentIndex - 1
-      });
       navigateToShot(previousShot, { ...options, replace: true });
       return true;
     }
-    console.log('[ShotNavPerf] ⚠️ No previous shot available');
     return false;
   };
 

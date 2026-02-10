@@ -35,7 +35,6 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
             console.error('[RealtimeCorruptionTrace] 🎯 realtime.socket SET TO NULL!', { previousValue: _socket, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, corruptionTimeline: [...__CORRUPTION_TIMELINE__], timestamp: Date.now() });
             addCorruptionEvent('SOCKET_SET_TO_NULL', { previousValue: _socket, newValue: value });
           } else if (!_socket && value) {
-            console.log('[RealtimeCorruptionTrace] ✅ realtime.socket SET TO WEBSOCKET:', { newValue: value, readyState: (value as any)?.readyState, url: (value as any)?.url, realtimeStateBefore: before, timestamp: Date.now() });
             addCorruptionEvent('SOCKET_SET_TO_WEBSOCKET', { newValue: value });
           } else if (_socket !== value) {
             console.error('[RealtimeCorruptionTrace] 🔄 realtime.socket REPLACED:', { previousValue: _socket, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, timestamp: Date.now() });
@@ -56,7 +55,6 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
               console.error('[RealtimeCorruptionTrace] 🎯 conn.transport SET TO NULL!', { previousValue: _transport, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, corruptionTimeline: [...__CORRUPTION_TIMELINE__], timestamp: Date.now() });
               addCorruptionEvent('TRANSPORT_SET_TO_NULL', { previousValue: _transport, newValue: value });
             } else if (!_transport && value) {
-              console.log('[RealtimeCorruptionTrace] ✅ conn.transport SET TO WEBSOCKET:', { newValue: value, readyState: (value as any)?.readyState, url: (value as any)?.url, realtimeStateBefore: before, timestamp: Date.now() });
               addCorruptionEvent('TRANSPORT_SET_TO_WEBSOCKET', { newValue: value });
             } else if (_transport !== value) {
               console.error('[RealtimeCorruptionTrace] 🔄 conn.transport REPLACED:', { previousValue: _transport, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, timestamp: Date.now() });
@@ -81,34 +79,20 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
       console.warn = function(...args: any[]) {
         const message = args.join(' ');
         if (message.includes('realtime=down') || message.includes('Polling boosted due to realtime=down')) {
-          console.log('[RealtimeDownFix] 🔍 DETECTED realtime=down, attempting reconnect...', { 
-            message: message.slice(0, 100) + '...',
-            timestamp: Date.now()
-          });
           
           // Use async IIFE to handle dynamic import
           (async () => {
             try {
-              console.log('[RealtimeDownFix] 📦 Attempting to import ReconnectScheduler...');
               const module = await import('@/integrations/supabase/reconnect/ReconnectScheduler');
               const { getReconnectScheduler } = module;
-              console.log('[RealtimeDownFix] ✅ ReconnectScheduler module loaded successfully');
               
-              console.log('[RealtimeDownFix] 🏭 Getting scheduler instance...');
               const scheduler = getReconnectScheduler();
-              console.log('[RealtimeDownFix] ✅ Scheduler instance obtained:', { 
-                schedulerExists: !!scheduler,
-                schedulerType: typeof scheduler,
-                hasRequestReconnect: typeof scheduler?.requestReconnect
-              });
               
-              console.log('[RealtimeDownFix] 📞 Calling requestReconnect...');
               scheduler.requestReconnect({
                 source: 'ConsoleWarnInterceptor',
                 reason: 'realtime=down detected in console output',
                 priority: 'medium'
               });
-              console.log('[RealtimeDownFix] ✅ requestReconnect called successfully');
               
             } catch (error) {
               handleError(error, { context: 'RealtimeInstrumentation', showToast: false });
@@ -120,5 +104,4 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
     }
   }
 }
-
 

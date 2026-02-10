@@ -85,14 +85,6 @@ export const useTrimSave = ({
       return;
     }
 
-    console.log('[useTrimSave] Starting server-side trim:', {
-      generationId: generationId.substring(0, 8),
-      projectId: projectId.substring(0, 8),
-      startTrim,
-      endTime,
-      videoDuration,
-    });
-
     setIsSaving(true);
     setSaveProgress(10);
     setSaveError(null);
@@ -100,7 +92,6 @@ export const useTrimSave = ({
 
     try {
       // Step 1: Call the Edge Function to trim and convert to MP4
-      console.log('[useTrimSave] Calling trim-video Edge Function...');
       setSaveProgress(20);
 
       const response = await supabase.functions.invoke<TrimVideoResponse>('trim-video', {
@@ -122,30 +113,18 @@ export const useTrimSave = ({
         throw new Error(result?.error || 'No video URL in response');
       }
 
-      console.log('[useTrimSave] Edge Function completed:', {
-        videoUrl: result.video_url.substring(0, 60) + '...',
-        duration: result.duration,
-        format: result.format,
-        processingTimeMs: result.processing_time_ms,
-      });
-
       setSaveProgress(60);
 
       // Step 2: Extract thumbnail from the trimmed video (client-side)
       // Use a unique ID (timestamp + random) so each variant gets its own thumbnail
       const variantThumbId = `trim-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      console.log('[useTrimSave] Extracting thumbnail from trimmed video...', { variantThumbId });
       let thumbnailUrl: string | null = null;
       try {
         const thumbResult = await extractAndUploadThumbnailOnly(result.video_url, variantThumbId, projectId);
         if (thumbResult.success && thumbResult.thumbnailUrl) {
           thumbnailUrl = thumbResult.thumbnailUrl;
-          console.log('[useTrimSave] Thumbnail extracted:', thumbnailUrl.substring(0, 60) + '...');
-        } else {
-          console.warn('[useTrimSave] Thumbnail extraction failed:', thumbResult.error);
         }
       } catch (thumbError) {
-        console.warn('[useTrimSave] Thumbnail extraction error:', thumbError);
         // Don't fail the whole save, just continue without thumbnail
       }
 
@@ -154,7 +133,6 @@ export const useTrimSave = ({
       // Step 3: Fetch source variant params if we have a source variant ID
       let sourceVariantParams: Record<string, unknown> | null = null;
       if (sourceVariantId) {
-        console.log('[useTrimSave] Fetching source variant params:', sourceVariantId.substring(0, 8));
         const { data: sourceVariant, error: fetchError } = await supabase
           .from('generation_variants')
           .select('params')
@@ -162,19 +140,16 @@ export const useTrimSave = ({
           .single();
 
         if (fetchError) {
-          console.warn('[useTrimSave] Failed to fetch source variant params:', fetchError);
         } else if (sourceVariant?.params) {
           sourceVariantParams = (typeof sourceVariant.params === 'string'
             ? JSON.parse(sourceVariant.params)
             : sourceVariant.params) as Record<string, unknown>;
-          console.log('[useTrimSave] Loaded source variant params:', Object.keys(sourceVariantParams!));
         }
       }
 
       setSaveProgress(80);
 
       // Step 4: Create variant record in database
-      console.log('[useTrimSave] Creating variant record');
 
       const trimParams = {
         trim_start: startTrim,
@@ -212,7 +187,6 @@ export const useTrimSave = ({
       }
 
       const newVariantId = insertedVariant.id;
-      console.log('[useTrimSave] Created variant with ID:', newVariantId.substring(0, 8));
 
       setSaveProgress(90);
 
@@ -226,14 +200,8 @@ export const useTrimSave = ({
         })
         .eq('id', generationId);
 
-      if (updateError) {
-        console.warn('[useTrimSave] Failed to update generation:', updateError);
-      }
-
       setSaveProgress(100);
       setSaveSuccess(true);
-
-      console.log('[useTrimSave] Complete! MP4 saved with proper duration.');
 
       // Invalidate caches using centralized function
       await invalidateVariantChange(queryClient, {

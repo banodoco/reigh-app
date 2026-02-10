@@ -20,20 +20,7 @@ export const useZoom = ({ fullMin, fullMax, fullRange, containerRef }: UseZoomPr
   const mountCountRef = useRef(0);
   useEffect(() => {
     mountCountRef.current++;
-    console.log('[ZoomDebug] 🔍 useZoom MOUNTED/REMOUNTED:', {
-      mountCount: mountCountRef.current,
-      zoomLevel,
-      zoomCenter,
-      fullMin,
-      fullMax,
-      fullRange,
-      timestamp: Date.now()
-    });
     return () => {
-      console.log('[ZoomDebug] 🔍 useZoom UNMOUNTING:', {
-        mountCount: mountCountRef.current,
-        timestamp: Date.now()
-      });
     };
   }, []); // Only on mount/unmount
 
@@ -140,11 +127,6 @@ export const useZoom = ({ fullMin, fullMax, fullRange, containerRef }: UseZoomPr
         const newZoomCenter = Math.max(fullMin, Math.min(fullMax, zoomCenter));
         
         if (newZoomCenter !== zoomCenter) {
-          console.log('[ZoomPreserve] Clamping zoom center to new bounds:', {
-            oldCenter: zoomCenter,
-            newCenter: newZoomCenter,
-            bounds: { min: fullMin, max: fullMax }
-          });
           setZoomCenter(newZoomCenter);
         }
       }

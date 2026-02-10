@@ -140,7 +140,6 @@ async function loadSingleImage(pos: {
 
   // Strategy 1: Same generation - find variant by ID
   if (pos.variantGenId === pos.currentGenId && pos.variantVariantId) {
-    console.log('[LoadVariantImages] Same generation, setting variant as primary:', pos.variantVariantId.substring(0, 8));
     await setPrimaryById(pos.variantVariantId);
     return;
   }
@@ -155,14 +154,12 @@ async function loadSingleImage(pos: {
     if (existingVariants) {
       const match = existingVariants.find(v => pathsMatch(v.location, pos.variantUrl));
       if (match) {
-        console.log('[LoadVariantImages] Found existing variant by URL match:', match.id.substring(0, 8));
         await setPrimaryById(match.id);
         return;
       }
     }
 
     // Strategy 3: Create new variant with the source URL
-    console.log('[LoadVariantImages] Creating new variant on generation:', targetGenerationId.substring(0, 8));
     const { data: newVariant, error } = await supabase
       .from('generation_variants')
       .insert({
@@ -183,7 +180,6 @@ async function loadSingleImage(pos: {
     if (error) {
       throw new Error(`Failed to create variant: ${error.message}`);
     }
-    console.log('[LoadVariantImages] Created variant:', newVariant?.id?.substring(0, 8));
   }
 }
 

@@ -32,10 +32,8 @@ export function useJoinClips({
   const [addToJoinSuccess, setAddToJoinSuccess] = useState(false);
 
   const handleAddToJoin = useCallback(() => {
-    console.log('[JoinClipsDebug] handleAddToJoin called', { mediaId: media?.id, isVideo });
 
     if (!media || !isVideo) {
-      console.warn('[JoinClipsDebug] Early return - no media or not video', { media: !!media, isVideo });
       return;
     }
 
@@ -48,17 +46,6 @@ export function useJoinClips({
       const videoUrl = media.location || (mediaRecord.url as string | undefined) || media.imageUrl;
       const thumbnailUrl = media.thumbUrl || media.thumbnail_url;
 
-      console.log('[JoinClipsDebug] Extracted URLs:', {
-        videoUrl,
-        thumbnailUrl,
-        mediaFields: {
-          location: media.location,
-          url: mediaRecord.url,
-          imageUrl: media.imageUrl,
-          thumbUrl: media.thumbUrl,
-        }
-      });
-
       if (!videoUrl) {
         console.error('[JoinClipsDebug] No video URL found on media object!', media);
         setIsAddingToJoin(false);
@@ -70,8 +57,6 @@ export function useJoinClips({
       const pendingClips: Array<{ videoUrl: string; thumbnailUrl?: string; generationId: string; timestamp: number }> =
         existingData ? JSON.parse(existingData) : [];
 
-      console.log('[JoinClipsDebug] Existing pending clips:', pendingClips.length);
-
       // Add new clip (avoid duplicates by generationId)
       if (!pendingClips.some(clip => clip.generationId === media.id)) {
         const newClip = {
@@ -82,10 +67,6 @@ export function useJoinClips({
         };
         pendingClips.push(newClip);
         localStorage.setItem('pendingJoinClips', JSON.stringify(pendingClips));
-        console.log('[JoinClipsDebug] Added clip to localStorage:', newClip);
-        console.log('[JoinClipsDebug] Total pending clips now:', pendingClips.length);
-      } else {
-        console.log('[JoinClipsDebug] Clip already in pending list, skipping');
       }
 
       setAddToJoinSuccess(true);

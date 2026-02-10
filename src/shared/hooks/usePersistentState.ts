@@ -22,7 +22,6 @@ function usePersistentState<T>(key: string, defaultValue: T): [T, React.Dispatch
   const [state, setState] = useState<T>(() => {
     // Mobile Safari in private mode can throw on localStorage access
     if (!isLocalStorageAvailable()) {
-      console.warn(`[usePersistentState] localStorage not available for key "${key}", using default value`);
       return defaultValue;
     }
 

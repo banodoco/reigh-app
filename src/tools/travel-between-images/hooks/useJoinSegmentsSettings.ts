@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { handleError } from '@/shared/lib/errorHandler';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
@@ -98,12 +98,6 @@ export function useJoinSegmentsSettings(
         sessionStorage.removeItem(storageKey);
         appliedInheritanceRef.current = shotId;
         
-        console.log('[useJoinSegmentsSettings] 📦 Found inherited settings for new shot:', {
-          shotId: shotId.substring(0, 8),
-          generateMode: defaults.generateMode,
-          loraCount: defaults.selectedLoras?.length || 0,
-        });
-        
         // Merge with defaults
         return {
           ...DEFAULT_JOIN_SEGMENTS_SETTINGS,
@@ -134,7 +128,6 @@ export function useJoinSegmentsSettings(
   useEffect(() => {
     if (inheritedSettings && shotId && autoSave.status === 'ready') {
       if (!autoSave.hasShotSettings) {
-        console.log('[useJoinSegmentsSettings] 💾 Saving inherited settings to DB (new shot confirmed - no DB settings)');
         updateToolSettingsSupabase({
           scope: 'shot',
           id: shotId,
@@ -143,8 +136,6 @@ export function useJoinSegmentsSettings(
         }, undefined, 'immediate').catch(err => {
           console.error('[useJoinSegmentsSettings] Failed to save inherited settings:', err);
         });
-      } else {
-        console.log('[useJoinSegmentsSettings] ⚠️ Skipping inherited settings save - shot already has DB settings');
       }
     }
   }, [inheritedSettings, shotId, autoSave.status, autoSave.hasShotSettings]);

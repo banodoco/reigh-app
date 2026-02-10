@@ -230,7 +230,6 @@ export default function EditVideoPage() {
         posterUrl = publicUrl;
       }
     } catch (posterError) {
-      console.warn('[EditVideo] Poster extraction failed:', posterError);
     }
 
     const fileExt = getFileExtension(file.name, file.type, 'mp4');

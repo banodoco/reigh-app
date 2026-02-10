@@ -8,7 +8,7 @@
  * - Generations pane integration (openUnpositionedGenerationsPane)
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -64,13 +64,8 @@ export function useShotActions({
   // Opens the Generations pane focused on un-positioned images for the current shot
   const openUnpositionedGenerationsPane = useCallback(() => {
     const shotId = selectedShotRef.current?.id;
-    console.log('[ShotFilterAutoSelectIssue] Opening generations pane for shot:', shotId);
 
     if (shotId) {
-      console.log('[ShotFilterAutoSelectIssue] Updating generations pane settings:', {
-        selectedShotFilter: shotId,
-        excludePositioned: true,
-      });
       updateGenerationsPaneSettings({
         selectedShotFilter: shotId,
         excludePositioned: true,
@@ -78,10 +73,8 @@ export function useShotActions({
     }
 
     if (isMobile) {
-      console.log('[ShotFilterAutoSelectIssue] Dispatching openGenerationsPane event (mobile)');
       window.dispatchEvent(new CustomEvent('openGenerationsPane'));
     } else {
-      console.log('[ShotFilterAutoSelectIssue] Setting generations pane locked (desktop)');
       setIsGenerationsPaneLockedRef.current(true);
     }
   }, [isMobile, updateGenerationsPaneSettings]);
@@ -106,13 +99,6 @@ export function useShotActions({
   const handleAddToShot = useCallback(async (shotId: string, generationId: string, position?: number) => {
     const shouldAutoPosition = position === undefined || position === 0 || position === -1;
 
-    console.log('[ShotEditor] Adding generation to shot', {
-      shotId: shotId?.substring(0, 8),
-      generationId: generationId?.substring(0, 8),
-      position,
-      shouldAutoPosition,
-    });
-
     await addToShotMutationRef.current({
       shot_id: shotId,
       generation_id: generationId,
@@ -122,7 +108,6 @@ export function useShotActions({
   }, []);
 
   const handleAddToShotWithoutPosition = useCallback(async (shotId: string, generationId: string) => {
-    console.log('[AddWithoutPosDebug] ShotEditor.handleAddToShotWithoutPosition CALLED');
 
     try {
       await addToShotWithoutPositionMutationRef.current({
@@ -130,7 +115,6 @@ export function useShotActions({
         generation_id: generationId,
         project_id: projectIdRef.current
       });
-      console.log('[AddWithoutPosDebug] Mutation completed successfully');
       return true;
     } catch (error) {
       handleError(error, { context: 'AddWithoutPosDebug', showToast: false });
@@ -139,7 +123,6 @@ export function useShotActions({
   }, []);
 
   const handleCreateShot = useCallback(async (name: string) => {
-    console.log('[ShotEditor] Creating new shot', { name });
     const result = await createShotRef.current({ name });
     if (!result) {
       throw new Error('Failed to create shot');
@@ -148,7 +131,6 @@ export function useShotActions({
   }, []);
 
   const handleNewShotFromSelection = useCallback(async (selectedIds: string[]): Promise<string | void> => {
-    console.log('[ShotEditor] Creating new shot from selection', { selectedIds });
 
     const selectedImages = allShotImagesRef.current.filter(img =>
       selectedIds.includes(img.id)

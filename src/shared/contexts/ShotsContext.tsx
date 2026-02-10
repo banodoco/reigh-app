@@ -2,7 +2,6 @@ import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useListShots, useProjectImageStats } from '@/shared/hooks/useShots';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Shot } from '@/types/shots';
-import { SHOT_FILTER } from '@/shared/constants/filterConstants';
 
 interface ShotsContextType {
   shots: Shot[] | undefined;
@@ -21,9 +20,6 @@ interface ShotsProviderProps {
 }
 
 export const ShotsProvider: React.FC<ShotsProviderProps> = ({ children }) => {
-  // [ShotReorderDebug] Debug tag for shot reordering issues
-  const REORDER_DEBUG_TAG = '[ShotReorderDebug]';
-
   const { selectedProjectId } = useProject();
 
   // Track previous project ID to detect project switches
@@ -33,10 +29,6 @@ export const ShotsProvider: React.FC<ShotsProviderProps> = ({ children }) => {
   // Detect project switch and set transitioning state
   React.useEffect(() => {
     if (prevProjectIdRef.current !== null && prevProjectIdRef.current !== selectedProjectId) {
-      console.log('[ShotsContext] Project switch detected, showing skeleton loader', {
-        from: prevProjectIdRef.current,
-        to: selectedProjectId
-      });
       setIsProjectTransitioning(true);
     }
     prevProjectIdRef.current = selectedProjectId;
@@ -55,7 +47,6 @@ export const ShotsProvider: React.FC<ShotsProviderProps> = ({ children }) => {
   // Use isFetching (not isLoading) because placeholderData keeps isLoading false during refetches
   React.useEffect(() => {
     if (isProjectTransitioning && !isShotsFetching && shots !== undefined) {
-      console.log('[ShotsContext] New project data loaded, clearing transition state');
       setIsProjectTransitioning(false);
     }
   }, [isProjectTransitioning, isShotsFetching, shots]);
@@ -68,38 +59,15 @@ export const ShotsProvider: React.FC<ShotsProviderProps> = ({ children }) => {
   // This prevents showing stale data from a previously cached project
   const effectiveShots = isProjectTransitioning ? undefined : shots;
 
-  // [ShotReorderDebug] Log shots context data changes
-  React.useEffect(() => {
-    console.log(`${REORDER_DEBUG_TAG} ShotsContext data updated:`, {
-      selectedProjectId,
-      shotsCount: effectiveShots?.length || 0,
-      isProjectTransitioning,
-      allImagesCount: projectStats?.allCount,
-      noShotImagesCount: projectStats?.noShotCount,
-      isLoading,
-      error: error?.message,
-      timestamp: Date.now()
-    });
-  }, [effectiveShots, projectStats, selectedProjectId, isLoading, error, isProjectTransitioning]);
-
-  // [ShotReorderDebug] Log refetch calls
-  const debugRefetch = React.useCallback(() => {
-    console.log(`${REORDER_DEBUG_TAG} ShotsContext refetch called:`, {
-      selectedProjectId,
-      timestamp: Date.now()
-    });
-    return refetch();
-  }, [refetch, selectedProjectId]);
-
   // Memoize context value to prevent unnecessary re-renders of consumers
   const value = useMemo<ShotsContextType>(() => ({
     shots: effectiveShots,
     isLoading,
     error,
-    refetchShots: debugRefetch,
+    refetchShots: refetch,
     allImagesCount: projectStats?.allCount,
     noShotImagesCount: projectStats?.noShotCount,
-  }), [effectiveShots, isLoading, error, debugRefetch, projectStats]);
+  }), [effectiveShots, isLoading, error, refetch, projectStats]);
 
   return (
     <ShotsContext.Provider value={value}>

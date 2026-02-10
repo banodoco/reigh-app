@@ -218,11 +218,6 @@ export interface VideoEnhanceTaskResult {
 export async function createVideoEnhanceTask(
   params: VideoEnhanceTaskParams
 ): Promise<VideoEnhanceTaskResult> {
-  console.log("[createVideoEnhanceTask] Creating task with params:", {
-    video_url: params.video_url?.substring(0, 50) + '...',
-    enable_interpolation: params.enable_interpolation,
-    enable_upscale: params.enable_upscale,
-  });
 
   try {
     // 1. Validate parameters
@@ -241,7 +236,6 @@ export async function createVideoEnhanceTask(
       },
     });
 
-    console.log("[createVideoEnhanceTask] Task created successfully:", result);
     return { task: result };
 
   } catch (error) {

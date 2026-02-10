@@ -118,19 +118,14 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
     const validSourceTaskId = getSourceTaskId(variantParams);
 
     if (validSourceTaskId) {
-      console.log('[VariantPrefetch] Prefetching source task:', validSourceTaskId.substring(0, 8), 'for variant:', variant.id.substring(0, 8));
       prefetchTaskById(validSourceTaskId);
     } else {
-      console.log('[VariantPrefetch] No source_task_id, prefetching via generation:', variant.generation_id.substring(0, 8));
       prefetchTaskData(variant.generation_id);
     }
   }, [isMobile, prefetchTaskData, prefetchTaskById, checkLineageDepthOnHover]);
 
   // Calculate variant relationships
   const { parentVariants, childVariants, relationshipMap } = useMemo(() => {
-    console.log('[VariantRelationship] Computing relationships:');
-    console.log('[VariantRelationship] variantsCount:', variants.length);
-    console.log('[VariantRelationship] activeVariantId:', activeVariantId);
 
     const parents = new Set<string>();
     const children = new Set<string>();
@@ -142,44 +137,26 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
 
     const activeVar = variants.find(variant => variant.id === activeVariantId);
     if (!activeVar) {
-      console.log('[VariantRelationship] No active variant found');
       return { parentVariants: parents, childVariants: children, relationshipMap: relMap };
     }
 
-    console.log('[VariantRelationship] Active variant:');
-    console.log('[VariantRelationship] - id:', activeVar.id);
-    console.log('[VariantRelationship] - variant_type:', activeVar.variant_type);
-    console.log('[VariantRelationship] - params:', JSON.stringify(activeVar.params));
-
     const activeSourceVariantId = activeVar.params?.source_variant_id as string | undefined;
-    console.log('[VariantRelationship] Active variant source_variant_id:', activeSourceVariantId);
 
     if (activeSourceVariantId) {
       const parentVariant = variants.find(variant => variant.id === activeSourceVariantId);
       if (parentVariant) {
-        console.log('[VariantRelationship] Found parent variant:', parentVariant.id);
         parents.add(parentVariant.id);
         relMap[parentVariant.id].isParent = true;
-      } else {
-        console.log('[VariantRelationship] Parent variant not in variants list');
       }
     }
 
     variants.forEach(variant => {
       const sourceId = variant.params?.source_variant_id as string | undefined;
-      if (sourceId) {
-        console.log('[VariantRelationship] Variant', variant.id.substring(0, 8), 'has source_variant_id:', sourceId);
-      }
       if (sourceId === activeVariantId) {
-        console.log('[VariantRelationship] Found child variant:', variant.id);
         children.add(variant.id);
         relMap[variant.id].isChild = true;
       }
     });
-
-    console.log('[VariantRelationship] Result:');
-    console.log('[VariantRelationship] - parentCount:', parents.size);
-    console.log('[VariantRelationship] - childCount:', children.size);
 
     return { parentVariants: parents, childVariants: children, relationshipMap: relMap };
   }, [variants, activeVariantId]);

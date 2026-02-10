@@ -5,7 +5,7 @@
 
 import { useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Shot, GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/types/shots';
 import { toast } from '@/shared/components/ui/sonner';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -21,9 +21,8 @@ import {
   findShotsCache,
   updateAllShotsCaches,
   rollbackShotsCaches,
-  updateShotGenerationsCache,
   rollbackShotGenerationsCache,
-  cancelShotGenerationsQuery,
+  cancelShotGenerationsQuery
 } from './cacheUtils';
 
 // ============================================================================

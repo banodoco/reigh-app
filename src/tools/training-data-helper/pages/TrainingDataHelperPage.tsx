@@ -34,7 +34,6 @@ export default function TrainingDataHelperPage() {
   // Clear selection if the selected video no longer exists
   useEffect(() => {
     if (selectedVideo && !videos.find(video => video.id === selectedVideo)) {
-      console.log(`[TrainingDataHelperPage] Selected video ${selectedVideo} no longer exists, clearing selection`);
       setSelectedVideo(null);
     }
   }, [videos, selectedVideo]);
@@ -66,8 +65,6 @@ export default function TrainingDataHelperPage() {
 
   const selectedVideoData = selectedVideo ? videos.find(video => video.id === selectedVideo) : null;
   const videoSegments = selectedVideo ? segments.filter(segment => segment.trainingDataId === selectedVideo) : [];
-
-
 
   return (
     <PageFadeIn className="container mx-auto p-6 max-w-7xl">

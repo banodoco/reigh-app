@@ -1,8 +1,6 @@
 import React from "react";
-import { Search, X, Star, Download, Loader2 } from "lucide-react";
+import { Search, X, Star } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
-import { Checkbox } from "@/shared/components/ui/checkbox";
 import { ShotFilter } from "@/shared/components/ShotFilter";
 import { ToolTypeFilter } from "./ToolTypeFilter";
 

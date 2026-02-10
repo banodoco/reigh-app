@@ -157,7 +157,6 @@ export class RealtimeEventProcessor {
         }
 
       default:
-        console.warn('[RealtimeEventProcessor] Unknown table:', table);
         return null;
     }
   }
@@ -440,9 +439,6 @@ export class RealtimeEventProcessor {
   // ===========================================================================
 
   private emit(event: ProcessedEvent): void {
-    console.log('[RealtimeEventProcessor] Emitting:', event.type, {
-      batchSize: event.batchSize,
-    });
 
     this.callbacks.forEach((callback) => {
       try {

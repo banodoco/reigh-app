@@ -1,6 +1,4 @@
 import { GenerationRow } from "@/types/shots";
-import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { ShotLora } from '@/tools/travel-between-images/settings';
 
 // =============================================================================
 // RE-EXPORTS FROM SHARED

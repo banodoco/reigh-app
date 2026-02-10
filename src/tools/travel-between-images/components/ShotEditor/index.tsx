@@ -3,7 +3,7 @@ import { useUpdateShotImageOrder, useAddImageToShotWithoutPosition } from "@/sha
 import { useShotCreation } from "@/shared/hooks/useShotCreation";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useDeviceDetection } from "@/shared/hooks/useDeviceDetection";
-import { GenerationRow, Shot } from '@/types/shots';
+import { Shot } from '@/types/shots';
 import { FinalVideoSection } from "../FinalVideoSection";
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useTimelineCore } from "@/shared/hooks/useTimelineCore";
@@ -47,7 +47,7 @@ import {
   useLoraSettings,
   useVideoTravelSettings,
 } from '@/tools/travel-between-images/providers';
-import { ShotSettingsProvider, ShotSettingsContextValue } from './ShotSettingsContext';
+import { ShotSettingsProvider } from './ShotSettingsContext';
 import { HeaderSection, TimelineSection, ModalsSection, GenerationSection } from './sections';
 import { useAddImageToShot, useRemoveImageFromShot } from '@/shared/hooks/useShots';
 import { useRenderCount } from '@/shared/components/debug/RefactorMetricsCollector';
@@ -291,7 +291,6 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
         .eq('shot_id', selectedShotId);
       
       if (error) {
-        console.log('[PresetAutoPopulate] No last video found for shot:', error);
         return null;
       }
       
@@ -348,12 +347,6 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
   
   // Wrap prompt change to also clear all enhanced prompts when base prompt changes
   const handleBatchVideoPromptChangeWithClear = useCallback(async (newPrompt: string) => {
-    console.log('[PromptClearLog] 🔔 BASE PROMPT CHANGED - Starting clear process', {
-      trigger: 'base_prompt_change',
-      oldPrompt: promptSettings.prompt,
-      newPrompt: newPrompt,
-      shotId: selectedShotId?.substring(0, 8)
-    });
 
     // First update the base prompt (now via context)
     promptSettings.setPrompt(newPrompt);
@@ -361,10 +354,6 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
     // Then clear all enhanced prompts for the shot
     try {
       await clearAllEnhancedPrompts();
-      console.log('[PromptClearLog] ✅ BASE PROMPT CHANGED - Successfully cleared all enhanced prompts', {
-        trigger: 'base_prompt_change',
-        shotId: selectedShotId?.substring(0, 8)
-      });
     } catch (error) {
       handleError(error, { context: 'PromptClearLog', showToast: false });
     }
@@ -533,29 +522,18 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
 
   // Auto-select first parent generation when controlled mode is ready but no selection exists
   useEffect(() => {
-    console.log('[ParentReuseDebug] Auto-select effect running:', {
-      outputSelectionReady,
-      parentGenerationsCount: parentGenerations.length,
-      parentGenerationIds: parentGenerations.slice(0, 3).map(p => p.id.substring(0, 8)),
-      selectedOutputId: selectedOutputId?.substring(0, 8) || 'null'
-    });
 
     if (!outputSelectionReady) {
-      console.log('[ParentReuseDebug] Auto-select: skipping - not ready');
       return;
     }
     if (parentGenerations.length === 0) {
-      console.log('[ParentReuseDebug] Auto-select: skipping - no parents');
       return;
     }
 
     // Select first if nothing selected or current selection doesn't exist
     const selectionExists = selectedOutputId && parentGenerations.some(p => p.id === selectedOutputId);
     if (!selectionExists) {
-      console.log('[ParentReuseDebug] Auto-select: ✅ Setting selectedOutputId to:', parentGenerations[0].id.substring(0, 8));
       setSelectedOutputId(parentGenerations[0].id);
-    } else {
-      console.log('[ParentReuseDebug] Auto-select: already have valid selection');
     }
   }, [outputSelectionReady, parentGenerations, selectedOutputId, setSelectedOutputId]);
 
@@ -604,21 +582,6 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
       };
     });
 
-    console.log('[JoinSegmentsDebug] Eligibility summary (via useSegmentOutputsForShot):', {
-      shotId: selectedShotId.substring(0, 8),
-      totals: {
-        totalSegments: joinSegments.length,
-        readyToJoin: readySegments.length,
-        segmentSlots: joinSegmentSlots.length,
-        hasParent: !!joinSelectedParent,
-      },
-      computed: joinValidationData,
-      sample,
-      hint:
-        readySegments.length < 2
-          ? 'Join Segments requires >= 2 completed video segments with locations.'
-          : 'Join Segments should be available.',
-    });
   }, [selectedShotId, joinSegments, joinSegmentSlots, joinSelectedParent, joinValidationData]);
 
   // Expose shot-specific generation data to parent via mutable ref
@@ -684,7 +647,6 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
         excludePositioned: settings.excludePositioned ?? true,
         userHasCustomized: true // Mark as customized since this is being called programmatically
       };
-      console.log('[ShotEditor] Updating GenerationsPane settings:', updatedSettings);
       updateShotGenerationsPaneSettingsRef.current('shot', updatedSettings);
     }
   }, []); // Uses refs for all dependencies
@@ -769,7 +731,6 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
   // Auto-disable turbo mode when there are more than 2 images
   useEffect(() => {
     if (simpleFilteredImages.length > 2 && motionSettings.turboMode) {
-      console.log(`[ShotEditor] Auto-disabling turbo mode - too many images (${simpleFilteredImages.length} > 2)`);
       motionSettings.setTurboMode(false);
     }
   }, [simpleFilteredImages.length, motionSettings.turboMode, motionSettings.setTurboMode]);

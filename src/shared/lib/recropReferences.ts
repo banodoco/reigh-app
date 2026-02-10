@@ -36,7 +36,6 @@ export async function recropAllReferences(
   newAspectRatio: string,
   onProgress?: (current: number, total: number) => void
 ): Promise<ReferenceImage[]> {
-  console.log('[RecropReferences] 🎬 Starting batch recrop for', references.length, 'references to aspect ratio:', newAspectRatio);
   
   const reprocessed: ReferenceImage[] = [];
   let successCount = 0;
@@ -46,15 +45,8 @@ export async function recropAllReferences(
   for (let i = 0; i < references.length; i++) {
     const ref = references[i];
     
-    console.log(`[RecropReferences] 📐 Processing reference ${i + 1}/${references.length}:`, {
-      id: ref.id,
-      name: ref.name,
-      hasOriginal: !!ref.styleReferenceImageOriginal
-    });
-    
     // Skip if no original image
     if (!ref.styleReferenceImageOriginal) {
-      console.warn(`[RecropReferences] ⚠️ No original image for reference ${ref.id} (${ref.name}), skipping`);
       reprocessed.push(ref);
       skipCount++;
       onProgress?.(i + 1, references.length);
@@ -63,13 +55,11 @@ export async function recropAllReferences(
     
     try {
       // Fetch the original image
-      console.log(`[RecropReferences] 📥 Fetching original image for ${ref.name}...`);
       const response = await fetch(ref.styleReferenceImageOriginal);
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
       const blob = await response.blob();
-      console.log(`[RecropReferences] ✅ Fetched blob, size: ${blob.size} bytes, type: ${blob.type}`);
       
       // Convert to data URL for processing
       const dataURL = await new Promise<string>((resolve, reject) => {
@@ -78,10 +68,8 @@ export async function recropAllReferences(
         reader.onerror = () => reject(new Error('Failed to read blob as data URL'));
         reader.readAsDataURL(blob);
       });
-      console.log(`[RecropReferences] 🔄 Converted to data URL, length: ${dataURL.length} chars`);
       
       // Reprocess for new aspect ratio
-      console.log(`[RecropReferences] ✂️ Processing image for aspect ratio: ${newAspectRatio}...`);
       const processedDataURL = await processStyleReferenceForAspectRatioString(
         dataURL,
         newAspectRatio
@@ -90,10 +78,8 @@ export async function recropAllReferences(
       if (!processedDataURL) {
         throw new Error('processStyleReferenceForAspectRatioString returned null');
       }
-      console.log(`[RecropReferences] ✅ Image processed, new length: ${processedDataURL.length} chars`);
       
       // Upload new processed version with thumbnail
-      console.log(`[RecropReferences] 📤 Converting processed image to file...`);
       const processedFile = dataURLtoFile(
         processedDataURL,
         `reference-${ref.id}-${Date.now()}.png`
@@ -115,19 +101,14 @@ export async function recropAllReferences(
         const userId = session.user.id;
 
         // Generate thumbnail for reprocessed image
-        console.log(`[RecropReferences] 🖼️ Generating thumbnail for processed image...`);
         const thumbnailResult = await generateClientThumbnail(processedFile, 300, 0.8);
-        console.log(`[RecropReferences] ✅ Thumbnail generated: ${thumbnailResult.thumbnailWidth}x${thumbnailResult.thumbnailHeight}`);
         
         // Upload both main image and thumbnail
-        console.log(`[RecropReferences] 📤 Uploading processed file and thumbnail to storage...`);
         const uploadResult = await uploadImageWithThumbnail(processedFile, thumbnailResult.thumbnailBlob, userId);
         newProcessedUrl = uploadResult.imageUrl;
         newThumbnailUrl = uploadResult.thumbnailUrl;
         
-        console.log(`[RecropReferences] ✅ Upload complete - Image:`, newProcessedUrl, 'Thumbnail:', newThumbnailUrl);
       } catch (thumbnailError) {
-        console.warn(`[RecropReferences] ⚠️ Thumbnail generation failed, uploading without thumbnail:`, thumbnailError);
         // Fallback to original upload flow without thumbnail
         newProcessedUrl = await uploadImageToStorage(processedFile);
         newThumbnailUrl = newProcessedUrl; // Use main image as fallback
@@ -143,8 +124,6 @@ export async function recropAllReferences(
       reprocessed.push(updatedRef);
       successCount++;
       
-      console.log(`[RecropReferences] ✅ Successfully reprocessed reference ${ref.name}`);
-      
       // Report progress
       onProgress?.(i + 1, references.length);
       
@@ -157,13 +136,6 @@ export async function recropAllReferences(
       onProgress?.(i + 1, references.length);
     }
   }
-  
-  console.log('[RecropReferences] 🏁 Batch recrop complete:', {
-    total: references.length,
-    success: successCount,
-    skipped: skipCount,
-    errors: errorCount
-  });
   
   return reprocessed;
 }

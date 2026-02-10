@@ -7,7 +7,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { handleError } from '@/shared/lib/errorHandler';
 import type { TravelBetweenImagesTaskParams, TravelBetweenImagesTaskResult } from './types';
-import { DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES } from './defaults';
 import { validateTravelBetweenImagesParams, buildTravelBetweenImagesPayload } from './payloadBuilder';
 
 /**
@@ -18,12 +17,6 @@ import { validateTravelBetweenImagesParams, buildTravelBetweenImagesPayload } fr
  * @returns Promise resolving to the created task and parent generation ID
  */
 export async function createTravelBetweenImagesTask(params: TravelBetweenImagesTaskParams): Promise<TravelBetweenImagesTaskResult> {
-  console.log("[EnhancePromptDebug] Creating task with params:", params);
-  console.log("[EnhancePromptDebug] enhance_prompt parameter received:", {
-    enhance_prompt: params.enhance_prompt,
-    default_enhance_prompt: DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.enhance_prompt,
-    will_be_set_to: params.enhance_prompt ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.enhance_prompt
-  });
 
   try {
     // 1. Validate parameters
@@ -43,13 +36,7 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
     // This ensures the parent generation exists BEFORE segments start completing
     let effectiveParentGenerationId = params.parent_generation_id;
 
-    // [ParentReuseDebug] Log parent ID handling
-    console.log('[ParentReuseDebug] === createTravelBetweenImagesTask ===');
-    console.log('[ParentReuseDebug] params.parent_generation_id:', params.parent_generation_id?.substring(0, 8) || 'undefined');
-    console.log('[ParentReuseDebug] params.shot_id:', params.shot_id?.substring(0, 8) || 'undefined');
-
     if (!effectiveParentGenerationId && params.shot_id) {
-      console.log("[ParentReuseDebug] No parent_generation_id provided, WILL CREATE NEW placeholder parent");
 
       // Create a placeholder parent generation
       const newParentId = crypto.randomUUID();
@@ -86,7 +73,6 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
         throw new Error(`Failed to create placeholder parent generation: ${parentError.message}`);
       }
 
-      console.log("[ParentReuseDebug] Created NEW placeholder parent:", newParentId.substring(0, 8));
       effectiveParentGenerationId = newParentId;
 
       // Link the parent to the shot using the RPC
@@ -100,21 +86,13 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
         if (linkError) {
           console.error("[createTravelBetweenImagesTask] Error linking parent to shot:", linkError);
           // Don't throw - the generation was created, just not linked
-        } else {
-          console.log("[createTravelBetweenImagesTask] Linked parent to shot:", params.shot_id);
         }
       } catch (linkErr) {
         console.error("[createTravelBetweenImagesTask] Exception linking parent to shot:", linkErr);
         // Don't throw - the generation was created, just not linked
       }
     } else if (effectiveParentGenerationId) {
-      console.log("[ParentReuseDebug] REUSING existing parent_generation_id:", effectiveParentGenerationId.substring(0, 8));
-    } else {
-      console.log("[ParentReuseDebug] No parent_generation_id and no shot_id - segments will not have parent");
     }
-
-    // [ParentReuseDebug] Summary
-    console.log('[ParentReuseDebug] FINAL effectiveParentGenerationId:', effectiveParentGenerationId?.substring(0, 8) || 'undefined');
 
     // 5. Build orchestrator payload (now includes parent_generation_id)
     const orchestratorPayload = buildTravelBetweenImagesPayload(
@@ -128,13 +106,6 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
     // 6. Determine task type based on turbo mode
     const isTurboMode = params.turbo_mode === true;
     const taskType = isTurboMode ? 'wan_2_2_i2v' : 'travel_orchestrator';
-
-    console.log("[createTravelBetweenImagesTask] Task type determination:", {
-      modelName: params.model_name,
-      turboMode: isTurboMode,
-      taskType,
-      parentGenerationId: effectiveParentGenerationId?.substring(0, 8)
-    });
 
     // Create task using unified create-task function (no task_id - let DB auto-generate)
     const result = await createTask({
@@ -150,9 +121,6 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
       }
     });
 
-    console.log("[createTravelBetweenImagesTask] Task created successfully:", result);
-    console.log('[ParentReuseDebug] === createTravelBetweenImagesTask RETURN ===');
-    console.log('[ParentReuseDebug] Returning parentGenerationId:', effectiveParentGenerationId?.substring(0, 8) || 'undefined');
     return {
       task: result,
       parentGenerationId: effectiveParentGenerationId,

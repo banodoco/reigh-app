@@ -58,15 +58,8 @@ export const useReferences = ({
   });
 
   const handleAddToReferences = async () => {
-    console.log('[AddToRefDebug] 🚀 Starting Add to References flow', {
-      selectedProjectId,
-      selectedShotId,
-      isVideo,
-      timestamp: new Date().toISOString()
-    });
 
     if (!selectedProjectId || isVideo) {
-      console.log('[AddToRefDebug] ❌ Early exit - no project or is video');
       toast.error('Cannot add videos to references');
       return;
     }
@@ -78,8 +71,6 @@ export const useReferences = ({
       if (!imageUrl) {
         throw new Error('No image URL available');
       }
-
-      console.log('[AddToReferences] Starting to add image to references:', imageUrl);
 
       // Fetch the image as blob
       const response = await fetch(imageUrl);
@@ -95,15 +86,9 @@ export const useReferences = ({
       const originalUploadedUrl = await uploadImageToStorage(originalFile);
       
       // Generate and upload thumbnail for grid display
-      console.log('[AddToReferences] Generating thumbnail for reference image...');
       let thumbnailUrl: string | null = null;
       try {
         const thumbnailResult = await generateClientThumbnail(originalFile, 300, 0.8);
-        console.log('[AddToReferences] Thumbnail generated:', {
-          width: thumbnailResult.thumbnailWidth,
-          height: thumbnailResult.thumbnailHeight,
-          size: thumbnailResult.thumbnailBlob.size
-        });
         
         // Upload thumbnail to storage using centralized path utilities
         const { data: { session } } = await supabase.auth.getSession();
@@ -129,7 +114,6 @@ export const useReferences = ({
             .from(MEDIA_BUCKET)
             .getPublicUrl(thumbnailPath);
           thumbnailUrl = thumbnailUrlData.publicUrl;
-          console.log('[AddToReferences] Thumbnail uploaded successfully:', thumbnailUrl);
         }
       } catch (thumbnailError) {
         handleError(thumbnailError, { context: 'useReferences', showToast: false });
@@ -148,7 +132,6 @@ export const useReferences = ({
       // Process the image to match project aspect ratio
       let processedDataURL = dataURL;
       const { aspectRatio } = await resolveProjectResolution(selectedProjectId);
-      console.log('[AddToReferences] Processing for aspect ratio:', aspectRatio);
       
       const processed = await processStyleReferenceForAspectRatioString(dataURL, aspectRatio);
       if (processed) {
@@ -167,13 +150,6 @@ export const useReferences = ({
       // Get existing references
       const references = projectImageSettings?.references || [];
       const selectedReferenceIdByShot = projectImageSettings?.selectedReferenceIdByShot || {};
-      
-      console.log('[AddToRefDebug] 📊 Current project state', {
-        existingReferencesCount: references.length,
-        existingReferenceIds: references.map((r: ReferenceImage) => r.id || r.resourceId),
-        selectedReferenceIdByShot,
-        projectImageSettings: projectImageSettings ? 'exists' : 'null',
-      });
       
       // Create new resource metadata
       const metadata: StyleReferenceMetadata = {
@@ -194,23 +170,10 @@ export const useReferences = ({
         updatedAt: new Date().toISOString()
       };
       
-      console.log('[AddToRefDebug] 🎨 Creating new resource with metadata:', {
-        name: metadata.name,
-        referenceMode: metadata.referenceMode,
-        hasProcessedUrl: !!metadata.styleReferenceImage,
-        hasOriginalUrl: !!metadata.styleReferenceImageOriginal,
-        hasThumbnail: !!metadata.thumbnailUrl
-      });
-      
       // Create resource in DB
       const resource = await createResource.mutateAsync({
         type: 'style-reference',
         metadata
-      });
-      
-      console.log('[AddToRefDebug] ✅ Resource created in DB', {
-        resourceId: resource.id,
-        userId: resource.userId
       });
       
       // Create pointer
@@ -219,11 +182,6 @@ export const useReferences = ({
         resourceId: resource.id
       };
       
-      console.log('[AddToRefDebug] 🔗 Created new pointer', {
-        pointerId: newPointer.id,
-        resourceId: newPointer.resourceId
-      });
-      
       // Determine the effective shot ID
       // If selectedShotId is provided, use it.
       // If not, heuristic: try to match an existing shot ID or default to 'shot-1'
@@ -231,21 +189,12 @@ export const useReferences = ({
       let effectiveShotId = selectedShotId;
       if (!effectiveShotId) {
         const existingShots = Object.keys(selectedReferenceIdByShot);
-        console.log('[AddToRefDebug] ⚠️ No selectedShotId provided - attempting to infer', {
-          selectedShotId,
-          existingShots,
-          existingShotsCount: existingShots.length
-        });
         if (existingShots.length > 0) {
            // Pick the first one (often 'shot-1' or the only active shot)
            effectiveShotId = existingShots[0];
-           console.log('[AddToRefDebug] 🎯 Inferred from existing shots:', effectiveShotId);
         } else {
            effectiveShotId = 'shot-1';
-           console.log('[AddToRefDebug] 🎯 Defaulting to shot-1 (no existing shots)');
         }
-      } else {
-        console.log('[AddToRefDebug] ✅ Using provided selectedShotId:', effectiveShotId);
       }
       
       // Update selections for BOTH the specific shot AND 'none' (global/default)
@@ -263,24 +212,8 @@ export const useReferences = ({
         selectedReferenceIdByShot: updatedSelections
       };
       
-      console.log('[AddToRefDebug] 💾 Updating project settings', {
-        effectiveShotId,
-        newPointerId: newPointer.id,
-        previousSelectionForShot: selectedReferenceIdByShot[effectiveShotId],
-        previousSelectionForNone: selectedReferenceIdByShot['none'],
-        newSelectionForShot: updatePayload.selectedReferenceIdByShot[effectiveShotId],
-        newSelectionForNone: updatePayload.selectedReferenceIdByShot['none'],
-        allSelectionsAfterUpdate: updatePayload.selectedReferenceIdByShot,
-        totalReferencesAfterUpdate: updatePayload.references.length
-      });
-      
       // Add to references array AND set as selected for current shot
       await updateProjectImageSettings('project', updatePayload);
-      
-      console.log('[AddToRefDebug] ✅ Successfully updated project settings', {
-        effectiveShotId,
-        newReferenceSelectedForShot: newPointer.id
-      });
       
       // Show success state
       setAddToReferencesSuccess(true);
@@ -290,13 +223,10 @@ export const useReferences = ({
         setAddToReferencesSuccess(false);
       }, 2000);
       
-      console.log('[AddToRefDebug] 🎉 Add to reference flow completed successfully');
-      
     } catch (error) {
       handleError(error, { context: 'useReferences', toastTitle: 'Failed to add to references' });
     } finally {
       setIsAddingToReferences(false);
-      console.log('[AddToRefDebug] 🏁 Add to reference flow ended (finally block)');
     }
   };
 

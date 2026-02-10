@@ -52,19 +52,6 @@ export function useTaskContentType({ task, taskParams, taskTypeInfo }: UseTaskCo
     const showsTooltip = isVideoTask || isImageTask;
 
     // Debug logging for video task detection
-    if (task.status === 'Complete') {
-      console.log('[VideoQueryDebug] useTaskContentType:', {
-        taskId: task.id.substring(0, 8),
-        taskType: task.taskType,
-        dbContentType,
-        inferredContentType,
-        finalContentType: contentType,
-        isVideoTask,
-        isCompletedVideoTask,
-        hasOutputLocation: !!task.outputLocation,
-        hasChildGenerationId,
-      });
-    }
 
     return {
       isVideoTask,

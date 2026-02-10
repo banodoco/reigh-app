@@ -12,14 +12,13 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { dataFreshnessManager } from './DataFreshnessManager';
 import {
   ConnectionState,
-  ConnectionStatus,
   ConnectionStatusCallback,
   RawDatabaseEvent,
   DatabaseTable,
   DatabaseEventType,
   RealtimeConfig,
   DEFAULT_REALTIME_CONFIG,
-  INITIAL_CONNECTION_STATE,
+  INITIAL_CONNECTION_STATE
 } from './types';
 
 type RawEventCallback = (event: RawDatabaseEvent) => void;
@@ -55,7 +54,6 @@ export class RealtimeConnection {
   async connect(projectId: string): Promise<boolean> {
     // If connecting to same project and already connected, no-op
     if (this.state.projectId === projectId && this.state.status === 'connected') {
-      console.log('[RealtimeConnection] Already connected to project:', projectId);
       return true;
     }
 
@@ -71,7 +69,6 @@ export class RealtimeConnection {
    * Disconnect from the current project.
    */
   async disconnect(): Promise<void> {
-    console.log('[RealtimeConnection] Disconnecting');
 
     this.clearTimeouts();
 
@@ -124,7 +121,6 @@ export class RealtimeConnection {
    * Reset connection state (useful for testing or forced reconnect).
    */
   reset(): void {
-    console.log('[RealtimeConnection] Resetting');
     this.clearTimeouts();
     this.state = { ...INITIAL_CONNECTION_STATE };
   }
@@ -146,7 +142,6 @@ export class RealtimeConnection {
   // ===========================================================================
 
   private async doConnect(projectId: string): Promise<boolean> {
-    console.log('[RealtimeConnection] Connecting to project:', projectId);
 
     this.setState({
       status: 'connecting',
@@ -195,7 +190,6 @@ export class RealtimeConnection {
     // Subscribe with timeout
     return new Promise((resolve) => {
       this.subscribeTimeout = setTimeout(() => {
-        console.warn('[RealtimeConnection] Subscribe timeout');
         this.handleSubscribeFailure('Timeout', projectId);
         resolve(false);
       }, this.config.subscribeTimeout);
@@ -205,8 +199,6 @@ export class RealtimeConnection {
           clearTimeout(this.subscribeTimeout);
           this.subscribeTimeout = null;
         }
-
-        console.log('[RealtimeConnection] Subscribe status:', status);
 
         if (status === 'SUBSCRIBED') {
           this.setState({
@@ -299,8 +291,6 @@ export class RealtimeConnection {
       receivedAt: Date.now(),
     };
 
-    console.log('[RealtimeConnection] Event:', table, eventType);
-
     this.eventCallbacks.forEach((callback) => {
       try {
         callback(event);
@@ -368,15 +358,11 @@ export class RealtimeConnection {
       }
 
       const success = await this.doConnect(projectId);
-      if (success) {
-        console.log('[RealtimeConnection] Reconnect successful');
-      }
       // If failed, doConnect will call handleSubscribeFailure which schedules next retry
     }, delay);
   }
 
   private handleAuthHeal = (): void => {
-    console.log('[RealtimeConnection] Auth heal event received');
 
     // Only attempt reconnect if we're in a recoverable state
     if (

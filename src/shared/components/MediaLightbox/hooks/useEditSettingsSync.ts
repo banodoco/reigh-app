@@ -86,28 +86,18 @@ export function useEditSettingsSync({
     ) {
       hasInitializedFromPersistenceRef.current = true;
 
-      console.log('[EditSettingsPersist] 🔄 SYNC TO UI: Applying settings to inpainting state');
-      console.log('[EditSettingsPersist] 🔄 SYNC TO UI: generationId:', actualGenerationId.substring(0, 8));
-      console.log('[EditSettingsPersist] 🔄 SYNC TO UI: hasPersistedSettings:', hasPersistedSettings);
-      console.log('[EditSettingsPersist] 🔄 SYNC TO UI: persistedEditMode:', persistedEditMode);
-      console.log('[EditSettingsPersist] 🔄 SYNC TO UI: persistedNumGenerations:', persistedNumGenerations);
-      console.log('[EditSettingsPersist] 🔄 SYNC TO UI: persistedPrompt:', persistedPrompt ? `"${persistedPrompt.substring(0, 30)}..."` : '(empty)');
-
       // Sync edit mode
       if (persistedEditMode && persistedEditMode !== editMode) {
-        console.log('[EditSettingsPersist] 🔄 SYNC TO UI: Setting editMode from', editMode, 'to', persistedEditMode);
         setEditMode(persistedEditMode);
       }
 
       // Sync numGenerations
       if (persistedNumGenerations && persistedNumGenerations !== inpaintNumGenerations) {
-        console.log('[EditSettingsPersist] 🔄 SYNC TO UI: Setting numGenerations from', inpaintNumGenerations, 'to', persistedNumGenerations);
         setInpaintNumGenerations(persistedNumGenerations);
       }
 
       // Sync prompt (only if has persisted settings - otherwise leave empty)
       if (hasPersistedSettings && persistedPrompt && persistedPrompt !== inpaintPrompt) {
-        console.log('[EditSettingsPersist] 🔄 SYNC TO UI: Setting prompt');
         setInpaintPrompt(persistedPrompt);
       }
     }
@@ -132,7 +122,6 @@ export function useEditSettingsSync({
 
     // Sync editMode changes
     if (editMode !== persistedEditMode) {
-      console.log('[EditSettingsPersist] 💾 SYNC FROM UI: editMode changed to:', editMode);
       setPersistedEditMode(editMode);
     }
   }, [editMode, persistedEditMode, setPersistedEditMode, isEditSettingsReady]);
@@ -142,7 +131,6 @@ export function useEditSettingsSync({
 
     // Sync numGenerations changes
     if (inpaintNumGenerations !== persistedNumGenerations) {
-      console.log('[EditSettingsPersist] 💾 SYNC FROM UI: numGenerations changed to:', inpaintNumGenerations);
       setPersistedNumGenerations(inpaintNumGenerations);
     }
   }, [inpaintNumGenerations, persistedNumGenerations, setPersistedNumGenerations, isEditSettingsReady]);
@@ -152,7 +140,6 @@ export function useEditSettingsSync({
 
     // Sync prompt changes
     if (inpaintPrompt !== persistedPrompt) {
-      console.log('[EditSettingsPersist] 💾 SYNC FROM UI: prompt changed to:', inpaintPrompt ? `"${inpaintPrompt.substring(0, 30)}..."` : '(empty)');
       setPersistedPrompt(inpaintPrompt);
     }
   }, [inpaintPrompt, persistedPrompt, setPersistedPrompt, isEditSettingsReady]);

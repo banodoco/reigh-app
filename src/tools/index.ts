@@ -9,8 +9,16 @@ import { editImagesSettings } from './edit-images/settings';
 import { editVideoSettings } from './edit-video/settings';
 import { trainingDataHelperSettings } from './training-data-helper/settings';
 import { userPreferencesSettings } from '../shared/settings/userPreferences';
-import { AppEnv, LOCAL_ENVS, type AppEnvValue } from '../types/env';
-import { Paintbrush, Video, Edit, Users, Link2, Film, Database, type LucideIcon } from 'lucide-react';
+import { AppEnv, type AppEnvValue } from '../types/env';
+import {
+  Paintbrush,
+  Video,
+  Edit,
+  Users,
+  Link2,
+  Film,
+  type LucideIcon
+} from 'lucide-react';
 
 export const toolsManifest = [
   videoTravelSettings,

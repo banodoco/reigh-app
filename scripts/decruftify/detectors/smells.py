@@ -65,6 +65,20 @@ SMELL_CHECKS = [
         "pattern": None,
         "severity": "medium",
     },
+    {
+        "id": "empty_if_chain",
+        "label": "Empty if/else chains",
+        # Detected separately — multi-line analysis
+        "pattern": None,
+        "severity": "high",
+    },
+    {
+        "id": "dead_useeffect",
+        "label": "useEffect with empty body",
+        # Detected separately — multi-line analysis
+        "pattern": None,
+        "severity": "high",
+    },
 ]
 
 
@@ -104,6 +118,12 @@ def detect_smells(path: Path) -> list[dict]:
 
         # Console.error without throw/return
         _detect_error_no_throw(filepath, lines, smell_counts)
+
+        # Empty if/else chains (fixer artifact)
+        _detect_empty_if_chains(filepath, lines, smell_counts)
+
+        # useEffect with empty body (fixer artifact)
+        _detect_dead_useeffects(filepath, lines, smell_counts)
 
     # Build summary entries sorted by severity then count
     severity_order = {"high": 0, "medium": 1, "low": 2}
@@ -171,6 +191,178 @@ def _detect_error_no_throw(filepath: str, lines: list[str],
                     "line": i + 1,
                     "content": line.strip()[:100],
                 })
+
+
+def _detect_empty_if_chains(filepath: str, lines: list[str],
+                            smell_counts: dict[str, list[dict]]):
+    """Find if/else chains where all branches are empty."""
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        # Look for if (...) { on one line or if (...) { } on one line
+        if not re.match(r"(?:else\s+)?if\s*\(", stripped):
+            i += 1
+            continue
+
+        # Check single-line: if (...) { }
+        if re.match(r"(?:else\s+)?if\s*\([^)]*\)\s*\{\s*\}\s*$", stripped):
+            # Single-line empty if — check if followed by else
+            chain_start = i
+            chain_all_empty = True
+            j = i + 1
+            # Walk through any else-if / else continuations
+            while j < len(lines):
+                next_stripped = lines[j].strip()
+                if re.match(r"else\s+if\s*\([^)]*\)\s*\{\s*\}\s*$", next_stripped):
+                    j += 1
+                    continue
+                if re.match(r"(?:\}\s*)?else\s*\{\s*\}\s*$", next_stripped):
+                    j += 1
+                    continue
+                break
+            if j > i + 1 or chain_all_empty:
+                smell_counts["empty_if_chain"].append({
+                    "file": filepath,
+                    "line": chain_start + 1,
+                    "content": stripped[:100],
+                })
+            i = j
+            continue
+
+        # Multi-line: if (...) { followed by } on next non-blank line
+        if re.match(r"(?:else\s+)?if\s*\([^)]*\)\s*\{\s*$", stripped):
+            chain_start = i
+            chain_all_empty = True
+            j = i
+            while j < len(lines):
+                cur = lines[j].strip()
+                # Expect an if or else-if opening
+                if j == chain_start:
+                    if not re.match(r"(?:else\s+)?if\s*\([^)]*\)\s*\{\s*$", cur):
+                        chain_all_empty = False
+                        break
+                elif re.match(r"\}\s*else\s+if\s*\([^)]*\)\s*\{\s*$", cur):
+                    pass  # } else if (...) { — continue checking
+                elif re.match(r"\}\s*else\s*\{\s*$", cur):
+                    pass  # } else { — continue checking
+                elif cur == "}":
+                    # Could be end of an empty block — peek ahead for else
+                    k = j + 1
+                    while k < len(lines) and lines[k].strip() == "":
+                        k += 1
+                    if k < len(lines) and re.match(r"else\s", lines[k].strip()):
+                        j = k
+                        continue
+                    # End of chain
+                    j += 1
+                    break
+                elif cur == "":
+                    j += 1
+                    continue
+                else:
+                    # Non-empty content inside a block — chain is not all-empty
+                    chain_all_empty = False
+                    break
+                j += 1
+
+            if chain_all_empty and j > chain_start + 1:
+                smell_counts["empty_if_chain"].append({
+                    "file": filepath,
+                    "line": chain_start + 1,
+                    "content": lines[chain_start].strip()[:100],
+                })
+            i = max(i + 1, j)
+            continue
+
+        i += 1
+
+
+def _detect_dead_useeffects(filepath: str, lines: list[str],
+                            smell_counts: dict[str, list[dict]]):
+    """Find useEffect calls with empty or whitespace/comment-only bodies."""
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not re.match(r"(?:React\.)?useEffect\s*\(\s*\(\s*\)\s*=>\s*\{", stripped):
+            continue
+
+        # Find the extent of the useEffect call by tracking parens
+        paren_depth = 0
+        brace_depth = 0
+        end = None
+        for j in range(i, min(i + 30, len(lines))):
+            in_str = None
+            prev_ch = ""
+            for ch in lines[j]:
+                if in_str:
+                    if ch == in_str and prev_ch != "\\":
+                        in_str = None
+                    prev_ch = ch
+                    continue
+                if ch in "'\"`":
+                    in_str = ch
+                elif ch == "(":
+                    paren_depth += 1
+                elif ch == ")":
+                    paren_depth -= 1
+                    if paren_depth <= 0:
+                        end = j
+                        break
+                elif ch == "{":
+                    brace_depth += 1
+                elif ch == "}":
+                    brace_depth -= 1
+                prev_ch = ch
+            if end is not None:
+                break
+
+        if end is None:
+            continue
+
+        # Extract the callback body (between first { after => and matching })
+        text = "".join(lines[i:end + 1])
+        arrow_pos = text.find("=>")
+        if arrow_pos == -1:
+            continue
+        brace_pos = text.find("{", arrow_pos)
+        if brace_pos == -1:
+            continue
+
+        # Find matching closing brace
+        depth = 0
+        body_end = None
+        in_str = None
+        prev_ch = ""
+        for ci in range(brace_pos, len(text)):
+            ch = text[ci]
+            if in_str:
+                if ch == in_str and prev_ch != "\\":
+                    in_str = None
+                prev_ch = ch
+                continue
+            if ch in "'\"`":
+                in_str = ch
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    body_end = ci
+                    break
+            prev_ch = ch
+
+        if body_end is None:
+            continue
+
+        body = text[brace_pos + 1:body_end]
+        # Check if body is empty or only whitespace/comments
+        body_stripped = re.sub(r"//[^\n]*", "", body)  # strip line comments
+        body_stripped = re.sub(r"/\*.*?\*/", "", body_stripped, flags=re.DOTALL)  # strip block comments
+        if body_stripped.strip() == "":
+            smell_counts["dead_useeffect"].append({
+                "file": filepath,
+                "line": i + 1,
+                "content": stripped[:100],
+            })
 
 
 def cmd_smells(args):

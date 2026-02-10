@@ -161,30 +161,15 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
     useEffect(() => {
         if (gapFrames > maxGapFrames) {
             const quantizedGap = getQuantizedGap(maxGapFrames, contextFrames);
-            console.log('[JoinClips] Auto-reducing gap frames from', gapFrames, 'to', quantizedGap);
             setGapFrames(quantizedGap);
         }
     }, [maxGapFrames, gapFrames, contextFrames, setGapFrames]);
 
     useEffect(() => {
         if (contextFrames > maxContextFrames) {
-            console.log('[JoinClips] Auto-reducing context frames from', contextFrames, 'to', maxContextFrames);
             setContextFrames(maxContextFrames);
         }
     }, [maxContextFrames, contextFrames, setContextFrames]);
-
-    // Debug logging for form props
-    useEffect(() => {
-        console.log('[JoinClips Form] Props updated:', {
-            keepBridgingImages,
-            keepBridgingImagesValue,
-            enhancePrompt,
-            enhancePromptValue,
-            replaceMode,
-            gapFrames,
-            contextFrames
-        });
-    }, [keepBridgingImages, keepBridgingImagesValue, enhancePrompt, enhancePromptValue, replaceMode, gapFrames, contextFrames]);
 
     // Auto-disable bridge anchors when gap frames is 8 or fewer
     useEffect(() => {
@@ -290,16 +275,8 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                             id="join-enhance-prompt"
                             checked={enhancePromptValue}
                             onCheckedChange={(val) => {
-                                console.log('[JoinClipsEnhance] 🔄 Toggle clicked!');
-                                console.log('[JoinClipsEnhance] New value:', val);
-                                console.log('[JoinClipsEnhance] setEnhancePrompt exists:', typeof setEnhancePrompt);
-                                console.log('[JoinClipsEnhance] Current enhancePrompt prop:', enhancePrompt);
-                                console.log('[JoinClipsEnhance] Current enhancePromptValue:', enhancePromptValue);
                                 if (setEnhancePrompt) {
-                                    console.log('[JoinClipsEnhance] Calling setEnhancePrompt with:', val);
                                     setEnhancePrompt(val);
-                                } else {
-                                    console.log('[JoinClipsEnhance] ❌ setEnhancePrompt is undefined!');
                                 }
                             }}
                         />
@@ -437,7 +414,6 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                                                     checked={gapFrames <= 8 ? false : keepBridgingImagesValue}
                                                     disabled={gapFrames <= 8}
                                                     onCheckedChange={(val) => {
-                                                        console.log('[JoinClips] Toggle keepBridgingImages:', val);
                                                         setKeepBridgingImages?.(val);
                                                     }}
                                                 />
@@ -496,7 +472,6 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                                                                             id="join-resolution-source"
                                                                             checked={useInputVideoResolution ?? false}
                                                                             onCheckedChange={(val) => {
-                                                                                console.log('[JoinClips] Toggle useInputVideoResolution:', val);
                                                                                 setUseInputVideoResolution?.(val);
                                                                             }}
                                                                         />
@@ -528,7 +503,6 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                                                                             id="join-fps-source"
                                                                             checked={useInputVideoFps ?? false}
                                                                             onCheckedChange={(val) => {
-                                                                                console.log('[JoinClips] Toggle useInputVideoFps:', val);
                                                                                 setUseInputVideoFps?.(val);
                                                                             }}
                                                                         />

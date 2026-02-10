@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Check, X, Copy } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { DisplayableMetadata, MetadataLora } from './MediaGallery';
+import { DisplayableMetadata } from './MediaGallery';
 import { getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
 
 // Helper function to map model names to display names

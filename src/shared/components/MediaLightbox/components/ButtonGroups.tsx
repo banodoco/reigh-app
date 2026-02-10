@@ -15,7 +15,6 @@ import {
   useLightboxCoreSafe,
   useLightboxMediaSafe,
 } from '../contexts/LightboxStateContext';
-import { useImageEditSafe } from '../contexts/ImageEditContext';
 
 // ============================================================================
 // TOP RIGHT CONTROLS - Download & Delete

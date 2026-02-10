@@ -105,11 +105,6 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
   // Reset video ready state when src changes
   useEffect(() => {
     setIsVideoReady(false);
-    console.log('[StyledVideoPlayer] src changed, resetting isVideoReady:', {
-      src: src?.substring(0, 60),
-      poster: poster?.substring(0, 60),
-      hasPoster: !!poster
-    });
   }, [src, poster]);
 
   useEffect(() => {
@@ -145,19 +140,9 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
     
     // iOS debug logging
     const handleLoadStart = () => {
-      console.log('[iOSPlaybackDebug] loadstart - video beginning to load:', {
-        src: src?.substring(0, 80),
-        readyState: video.readyState,
-        networkState: video.networkState,
-      });
     };
     
     const handleCanPlay = () => {
-      console.log('[iOSPlaybackDebug] canplay - video can start playing:', {
-        src: src?.substring(0, 80),
-        readyState: video.readyState,
-        duration: video.duration,
-      });
       setIsVideoReady(true);
     };
     
@@ -175,19 +160,9 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
     };
     
     const handleStalled = () => {
-      console.warn('[iOSPlaybackDebug] Video stalled (download interrupted):', {
-        src: src?.substring(0, 80),
-        readyState: video.readyState,
-        networkState: video.networkState,
-        buffered: video.buffered.length > 0 ? `${video.buffered.start(0)}-${video.buffered.end(0)}` : 'none',
-      });
     };
     
     const handleWaiting = () => {
-      console.log('[iOSPlaybackDebug] waiting - video waiting for more data:', {
-        currentTime: video.currentTime,
-        readyState: video.readyState,
-      });
     };
 
     video.addEventListener('timeupdate', updateTime);
@@ -311,7 +286,6 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
             </div>
           </div>
         )}
-
 
       {/* Custom Controls Overlay */}
       <div 

@@ -128,14 +128,6 @@ export function useVideoItemJoinClips(
             return true;
           });
 
-          console.log('[JoinClips] Found child generations:', {
-            parentId: video.id?.substring(0, 8),
-            totalChildren: allChildren.length,
-            uniqueSegments: uniqueChildren.length,
-            deduplicatedCount: allChildren.length - uniqueChildren.length,
-            allHaveLocations: uniqueChildren.every(c => c.location),
-          });
-
           setChildGenerations(uniqueChildren);
         } finally {
           if (!cancelled) {
@@ -234,20 +226,6 @@ export function useVideoItemJoinClips(
       // Extract shot_id from video params for "Visit Shot" button in TasksPane
       const videoParams = video.params;
       const videoShotId = videoParams?.shot_id || (videoParams?.orchestrator_details as Record<string, unknown> | undefined)?.shot_id;
-
-      console.log('[JoinClips] Creating join task for segments:', {
-        parentId: video.id?.substring(0, 8),
-        clipCount: clips.length,
-        prompt: joinPrompt,
-        contextFrames: joinContextFrames,
-        gapFrames: joinGapFrames,
-        replaceMode: joinReplaceMode,
-        keepBridgingImages: keepBridgingImages,
-        clips: clips.map(c => ({ name: c.name, url: c.url?.substring(0, 50) + '...' })),
-        projectAspectRatio,
-        resolution: resolutionTuple,
-        shotId: videoShotId?.substring(0, 8),
-      });
 
       // Create the join clips task with user settings
       await createJoinClipsTask({

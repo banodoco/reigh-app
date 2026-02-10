@@ -99,18 +99,6 @@ export function usePendingSegmentTasks(
       // Note: We can't directly filter by shot_id in the query since it's in params
       // The pair_shot_generation_id links to a shot_generations record for this shot
 
-      console.log('[usePendingSegmentTasks] Query completed:', {
-        timestamp: queryStartTime,
-        shotId: shotId.substring(0, 8),
-        rawCount: data?.length || 0,
-        extractedCount: tasks.length,
-        tasks: tasks.map(t => ({
-          id: t.id.substring(0, 8),
-          status: t.status,
-          pairId: t.pair_shot_generation_id?.substring(0, 8),
-        })),
-      });
-
       return tasks;
     },
     enabled: !!shotId && !!projectId,
@@ -158,11 +146,9 @@ export function usePendingSegmentTasks(
         if (isInRealPending) {
           // Confirmed by real query - clear from optimistic (real will show it)
           changed = true;
-          console.log('[usePendingSegmentTasks] Optimistic ID confirmed:', id.substring(0, 8));
         } else if (isExpired) {
           // Not in real pending after timeout - was cancelled or failed
           changed = true;
-          console.log('[usePendingSegmentTasks] Optimistic ID expired:', id.substring(0, 8));
         } else {
           // Keep it - still within timeout window
           next.set(id, addedAt);
@@ -176,7 +162,6 @@ export function usePendingSegmentTasks(
   // Add an optimistic pending ID for immediate UI feedback
   const addOptimisticPending = useCallback((pairShotGenerationId: string | null | undefined) => {
     if (pairShotGenerationId) {
-      console.log('[usePendingSegmentTasks] Adding optimistic pending:', pairShotGenerationId.substring(0, 8));
       setOptimisticPending(prev => new Map(prev).set(pairShotGenerationId, Date.now()));
     }
   }, []);

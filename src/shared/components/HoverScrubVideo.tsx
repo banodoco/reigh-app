@@ -170,19 +170,9 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
 
     // Prime video loading if needed
     if (videoRef.current && preloadProp === 'none' && videoRef.current.readyState < 2) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[VideoStallFix] Fallback priming video load on mouse move', {
-          src: src?.substring(src.lastIndexOf('/') + 1) || 'no-src',
-          readyState: videoRef.current.readyState,
-          timestamp: Date.now()
-        });
-      }
       try {
         videoRef.current.load();
       } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[VideoStallFix] Failed to prime video load on mouse move', e);
-        }
       }
     }
 
@@ -206,19 +196,9 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
 
     // Prime video loading if needed
     if (videoRef.current && videoRef.current.readyState === 0) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[VideoStallFix] Priming video load on hover (readyState=0)', {
-          src: src?.substring(src.lastIndexOf('/') + 1) || 'no-src',
-          preloadProp,
-          timestamp: Date.now()
-        });
-      }
       try {
         videoRef.current.load();
       } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[VideoStallFix] Failed to prime video load on hover', e);
-        }
       }
     }
 
@@ -238,12 +218,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
 
     // Skip if scrubbing not enabled
     if (!scrubbingEnabled) {
-      if (isMobile && process.env.NODE_ENV === 'development') {
-        console.log('[MobileVideoAutoplay] Mouse leave detected on mobile (should be ignored)', {
-          src,
-          timestamp: Date.now()
-        });
-      }
       return;
     }
 
@@ -268,13 +242,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
 
     // Ensure video is paused first to prevent autoplay
     if (!videoRef.current.paused) {
-      if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-        console.warn('[MobileVideoAutoplay] Video was playing during metadata load, pausing it', {
-          isMobile,
-          videoSrc: videoRef.current.src,
-          timestamp: Date.now()
-        });
-      }
       videoRef.current.pause();
     }
 
@@ -282,24 +249,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     // IMPORTANT: Skip this if we already have a poster to avoid "weird reset" flashes
     if (!disableScrubbing && videoRef.current.currentTime === 0 && !poster) {
       videoRef.current.currentTime = 0.001;
-      if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-        console.log('[MobileVideoAutoplay] Set currentTime to show first frame (no poster present)', {
-          isMobile,
-          disableScrubbing,
-          newCurrentTime: videoRef.current.currentTime,
-          timestamp: Date.now()
-        });
-      }
     } else if (disableScrubbing || poster) {
-      if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-        console.log(`[MobileVideoAutoplay] Skipping currentTime manipulation (${disableScrubbing ? 'lightbox mode' : 'poster present'})`, {
-          isMobile,
-          disableScrubbing,
-          hasPoster: !!poster,
-          currentTime: videoRef.current.currentTime,
-          timestamp: Date.now()
-        });
-      }
     }
   }, [isMobile, disableScrubbing, thumbnailMode, poster, scrubbing.videoProps]);
 
@@ -314,18 +264,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     const currentStableSrc = stripQueryParameters(src);
     const isActuallyNewSrc = currentStableSrc !== stableSrcRef.current;
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[MobileVideoAutoplay] useEffect[src] called', {
-        isMobile,
-        disableScrubbing,
-        src: src?.substring(0, 50),
-        isActuallyNewSrc,
-        videoPaused: video.paused,
-        videoCurrentTime: video.currentTime,
-        timestamp: Date.now()
-      });
-    }
-
     // Update stable source ref
     stableSrcRef.current = currentStableSrc;
 
@@ -357,25 +295,9 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     };
 
     const handleSeeked = () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[MobileVideoAutoplay] Video seeked', {
-          isMobile,
-          disableScrubbing,
-          src: video.src,
-          currentTime: video.currentTime,
-          paused: video.paused,
-          timestamp: Date.now()
-        });
-      }
       
       // Only enforce pause-after-seek on mobile thumbnails, unless user initiated
       if (!disableScrubbing && isMobile && !userInitiatedPlayRef.current && !video.paused) {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[MobileVideoAutoplay] Video started playing after seek on mobile thumbnail, pausing', {
-            src: video.src,
-            timestamp: Date.now()
-          });
-        }
         video.pause();
       }
     };
@@ -440,7 +362,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     };
   }, [isMobile, src, disableScrubbing]);
 
-
   return (
     <div
       ref={containerRef}
@@ -466,86 +387,24 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
         })}
         onDoubleClick={onDoubleClick}
         onTouchEnd={(e) => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] onTouchEnd called', {
-              isMobile,
-              src: getDisplayUrl(src),
-              videoPaused: videoRef.current?.paused,
-              timestamp: Date.now()
-            });
-          }
           onTouchEnd?.(e);
         }}
         onTouchStart={(e) => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] onTouchStart called', {
-              isMobile,
-              src: getDisplayUrl(src),
-              videoPaused: videoRef.current?.paused,
-              timestamp: Date.now()
-            });
-          }
         }}
         onTouchMove={(e) => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] onTouchMove called', {
-              isMobile,
-              src: getDisplayUrl(src),
-              videoPaused: videoRef.current?.paused,
-              timestamp: Date.now()
-            });
-          }
         }}
         onClick={(e) => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] onClick called', {
-              isMobile,
-              src: getDisplayUrl(src),
-              videoPaused: videoRef.current?.paused,
-              timestamp: Date.now()
-            });
-          }
 
         }}
         onLoadStart={(e) => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] onLoadStart called', {
-              isMobile,
-              src: getDisplayUrl(src),
-              timestamp: Date.now()
-            });
-          }
           onLoadStart?.(e);
         }}
         onLoadedData={(e) => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] onLoadedData called', {
-              isMobile,
-              src: getDisplayUrl(src),
-              videoPaused: videoRef.current?.paused,
-              timestamp: Date.now()
-            });
-          }
           onLoadedData?.(e);
         }}
         onCanPlay={() => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] onCanPlay called', {
-              isMobile,
-              src: getDisplayUrl(src),
-              videoPaused: videoRef.current?.paused,
-              posterSrc: poster ? getDisplayUrl(poster) : 'none',
-              timestamp: Date.now()
-            });
-          }
           // Prevent autoplay on mobile only for gallery thumbnails (scrubbing enabled)
           if (!disableScrubbing && isMobile && videoRef.current && !videoRef.current.paused) {
-            if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-              console.warn('[MobileVideoAutoplay] Forcing pause on canPlay event (mobile thumbnail)', {
-                src: getDisplayUrl(src),
-                timestamp: Date.now()
-              });
-            }
             videoRef.current.pause();
           }
         }}
@@ -562,22 +421,8 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
           onVideoError?.(e);
         }}
         onSuspend={() => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] Video suspended', {
-              isMobile,
-              src: getDisplayUrl(src),
-              timestamp: Date.now()
-            });
-          }
         }}
         onWaiting={() => {
-          if (process.env.NODE_ENV === 'development' && !thumbnailMode) {
-            console.log('[MobileVideoAutoplay] Video waiting', {
-              isMobile,
-              src: getDisplayUrl(src),
-              timestamp: Date.now()
-            });
-          }
         }}
       >
         Your browser does not support the video tag.

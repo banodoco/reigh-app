@@ -84,15 +84,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   onSelectionClick,
   selectedCount = 0,
 }) => {
-  // [ShotNavPerf] Log when TimelineItem mounts/updates
-  React.useEffect(() => {
-    console.log('[ShotNavPerf] 🖼️ TimelineItem MOUNTED/UPDATED', {
-      imageId: image.id?.substring(0, 8),
-      framePosition,
-      hasImageUrl: !!image.imageUrl,
-      timestamp: Date.now()
-    });
-  }, [image.id, framePosition, image.imageUrl]);
   
   // Track hover state
   const [isHovered, setIsHovered] = useState(false);
@@ -252,13 +243,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
     if (onDuplicate) {
-      console.log('[DUPLICATE_DEBUG] 🖱️ TIMELINE ITEM - DUPLICATE CLICK:', {
-        id: image.id.substring(0, 8), // shot_generations.id
-        generation_id: image.generation_id?.substring(0, 8),
-        framePosition_from_timeline: framePosition,
-        timeline_frame_from_image: image.timeline_frame,
-        mismatch: framePosition !== image.timeline_frame ? 'POSITION_MISMATCH!' : 'positions_match'
-      });
       // Use id (shot_generations.id) - unique per entry
       onDuplicate(image.id, framePosition);
     }
@@ -269,16 +253,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   const pixelPosition = TIMELINE_PADDING_OFFSET + ((framePosition - fullMinFrames) / fullRange) * effectiveWidth;
 
   // [Position0Debug] Only log position 0 items to reduce noise
-  if (framePosition === 0) {
-    console.log(`[Position0Debug] 📍 POSITION 0 Item ${imageKey?.substring(0, 8)} position calculation:`, {
-      framePosition,
-      fullMinFrames,
-      fullRange,
-      finalPixelPosition: pixelPosition,
-      leftPercent: (pixelPosition / timelineWidth) * 100,
-      shouldBeAtStart: framePosition === 0 && fullMinFrames === 0
-    });
-  }
 
   // Apply drag offset if dragging
   // To avoid double-counting we translate by the difference between the desired cursor offset
@@ -317,15 +291,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
         pointerEvents: isElevated ? 'auto' : 'auto',
       }}
       onMouseDown={(e) => {
-        // [NonDraggableDebug] Log that we reached the TimelineItem onMouseDown handler
-        console.log('[NonDraggableDebug] 📍 TimelineItem onMouseDown FIRED:', {
-          itemId: imageKey?.substring(0, 8),
-          framePosition,
-          eventType: e.type,
-          buttons: e.buttons,
-          button: e.button,
-          timestamp: Date.now()
-        });
 
         // Track mouse down position for drag detection
         mouseDownPosRef.current = { x: e.clientX, y: e.clientY };
@@ -334,32 +299,14 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
         const target = e.target as HTMLElement;
         const isClickingButton = target.closest('button') || target.closest('[data-click-blocker]');
 
-        console.log('[TimelineItem] 🖱️ MOUSEDOWN on timeline item:', {
-          imageId: imageKey?.substring(0, 8),
-          framePosition,
-          isHovered,
-          isDragging,
-          isClickingButton: !!isClickingButton,
-          buttonClickedRecently: buttonClickedRef.current,
-          timestamp: Date.now()
-        });
-
         // Check both the DOM and the recent click flag
         if (isClickingButton || buttonClickedRef.current) {
-          console.log('[TimelineItem] 🛑 BLOCKED by button/blocker:', {
-            itemId: imageKey?.substring(0, 8),
-            reason: isClickingButton ? 'DOM check' : 'Recent click flag'
-          });
           e.preventDefault();
           e.stopPropagation();
           return;
         }
 
         if (onMouseDown) {
-          console.log('[TimelineItem] ✅ CALLING onMouseDown handler:', {
-            itemId: imageKey?.substring(0, 8),
-            hasHandler: typeof onMouseDown === 'function'
-          });
           onMouseDown(e, imageKey);
         }
       }}

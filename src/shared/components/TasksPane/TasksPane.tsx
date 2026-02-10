@@ -301,7 +301,6 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     isLocked: isTasksPaneLocked,
     onToggleLock: () => {
       const willBeLocked = !isTasksPaneLocked;
-      console.log(`[PaneDebug][TasksPane] onToggleLock`, { currentLocked: isTasksPaneLocked, willBeLocked });
       setIsTasksPaneLocked(willBeLocked);
       setIsTasksPaneOpenProgrammatic(willBeLocked);
     },
@@ -338,13 +337,11 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
         <div
           className="fixed inset-0 z-[100000] touch-none"
           onTouchStart={(e) => {
-            console.log('[PaneDebug][TasksPane] Backdrop touchstart - closing pane');
             e.preventDefault();
             e.stopPropagation();
             closePane();
           }}
           onPointerDown={(e) => {
-            console.log('[PaneDebug][TasksPane] Backdrop pointerdown - closing pane');
             e.preventDefault();
             e.stopPropagation();
             closePane();

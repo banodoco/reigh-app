@@ -76,17 +76,6 @@ export const useShotPositioning = ({
 }: UseShotPositioningProps): UseShotPositioningReturn => {
   const { navigateToShot } = useShotNavigation();
   
-  // [OptimisticDebug] Log what callbacks we received
-  useEffect(() => {
-    console.log('[OptimisticDebug] [Lightbox] useShotPositioning received callbacks:', {
-      hasOnOptimisticPositioned: !!onOptimisticPositioned,
-      callbackType: typeof onOptimisticPositioned,
-      hasOnOptimisticUnpositioned: !!onOptimisticUnpositioned,
-      optimisticPositionedIdsSize: optimisticPositionedIds?.size || 0,
-      timestamp: Date.now()
-    });
-  }, [onOptimisticPositioned, onOptimisticUnpositioned, optimisticPositionedIds]);
-  
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
   // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
   const actualGenerationId = getGenerationId(media);
@@ -115,7 +104,6 @@ export const useShotPositioning = ({
     // The parent already verified the media is in the selected shot using props.shotId comparison
     // Don't re-verify using media.shot_id since the image objects may not have shot_id populated
     if (typeof positionedInSelectedShot === 'boolean') {
-      console.log('[AddToShotDebug] useShotPositioning using positionedInSelectedShot override:', positionedInSelectedShot);
       return positionedInSelectedShot;
     }
     
@@ -145,30 +133,11 @@ export const useShotPositioning = ({
   // [ShotNavDebug] Log computed positioned state
   useEffect(() => {
     const mediaExtDbg = media as GenerationRow & MediaWithShotFields;
-    console.log('[ShotNavDebug] [MediaLightbox] isAlreadyPositionedInSelectedShot computed', {
-      mediaId: media?.id,
-      selectedShotId,
-      value: isAlreadyPositionedInSelectedShot,
-      mediaShotId: mediaExtDbg?.shot_id,
-      mediaPosition: mediaExtDbg?.position,
-      optimisticHas: optimisticPositionedIds?.has(media?.id || ''),
-      override: positionedInSelectedShot,
-      timestamp: Date.now()
-    });
   }, [isAlreadyPositionedInSelectedShot, media?.id, selectedShotId, optimisticPositionedIds, positionedInSelectedShot]);
 
   const handleAddToShot = async () => {
     if (!onAddToShot || !selectedShotId) return;
     
-    console.log('[ShotNavDebug] [MediaLightbox] handleAddToShot click', {
-      mediaId: media?.id,
-      selectedShotId,
-      isAlreadyPositionedInSelectedShot,
-      hasOnNavigateToShot: !!onNavigateToShot,
-      allShotsCount: allShots?.length,
-      timestamp: Date.now()
-    });
-
     // If already positioned in shot, navigate to the shot
     if (isAlreadyPositionedInSelectedShot) {
       const targetShotOption = allShots.find(s => s.id === selectedShotId);
@@ -178,12 +147,6 @@ export const useShotPositioning = ({
         images: [],
         position: 0,
       };
-      console.log('[ShotNavDebug] [MediaLightbox] Navigating to shot (with position)', {
-        minimalShot,
-        usedFrom: targetShotOption ? 'fromList' : 'fallback',
-        via: onNavigateToShot ? 'onNavigateToShot' : 'navigateToShot+onClose',
-        timestamp: Date.now()
-      });
       if (onNavigateToShot) {
         onNavigateToShot(minimalShot);
       } else {
@@ -199,42 +162,14 @@ export const useShotPositioning = ({
     const imageUrl = getMediaUrl(mediaWithUrls) || media.imageUrl;
     const thumbUrl = getThumbnailUrl(mediaWithUrls) || media.thumbUrl || imageUrl;
 
-    console.log('[ShotNavDebug] [MediaLightbox] Calling onAddToShot', {
-      targetShotId: selectedShotId,
-      mediaId: media?.id,
-      imageUrl: (imageUrl || '').slice(0, 120),
-      thumbUrl: (thumbUrl || '').slice(0, 120),
-      originalFields: {
-        hasUrl: !!mediaWithUrls.url,
-        hasLocation: !!media.location,
-        hasImageUrl: !!media.imageUrl,
-        hasThumbnailUrl: !!mediaWithUrls.thumbnail_url,
-        hasThumbUrl: !!media.thumbUrl
-      },
-      timestamp: Date.now()
-    });
     // CRITICAL: Pass selectedShotId (the dropdown value) as targetShotId
     // Use actualGenerationId (generations.id) not media.id (which might be shot_generations.id)
     const success = await onAddToShot(selectedShotId, actualGenerationId, imageUrl, thumbUrl);
-    console.log('[ShotNavDebug] [MediaLightbox] onAddToShot result', { success, targetShotId: selectedShotId, timestamp: Date.now() });
     if (success) {
       onShowTick?.(actualGenerationId);
       // Pass selectedShotId so optimistic state can use composite keys (mediaId:shotId)
       const optimisticKey = `${actualGenerationId}:${selectedShotId}`;
-      console.log('[OptimisticDebug] [Lightbox] SUCCESS - Calling onOptimisticPositioned:', {
-        actualGenerationId: actualGenerationId?.substring(0, 8),
-        mediaId: media?.id?.substring(0, 8),
-        shotId: selectedShotId?.substring(0, 8),
-        optimisticKey,
-        hasCallback: !!onOptimisticPositioned,
-        callbackType: typeof onOptimisticPositioned,
-        timestamp: Date.now()
-      });
       onOptimisticPositioned?.(actualGenerationId, selectedShotId);
-      console.log('[ShotNavDebug] [MediaLightbox] Positioned optimistic + tick applied', {
-        mediaId: media?.id,
-        timestamp: Date.now()
-      });
     }
   };
 
@@ -279,30 +214,11 @@ export const useShotPositioning = ({
   // [ShotNavDebug] Log computed unpositioned state
   useEffect(() => {
     const mediaExtDbg2 = media as GenerationRow & MediaWithShotFields;
-    console.log('[ShotNavDebug] [MediaLightbox] isAlreadyAssociatedWithoutPosition computed', {
-      mediaId: media?.id,
-      selectedShotId,
-      value: isAlreadyAssociatedWithoutPosition,
-      mediaShotId: mediaExtDbg2?.shot_id,
-      mediaPosition: mediaExtDbg2?.position,
-      optimisticHas: optimisticUnpositionedIds?.has(media?.id || ''),
-      override: associatedWithoutPositionInSelectedShot,
-      timestamp: Date.now()
-    });
   }, [isAlreadyAssociatedWithoutPosition, media?.id, selectedShotId, optimisticUnpositionedIds, associatedWithoutPositionInSelectedShot]);
 
   const handleAddToShotWithoutPosition = async () => {
     if (!onAddToShotWithoutPosition || !selectedShotId) return;
 
-    console.log('[ShotNavDebug] [MediaLightbox] handleAddToShotWithoutPosition click', {
-      mediaId: media?.id,
-      selectedShotId,
-      isAlreadyAssociatedWithoutPosition,
-      hasOnNavigateToShot: !!onNavigateToShot,
-      allShotsCount: allShots?.length,
-      timestamp: Date.now()
-    });
-    
     // If already associated without position, navigate to the shot
     if (isAlreadyAssociatedWithoutPosition) {
       const targetShotOption = allShots.find(s => s.id === selectedShotId);
@@ -312,12 +228,6 @@ export const useShotPositioning = ({
         images: [],
         position: 0,
       };
-      console.log('[ShotNavDebug] [MediaLightbox] Navigating to shot (without position)', {
-        minimalShot,
-        usedFrom: targetShotOption ? 'fromList' : 'fallback',
-        via: onNavigateToShot ? 'onNavigateToShot' : 'navigateToShot+onClose',
-        timestamp: Date.now()
-      });
       if (onNavigateToShot) {
         onNavigateToShot(minimalShot);
       } else {
@@ -332,25 +242,13 @@ export const useShotPositioning = ({
     const imageUrl = getMediaUrl(mediaWithUrls2) || media.imageUrl;
     const thumbUrl = getThumbnailUrl(mediaWithUrls2) || media.thumbUrl || imageUrl;
     
-    console.log('[ShotNavDebug] [MediaLightbox] Calling onAddToShotWithoutPosition', {
-      targetShotId: selectedShotId,
-      mediaId: media?.id,
-      imageUrl: (imageUrl || '').slice(0, 120),
-      thumbUrl: (thumbUrl || '').slice(0, 120),
-      timestamp: Date.now()
-    });
     // CRITICAL: Pass selectedShotId (the dropdown value) as targetShotId
     // Use actualGenerationId (generations.id) not media.id (which might be shot_generations.id)
     const success = await onAddToShotWithoutPosition(selectedShotId, actualGenerationId, imageUrl, thumbUrl);
-    console.log('[ShotNavDebug] [MediaLightbox] onAddToShotWithoutPosition result', { success, targetShotId: selectedShotId, timestamp: Date.now() });
     if (success) {
       onShowSecondaryTick?.(actualGenerationId);
       // Pass selectedShotId so optimistic state can use composite keys (mediaId:shotId)
       onOptimisticUnpositioned?.(actualGenerationId, selectedShotId);
-      console.log('[ShotNavDebug] [MediaLightbox] Unpositioned optimistic + tick applied', {
-        mediaId: media?.id,
-        timestamp: Date.now()
-      });
     }
   };
 

@@ -57,13 +57,6 @@ export const usePromoteVariantToGeneration = () => {
 
       const sourceGenerationId = variant.generation_id;
 
-      console.log('[NewImage] promoting variant:', {
-        variantId: variant.id.substring(0, 8),
-        sourceGenerationId: sourceGenerationId?.substring(0, 8),
-        variant_type: variant.variant_type,
-        is_primary: variant.is_primary,
-      });
-
       // 2. Determine if this is a video or image based on the URL
       const isVideo = hasVideoExtension(variant.location);
       const mediaType = isVideo ? 'video' : 'image';
@@ -107,11 +100,6 @@ export const usePromoteVariantToGeneration = () => {
 
       // DB trigger trg_auto_create_variant_after_generation auto-creates
       // the primary variant from the generation's location/params.
-
-      console.log('[NewImage] created generation:', {
-        newGenId: newGeneration.id.substring(0, 8),
-        sourceGenId: sourceGenerationId?.substring(0, 8),
-      });
 
       return {
         id: newGeneration.id,

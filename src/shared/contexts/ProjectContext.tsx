@@ -42,7 +42,6 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
  */
 const copyTemplateToNewUser = async (newProjectId: string, newShotId: string): Promise<void> => {
   try {
-    console.log('[Onboarding] Copying template content via RPC...');
 
     const { error } = await supabase.rpc('copy_onboarding_template', {
       target_project_id: newProjectId,
@@ -51,11 +50,9 @@ const copyTemplateToNewUser = async (newProjectId: string, newShotId: string): P
 
     if (error) {
       // Not a fatal error - new users just won't have sample content
-      console.warn('[Onboarding] Template copy failed:', error.message);
       return;
     }
 
-    console.log('[Onboarding] Template content copied successfully');
   } catch (err) {
     handleError(err, { context: 'ProjectContext', showToast: false });
   }
@@ -150,18 +147,8 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
 
   // CRITICAL: Log component mount/unmount to detect tab suspension issues
   React.useEffect(() => {
-    console.info('[ProjectContext:FastResume] 🚨 ProjectProvider MOUNTED', {
-      timestamp: Date.now(),
-      visibilityState: document.visibilityState,
-      stack: new Error().stack?.split('\n').slice(1, 3)
-    });
 
     return () => {
-      console.info('[ProjectContext:FastResume] 🚨 ProjectProvider UNMOUNTING', {
-        timestamp: Date.now(),
-        visibilityState: document.visibilityState,
-        stack: new Error().stack?.split('\n').slice(1, 3)
-      });
     };
   }, []);
 
@@ -173,23 +160,18 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
 
   // FAST RESUME: Try to restore selectedProjectId from localStorage immediately
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(() => {
-    console.log('[ProjectContext:FastResume] ATTEMPTING localStorage restoration');
     try {
       const stored = localStorage.getItem('lastSelectedProjectId');
-      console.log(`[ProjectContext:FastResume] localStorage result: ${stored}`);
       if (stored) {
-        console.log(`[ProjectContext:FastResume] Restored selectedProjectId from localStorage: ${stored}`);
         hadLocalStorageValueRef.current = true;
         return stored;
       } else {
-        console.log('[ProjectContext:FastResume] No stored selectedProjectId found in localStorage');
         hadLocalStorageValueRef.current = false;
       }
     } catch (e) {
       console.error('[ProjectContext:FastResume] localStorage access failed:', e);
       hadLocalStorageValueRef.current = false;
     }
-    console.log('[ProjectContext:FastResume] Falling back to null selectedProjectId');
     return null;
   });
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -245,17 +227,11 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
     }
     
     const serverLastOpenedId = userPreferences.lastOpenedProjectId;
-    console.log('[ProjectContext:CrossDeviceSync] Checking server preferences', {
-      serverLastOpenedId,
-      currentSelectedId: selectedProjectId,
-      hadLocalStorageValue: hadLocalStorageValueRef.current,
-    });
     
     // If server has a different project selected, switch to it
     if (serverLastOpenedId && serverLastOpenedId !== selectedProjectId) {
       const projectExists = projects.some(p => p.id === serverLastOpenedId);
       if (projectExists) {
-        console.log(`[ProjectContext:CrossDeviceSync] Syncing to server preference: ${serverLastOpenedId}`);
         setSelectedProjectIdState(serverLastOpenedId);
         // Also save to localStorage so future loads on this device are fast
         try {
@@ -263,8 +239,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
         } catch (e) {
           console.error('[ProjectContext:CrossDeviceSync] Failed to save to localStorage:', e);
         }
-      } else {
-        console.log(`[ProjectContext:CrossDeviceSync] Server project ${serverLastOpenedId} not found in user's projects`);
       }
     }
     
@@ -273,13 +247,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   }, [isLoadingPreferences, userPreferences, projects, selectedProjectId]);
 
   const handleSetSelectedProjectId = useCallback((projectId: string | null) => {
-    console.info('[TabReactivation] 🔥 SELECTED PROJECT ID CHANGING', {
-      from: selectedProjectId,
-      to: projectId,
-      visibilityState: document.visibilityState,
-      timestamp: Date.now(),
-      stack: new Error().stack?.split('\n').slice(1, 4)
-    });
 
     // Notify preloading service of project change (clears caches)
     preloadingService.onProjectChange(projectId);
@@ -290,8 +257,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
     if (projectId) {
       try {
         localStorage.setItem('lastSelectedProjectId', projectId);
-        console.log(`[ProjectContext:FastResume] Saved selectedProjectId to localStorage: ${projectId}`);
-        console.log(`[ProjectContext:FastResume] Verification - localStorage now contains: ${localStorage.getItem('lastSelectedProjectId')}`);
       } catch (e) {
         console.error(`[ProjectContext:FastResume] Failed to save to localStorage:`, e);
       }
@@ -299,9 +264,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       updateUserSettings('user', { lastOpenedProjectId: projectId });
     } else {
       try {
-        console.warn(`[ProjectContext:FastResume] REMOVING selectedProjectId from localStorage (projectId is null)`);
         localStorage.removeItem('lastSelectedProjectId');
-        console.log(`[ProjectContext:FastResume] Verification after removal - localStorage now contains: ${localStorage.getItem('lastSelectedProjectId')}`);
       } catch (e) {
         console.error(`[ProjectContext:FastResume] Failed to remove from localStorage:`, e);
       }
@@ -310,7 +273,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   }, [updateUserSettings, selectedProjectId]);
 
   const fetchProjects = useCallback(async () => {
-    console.log(`[ProjectContext:MobileDebug] Starting projects fetch`);
     try {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -363,7 +325,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
         const mappedProject = mapDbProjectToProject(newProject);
         setProjects([mappedProject]);
         // FIXED: Use handleSetSelectedProjectId to ensure localStorage is saved
-        console.log(`[ProjectContext:FastResume] Setting default project: ${mappedProject.id}`);
         handleSetSelectedProjectId(mappedProject.id);
       } else {
         const mappedProjects = projectsData.map(mapDbProjectToProject);
@@ -375,13 +336,9 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
         
         // Only update if it actually changes to avoid clobbering a valid selection and redundant writes
         if (projectIdToSelect !== selectedProjectId) {
-          console.log(`[ProjectContext:FastResume] Setting selected project (resolved): ${projectIdToSelect}`);
           handleSetSelectedProjectId(projectIdToSelect);
-        } else {
-          console.log(`[ProjectContext:FastResume] Preserving current selected project: ${selectedProjectId}`);
         }
       }
-      console.log(`[ProjectContext:MobileDebug] Projects loaded successfully`);
     } catch (error: unknown) {
       handleError(error, { context: 'ProjectContext', toastTitle: 'Failed to load projects' });
       setProjects([]);
@@ -491,15 +448,8 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
               }
             });
             
-            console.log('[ProjectContext] Copying settings from current project to new project (excluding prompts and references):', {
-              sourceProjectId: selectedProjectId,
-              originalToolCount: Object.keys(currentProjectData.settings).length,
-              filteredToolCount: Object.keys(settingsToInherit).length,
-              settingsKeys: Object.keys(settingsToInherit)
-            });
           }
         } catch (settingsError) {
-          console.warn('[ProjectContext] Failed to copy settings from current project:', settingsError);
           // Continue with project creation even if settings copy fails
         }
       }
@@ -542,10 +492,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
                }
              };
              
-             console.log('[ProjectContext] 🧬 Inheriting shot settings from localStorage (scrubbed content):', {
-               hasSettings: !!mainSettings,
-               loraCount: mainSettings.loras?.length || 0
-             });
            }
         } catch (e) {
           console.error('[ProjectContext] Failed to read localStorage for shot inheritance:', e);
@@ -580,13 +526,9 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
                   textAfterPrompts: ''
                 }
               };
-              console.log('[ProjectContext] 🧬 Inheriting shot settings from LATEST DB SHOT (scrubbed content)', {
-                loraCount: (mainSettings.loras as unknown[] | undefined)?.length || 0
-              });
             }
           }
         } catch (err) {
-          console.warn('[ProjectContext] Failed to fetch latest shot for inheritance:', err);
         }
       }
 
@@ -595,7 +537,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
          shotSettingsToInherit = {
            'travel-between-images': settingsToInherit['travel-between-images']
          };
-         console.log('[ProjectContext] 🧬 Inheriting shot settings from project defaults');
       }
 
       // Create default shot for the new project with inherited settings
@@ -609,7 +550,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       // Save the new project as last opened in user settings (kept for redundancy)
       updateUserSettings('user', { lastOpenedProjectId: mappedProject.id });
 
-            
       return mappedProject;
     } catch (err: unknown) {
       handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to create project' });
@@ -690,7 +630,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
         return updated;
       });
 
-
       return true;
     } catch (err: unknown) {
       handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to delete project' });
@@ -706,23 +645,14 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const lastFetchReasonRef = useRef<string>('');
   
   useEffect(() => {
-    console.log(`[ProjectContext:MobileDebug] Project loading check - userId: ${!!userId}, isLoadingPreferences: ${isLoadingPreferences}`);
     
     // FAST RESUME: Start loading projects as soon as we have userId (don't wait for preferences)
     if (userId) {
       fetchInvocationCountRef.current += 1;
       const reason = `userId=${!!userId}, isLoadingPreferences=${isLoadingPreferences}`;
       
-      console.log(`[ProjectContext:Profiling] 📊 fetchProjects invocation #${fetchInvocationCountRef.current}`, {
-        reason,
-        previousReason: lastFetchReasonRef.current,
-        timeSinceMount: Date.now(),
-        stack: new Error().stack?.split('\n').slice(2, 5).join('\n')
-      });
-      
       lastFetchReasonRef.current = reason;
       
-      console.log(`[ProjectContext:MobileDebug] Starting project fetch immediately (removed 100ms delay)`);
       // REMOVED: 100ms delay that was causing slow tab resume
       fetchProjects();
 
@@ -732,10 +662,8 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       }
 
       projectsTimeoutRef.current = setTimeout(() => {
-        console.warn(`[ProjectContext:MobileDebug] Projects fetch timeout, forcing recovery attempt`);
         if (isLoadingProjects) {
           // Force retry the fetch without waiting for preferences
-          console.log(`[ProjectContext:MobileDebug] Forcing projects fetch retry`);
           fetchProjects();
         }
       }, isMobileRef.current ? 15000 : 10000); // Longer timeout for mobile

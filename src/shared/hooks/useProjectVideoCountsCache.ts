@@ -158,23 +158,15 @@ export function useProjectVideoCountsCache(projectId: string | null) {
   
   const clearCache = useCallback((): void => {
     cacheRef.current.clear();
-    console.log('[ProjectVideoCountsCache] Cleared all cached project video counts');
   }, []);
   
   const deleteProjectCache = useCallback((projectId: string | null): void => {
     if (!projectId) return;
     cacheRef.current.deleteProject(projectId);
-    console.log('[ProjectVideoCountsCache] Deleted cached counts for project:', projectId);
   }, []);
   
   // Debug function to log cache state
   const logCacheState = useCallback((): void => {
-    console.log('[ProjectVideoCountsCache] Current cache state:', {
-      size: cacheRef.current.size(),
-      cachedProjectIds: cacheRef.current.getCachedProjectIds(),
-      currentProjectCounts: projectId ? getAllShotCounts() : null,
-      timestamp: Date.now()
-    });
   }, [projectId, getAllShotCounts]);
   
   // Invalidate cache when certain query keys change (video additions/deletions)
@@ -182,7 +174,6 @@ export function useProjectVideoCountsCache(projectId: string | null) {
     if (projectId) {
       cacheRef.current.deleteProject(projectId);
       refetch();
-      console.log('[ProjectVideoCountsCache] Invalidated cache due to video changes for project:', projectId);
     }
   }, [projectId, refetch]);
 

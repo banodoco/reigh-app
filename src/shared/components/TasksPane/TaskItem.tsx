@@ -348,7 +348,6 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
       const initialVariantId = (videoOutputs[0] as GenerationRowWithVariant)?._variant_id;
       onOpenVideoLightbox(task, videoOutputs, 0, initialVariantId);
     } else {
-      console.log('[VideoQueryDebug] No videoOutputs yet, triggering fetch...');
       if (!isMobile) {
         setActiveTaskId(task.id);
         setIsTasksPaneOpen(true);

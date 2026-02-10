@@ -92,7 +92,6 @@ export const setImageLoadStatus = (
 ): void => {
   const imageId = image.id;
   if (!imageId) {
-    console.warn('[ImageLoadTracker] Cannot track image without ID:', image);
     return;
   }
 

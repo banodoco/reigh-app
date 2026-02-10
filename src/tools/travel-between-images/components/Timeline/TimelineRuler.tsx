@@ -1,5 +1,5 @@
 import React from "react";
-import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_IMAGE_HALF_WIDTH, TIMELINE_PADDING_OFFSET } from "./constants";
+import { TIMELINE_PADDING_OFFSET } from "./constants";
 import { framesToSeconds } from "./utils/time-utils";
 
 interface TimelineRulerProps {
@@ -57,9 +57,6 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
       markers.push(fullMax);
     }
   }
-
-  // [RulerDebug] Log ruler markers
-  // console.log('[RulerDebug] Markers:', { fullMin, fullMax, fullRange, count: markers.length, markers });
 
   return (
     <div

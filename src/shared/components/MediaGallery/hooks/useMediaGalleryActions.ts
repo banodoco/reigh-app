@@ -114,11 +114,6 @@ export const useMediaGalleryActions = ({
       setActiveLightboxMedia(null);
     }
 
-    console.log('[Delete] Delete initiated:', {
-      imageId: imageId.substring(0, 8),
-      isServerPagination
-    });
-
     try {
       // 4. Delete on server
       if (onDelete) {
@@ -137,10 +132,6 @@ export const useMediaGalleryActions = ({
 
         // Short debounce to batch rapid deletions
         refetchTimeoutRef.current = setTimeout(async () => {
-          console.log('[BackfillV2] Triggering refetch after delete(s):', {
-            pendingDeletes: pendingDeletesRef.current.size,
-            serverPage
-          });
 
           try {
             await onBackfillRequest();
@@ -151,11 +142,6 @@ export const useMediaGalleryActions = ({
             const newTotalPages = Math.max(1, Math.ceil(newTotal / itemsPerPage));
 
             if (serverPage && serverPage > newTotalPages) {
-              console.log('[BackfillV2] Page bounds exceeded, navigating to last page:', {
-                currentPage: serverPage,
-                newTotalPages,
-                newTotal
-              });
               onPageBoundsExceeded?.(newTotalPages);
             }
 
@@ -206,11 +192,6 @@ export const useMediaGalleryActions = ({
   ]);
 
   const handleOpenLightbox = useCallback((image: GeneratedImageWithMetadata, autoEnterEditMode = false) => {
-    console.log('[CrossPageNav] 📸 handleOpenLightbox - opening image:', {
-      imageId: image.id?.substring(0, 8),
-      autoEnterEditMode,
-      timestamp: Date.now(),
-    });
 
     // Map GeneratedImageWithMetadata to GenerationRow for the lightbox
     const mediaRow: GenerationRow = {
@@ -233,7 +214,6 @@ export const useMediaGalleryActions = ({
   }, [setActiveLightboxMedia, setAutoEnterEditMode]);
 
   const handleCloseLightbox = useCallback(() => {
-    console.log('[CrossPageNav] 🚪 handleCloseLightbox called');
     setActiveLightboxMedia(null);
     setAutoEnterEditMode(false);
   }, [setActiveLightboxMedia, setAutoEnterEditMode]);

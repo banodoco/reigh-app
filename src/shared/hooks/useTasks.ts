@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Task, TaskStatus, TASK_STATUS } from '@/types/tasks';
 import { supabase } from '@/integrations/supabase/client';
 import { handleError } from '@/shared/lib/errorHandler';
-import { useProject } from '../contexts/ProjectContext';
-import { filterVisibleTasks, isTaskVisible, getTaskDisplayName, getTaskConfig, getVisibleTaskTypes } from '@/shared/lib/taskConfig';
+import { filterVisibleTasks, getVisibleTaskTypes } from '@/shared/lib/taskConfig';
 // Removed invalidationRouter - DataFreshnessManager handles all invalidation logic
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
@@ -131,15 +130,6 @@ export const useGetTask = (taskId: string) => {
 export const usePaginatedTasks = (params: PaginatedTasksParams) => {
   const { projectId, status, limit = 50, offset = 0, taskType, allProjects, allProjectIds } = params;
   const page = Math.floor(offset / limit) + 1;
-  
-  console.log('[TaskTypeFilterDebug] usePaginatedTasks called:', {
-    projectId: projectId?.substring(0, 8),
-    taskType,
-    page,
-    status,
-    allProjects,
-    allProjectIds: allProjectIds?.length,
-  });
   
   // 🎯 SMART POLLING: Use DataFreshnessManager for intelligent polling decisions
   const smartPollingConfig = useSmartPollingConfig(queryKeys.tasks.paginated(projectId!));
@@ -397,7 +387,6 @@ async function cancelTask(taskId: string): Promise<void> {
 
   // Check if task can be cancelled (only Queued tasks can be cancelled from UI)
   if (task.status !== 'Queued' && task.status !== 'In Progress') {
-    console.warn(`[cancelTask] Task ${taskId} is already ${task.status}, cannot cancel`);
     throw new Error(`Task is already ${task.status}`);
   }
 
@@ -421,9 +410,6 @@ async function cancelTask(taskId: string): Promise<void> {
     console.error('[cancelTask] Update returned but status not Cancelled:', updatedTask);
     throw new Error('Task cancellation failed - status not updated');
   }
-
-  console.log(`[cancelTask] Successfully cancelled task ${taskId}`);
-
 
   // If it's an orchestrator task, cancel all subtasks
   if (task && task.task_type?.includes('orchestrator')) {
@@ -466,7 +452,6 @@ export const useCancelTask = (projectId: string | null) => {
   return useMutation({
     mutationFn: cancelTask,
     onSuccess: (_, taskId) => {
-      console.log(`[${Date.now()}] [useCancelTask] Task cancelled, invalidating queries for projectId:`, projectId);
       // Immediately invalidate tasks queries so cancelled task disappears
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginatedAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });
@@ -565,7 +550,6 @@ const useCancelPendingTasks = () => {
   return useMutation({
     mutationFn: cancelPendingTasks,
     onSuccess: (data, projectId) => {
-      console.log(`[${Date.now()}] [useCancelPendingTasks] Tasks cancelled, invalidating queries for projectId:`, projectId);
       // Immediately invalidate tasks queries so cancelled tasks disappear
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginatedAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });
@@ -588,24 +572,6 @@ export const useTaskStatusCounts = (projectId: string | null) => {
     queryKey: projectId ? queryKeys.tasks.statusCounts(projectId) : ['task-status-counts', null],
     queryFn: async () => {
       // [TasksPaneCountMismatch] Note on counting rules for correlation with list visibility
-      console.log('[TasksPaneCountMismatch]', {
-        context: 'useTaskStatusCounts:query-start',
-        projectId,
-        countingRules: {
-          parentOnly: true,
-          excludeTaskTypesLike: null,
-          processingStatuses: ['Queued', 'In Progress'],
-          recentWindowMs: 60 * 60 * 1000
-        },
-        timestamp: Date.now()
-      });
-      console.log('[PollingBreakageIssue] useTaskStatusCounts query executing - backup polling active:', {
-        projectId,
-        visibilityState: document.visibilityState,
-        isHidden: document.hidden,
-        timestamp: Date.now(),
-        queryContextMessage: 'EXECUTING DATABASE QUERY'
-      });
       
       if (!projectId) {
         return { processing: 0, recentSuccesses: 0, recentFailures: 0 };
@@ -734,21 +700,6 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       };
       
       // [TasksPaneCountMismatch] Result snapshot to compare with list view
-      console.log('[TasksPaneCountMismatch]', {
-        context: 'useTaskStatusCounts:result',
-        projectId,
-        result,
-        timestamp: Date.now()
-      });
-
-      console.log('[PollingBreakageIssue] useTaskStatusCounts query completed:', {
-        projectId,
-        result,
-        processingStatus: processingResult.status,
-        successStatus: successResult.status,
-        failureStatus: failureResult.status,
-        timestamp: Date.now()
-      });
 
       // Track circuit breaker - if any query failed, record failure; otherwise record success
       const anyFailed = processingResult.status === 'rejected' ||
@@ -790,7 +741,6 @@ export const useAllTaskTypes = (_projectId: string | null) => {
     queryFn: () => {
       // Just use the hardcoded allowlist from taskConfig
       const visibleTypes = getVisibleTaskTypes();
-      console.log('[TaskTypeFilterDebug] Using hardcoded visible task types:', visibleTypes);
       return visibleTypes;
     },
     // Use immutable preset - hardcoded list never changes at runtime

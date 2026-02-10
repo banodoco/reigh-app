@@ -9,7 +9,6 @@ import {
   useSensors,
   DragEndEvent,
   DragStartEvent,
-  DragMoveEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -51,8 +50,6 @@ interface ShotListDisplayProps {
   onSkeletonSetupReady?: (setup: (imageCount: number) => void, clear: () => void) => void;
 }
 
-
-
 const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   onSelectShot,
   onCreateNewShot,
@@ -66,9 +63,6 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   onFilesDropOnShot,
   onSkeletonSetupReady,
 }) => {
-  // [ShotReorderDebug] Debug tag for shot reordering issues
-  const REORDER_DEBUG_TAG = '[ShotReorderDebug]';
-  
   // Get hooks first before using them in useMemo
   const { isLoading: shotsLoading, error: shotsError } = useShots();
   const { selectedProjectId: currentProjectId } = useProject();
@@ -86,7 +80,6 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
     
     // Skip sorting during optimistic updates to allow smooth drag feedback
     if (reorderShotsMutation.isPending) {
-      console.log(`${REORDER_DEBUG_TAG} Skipping sort during optimistic update`);
       return baseList;
     }
     
@@ -111,17 +104,6 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       sorted = [...baseList].sort((a, b) => (a.position || 0) - (b.position || 0));
     }
     
-    // Only log if debug flag is enabled to reduce mobile console overhead
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${REORDER_DEBUG_TAG} Frontend sorting applied:`, {
-        sortMode,
-        originalFirst: baseList[0]?.name,
-        sortedFirst: sorted[0]?.name,
-        originalFirstPosition: baseList[0]?.position,
-        sortedFirstPosition: sorted[0]?.position,
-        timestamp: Date.now()
-      });
-    }
     return sorted;
   }, [propShots, optimisticShots, reorderShotsMutation.isPending, sortMode]);
 
@@ -132,57 +114,6 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
     }
   }, [reorderShotsMutation.isPending, optimisticShots]);
   
-  // [ShotReorderDebug] Log data source to confirm fix - only in development
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${REORDER_DEBUG_TAG} ShotListDisplay data source:`, {
-        usingProps: !!propShots,
-        propsCount: propShots?.length || 0,
-        finalCount: shots?.length || 0,
-        timestamp: Date.now()
-      });
-    }
-  }, [propShots?.length, shots?.length]);
-
-  // [ShotReorderDebug] Log what's actually being rendered visually - only in development
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && shots && shots.length > 0) {
-      console.log(`${REORDER_DEBUG_TAG} === VISUAL RENDER ORDER ===`, {
-        shotsCount: shots.length,
-        timestamp: Date.now()
-      });
-      
-      // [ShotReorderDebug] Log each visual position individually - limit to first 10
-      shots.slice(0, 10).forEach((shot, index) => {
-        console.log(`${REORDER_DEBUG_TAG} Visual ${index}: ${shot.name} (ID: ${shot.id.substring(0, 8)}) - Position: ${shot.position}`);
-      });
-    }
-  }, [shots]);
-
-  // [ShotReorderDebug] Log shots data only when count changes (to reduce noise) - only in development
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${REORDER_DEBUG_TAG} Shots count changed:`, {
-        shotsCount: shots?.length || 0,
-        currentProjectId,
-        shotsLoading,
-        timestamp: Date.now()
-      });
-    }
-  }, [shots?.length, currentProjectId, shotsLoading]);
-
-  // [ShotReorderDebug] Log mutation state changes - only in development
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${REORDER_DEBUG_TAG} Reorder mutation state:`, {
-        isPending: reorderShotsMutation.isPending,
-        isError: reorderShotsMutation.isError,
-        error: reorderShotsMutation.error?.message,
-        timestamp: Date.now()
-      });
-    }
-  }, [reorderShotsMutation.isPending, reorderShotsMutation.isError, reorderShotsMutation.error]);
-
   // Check if focus is on an input element to conditionally disable KeyboardSensor
   const [isInputFocused, setIsInputFocused] = React.useState(false);
   
@@ -238,37 +169,14 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   const handleDragStart = (event: DragStartEvent) => {
     // Prevent drag if an input is focused
     if (isInputFocused) {
-      console.log(`${REORDER_DEBUG_TAG} Preventing drag start - input is focused`);
       return false;
     }
-    
-    console.log(`${REORDER_DEBUG_TAG} === DRAG START ===`, {
-      activeId: event.active.id,
-      activeData: event.active.data,
-      timestamp: Date.now()
-    });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    console.log(`${REORDER_DEBUG_TAG} === DRAG END EVENT ===`);
     const { active, over } = event;
 
-    console.log(`${REORDER_DEBUG_TAG} Drag end details:`, {
-      activeId: active.id,
-      overId: over?.id,
-      hasOver: !!over,
-      hasShots: !!shots,
-      shotsCount: shots?.length || 0,
-      currentProjectId,
-      timestamp: Date.now()
-    });
-
     if (!over || !shots || !currentProjectId) {
-      console.log(`${REORDER_DEBUG_TAG} Early return - missing requirements:`, {
-        hasOver: !!over,
-        hasShots: !!shots,
-        hasCurrentProjectId: !!currentProjectId
-      });
       return;
     }
 
@@ -276,121 +184,47 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       const oldIndex = shots.findIndex((shot) => shot.id === active.id);
       const newIndex = shots.findIndex((shot) => shot.id === over.id);
 
-      console.log(`${REORDER_DEBUG_TAG} Index calculation:`, {
-        activeId: active.id,
-        overId: over.id,
-        oldIndex,
-        newIndex,
-        shotsBeforeReorder: shots.map(s => ({ id: s.id, position: s.position, name: s.name }))
-      });
-
       if (oldIndex === -1 || newIndex === -1) {
-        console.log(`${REORDER_DEBUG_TAG} Invalid indices - aborting reorder:`, {
-          oldIndex,
-          newIndex,
-          activeId: active.id,
-          overId: over.id
-        });
         return;
       }
 
       // Create new order array
       const reorderedShots = arrayMove(shots, oldIndex, newIndex);
-      
-      console.log(`${REORDER_DEBUG_TAG} Array move completed:`, {
-        originalOrder: shots.map(s => s.id),
-        reorderedOrder: reorderedShots.map(s => s.id),
-        movedFrom: oldIndex,
-        movedTo: newIndex
-      });
-      
+
       // Update positions on the reordered shots
       const shotsWithNewPositions = reorderedShots.map((shot, index) => ({
         ...shot,
         position: index + 1,
       }));
 
-      console.log(`${REORDER_DEBUG_TAG} Position updates calculated:`, {
-        shotsWithNewPositions: shotsWithNewPositions.map(s => ({ id: s.id, position: s.position, name: s.name }))
-      });
-
       // Apply local optimistic overlay for immediate visual feedback
       setOptimisticShots(shotsWithNewPositions);
 
-      // Optimistically update query cache with the correct key
-      console.log(`${REORDER_DEBUG_TAG} Updating query caches optimistically...`);
-      
-      // Update the unlimited shots cache (used by ShotsContext -> useListShots(projectId))
-      // Cache key is ['shots', projectId, 0] where 0 = unlimited maxImagesPerShot
+      // Optimistically update the unlimited shots cache (used by ShotsContext -> useListShots(projectId))
       queryClient.setQueryData(queryKeys.shots.list(currentProjectId, 0), shotsWithNewPositions);
-      console.log(`${REORDER_DEBUG_TAG} Updated shots cache with key: ['shots', '${currentProjectId}', 0]`);
-      
+
       // Generate position updates for database
       const shotOrders = reorderedShots.map((shot, index) => ({
         shotId: shot.id,
         position: index + 1,
       }));
 
-      console.log(`${REORDER_DEBUG_TAG} Database update payload:`, {
-        projectId: currentProjectId,
-        shotOrders,
-        mutationPending: reorderShotsMutation.isPending
-      });
-
       // Update positions in database
-      console.log(`${REORDER_DEBUG_TAG} Triggering database mutation...`);
       reorderShotsMutation.mutate(
         { projectId: currentProjectId, shotOrders },
         {
           onError: (error) => {
-            console.log(`${REORDER_DEBUG_TAG} Database mutation FAILED - reverting optimistic updates:`, {
-              error: error.message,
-              errorDetails: error
-            });
             // Revert optimistic updates on both caches on error
             queryClient.setQueryData(queryKeys.shots.list(currentProjectId), shots);
             queryClient.setQueryData(queryKeys.shots.list(currentProjectId, 5), shots);
             toast.error(`Failed to reorder shots: ${error.message}`);
           },
-          onSuccess: (data) => {
-            console.log(`${REORDER_DEBUG_TAG} Database mutation SUCCESS:`, {
-              data,
-              finalShotOrder: shotsWithNewPositions.map(s => ({ id: s.id, position: s.position, name: s.name }))
-            });
-          },
-          // Note: No onSuccess callback - we don't want to invalidate and refetch
-          // The optimistic update is already in place and will stay unless there's an error
         }
       );
-    } else {
-      console.log(`${REORDER_DEBUG_TAG} No position change - active.id === over.id:`, {
-        activeId: active.id,
-        overId: over.id
-      });
     }
   };
 
-  // [ShotReorderDebug] Additional drag event handlers for debugging
-
-  const handleDragMove = (event: DragMoveEvent) => {
-    // Only log when over a different item to reduce noise
-    if (event.over && event.active.id !== event.over.id) {
-      console.log(`${REORDER_DEBUG_TAG} Drag move over different item:`, {
-        activeId: event.active.id,
-        overId: event.over.id,
-        delta: event.delta,
-        timestamp: Date.now()
-      });
-    }
-  };
-
-  const handleDragCancel = () => {
-    console.log(`${REORDER_DEBUG_TAG} === DRAG CANCELLED ===`, {
-      timestamp: Date.now()
-    });
-  };
-
-  // [ShotReorderDebug] Memoize sortable items
+  // Memoize sortable items
   const sortableItems = React.useMemo(() => {
     if (!shots) return [];
     const items = shots.map((shot) => shot.id);
@@ -522,12 +356,10 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   React.useEffect(() => {
     const handlePendingCreate = (event: CustomEvent<{ imageCount: number }>) => {
       const { imageCount } = event.detail;
-      console.log('[ShotListDisplay] Received shot-pending-create event:', { imageCount });
       setupPendingNewShot(imageCount);
     };
 
     const handlePendingCreateClear = () => {
-      console.log('[ShotListDisplay] Received shot-pending-create-clear event');
       clearPendingNewShot();
     };
 
@@ -549,10 +381,6 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
     // Try generation drop first
     const generationData = getGenerationDropData(e);
     if (generationData && onGenerationDropForNewShot) {
-      console.log('[ShotDrop] Dropping generation to create new shot:', {
-        generationId: generationData.generationId?.substring(0, 8),
-        timestamp: Date.now()
-      });
 
       // Show skeleton shot with 1 image
       setupPendingNewShot(1);
@@ -576,11 +404,6 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
         toast.error('No valid image files. Only JPEG, PNG, and WebP are supported.');
         return;
       }
-
-      console.log('[ShotDrop] Dropping files to create new shot:', {
-        fileCount: validFiles.length,
-        timestamp: Date.now()
-      });
 
       // Show skeleton shot with N images
       setupPendingNewShot(validFiles.length);
@@ -675,9 +498,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
     >
       <SortableContext 
         items={sortableItems}

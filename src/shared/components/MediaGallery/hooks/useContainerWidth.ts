@@ -124,14 +124,6 @@ export function useContainerDimensions(
       // Available height = viewport - fixed header - caller's offset (pagination, gallery chrome, etc.)
       const availableHeight = window.innerHeight - fixedChromeHeight - heightOffset;
 
-      console.log('[LayoutDebug:Dimensions]', {
-        containerWidth: Math.round(newWidth),
-        viewport: window.innerHeight,
-        fixedChrome: Math.round(fixedChromeHeight),
-        heightOffset,
-        availableHeight: Math.round(availableHeight),
-      });
-
       // Only accept dimensions that are reasonable
       if (newWidth > initialWidthEstimate * 0.5 && availableHeight > 200) {
         hasReceivedStableDimensions.current = true;

@@ -56,7 +56,6 @@ interface VideoEditModeDisplayProps {
   fps?: number;
 }
 
-
 export const VideoEditModeDisplay: React.FC<VideoEditModeDisplayProps> = ({
   videoRef,
   videoUrl,
@@ -121,7 +120,6 @@ export const VideoEditModeDisplay: React.FC<VideoEditModeDisplayProps> = ({
   useEffect(() => {
     // If we already have duration, no need to poll
     if (videoDuration > 0) {
-      console.log('[VideoEditMode] Already have duration:', videoDuration);
       return;
     }
 
@@ -129,14 +127,7 @@ export const VideoEditModeDisplay: React.FC<VideoEditModeDisplayProps> = ({
 
     const checkVideoReady = () => {
       const video = videoRef.current;
-      console.log('[VideoEditMode] Checking video ready:', {
-        hasRef: !!video,
-        readyState: video?.readyState,
-        duration: video?.duration,
-        src: video?.src?.substring(0, 50),
-      });
       if (video && Number.isFinite(video.duration) && video.duration > 0) {
-        console.log('[VideoEditMode] Video ready! Duration:', video.duration);
         onLoadedMetadata(video.duration);
         return true;
       }
@@ -153,8 +144,6 @@ export const VideoEditModeDisplay: React.FC<VideoEditModeDisplayProps> = ({
       attempts++;
       if (attempts < maxAttempts) {
         setTimeout(poll, 50);
-      } else {
-        console.log('[VideoEditMode] Gave up polling after', maxAttempts, 'attempts');
       }
     };
 

@@ -52,25 +52,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
   const startImageUrl = segmentSlotMode.pairData.startImage?.url ?? segmentSlotMode.pairData.startImage?.thumbUrl;
   const endImageUrl = segmentSlotMode.pairData.endImage?.url ?? segmentSlotMode.pairData.endImage?.thumbUrl;
 
-  // [FrameSyncDebug] Log the frame count received by the modal
-  console.log('[FrameSyncDebug] 🖼️ SegmentSlotFormView DISPLAYING:', {
-    frames: segmentSlotMode.pairData.frames,
-    startFrame: segmentSlotMode.pairData.startFrame,
-    endFrame: segmentSlotMode.pairData.endFrame,
-    pairIndex: segmentSlotMode.currentIndex,
-  });
-
-  // [SegmentNavDebug] Log what we're getting for constituent image navigation
-  console.log('[SegmentNavDebug] SegmentSlotFormView image data:', {
-    hasOnNavigateToImage: !!segmentSlotMode.onNavigateToImage,
-    startImageId: pairShotGenerationId?.substring(0, 8),
-    endImageId: segmentSlotMode.pairData.endImage?.id?.substring(0, 8),
-    startImageUrl: startImageUrl?.substring(0, 50),
-    endImageUrl: endImageUrl?.substring(0, 50),
-    startImageKeys: segmentSlotMode.pairData.startImage ? Object.keys(segmentSlotMode.pairData.startImage) : [],
-    endImageKeys: segmentSlotMode.pairData.endImage ? Object.keys(segmentSlotMode.pairData.endImage) : [],
-  });
-
   // Use the combined hook for form props
   const { formProps, getSettingsForTaskCreation, saveSettings, enhancePromptRef } = useSegmentSettingsForm({
     pairShotGenerationId,
@@ -167,16 +148,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
     // Detect trailing segment (single-image-to-video with no end image)
     const isTrailingSegment = segmentSlotMode.pairData.endImage === null;
 
-    console.log('[TrailingGen] SegmentSlotFormView.handleSubmit called:', {
-      projectId: segmentSlotMode.projectId?.substring(0, 8),
-      shotId: segmentSlotMode.shotId?.substring(0, 8),
-      pairIndex: segmentSlotMode.currentIndex,
-      isTrailingSegment,
-      hasStartImageUrl: !!startImageUrl,
-      hasEndImageUrl: !!endImageUrl,
-      pairShotGenerationId: pairShotGenerationId?.substring(0, 8),
-    });
-
     if (!segmentSlotMode.projectId) {
       console.error('[TrailingGen] ❌ No project selected');
       toast({
@@ -217,18 +188,8 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
     // Read current enhance state from ref (avoids stale closure issue when user toggles then immediately submits)
     const shouldEnhance = enhancePromptRef.current;
 
-    // Log the enhance decision
-    console.log('[EnhancedPromptSave] 🔍 Submit handler called:', {
-      shouldEnhance,
-      hasPromptToEnhance: !!promptToEnhance,
-      promptToEnhancePreview: promptToEnhance?.substring(0, 50) || '(empty)',
-      pairShotGenerationId: pairShotGenerationId?.substring(0, 8) || '(none)',
-      existingEnhancedPrompt: enhancedPrompt?.substring(0, 50) || '(none)',
-    });
-
     // If enhance is enabled, use background submission pattern
     if (shouldEnhance && promptToEnhance) {
-      console.log('[EnhancedPromptSave] 🚀 Starting background submission with prompt enhancement');
 
       // Add placeholder for immediate feedback
       const taskLabel = `Segment ${segmentSlotMode.currentIndex + 1}`;
@@ -249,7 +210,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
           }
 
           // 1. Call edge function to enhance prompt
-          console.log('[SegmentSlotFormView] 📝 Calling ai-prompt edge function to enhance prompt...');
           const { data: enhanceResult, error: enhanceError } = await supabase.functions.invoke('ai-prompt', {
             body: {
               task: 'enhance_segment_prompt',
@@ -264,7 +224,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
           }
 
           const enhancedPromptResult = enhanceResult?.enhanced_prompt?.trim() || promptToEnhance;
-          console.log('[SegmentSlotFormView] ✅ Enhanced prompt:', enhancedPromptResult.substring(0, 80) + '...');
 
           // 2. Apply before/after text to both original and enhanced prompts
           const beforeText = effectiveSettings.textBeforePrompts?.trim() || '';
@@ -273,12 +232,9 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
           const originalPromptWithPrefixes = [beforeText, effectiveSettings.prompt?.trim() || '', afterText].filter(Boolean).join(' ');
           // Enhanced prompt with before/after (the AI-enhanced version)
           const enhancedPromptWithPrefixes = [beforeText, enhancedPromptResult, afterText].filter(Boolean).join(' ');
-          console.log('[SegmentSlotFormView] 📝 Original prompt with before/after:', originalPromptWithPrefixes.substring(0, 100) + '...');
-          console.log('[SegmentSlotFormView] 📝 Enhanced prompt with before/after:', enhancedPromptWithPrefixes.substring(0, 100) + '...');
 
           // 3. Store enhanced prompt in metadata
           if (pairShotGenerationId && enhancedPromptResult !== promptToEnhance) {
-            console.log('[EnhancedPromptSave] 📥 Fetching current metadata for pairShotGenerationId:', pairShotGenerationId.substring(0, 8));
             const { data: current, error: fetchError } = await supabase
               .from('shot_generations')
               .select('metadata')
@@ -290,11 +246,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
             }
 
             const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
-            console.log('[EnhancedPromptSave] 📝 Saving enhanced_prompt to metadata:', {
-              pairShotGenerationId: pairShotGenerationId.substring(0, 8),
-              enhancedPromptPreview: enhancedPromptResult.substring(0, 50) + '...',
-              basePromptPreview: (effectiveSettings.prompt?.trim() || '').substring(0, 50) + '...',
-            });
 
             const { error: updateError } = await supabase
               .from('shot_generations')
@@ -310,16 +261,9 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
 
             if (updateError) {
               console.error('[EnhancedPromptSave] ❌ Error saving enhanced_prompt to metadata:', updateError);
-            } else {
-              console.log('[EnhancedPromptSave] ✅ Enhanced prompt saved to metadata successfully');
             }
 
             queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(pairShotGenerationId) });
-          } else {
-            console.log('[EnhancedPromptSave] ⏭️ Skipping save:', {
-              hasPairShotGenerationId: !!pairShotGenerationId,
-              enhancedPromptMatchesInput: enhancedPromptResult === promptToEnhance,
-            });
           }
 
           // 4. Build task params with original prompt as base_prompt, enhanced as separate field
@@ -352,7 +296,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
             throw new Error(result.error || 'Failed to create task');
           }
 
-          console.log('[TrailingGen] ✅ Task created successfully (enhanced path):', result.task_id);
         } catch (error) {
           handleError(error, { context: 'SegmentSlotFormView', toastTitle: 'Failed to create task' });
         } finally {
@@ -413,7 +356,6 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
           throw new Error(result.error || 'Failed to create task');
         }
 
-        console.log('[TrailingGen] ✅ Task created successfully:', result.task_id);
       } catch (error) {
         handleError(error, { context: 'SegmentSlotFormView', toastTitle: 'Failed to create task' });
       } finally {

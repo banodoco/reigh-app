@@ -153,12 +153,10 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
   // This is the moment when the new page becomes visible
   React.useEffect(() => {
     if (prevPageSignatureRef.current !== pageSignature) {
-      console.log(`[NAV_STATE] Page signature changed: ${prevPageSignatureRef.current} -> ${pageSignature}, isGalleryLoading: ${isGalleryLoading}`);
       prevPageSignatureRef.current = pageSignature;
 
       // If we were navigating, we've arrived - clear the loading state
       if (isGalleryLoading) {
-        console.log(`[NAV_STATE] Clearing navigation - new page data arrived`);
         clearNavigationRef.current();
       }
     }
@@ -295,15 +293,6 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
                     
                     // Debug logging disabled for performance (was causing excessive re-renders)
                     // if (index < 8 || (loadingStrategy.shouldLoadInInitialBatch && !shouldShow)) {
-                    //   console.log(`[GalleryDebug] 🖼️ Image ${index} render:`, {
-                    //     imageId: image.id?.substring(0, 8),
-                    //     shouldShow,
-                    //     batchGroup: loadingStrategy.batchGroup,
-                    //     shouldLoadInInitialBatch: loadingStrategy.shouldLoadInInitialBatch,
-                    //     showImageIndicesSize: showImageIndices.size,
-                    //     showImageIndicesArray: Array.from(showImageIndices).slice(0, 10),
-                    //     isGalleryLoading
-                    //   });
                     // }
                     
                     return (

@@ -15,10 +15,16 @@ from .state import make_finding
 # ── Tier labels ──────────────────────────────────────────────
 
 TIER_LABELS = {
-    1: "Auto-fixable (high confidence, trivial effort)",
-    2: "Quick fixes (high confidence, low effort)",
-    3: "Needs judgment (medium confidence, moderate effort)",
-    4: "Major refactors (significant effort, high impact)",
+    1: "Auto-fixable (imports, logs, dead deprecated)",
+    2: "Quick fixes (unused vars, dead exports, exact dupes, high-severity smells)",
+    3: "Needs judgment (smells, near-dupes, single-use, props)",
+    4: "Major refactors (3+ structural signals)",
+}
+
+SMELL_TIER_MAP = {
+    "high": 2,    # empty_catch, empty_if_chain, dead_useeffect — quick fixes
+    "medium": 3,  # any_type, ts_ignore, hardcoded_color, etc — needs judgment
+    "low": 3,     # non_null_assert, magic_number — advisory
 }
 
 CONFIDENCE_ORDER = {"high": 0, "medium": 1, "low": 2}
@@ -46,7 +52,7 @@ def generate_findings(path: Path, *, include_slow: bool = True) -> list[dict]:
     for (file, tag), entries in log_groups.items():
         findings.append(make_finding(
             "logs", file, tag,
-            tier=2, confidence="high",
+            tier=1, confidence="high",
             summary=f"{len(entries)} tagged logs [{tag}]",
             detail={"count": len(entries), "lines": [e["line"] for e in entries[:20]]},
         ))
@@ -192,9 +198,10 @@ def generate_findings(path: Path, *, include_slow: bool = True) -> list[dict]:
             by_file[m["file"]].append(m)
         for file, matches in by_file.items():
             conf = "medium" if e["severity"] != "low" else "low"
+            tier = SMELL_TIER_MAP.get(e["severity"], 3)
             findings.append(make_finding(
                 "smells", file, e["id"],
-                tier=3, confidence=conf,
+                tier=tier, confidence=conf,
                 summary=f"{len(matches)}x {e['label']}",
                 detail={"smell_id": e["id"], "severity": e["severity"],
                         "count": len(matches),

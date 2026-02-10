@@ -77,40 +77,16 @@ export const useEnhancedShotImageReorder = (
 
   // Handle drag and drop reordering in batch mode - Timeline-frame-based swapping
   const handleReorder = useCallback(async (orderedShotImageEntryIds: string[], draggedItemId?: string) => {
-    console.log('[DataTrace] 🔄 handleReorder CALLED:', {
-      shotId: shotId?.substring(0, 8),
-      idsCount: orderedShotImageEntryIds.length,
-      ids: orderedShotImageEntryIds.map(id => id?.substring(0, 8)),
-      draggedItemId: draggedItemId?.substring(0, 8),
-    });
     
     if (!shotId || orderedShotImageEntryIds.length === 0) {
-      console.warn('[DataTrace] handleReorder aborted - no shotId or empty array');
       return;
     }
-
-    console.log('[BatchModeReorderFlow] [HANDLE_REORDER] 🎯 useEnhancedShotImageReorder.handleReorder called:', {
-      shotId: shotId.substring(0, 8),
-      orderedShotImageEntryIds: orderedShotImageEntryIds.map(id => id.substring(0, 8)),
-      totalItems: orderedShotImageEntryIds.length,
-      timestamp: Date.now()
-    });
-
-    console.log('[useEnhancedShotImageReorder] Handling timeline-frame-based reorder:', {
-      shotId,
-      orderedIds: orderedShotImageEntryIds.map(id => id.substring(0, 8))
-    });
 
     try {
       // Get current images and their timeline_frame values
       const currentImages = getImagesForMode('batch');
       // img.id is shot_generations.id - unique per entry
       const currentOrder = currentImages.map(img => img.id);
-      
-      console.log('[DataTrace] 🔍 Analyzing reorder:', {
-        currentOrder: currentOrder.map(id => id?.substring(0, 8)),
-        desiredOrder: orderedShotImageEntryIds.map(id => id?.substring(0, 8)),
-      });
       
       // Detect item move for midpoint logic
       // If draggedItemId is provided, use it directly (most reliable)
@@ -126,12 +102,6 @@ export const useEnhancedShotImageReorder = (
           if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
             return false; // Item not found or didn't move
           }
-          
-          console.log('[DataTrace] 🎯 Using explicit draggedItemId for detection:', {
-            draggedItemId: draggedItemId.substring(0, 8),
-            oldIndex,
-            newIndex,
-          });
           
           return {
             movedItemIds: [draggedItemId],
@@ -171,20 +141,9 @@ export const useEnhancedShotImageReorder = (
         };
       })();
       
-      console.log('[DataTrace] 🔍 Item move detection:', {
-        hasMove: !!detectItemMove,
-        moveInfo: detectItemMove ? {
-          numItems: detectItemMove.movedItemIds.length,
-          ids: detectItemMove.movedItemIds.map(id => id.substring(0, 8)),
-          from: detectItemMove.oldStartIndex,
-          to: detectItemMove.newStartIndex,
-        } : null,
-      });
-      
       // NEW: Use midpoint logic for contiguous block moves (single or multi)
       // 🔧 FIX: Use parentHookRef to access latest parentHook (avoids stale closure)
       if (detectItemMove && parentHookRef.current?.['moveItemsToMidpoint']) {
-        console.log('[DataTrace] ✅ Using MIDPOINT DISTRIBUTION logic for block move');
         
         // Build the new order array for neighbor calculation
         const newOrderItems = orderedShotImageEntryIds.map(id => {
@@ -202,11 +161,8 @@ export const useEnhancedShotImageReorder = (
           newOrderItems
         );
         
-        console.log('[DataTrace] ✅ Midpoint distribution complete');
         return;
       }
-      
-      console.log('[DataTrace] ⚠️ Using SWAP logic (no contiguous block or no midpoint function)');
       
       // Safety check: If orderedIds has more items than currentImages, data is out of sync
       // This can happen when an image was just added but positions haven't reloaded yet
@@ -230,23 +186,6 @@ export const useEnhancedShotImageReorder = (
         }
       }
       
-      // 🔍 DIAGNOSTIC: Log the full data structure to understand duplicates
-      console.log('[BatchModeReorderFlow] [DATA_STRUCTURE] 📊 Current data structure analysis:', {
-        currentImages: currentImages.map((img, index) => ({
-          index,
-          id: img.id?.substring(0, 8), // shot_generations.id
-          generationId: img.generation_id?.substring(0, 8),
-          timeline_frame: img.timeline_frame
-        })),
-        shotGenerations: shotGenerations.map(shotGen => ({
-          shotGenId: shotGen.id.substring(0, 8),
-          generationId: shotGen.generation_id.substring(0, 8),
-          timeline_frame: shotGen.timeline_frame
-        })),
-        orderedShotImageEntryIds: orderedShotImageEntryIds.map(id => id.substring(0, 8)),
-        timestamp: Date.now()
-      });
-      
       // 🔍 DIAGNOSTIC: Check for duplicate generation_ids
       const generationIdCounts = new Map<string, number>();
       currentImages.forEach(img => {
@@ -255,15 +194,6 @@ export const useEnhancedShotImageReorder = (
       });
       
       const duplicateGenerationIds = Array.from(generationIdCounts.entries()).filter(([_, count]) => count > 1);
-      if (duplicateGenerationIds.length > 0) {
-        console.warn('[BatchModeReorderFlow] [DUPLICATE_DETECTION] ⚠️ Found duplicate generation_ids:', {
-          duplicates: duplicateGenerationIds.map(([genId, count]) => ({ 
-            generationId: genId.substring(0, 8), 
-            count 
-          })),
-          totalDuplicates: duplicateGenerationIds.length
-        });
-      }
       
       // Find what actually changed between current and desired order
       const changes: Array<{
@@ -329,39 +259,17 @@ export const useEnhancedShotImageReorder = (
         }
       }
 
-      console.log('[BatchModeReorderFlow] [CHANGES_DETECTED] 📋 Timeline-frame-based changes detected:', {
-        changesCount: changes.length,
-        changes: changes.map(c => ({
-          id: c.id.substring(0, 8), // shot_generations.id
-          generationId: c.generationId.substring(0, 8),
-          oldPos: c.oldPos,
-          newPos: c.newPos,
-          currentFrame: c.currentTimelineFrame,
-          targetFrame: c.targetTimelineFrame,
-          frameSwap: `${c.currentTimelineFrame} → ${c.targetTimelineFrame}`
-        })),
-        timestamp: Date.now()
-      });
-
       if (changes.length === 0) {
-        console.log('[useEnhancedShotImageReorder] No changes detected');
         return;
       }
 
       // Build sequential swaps to transform current order into desired order
       // This handles any permutation (simple swaps, complex chains, duplicate generation_ids)
-      console.log('[BatchModeReorderFlow] [SEQUENTIAL_SWAPS] 🔄 Building sequential swap sequence...');
       
       // Create working arrays with shot_generation IDs (the unique identifiers we need for swaps)
       // img.id is shot_generations.id - unique per entry
       const currentOrderIds = currentImages.map(img => img.id);
       const desiredOrderIds = [...orderedShotImageEntryIds]; // Copy to avoid mutation
-      
-      console.log('[BatchModeReorderFlow] [ORDER_COMPARISON] 📋 Comparing orders:', {
-        currentOrder: currentOrderIds.map(id => id.substring(0, 8)),
-        desiredOrder: desiredOrderIds.map(id => id.substring(0, 8)),
-        timestamp: Date.now()
-      });
       
       // Use pure utility function to analyze the reorder operation
       let reorderAnalysis;
@@ -375,38 +283,16 @@ export const useEnhancedShotImageReorder = (
       
       const { swapSequence, finalOrder, noChangesNeeded } = reorderAnalysis;
       
-      console.log('[BatchModeReorderFlow] [SWAP_SEQUENCE] 📝 Generated swap sequence:', {
-        totalSwaps: swapSequence.length,
-        noChangesNeeded,
-        swaps: swapSequence.map((swap, i) => ({
-          step: i + 1,
-          itemA: swap.shotGenIdA.substring(0, 8),
-          itemB: swap.shotGenIdB.substring(0, 8),
-          reason: swap.reason
-        })),
-        finalOrder: finalOrder.map(id => id.substring(0, 8)),
-        timestamp: Date.now()
-      });
-      
       // Execute the swap sequence
       if (!noChangesNeeded && swapSequence.length > 0) {
-        console.log('[BatchModeReorderFlow] [EXECUTING_SWAPS] 🚀 Executing sequential swaps...');
         
         for (let i = 0; i < swapSequence.length; i++) {
           const swap = swapSequence[i];
-          console.log('[BatchModeReorderFlow] [SWAP_STEP] 🔀 Step', i + 1, 'of', swapSequence.length, ':', {
-            itemA: swap.shotGenIdA.substring(0, 8),
-            itemB: swap.shotGenIdB.substring(0, 8),
-            reason: swap.reason
-          });
           
           await exchangePositionsNoReload(swap.shotGenIdA, swap.shotGenIdB);
         }
         
-        console.log('[BatchModeReorderFlow] [SWAPS_COMPLETE] ✅ All swaps completed, reloading positions...');
         await loadPositions({ reason: 'reorder' });
-      } else {
-        console.log('[BatchModeReorderFlow] [NO_SWAPS_NEEDED] ℹ️ No swaps needed - order already correct');
       }
 
       // Reordering completed successfully - no toast needed for smooth UX
@@ -430,12 +316,6 @@ export const useEnhancedShotImageReorder = (
       if (!targetItem) {
         throw new Error('Item not found for deletion');
       }
-
-      console.log('[PositionSystemDebug] 🗑️ Deleting individual duplicate item:', {
-        id: id.substring(0, 8), // shot_generations.id
-        generationId: targetItem.generation_id.substring(0, 8),
-        timeline_frame: targetItem.timeline_frame
-      });
 
       // Pass the shot_generations.id to delete only this specific record
       await deleteItem(id);

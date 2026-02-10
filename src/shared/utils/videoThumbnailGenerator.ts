@@ -111,13 +111,6 @@ async function uploadThumbnailToStorage(
   const fileName = `${generationId}-thumb.jpg`;
   const filePath = storagePaths.thumbnail(userId, fileName);
 
-  console.log('[ThumbnailGenerator] Uploading thumbnail:', {
-    generationId: generationId.substring(0, 8),
-    filePath,
-    blobSize: blob.size,
-    timestamp: Date.now()
-  });
-
   const { data, error } = await supabase.storage
     .from(MEDIA_BUCKET)
     .upload(filePath, blob, {
@@ -145,11 +138,6 @@ async function updateGenerationThumbnail(
   generationId: string,
   thumbnailUrl: string
 ): Promise<void> {
-  console.log('[ThumbnailGenerator] Updating database:', {
-    generationId: generationId.substring(0, 8),
-    thumbnailUrl: thumbnailUrl.substring(0, 50) + '...',
-    timestamp: Date.now()
-  });
 
   const { error } = await supabase
     .from('generations')
@@ -171,35 +159,15 @@ export async function generateAndUploadThumbnail(
   projectId: string
 ): Promise<ThumbnailGenerationResult> {
   try {
-    console.log('[ThumbnailGenerator] Starting generation:', {
-      generationId: generationId.substring(0, 8),
-      videoUrl: videoUrl.substring(0, 50) + '...',
-      timestamp: Date.now()
-    });
 
     // Step 1: Extract thumbnail from video (first frame)
     const thumbnailBlob = await extractThumbnailFromVideo(videoUrl, 0.001);
-    console.log('[ThumbnailGenerator] Thumbnail extracted:', {
-      generationId: generationId.substring(0, 8),
-      blobSize: thumbnailBlob.size,
-      blobType: thumbnailBlob.type,
-      timestamp: Date.now()
-    });
 
     // Step 2: Upload to storage
     const thumbnailUrl = await uploadThumbnailToStorage(thumbnailBlob, generationId, projectId);
-    console.log('[ThumbnailGenerator] Thumbnail uploaded:', {
-      generationId: generationId.substring(0, 8),
-      thumbnailUrl: thumbnailUrl.substring(0, 50) + '...',
-      timestamp: Date.now()
-    });
 
     // Step 3: Update database
     await updateGenerationThumbnail(generationId, thumbnailUrl);
-    console.log('[ThumbnailGenerator] Database updated successfully:', {
-      generationId: generationId.substring(0, 8),
-      timestamp: Date.now()
-    });
 
     return {
       success: true,
@@ -225,10 +193,6 @@ export async function extractAndUploadThumbnailOnly(
   projectId: string
 ): Promise<ThumbnailExtractResult> {
   try {
-    console.log('[ThumbnailGenerator] Extracting thumbnail (no DB update):', {
-      uniqueId: uniqueId.substring(0, 8),
-      videoUrl: videoUrl.substring(0, 50) + '...',
-    });
 
     // Step 1: Extract thumbnail from video (first frame)
     const thumbnailBlob = await extractThumbnailFromVideo(videoUrl, 0.001);
@@ -236,11 +200,6 @@ export async function extractAndUploadThumbnailOnly(
     // Step 2: Upload to storage
     const thumbnailUrl = await uploadThumbnailToStorage(thumbnailBlob, uniqueId, projectId);
     
-    console.log('[ThumbnailGenerator] Thumbnail uploaded:', {
-      uniqueId: uniqueId.substring(0, 8),
-      thumbnailUrl: thumbnailUrl.substring(0, 50) + '...',
-    });
-
     return {
       success: true,
       thumbnailUrl,

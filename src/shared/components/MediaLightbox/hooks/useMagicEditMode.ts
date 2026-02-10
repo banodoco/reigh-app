@@ -144,8 +144,6 @@ export const useMagicEditMode = ({
   }, [handleEnterInpaintMode]);
 
   const handleExitMagicEditMode = useCallback(() => {
-    console.log('[MediaLightbox] ✨ Exiting unified edit mode');
-    console.log('[MediaLightbox] Exit called from:', new Error().stack);
     hasManuallyExitedRef.current = true;
     hasRestoredPromptRef.current = false; // Reset so re-entering can restore again
     setIsMagicEditMode(false);
@@ -177,10 +175,6 @@ export const useMagicEditMode = ({
       const lastSettings = getLastSettings();
 
       if (lastPrompt && !inpaintPrompt) {
-        console.log('[MediaLightbox] Restoring saved magic edit prompt', {
-          promptLength: lastPrompt.length,
-          settings: lastSettings
-        });
         setInpaintPrompt(lastPrompt);
         setInpaintNumGenerations(lastSettings.numImages);
         setIsInSceneBoostEnabled(lastSettings.isInSceneBoostEnabled);
@@ -207,11 +201,9 @@ export const useMagicEditMode = ({
     // Route based on whether there are brush strokes
     if (brushStrokes.length > 0) {
       // Has brush strokes -> inpaint
-      console.log('[MediaLightbox] Routing to inpaint (has brush strokes)');
       await handleGenerateInpaint();
     } else {
       // No brush strokes -> magic edit
-      console.log('[MediaLightbox] Routing to magic edit (no brush strokes)');
       const incomingTaskId = addIncomingTask({
         taskType: 'qwen_image_edit',
         label: prompt || 'Magic edit...',
@@ -222,14 +214,6 @@ export const useMagicEditMode = ({
       try {
         // Use active variant's location if viewing a non-primary variant
         const effectiveImageUrl = activeVariantLocation || sourceUrlForTasks;
-        
-        // Log variant tracking info
-        console.log('[VariantRelationship] Creating magic edit task:');
-        console.log('[VariantRelationship] activeVariantId:', activeVariantId);
-        console.log('[VariantRelationship] activeVariantLocation:', activeVariantLocation?.substring(0, 60));
-        console.log('[VariantRelationship] sourceUrlForTasks:', sourceUrlForTasks?.substring(0, 60));
-        console.log('[VariantRelationship] effectiveImageUrl:', effectiveImageUrl?.substring(0, 60));
-        console.log('[VariantRelationship] isEditingFromVariant:', !!activeVariantId);
         
         // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
         // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
@@ -253,16 +237,7 @@ export const useMagicEditMode = ({
           qwen_edit_model: qwenEditModel, // Pass model selection for cloud mode
         };
         
-        console.log('[VariantRelationship] Task params source_variant_id:', batchParams.source_variant_id);
-        console.log('[MediaLightbox] Creating magic edit tasks:', {
-          ...batchParams,
-          lorasEnabled: !!editModeLoRAs,
-          lorasCount: editModeLoRAs?.length || 0,
-          isFromVariant: !!activeVariantId,
-          activeVariantId: activeVariantId?.substring(0, 8),
-        });
         const results = await createBatchMagicEditTasks(batchParams);
-        console.log(`[MediaLightbox] Created ${results.length} magic edit tasks`);
         
         // Save the prompt to shot generation metadata
         if (currentShotId && media.id) {
@@ -273,7 +248,6 @@ export const useMagicEditMode = ({
               false, // Legacy parameter
               isInSceneBoostEnabled
             );
-            console.log('[MediaLightbox] Saved magic edit prompt to metadata');
           } catch (error) {
             handleError(error, { context: 'useMagicEditMode', showToast: false });
             // Don't fail the entire operation if metadata save fails

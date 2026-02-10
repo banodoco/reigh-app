@@ -26,7 +26,7 @@ import {
   generateVideo,
   buildBasicModePhaseConfig,
   type StructureVideoConfig,
-  DEFAULT_STRUCTURE_VIDEO_CONFIG,
+  DEFAULT_STRUCTURE_VIDEO_CONFIG
 } from './ShotEditor/services/generateVideoService';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { LoraModel, LoraSelectorModal } from '@/shared/components/LoraSelectorModal';

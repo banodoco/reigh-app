@@ -104,12 +104,10 @@ export function useStructureVideoHandlers({
     // Auto-switch generation type mode based on structure type
     if (type === 'uni3c') {
       if (generationTypeMode !== 'i2v') {
-        console.log('[GenerationTypeMode] Auto-switching to I2V because uni3c structure type was selected');
         setGenerationTypeMode('i2v');
       }
     } else {
       if (generationTypeMode !== 'vace') {
-        console.log('[GenerationTypeMode] Auto-switching to VACE because VACE structure type was selected:', type);
         setGenerationTypeMode('vace');
       }
     }
@@ -132,13 +130,11 @@ export function useStructureVideoHandlers({
       if (structureType === 'uni3c') {
         // Uni3C uses I2V mode
         if (generationTypeMode !== 'i2v') {
-          console.log('[GenerationTypeMode] Auto-switching to I2V because uni3c structure type was selected');
           setGenerationTypeMode('i2v');
         }
       } else {
         // flow, canny, depth use VACE mode
         if (generationTypeMode !== 'vace') {
-          console.log('[GenerationTypeMode] Auto-switching to VACE because VACE structure type was selected:', structureType);
           setGenerationTypeMode('vace');
         }
       }
@@ -161,11 +157,9 @@ export function useStructureVideoHandlers({
       // When adding structure video, switch to appropriate mode based on structure type
       const targetMode = structureVideoType === 'uni3c' ? 'i2v' : 'vace';
       if (generationTypeMode !== targetMode) {
-        console.log(`[GenerationTypeMode] Auto-switching to ${targetMode.toUpperCase()} because structure video was added (type: ${structureVideoType})`);
         setGenerationTypeMode(targetMode);
       }
     } else if (wasRemoved && generationTypeMode !== 'i2v') {
-      console.log('[GenerationTypeMode] Auto-switching to I2V because structure video was removed');
       setGenerationTypeMode('i2v');
     }
 

@@ -7,7 +7,13 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Loader2, Check, Scissors, X, RotateCcw, AlertCircle } from 'lucide-react';
+import {
+  Loader2,
+  Check,
+  Scissors,
+  RotateCcw,
+  AlertCircle
+} from 'lucide-react';
 import { cn, formatTime } from '@/shared/lib/utils';
 import { TrimTimelineBar } from './TrimTimelineBar';
 import type { TrimControlsPanelProps } from '../types';
@@ -48,7 +54,6 @@ export const TrimControlsPanel: React.FC<TrimControlsPanelProps> = ({
 
   // Handle video metadata loaded
   const handleVideoLoaded = useCallback(() => {
-    console.log('[TrimControlsPanel] Video metadata loaded');
     setIsVideoReady(true);
   }, []);
 
@@ -83,7 +88,6 @@ export const TrimControlsPanel: React.FC<TrimControlsPanelProps> = ({
 
     // Validate time is finite and within video duration
     if (!Number.isFinite(time) || time < 0) {
-      console.warn('[TrimControlsPanel] Invalid time for frame extraction:', time);
       callback(null);
       isExtractingRef.current = false;
       processExtractionQueue();
@@ -94,7 +98,6 @@ export const TrimControlsPanel: React.FC<TrimControlsPanelProps> = ({
     const clampedTime = Math.min(Math.max(0.001, time), video.duration - 0.01);
 
     if (!Number.isFinite(clampedTime)) {
-      console.warn('[TrimControlsPanel] Clamped time is not finite:', clampedTime);
       callback(null);
       isExtractingRef.current = false;
       processExtractionQueue();

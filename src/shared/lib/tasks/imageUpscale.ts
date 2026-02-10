@@ -1,9 +1,4 @@
-import {
-  createTask,
-  validateRequiredFields,
-  TaskValidationError,
-  BaseTaskParams,
-} from '../taskCreation';
+import { createTask, validateRequiredFields, TaskValidationError } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';
 
@@ -86,7 +81,6 @@ function buildImageUpscaleTaskParams(
  * @returns Promise resolving to the created task
  */
 export async function createImageUpscaleTask(params: ImageUpscaleTaskParams): Promise<TaskCreationResult> {
-  console.log("[createImageUpscaleTask] Creating task with params:", params);
 
   try {
     // 1. Validate parameters
@@ -102,7 +96,6 @@ export async function createImageUpscaleTask(params: ImageUpscaleTaskParams): Pr
       params: taskParams,
     });
 
-    console.log("[createImageUpscaleTask] Task created successfully:", result);
     return result;
 
   } catch (error) {

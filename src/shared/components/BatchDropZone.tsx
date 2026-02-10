@@ -54,17 +54,6 @@ const GridSkeletonItem: React.FC<{
       height: itemHeight,
     });
     
-    console.log('[BatchDropZone] 🦴 Skeleton positioned at:', {
-      targetIndex,
-      row,
-      col,
-      left: gridOffsetX + col * (itemWidth + gap),
-      top: gridOffsetY + row * (itemHeight + gap),
-      width: itemWidth,
-      height: itemHeight,
-      firstItemRect: { width: firstItemRect.width, height: firstItemRect.height, top: firstItemRect.top, left: firstItemRect.left },
-      containerRect: { top: containerRect.top, left: containerRect.left }
-    });
   }, [containerRef, targetIndex, columns]);
 
   if (!position) return null;
@@ -97,7 +86,6 @@ const GridSkeletonItem: React.FC<{
     </div>
   );
 };
-
 
 interface BatchDropZoneProps {
   children: React.ReactNode | ((isDragging: boolean, dropTargetIndex: number | null) => React.ReactNode);
@@ -201,7 +189,6 @@ const BatchDropZone: React.FC<BatchDropZoneProps> = ({
   // Clear pending skeleton when item count increases (new item appeared)
   useEffect(() => {
     if (pendingDropIndex !== null && itemCount > prevItemCountRef.current) {
-      console.log('[BatchDropZone] ✨ Item count increased, clearing skeleton');
       // Clear immediately to prevent overlaying the new item
       setPendingDropIndex(null);
     }
@@ -224,20 +211,11 @@ const BatchDropZone: React.FC<BatchDropZoneProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[BatchDropZone] 🚀 handleDragEnter:', {
-      disabled,
-      hasOnImageDrop: !!onFileDrop,
-      hasOnGenerationDrop: !!onGenerationDrop,
-      timestamp: Date.now()
-    });
-    
     if (disabled) {
-      console.log('[BatchDropZone] ⛔ Disabled - returning early');
       return;
     }
     
     const type = getDragType(e);
-    console.log('[BatchDropZone] 🔍 getDragType result:', type);
     
     if ((type === 'file' && onFileDrop) || (type === 'generation' && onGenerationDrop)) {
       setDragType(type);
@@ -284,20 +262,11 @@ const BatchDropZone: React.FC<BatchDropZoneProps> = ({
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[BatchDropZone] 💥 handleDrop CALLED:', {
-      disabled,
-      hasOnImageDrop: !!onFileDrop,
-      hasOnGenerationDrop: !!onGenerationDrop,
-      timestamp: Date.now()
-    });
-    
     if (disabled) {
-      console.log('[BatchDropZone] ⛔ Disabled - returning early from drop');
       return;
     }
     
     const type = getDragType(e);
-    console.log('[BatchDropZone] 🔍 Drop type:', type);
 
     // CRITICAL: Calculate position at drop time, not from stale state
     const targetPosition = calculateDropIndex(e, containerRef, columns, itemCount);
@@ -317,7 +286,6 @@ const BatchDropZone: React.FC<BatchDropZoneProps> = ({
 
     // Show optimistic skeleton at drop position
     if (targetPosition !== null) {
-      console.log('[BatchDropZone] 🦴 Setting pending drop skeleton at index:', targetPosition);
       setPendingDropIndex(targetPosition);
       setIsProcessingDrop(true);
     }

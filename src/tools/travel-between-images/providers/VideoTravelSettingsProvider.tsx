@@ -27,7 +27,6 @@ import { Shot } from '@/types/shots';
 import { useShotSettings, UseShotSettingsReturn } from '../hooks/useShotSettings';
 import { useVideoTravelSettingsHandlers, VideoTravelSettingsHandlers } from '../hooks/useVideoTravelSettingsHandlers';
 import { VideoTravelSettings, PhaseConfig } from '../settings';
-import { SteerableMotionSettings } from '../components/ShotEditor/state/types';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 
 // =============================================================================

@@ -1,4 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import Joyride, { CallBackProps, STATUS, EVENTS, ACTIONS, TooltipRenderProps } from 'react-joyride';
 import { tourSteps, tourStepColors } from './tourSteps';
@@ -137,12 +142,10 @@ export function ProductTour() {
   useEffect(() => {
     if (isRunning && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      console.log('[ProductTour] Tour starting - resetting all pane locks');
       setStepIndex(0);
       setIsPaused(false);
       // Reset all pane locks (updates both local state and database immediately)
       resetAllPaneLocks();
-      console.log('[ProductTour] Pane locks reset');
     } else if (!isRunning) {
       // Reset the flag when tour stops
       hasInitializedRef.current = false;
@@ -251,7 +254,6 @@ export function ProductTour() {
       }
       // Step 3: How It Works - close modal, unlock pane, AND advance
       else if (index === 3 && action !== ACTIONS.PREV) {
-        console.log('[ProductTour] Step 3: closing modal, unlocking pane, advancing to', nextIndex);
         closeGenerationModal();
         setIsGenerationsPaneLocked(false);
         // Use longer delay to ensure modal fully closes and first-shot element is visible
@@ -261,11 +263,9 @@ export function ProductTour() {
           const waitForTarget = () => {
             const target = document.querySelector('[data-tour="first-shot"]');
             if (target) {
-              console.log('[ProductTour] Step 3: first-shot found, advancing to', nextIndex);
               setStepIndex(nextIndex);
               setTimeout(() => setIsPaused(false), 100);
             } else {
-              console.log('[ProductTour] Step 3: waiting for first-shot...');
               setTimeout(waitForTarget, 100);
             }
           };

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToolSettings, updateToolSettingsSupabase } from './useToolSettings';
 import { deepEqual } from '@/shared/lib/deepEqual';
-import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 /**
@@ -236,10 +235,6 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
       const pendingForEntity = pendingEntityIdRef.current;
 
       if (pending && pendingForEntity && pendingForEntity === currentEntityId) {
-        console.log('[useAutoSaveSettings] 🚿 Flushing pending save in cleanup:', {
-          toolId: currentToolId,
-          entityId: pendingForEntity.substring(0, 8),
-        });
 
         // Fire-and-forget; cleanup cannot be async.
         // Call updateToolSettingsSupabase directly with explicit entity ID
@@ -264,7 +259,6 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
             if (currentScope === 'shot' && pendingForEntity) {
               queryClient.refetchQueries({ queryKey: queryKeys.shots.batchSettings(pendingForEntity) });
             }
-            console.log('[useAutoSaveSettings] ✅ Cleanup flush succeeded, cache invalidated');
           })
           .catch(err => {
             console.error('[useAutoSaveSettings] Cleanup flush failed:', err);
@@ -292,10 +286,6 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
       const pendingForEntity = pendingEntityIdRef.current;
 
       if (pending && pendingForEntity) {
-        console.log('[useAutoSaveSettings] 🚿 Flushing pending save on page unload:', {
-          toolId,
-          entityId: pendingForEntity.substring(0, 8),
-        });
         
         // Fire-and-forget save directly to DB
         // Most browsers will wait a bit for this to complete

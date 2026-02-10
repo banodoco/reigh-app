@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { GripVertical, ImagePlus } from "lucide-react";
 import { framesToSeconds } from "./utils/time-utils";
 import { TIMELINE_PADDING_OFFSET } from "./constants";

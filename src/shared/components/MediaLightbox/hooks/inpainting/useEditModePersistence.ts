@@ -22,24 +22,20 @@ export function useEditModePersistence() {
         .maybeSingle();
 
       if (error) {
-        console.warn('[EditMode] Failed to load edit mode from DB:', error);
         return null;
       }
 
       if (!data) {
-        console.log('[EditMode] Generation not found (may have been deleted)');
         return null;
       }
 
       const savedMode = ((data?.params as Record<string, unknown>)?.ui as Record<string, unknown> | undefined)?.editMode;
       if (savedMode && VALID_EDIT_MODES.includes(savedMode)) {
-        console.log('[EditMode] Loaded from DB:', { generationId: generationId.substring(0, 8), mode: savedMode });
         return savedMode as EditMode;
       }
 
       return null;
     } catch (err) {
-      console.warn('[EditMode] Error loading from DB:', err);
       return null;
     }
   }, []);
@@ -57,12 +53,10 @@ export function useEditModePersistence() {
         .maybeSingle();
 
       if (fetchError) {
-        console.warn('[EditMode] Failed to fetch current params:', fetchError);
         return;
       }
 
       if (!current) {
-        console.log('[EditMode] Generation not found (may have been deleted), skipping save');
         return;
       }
 
@@ -82,13 +76,7 @@ export function useEditModePersistence() {
         .update({ params: updatedParams })
         .eq('id', generationId);
 
-      if (updateError) {
-        console.warn('[EditMode] Failed to save edit mode to DB:', updateError);
-      } else {
-        console.log('[EditMode] Saved to DB:', { generationId: generationId.substring(0, 8), mode });
-      }
     } catch (err) {
-      console.warn('[EditMode] Error saving to DB:', err);
     }
   }, []);
 

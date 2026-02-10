@@ -97,8 +97,6 @@ export const useLoraManager = (
         }
       });
       if (uniqueMap.size !== selectedLoras.length) {
-        console.log(`[LoRADedup] Found duplicates! ${selectedLoras.length} LoRAs -> ${uniqueMap.size} unique. Removing duplicates.`);
-        console.log(`[LoRADedup] LoRA IDs:`, selectedLoras.map(l => l.id));
         // Only update state if duplicates were actually found to avoid extra renders.
         setSelectedLoras(Array.from(uniqueMap.values()));
       }
@@ -152,10 +150,8 @@ export const useLoraManager = (
 
   // Core handlers with universal user tracking
   const handleAddLora = useCallback((loraToAdd: LoraModel, isManualAction = true, initialStrength?: number) => {
-    console.log(`[LoRA] handleAddLora called for ${loraToAdd["Model ID"]} (manual: ${isManualAction}, strength: ${initialStrength || 1.0})`);
     // Use the ref to ensure we are checking against the most up-to-date selection.
     if (selectedLorasRef.current.find(sl => sl.id === loraToAdd["Model ID"])) {
-      console.log(`[LoRA] LoRA ${loraToAdd["Model ID"]} already exists, skipping`);
       return;
     }
 
@@ -186,7 +182,6 @@ export const useLoraManager = (
         lowNoisePath: hasLowNoise ? loraToAdd.low_noise_url : undefined,
         isMultiStage,
       };
-      console.log(`[LoRA] Adding LoRA ${newLora.id} with strength ${newLora.strength}, isMultiStage: ${isMultiStage}, hasHighNoise: ${hasHighNoise}, hasLowNoise: ${hasLowNoise}`);
       setSelectedLoras(prev => [...prev, newLora]);
       if (isManualAction) {
         markAsUserSet();
@@ -386,13 +381,8 @@ export const useLoraManager = (
       return; // Skip if state hasn't changed
     }
     
-    console.log(`[LoRAAutoLoad] Effect triggered - enableProjectPersistence: ${enableProjectPersistence}, hasSavedLoras: ${hasSavedLoras}, selectedLorasLength: ${selectedLoras.length}, userHasManuallyInteracted: ${userHasManuallyInteracted}`);
-    
     if (enableProjectPersistence && hasSavedLoras && selectedLoras.length === 0 && !userHasManuallyInteracted) {
-      console.log(`[LoRAAutoLoad] Loading project LoRAs automatically`);
       handleLoadProjectLoras();
-    } else {
-      console.log(`[LoRAAutoLoad] Skipping - conditions not met`);
     }
     
     autoLoadStateRef.current = stateKey;

@@ -402,10 +402,6 @@ export const useVideoEditing = ({
       const safeMaxContextFrames = Math.max(1, minKeeperFrames - 1);
       const contextFrameCount = Math.min(requestedContextFrameCount, safeMaxContextFrames);
       
-      if (contextFrameCount < requestedContextFrameCount) {
-        console.log(`[VideoEdit] Capped context_frame_count from ${requestedContextFrameCount} to ${contextFrameCount} (min keeper clip: ${minKeeperFrames} frames, safe max: ${safeMaxContextFrames})`);
-      }
-      
       // Get LoRAs
       const lorasForTask = loraManager.selectedLoras
         .filter(l => l.path)
@@ -495,13 +491,6 @@ export const useVideoEditing = ({
         orchestratorDetails.loras = lorasForTask;
       }
 
-      console.log('[VideoEdit] Creating edit_video_orchestrator task:', {
-        fps,
-        duration: videoDuration,
-        portions: portionFrameRanges,
-        orchestratorDetails,
-      });
-
       // Create the task using the createTask function
       // Note: tool_type and parent_generation_id must be at top level for complete_task variant creation
       const result = await createTask({
@@ -548,13 +537,11 @@ export const useVideoEditing = ({
   
   // Enter video edit mode
   const handleEnterVideoEditMode = useCallback(() => {
-    console.log('[VideoEdit] Entering video edit mode');
     setIsVideoEditMode(true);
   }, []);
   
   // Exit video edit mode
   const handleExitVideoEditMode = useCallback(() => {
-    console.log('[VideoEdit] Exiting video edit mode');
     setIsVideoEditMode(false);
     onExitVideoEditMode?.();
   }, [onExitVideoEditMode]);

@@ -61,9 +61,6 @@ class PreloadingService {
     // Subscribe to connection status changes from DataFreshnessManager
     this.subscribeToConnectionStatus();
 
-    console.log('[PreloadingService] Initialized', {
-      config: this.config,
-    });
   }
 
   /**
@@ -99,10 +96,6 @@ class PreloadingService {
     }
 
     const previousProject = this.state.currentProjectId;
-    console.log('[PreloadingService] Project change', {
-      from: previousProject,
-      to: projectId,
-    });
 
     // Clear queue
     this.queue.clear();
@@ -130,11 +123,6 @@ class PreloadingService {
       generationIds.map((id) => ({ id }))
     );
 
-    console.log('[PreloadingService] Generations deleted', {
-      count: generationIds.length,
-      clearedFromTracker: clearedCount,
-    });
-
     this.emit({
       type: 'generations-deleted',
       data: { ids: generationIds, clearedCount },
@@ -147,10 +135,6 @@ class PreloadingService {
    */
   onConnectionStatusChange(isConnected: boolean): void {
     if (isConnected === this.state.isConnected) return;
-
-    console.log('[PreloadingService] Connection status changed', {
-      isConnected,
-    });
 
     this.state.isConnected = isConnected;
 
@@ -172,7 +156,6 @@ class PreloadingService {
     if (this.state.isPaused) return;
     this.state.isPaused = true;
     this.queue.clear();
-    console.log('[PreloadingService] Paused');
   }
 
   /**
@@ -181,7 +164,6 @@ class PreloadingService {
   resume(): void {
     if (!this.state.isPaused) return;
     this.state.isPaused = false;
-    console.log('[PreloadingService] Resumed');
   }
 
   // ===========================================================================

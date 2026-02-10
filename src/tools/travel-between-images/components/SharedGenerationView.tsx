@@ -69,50 +69,6 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   const parentVideos = videoImages.filter(v => !v.parent_generation_id);
   const childVideos = videoImages.filter(v => v.parent_generation_id);
 
-  console.log('[SharedGenerationView] Data from RPC:', {
-    shot_id: shareData.shot_id,
-    imageCount: images?.length,
-    settings: settings,
-    structureVideo: settings?.structureVideo,
-    hasStructureVideoPath: !!settings?.structureVideo?.path,
-    generationMode: settings?.generationMode,
-
-    // Video breakdown
-    videoCount: videoImages.length,
-    parentVideoCount: parentVideos.length,
-    childVideoCount: childVideos.length,
-    imagesWithParentCount: imagesWithParent.length,
-
-    // Sample of children (segment videos)
-    childVideos: childVideos.slice(0, 5).map(img => ({
-      id: img.id?.substring(0, 8),
-      generation_id: img.generation_id?.substring(0, 8),
-      parent_generation_id: img.parent_generation_id?.substring(0, 8),
-      child_order: img.child_order,
-      type: img.type,
-      hasLocation: !!img.imageUrl || !!img.location,
-      pair_shot_generation_id: img.pair_shot_generation_id?.substring(0, 8),
-    })),
-
-    // Parent videos
-    parentVideos: parentVideos.slice(0, 3).map(img => ({
-      id: img.id?.substring(0, 8),
-      generation_id: img.generation_id?.substring(0, 8),
-      type: img.type,
-      hasOrchestratorDetails: !!(img.params as Record<string, unknown>)?.orchestrator_details,
-    })),
-
-    // All images summary
-    images: images?.map(img => ({
-      id: img.id?.substring(0, 8),
-      generation_id: img.generation_id?.substring(0, 8),
-      type: img.type,
-      timeline_frame: img.timeline_frame,
-      hasLocation: !!img.imageUrl || !!img.location,
-      parent_generation_id: img.parent_generation_id?.substring(0, 8),
-    }))
-  });
-
   // Check authentication status
   useEffect(() => {
     checkAuth();
@@ -226,25 +182,6 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
 
   // Calculate columns to match actual page behavior using utility function
   const columns = calculateColumnsForDevice(mobileColumns);
-
-  // Debug structure video settings in detail
-  console.log('[SharedGenerationView] Structure video settings:', {
-    settingsKeys: settings ? Object.keys(settings) : 'no settings',
-    structureVideo: structureVideo,
-    structureVideoPath: structureVideo?.path,
-    structureVideoMetadata: structureVideo?.metadata,
-    structureVideoStartFrame: structureVideo?.startFrame,
-    structureVideoEndFrame: structureVideo?.endFrame,
-    hasPath: !!structureVideo?.path,
-    structureVideosCount: structureVideos?.length || 0,
-    structureVideos: structureVideos?.map(v => ({
-      path: v.path?.substring(0, 50),
-      start_frame: v.start_frame,
-      end_frame: v.end_frame,
-      treatment: v.treatment,
-    })),
-    generationMode,
-  });
 
   return (
     <div className="container mx-auto px-4 pt-8 pb-24 sm:pb-28 max-w-6xl">

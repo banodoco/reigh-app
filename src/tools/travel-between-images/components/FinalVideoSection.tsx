@@ -198,8 +198,6 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
         return null;
       }
 
-      console.log('[FinalVideoSection] Found active join tasks:', data?.length, 'for project:', projectId.substring(0, 8));
-
       // Filter to find tasks that have this shot_id in their params
       // Also check parent_generation_id as fallback for tasks created before shot_id was added
       const parentGenIds = new Set(parentGenIdsForQuery);
@@ -212,13 +210,11 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
 
         // Match by shot_id (preferred)
         if (taskShotId === shotId) {
-          console.log('[FinalVideoSection] Task matches by shot_id:', task.id.substring(0, 8));
           return true;
         }
 
         // Fallback: match by parent_generation_id (for tasks without shot_id)
         if (taskParentGenId && parentGenIds.has(taskParentGenId)) {
-          console.log('[FinalVideoSection] Task matches by parent_generation_id:', task.id.substring(0, 8), 'parent:', taskParentGenId.substring(0, 8));
           return true;
         }
 
@@ -226,17 +222,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
       });
 
       if (matchingTask) {
-        console.log('[FinalVideoSection] Found matching join task:', matchingTask.id.substring(0, 8), 'status:', matchingTask.status);
       } else if (data && data.length > 0) {
-        console.log('[FinalVideoSection] No matching join task for this shot. Tasks found:', data.map((t) => {
-          const tParams = t.params as Record<string, unknown>;
-          const tOrch = tParams?.orchestrator_details as Record<string, unknown> | undefined;
-          return {
-            id: t.id.substring(0, 8),
-            shot_id: ((tOrch?.shot_id || tParams?.shot_id) as string)?.substring(0, 8) || 'NONE',
-            parent_gen_id: ((tOrch?.parent_generation_id || tParams?.parent_generation_id) as string)?.substring(0, 8) || 'NONE'
-          };
-        }));
       }
 
       return matchingTask || null;
@@ -291,16 +277,8 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
 
   // Handle delete
   const handleDelete = useCallback(() => {
-    console.log('[FinalVideoDelete] handleDelete called', {
-      selectedParentId: selectedParentId?.substring(0, 8),
-      hasOnDelete: !!onDelete,
-      isDeleting,
-    });
     if (selectedParentId && onDelete) {
-      console.log('[FinalVideoDelete] Calling onDelete with:', selectedParentId.substring(0, 8));
       onDelete(selectedParentId);
-    } else {
-      console.log('[FinalVideoDelete] Missing selectedParentId or onDelete');
     }
   }, [selectedParentId, onDelete, isDeleting]);
   
@@ -318,27 +296,6 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
   const cachedFinalVideoCount = getFinalVideoCount?.(shotId) ?? null;
   const willHaveFinalVideo = cachedFinalVideoCount !== null && cachedFinalVideoCount > 0;
   const shouldShowSkeleton = willHaveFinalVideo && !hasFinalOutput && (isCurrentlyLoading || parentGenerations.length > 0);
-
-  // [FinalVideoDelete] Debug logging for delete state
-  console.log('[FinalVideoDelete] Render state', {
-    selectedParentId: selectedParentId?.substring(0, 8),
-    hasFinalOutput,
-    parentGenerationsCount: parentGenerations.length,
-    parentGenerationIds: parentGenerations.map((p) => p.id?.substring(0, 8)),
-    isDeleting,
-    hasOnDelete: !!onDelete,
-  });
-
-  // [FinalVideoSkeleton] Debug logging
-  console.log('[FinalVideoSkeleton]', {
-    shotId: shotId?.substring(0, 8),
-    shouldShowSkeleton,
-    cachedFinalVideoCount,
-    willHaveFinalVideo,
-    hasFinalOutput,
-    selectedParentId: selectedParentId?.substring(0, 8),
-    parentGenerationsCount: parentGenerations.length,
-  });
 
   return (
     <div className="w-full">

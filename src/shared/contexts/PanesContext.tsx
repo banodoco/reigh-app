@@ -219,7 +219,6 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           toolId: 'ui',
           patch: { paneLocks: unlockedState },
         }, undefined, 'immediate');
-        console.log('[PanesContext] All pane locks reset in database');
       }
     } catch (error) {
       handleError(error, { context: 'PanesContext', showToast: false });

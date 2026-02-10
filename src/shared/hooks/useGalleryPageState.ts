@@ -127,33 +127,10 @@ function useGenerationsPageLogic({
 
   // [SkeletonCountDebug] Log loading state transitions
   useEffect(() => {
-    console.log('[SkeletonCountDebug] State update:', {
-      selectedShotFilter: selectedShotFilter === 'all' ? 'all' : selectedShotFilter?.substring(0, 8),
-      'query.isLoading': generationsQuery.isLoading,
-      'query.isFetching': isFetching,
-      'query.isPlaceholderData': isPlaceholderData,
-      'computed.isLoading': isLoading,
-      'data.total': generationsResponse?.total,
-      'data.itemCount': generationsResponse?.items?.length,
-      timestamp: Date.now()
-    });
 
     // [SkeletonCountDebug] When data arrives, log what we got vs what we expected
     if (!isLoading && generationsResponse?.items && selectedShotFilter !== SHOT_FILTER.ALL) {
       const shot = shotsData?.find(s => s.id === selectedShotFilter);
-      console.log('[SkeletonCountDebug] Data comparison:', {
-        shotId: selectedShotFilter?.substring(0, 8),
-        'fromQuery.total': generationsResponse.total,
-        'fromQuery.itemCount': generationsResponse.items.length,
-        'fromShotsData.unpositionedCount': shot?.unpositionedImageCount,
-        'fromShotsData.totalImageCount': shot?.imageCount,
-        excludePositioned,
-        'expectedFromShotsData': excludePositioned ? shot?.unpositionedImageCount : shot?.imageCount,
-        queryItems: generationsResponse.items.slice(0, 10).map(item => ({
-          id: item.id?.substring(0, 8),
-          generation_id: ((item as Record<string, unknown>).generation_id as string | undefined)?.substring(0, 8),
-        }))
-      });
     }
   }, [selectedShotFilter, generationsQuery.isLoading, isFetching, isPlaceholderData, isLoading, generationsResponse?.total, generationsResponse?.items?.length, shotsData, excludePositioned, generationsResponse?.items]);
 
@@ -201,17 +178,8 @@ function useGenerationsPageLogic({
   // ============================================================================
 
   useEffect(() => {
-    console.log('[ADDTOSHOT] lastAffectedShotId initialization check:', {
-      lastAffectedShotId,
-      shotsDataLength: shotsData?.length,
-      firstShotId: shotsData?.[0]?.id,
-      firstShotName: shotsData?.[0]?.name,
-      currentShotId,
-      selectedShotFilter
-    });
 
     if (!lastAffectedShotId && shotsData && shotsData.length > 0) {
-      console.log('[ADDTOSHOT] Setting lastAffectedShotId to first shot:', shotsData[0].id);
       setLastAffectedShotId(shotsData[0].id);
     }
   }, [lastAffectedShotId, shotsData, setLastAffectedShotId, currentShotId, selectedShotFilter]);
@@ -235,20 +203,7 @@ function useGenerationsPageLogic({
   const handleAddToShot = async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
     const targetShotId = lastAffectedShotId || currentShotId;
 
-    console.log('[AddDebug] BUTTON PATH START - handleAddToShot:', {
-      generationId: generationId?.substring(0, 8),
-      currentShotId: currentShotId?.substring(0, 8),
-      lastAffectedShotId: lastAffectedShotId?.substring(0, 8),
-      targetShotId: targetShotId?.substring(0, 8),
-      selectedProjectId: selectedProjectId?.substring(0, 8),
-      timestamp: Date.now()
-    });
-
     if (!targetShotId || !selectedProjectId) {
-      console.log('[AddDebug] Missing required IDs:', {
-        targetShotId,
-        selectedProjectId
-      });
       toast.error("No shot selected", {
         description: "Please select a shot in the gallery or create one first.",
       });
@@ -257,16 +212,6 @@ function useGenerationsPageLogic({
 
     const shouldPositionExisting = selectedShotFilter === targetShotId && excludePositioned;
 
-    console.log('[PositionFix] Positioning decision:', {
-      shouldPositionExisting,
-      selectedShotFilter,
-      targetShotId,
-      excludePositioned,
-      filterMatchesTarget: selectedShotFilter === targetShotId,
-      willUsePositionExisting: shouldPositionExisting,
-      timestamp: Date.now()
-    });
-
     // Dispatch event to trigger skeleton animation in ShotListDisplay
     window.dispatchEvent(new CustomEvent('shot-pending-upload', {
       detail: { shotId: targetShotId, expectedCount: 1 }
@@ -274,11 +219,6 @@ function useGenerationsPageLogic({
 
     try {
       if (shouldPositionExisting) {
-        console.log('[AddDebug] Using positionExistingGenerationMutation with params:', {
-          shot_id: targetShotId,
-          generation_id: generationId,
-          project_id: selectedProjectId,
-        });
 
         const result = await positionExistingGenerationMutation.mutateAsync({
           shot_id: targetShotId,
@@ -286,17 +226,7 @@ function useGenerationsPageLogic({
           project_id: selectedProjectId,
         });
 
-        console.log('[AddDebug] positionExistingGenerationMutation result:', {
-          result,
-          timestamp: Date.now()
-        });
       } else {
-        console.log('[AddDebug] BUTTON PATH - calling addImageToShotMutation.mutateAsync:', {
-          shot_id: targetShotId?.substring(0, 8),
-          generation_id: generationId?.substring(0, 8),
-          project_id: selectedProjectId?.substring(0, 8),
-          timestamp: Date.now()
-        });
 
         const result = await addImageToShotMutation.mutateAsync({
           shot_id: targetShotId,
@@ -306,13 +236,8 @@ function useGenerationsPageLogic({
           project_id: selectedProjectId,
         });
 
-        console.log('[AddDebug] addImageToShotMutation result:', {
-          result,
-          timestamp: Date.now()
-        });
       }
 
-      console.log('[AddDebug] handleAddToShot completed successfully');
       return true;
     } catch (error) {
       handleError(error, { context: 'useGenerationsPageLogic', toastTitle: 'Failed to add image to shot' });

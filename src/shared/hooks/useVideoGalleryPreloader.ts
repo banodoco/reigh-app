@@ -62,14 +62,12 @@ export const useVideoGalleryPreloader = (options?: {
 
     // Check for data saver mode
     if ((navigator as { connection?: { saveData?: boolean } }).connection?.saveData) {
-      console.log('[VideoGalleryPreload] Skipping preload due to saveData mode');
       return true;
     }
 
     // Check for slow connection
     const effectiveType = (navigator as { connection?: { effectiveType?: string } }).connection?.effectiveType;
     if (effectiveType === '2g' || effectiveType === 'slow-2g') {
-      console.log('[VideoGalleryPreload] Skipping preload due to slow connection:', effectiveType);
       return true;
     }
 
@@ -101,7 +99,6 @@ export const useVideoGalleryPreloader = (options?: {
         .range(startIndex, endIndex);
 
       if (error) {
-        console.warn('[VideoGalleryPreload] Failed to fetch thumbnail URLs:', error);
         return [];
       }
 
@@ -117,10 +114,8 @@ export const useVideoGalleryPreloader = (options?: {
         })
         .filter((url: string) => url) as string[];
 
-      console.log(`[VideoGalleryPreload] Shot ${shotId.slice(0, 8)} URLs - Found ${urls.length} URLs`);
       return urls;
     } catch (error) {
-      console.warn('[VideoGalleryPreload] Error building thumbnail URLs:', error);
       return [];
     }
   }, [selectedProjectId]);
@@ -133,11 +128,8 @@ export const useVideoGalleryPreloader = (options?: {
     // Check if already preloaded
     const shotCache = preloadedPagesByShot.current[shotId] || new Set();
     if (shotCache.has(pageIndex)) {
-      console.log(`[VideoGalleryPreload] Page ${pageIndex} for shot ${shotId.slice(0, 8)} already preloaded`);
       return;
     }
-
-    console.log(`[VideoGalleryPreload] Queueing preload for shot ${shotId.slice(0, 8)}, page ${pageIndex}`);
 
     const urls = await buildThumbnailUrlsForPage(shotId, pageIndex);
 
@@ -145,7 +137,6 @@ export const useVideoGalleryPreloader = (options?: {
     const newUrls = urls.filter(url => !hasLoadedImage(url));
 
     if (newUrls.length === 0) {
-      console.log(`[VideoGalleryPreload] All URLs already preloaded for shot ${shotId.slice(0, 8)}, page ${pageIndex}`);
       // Still mark page as preloaded
       if (!preloadedPagesByShot.current[shotId]) {
         preloadedPagesByShot.current[shotId] = new Set();
@@ -154,8 +145,6 @@ export const useVideoGalleryPreloader = (options?: {
       return;
     }
 
-    console.log(`[VideoGalleryPreload] Preloading ${newUrls.length} thumbnails for shot ${shotId.slice(0, 8)}, page ${pageIndex}`);
-
     // Convert URLs to PreloadableImage format and use shared service
     const images = newUrls.map(url => ({ url, thumbUrl: url }));
     await preloadingService.preloadImages(images, PRIORITY.low);
@@ -163,8 +152,6 @@ export const useVideoGalleryPreloader = (options?: {
     // Update local URL count for debugging
     preloadedUrlCount.current[selectedProjectId] =
       (preloadedUrlCount.current[selectedProjectId] || 0) + newUrls.length;
-
-    console.log(`[VideoGalleryPreload] Cache updated - project ${selectedProjectId} now has ~${preloadedUrlCount.current[selectedProjectId]} preloaded URLs`);
 
     // Notify listeners of cache update (for useThumbnailLoader)
     window.dispatchEvent(new CustomEvent('videogallery-cache-updated', {
@@ -180,7 +167,6 @@ export const useVideoGalleryPreloader = (options?: {
     }
     preloadedPagesByShot.current[shotId].add(pageIndex);
 
-    console.log(`[VideoGalleryPreload] Completed preloading for shot ${shotId.slice(0, 8)}, page ${pageIndex}`);
   }, [shouldSkipPreload, selectedProjectId, buildThumbnailUrlsForPage]);
 
   // Effect: Preload images until target cache size is reached
@@ -189,13 +175,11 @@ export const useVideoGalleryPreloader = (options?: {
 
     // Reduce preloading when shot editor is open on mobile to prevent performance issues
     if (shouldShowShotEditor && isMobile) {
-      console.log('[VideoGalleryPreload] Skipping preload - shot editor open on mobile');
       return;
     }
 
     // Check if we've already started preloading for this project
     if (hasStartedPreloadForProject.current[selectedProjectId]) {
-      console.log(`[VideoGalleryPreload] Already started preloading for project ${selectedProjectId}`);
       return;
     }
 
@@ -203,14 +187,12 @@ export const useVideoGalleryPreloader = (options?: {
     const currentCacheSize = preloadedUrlCount.current[selectedProjectId] || 0;
 
     if (currentCacheSize >= TARGET_CACHED_IMAGES) {
-      console.log(`[VideoGalleryPreload] Target cache size reached: ${currentCacheSize}/${TARGET_CACHED_IMAGES} images`);
       hasStartedPreloadForProject.current[selectedProjectId] = true;
       return;
     }
 
     // Mark that we've started preloading for this project
     hasStartedPreloadForProject.current[selectedProjectId] = true;
-    console.log(`[VideoGalleryPreload] Starting preload for project ${selectedProjectId}`);
 
     // Sort shots by priority: ShotsPane order first, then newest
     const sortedShots = [...shots].sort((a, b) => {
@@ -238,8 +220,6 @@ export const useVideoGalleryPreloader = (options?: {
       })
     ];
 
-    console.log(`[VideoGalleryPreload] Starting preload to reach ${TARGET_CACHED_IMAGES} images (current: ${currentCacheSize})`);
-
     // Queue preload for shots until we estimate reaching target
     let estimatedCacheSize = currentCacheSize;
     for (const shot of priorityOrderedShots) {
@@ -251,20 +231,16 @@ export const useVideoGalleryPreloader = (options?: {
       // Only queue if this shot's page 1 hasn't been preloaded yet
       const shotCache = preloadedPagesByShot.current[shot.id] || new Set();
       if (!shotCache.has(0)) {
-        console.log(`[VideoGalleryPreload] Queueing shot ${shot.id.slice(0, 8)} (est. ${estimatedImagesInShot} images)`);
         queuePreloadForShotPage(shot.id, 0);
         estimatedCacheSize += estimatedImagesInShot;
       }
     }
 
-    console.log(`[VideoGalleryPreload] Queued shots to reach estimated ${estimatedCacheSize} images`);
   }, [selectedProjectId, shots]); // Simplified dependencies to prevent re-runs
 
   // Effect: When viewing a shot, ensure page 1 is preloaded and preload page 2
   useEffect(() => {
     if (!shouldShowShotEditor || !selectedShot || shouldSkipPreload) return;
-
-    console.log(`[VideoGalleryPreload] Ensuring pages preloaded for current shot: ${selectedShot.id.slice(0, 8)}`);
 
     // Ensure page 1 is preloaded
     queuePreloadForShotPage(selectedShot.id, 0);
@@ -273,7 +249,6 @@ export const useVideoGalleryPreloader = (options?: {
     if (getShotVideoCount) {
       const videoCount = getShotVideoCount(selectedShot.id);
       if (videoCount && videoCount > GALLERY_PAGE_SIZE) {
-        console.log(`[VideoGalleryPreload] Shot has ${videoCount} videos, preloading page 2`);
         queuePreloadForShotPage(selectedShot.id, 1); // Page 2 = index 1
       }
     }
@@ -287,7 +262,6 @@ export const useVideoGalleryPreloader = (options?: {
       prevProjectIdRef.current = null;
     } else if (prevProjectId && prevProjectId !== selectedProjectId) {
       // Clear local tracking for the old project
-      console.log(`[VideoGalleryPreload] Clearing local tracking on project switch (from ${prevProjectId})`);
 
       delete hasStartedPreloadForProject.current[prevProjectId];
       delete preloadedUrlCount.current[prevProjectId];

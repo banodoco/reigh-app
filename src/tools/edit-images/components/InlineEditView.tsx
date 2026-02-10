@@ -1,11 +1,15 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import {
+  useRef,
+  useState,
+  useEffect,
+  useMemo
+} from 'react';
 import { GenerationRow } from '@/types/shots';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 
 import {
   useUpscale,
@@ -246,13 +250,6 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
   const { data: availableLoras } = usePublicLoras();
 
   // Img2Img mode hook - uses persisted settings
-  console.log('[EDIT_DEBUG] ████████████████████████████████████████████████████████████████');
-  console.log('[EDIT_DEBUG] 🎨 InlineEditView BEFORE useImg2ImgMode:');
-  console.log('[EDIT_DEBUG] 🎨 persistedImg2imgStrength:', persistedImg2imgStrength);
-  console.log('[EDIT_DEBUG] 🎨 persistedImg2imgEnablePromptExpansion:', persistedImg2imgEnablePromptExpansion);
-  console.log('[EDIT_DEBUG] 🎨 editSettingsPersistence.isLoading:', editSettingsPersistence.isLoading);
-  console.log('[EDIT_DEBUG] 🎨 editSettingsPersistence.hasPersistedSettings:', editSettingsPersistence.hasPersistedSettings);
-  console.log('[EDIT_DEBUG] ████████████████████████████████████████████████████████████████');
   
   const img2imgHook = useImg2ImgMode({
     media,
@@ -287,12 +284,6 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     loraManager: img2imgLoraManager,
   } = img2imgHook;
 
-  console.log('[EDIT_DEBUG] ████████████████████████████████████████████████████████████████');
-  console.log('[EDIT_DEBUG] 🎨 InlineEditView AFTER useImg2ImgMode:');
-  console.log('[EDIT_DEBUG] 🎨 img2imgStrength:', img2imgStrength);
-  console.log('[EDIT_DEBUG] 🎨 enablePromptExpansion:', enablePromptExpansion);
-  console.log('[EDIT_DEBUG] ████████████████████████████████████████████████████████████████');
-
   // Track if we've synced from persistence
   const hasInitializedFromPersistenceRef = useRef(false);
   // Track the last known good prompt to prevent race conditions
@@ -304,27 +295,18 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
   useEffect(() => {
     if (!isEditSettingsReady || hasInitializedFromPersistenceRef.current) return;
     
-    console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: Initializing from persistence');
-    console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: hasPersistedSettings:', hasPersistedSettings);
-    console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: persistedEditMode:', persistedEditMode);
-    console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: persistedPrompt:', persistedPrompt ? `"${persistedPrompt.substring(0, 30)}..."` : '(empty)');
-    console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: numGenerations:', numGenerations);
-    
     // Sync editMode
     if (persistedEditMode && persistedEditMode !== editMode) {
-      console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: Setting editMode from', editMode, 'to', persistedEditMode);
       setEditMode(persistedEditMode);
     }
     
     // Sync numGenerations
     if (numGenerations !== inpaintNumGenerations) {
-      console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: Setting numGenerations from', inpaintNumGenerations, 'to', numGenerations);
       setInpaintNumGenerations(numGenerations);
     }
     
     // Sync prompt (only if has persisted settings - otherwise leave empty to avoid resetting user input)
     if (hasPersistedSettings && persistedPrompt && persistedPrompt !== inpaintPrompt) {
-      console.log('[EDIT_DEBUG] 🔄 SYNC TO UI: Setting prompt from persistence');
       setInpaintPrompt(persistedPrompt);
       lastUserPromptRef.current = persistedPrompt;
     }
@@ -337,7 +319,6 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     if (!hasInitializedFromPersistenceRef.current || !isEditSettingsReady) return;
     
     if (editMode !== persistedEditMode) {
-      console.log('[EDIT_DEBUG] 🔄 SYNC FROM UI: editMode changed to:', editMode);
       setPersistedEditMode(editMode);
     }
   }, [editMode, persistedEditMode, setPersistedEditMode, isEditSettingsReady]);
@@ -347,7 +328,6 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     if (!hasInitializedFromPersistenceRef.current || !isEditSettingsReady) return;
     
     if (inpaintNumGenerations !== numGenerations) {
-      console.log('[EDIT_DEBUG] 🔄 SYNC FROM UI: numGenerations changed to:', inpaintNumGenerations);
       setNumGenerations(inpaintNumGenerations);
     }
   }, [inpaintNumGenerations, numGenerations, setNumGenerations, isEditSettingsReady]);
@@ -358,12 +338,10 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     
     // If inpaintPrompt is reset to empty but we had a user prompt, it's likely a race condition - ignore
     if (inpaintPrompt === '' && lastUserPromptRef.current !== '' && persistedPrompt !== '') {
-      console.log('[EDIT_DEBUG] 🔄 SYNC FROM UI: Ignoring empty prompt reset (race condition protection)');
       // Restore the prompt from persistence after a short delay
       if (promptSyncTimerRef.current) clearTimeout(promptSyncTimerRef.current);
       promptSyncTimerRef.current = setTimeout(() => {
         if (persistedPrompt) {
-          console.log('[EDIT_DEBUG] 🔄 SYNC: Restoring prompt from persistence after race condition');
           setInpaintPrompt(persistedPrompt);
         }
       }, 100);
@@ -371,7 +349,6 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
     }
     
     if (inpaintPrompt !== persistedPrompt) {
-      console.log('[EDIT_DEBUG] 🔄 SYNC FROM UI: prompt changed to:', inpaintPrompt ? `"${inpaintPrompt.substring(0, 30)}..."` : '(empty)');
       setPersistedPrompt(inpaintPrompt);
       lastUserPromptRef.current = inpaintPrompt;
     }

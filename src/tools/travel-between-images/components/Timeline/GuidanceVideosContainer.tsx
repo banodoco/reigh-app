@@ -1,6 +1,6 @@
 import React from 'react';
 import { GuidanceVideoStrip } from './GuidanceVideoStrip';
-import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from './constants';
+import { TIMELINE_PADDING_OFFSET } from './constants';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
 export interface GuidanceVideosContainerProps {

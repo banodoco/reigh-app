@@ -67,13 +67,6 @@ async function fetchLineageChain(variantId: string): Promise<LineageItem[]> {
     currentId = params?.source_variant_id || null;
   }
 
-  console.log('[useLineageChain] Fetched chain:', {
-    startId: variantId.substring(0, 8),
-    chainLength: chain.length,
-    ids: chain.map(item => item.id.substring(0, 8)),
-    types: chain.map(item => item.variantType),
-  });
-
   return chain;
 }
 

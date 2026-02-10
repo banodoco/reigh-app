@@ -94,11 +94,9 @@ export const VideoTravelListHeader: React.FC<VideoTravelListHeaderProps> = ({
         <SegmentedControl
           value={showVideosView ? 'videos' : 'shots'}
           onValueChange={(value) => {
-            console.log('[ViewToggleDebug] onValueChange fired', { value, showVideosView });
             setViewMode(value === 'videos' ? 'videos' : 'shots');
           }}
           onClick={(e) => {
-            console.log('[ViewToggleDebug] SegmentedControl onClick', { target: (e.target as HTMLElement)?.textContent });
             e.stopPropagation();
           }}
           onPointerDown={(e) => e.stopPropagation()}
@@ -108,7 +106,6 @@ export const VideoTravelListHeader: React.FC<VideoTravelListHeaderProps> = ({
             value="shots"
             className="text-lg font-light px-5 py-0"
             onClick={(e) => {
-              console.log('[ViewToggleDebug] Shots item onClick FIRED', { showVideosView });
               e.stopPropagation();
               setViewMode('shots', { blurTarget: e.currentTarget });
             }}
@@ -119,7 +116,6 @@ export const VideoTravelListHeader: React.FC<VideoTravelListHeaderProps> = ({
             value="videos"
             className="text-lg font-light px-5 py-0"
             onClick={(e) => {
-              console.log('[ViewToggleDebug] Videos item onClick FIRED', { showVideosView, willSwitchTo: showVideosView ? 'shots' : 'videos' });
               e.stopPropagation();
               setViewMode(showVideosView ? 'shots' : 'videos', { blurTarget: e.currentTarget });
             }}

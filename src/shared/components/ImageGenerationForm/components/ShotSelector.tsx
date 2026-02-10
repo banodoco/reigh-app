@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { PlusCircle, X } from "lucide-react";
 import { 

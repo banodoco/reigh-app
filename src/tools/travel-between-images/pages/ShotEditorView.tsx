@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  Suspense
+} from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Shot } from '@/types/shots';
 import { Button } from '@/shared/components/ui/button';

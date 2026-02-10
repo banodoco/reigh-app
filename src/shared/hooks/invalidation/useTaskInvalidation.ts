@@ -13,7 +13,6 @@
 import { useQueryClient, QueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '../../lib/queryKeys';
-import { debugConfig } from '../../lib/debugConfig';
 import { invalidateGenerationsSync } from './useGenerationInvalidation';
 
 export type TaskInvalidationScope = 'list' | 'detail' | 'counts' | 'all';
@@ -41,16 +40,6 @@ function performTaskInvalidation(
   options: TaskInvalidationOptions
 ): void {
   const { scope = 'all', reason, taskId, projectId, includeGenerations, shotId } = options;
-
-  if (debugConfig.isEnabled('invalidation')) {
-    console.log(`[Invalidation] Tasks: ${reason}`, {
-      scope,
-      taskId: taskId?.substring(0, 8),
-      projectId: projectId?.substring(0, 8),
-      includeGenerations,
-      timestamp: Date.now(),
-    });
-  }
 
   if ((scope === 'list' || scope === 'all') && projectId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.tasks.list(projectId) });

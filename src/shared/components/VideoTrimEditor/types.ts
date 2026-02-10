@@ -6,8 +6,6 @@
  * are in @/shared/types/videoTrim.
  */
 
-import { GenerationRow } from '@/types/shots';
-
 // Re-export variant types from shared (canonical source)
 export type { GenerationVariant, UseVariantsReturn } from '@/shared/hooks/useVariants';
 

@@ -99,10 +99,6 @@ export function buildTravelBetweenImagesPayload(
     ? Math.floor(Math.random() * 1000000)
     : (params.seed ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.seed);
 
-  if (params.random_seed) {
-    console.log(`[RandomSeed] Generated random seed: ${finalSeed}`);
-  }
-
   // Build orchestrator payload matching the original edge function structure
   const orchestratorPayload: Record<string, unknown> = {
     // Common identifier for comparing batch vs individual segment generation
@@ -168,16 +164,6 @@ export function buildTravelBetweenImagesPayload(
     use_svi: false,
   };
 
-  // Log the enhance_prompt value that will be sent to orchestrator
-  console.log("[EnhancePromptDebug] Task Creation - Value being sent to orchestrator:", {
-    enhance_prompt_in_orchestratorPayload: orchestratorPayload.enhance_prompt,
-    enhance_prompt_in_params: params.enhance_prompt,
-    enhance_prompt_default: DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.enhance_prompt,
-    was_params_value_undefined: params.enhance_prompt === undefined,
-    was_params_value_null: params.enhance_prompt === null,
-    WARNING: orchestratorPayload.enhance_prompt === true ? 'enhance_prompt is TRUE - check if this is intentional' : 'enhance_prompt is false'
-  });
-
   // ============================================================================
   // STRUCTURE GUIDANCE - NEW UNIFIED FORMAT (videos INSIDE structure_guidance)
   // ============================================================================
@@ -196,11 +182,6 @@ export function buildTravelBetweenImagesPayload(
   if (params.structure_guidance) {
     // New unified format - structure_guidance contains videos inside
     orchestratorPayload.structure_guidance = params.structure_guidance;
-    console.log("[createTravelBetweenImagesTask] Using UNIFIED structure_guidance format:", {
-      target: params.structure_guidance.target,
-      videosCount: (params.structure_guidance.videos as unknown[] | undefined)?.length ?? 0,
-      strength: params.structure_guidance.strength,
-    });
   } else if (params.structure_videos && params.structure_videos.length > 0) {
     // LEGACY: Separate structure_videos array - convert to unified format
     // Clean the array to only include backend-relevant fields
@@ -237,10 +218,6 @@ export function buildTravelBetweenImagesPayload(
 
     orchestratorPayload.structure_guidance = unifiedGuidance;
 
-    console.log("[createTravelBetweenImagesTask] Converted LEGACY structure_videos to UNIFIED format:", {
-      target: unifiedGuidance.target,
-      videosCount: cleanedVideos.length,
-    });
   } else if (params.structure_video_path) {
     // LEGACY: Single video path - convert to unified format
     const isUni3cTarget = params.structure_video_type === 'uni3c' || params.use_uni3c;
@@ -272,9 +249,6 @@ export function buildTravelBetweenImagesPayload(
 
     orchestratorPayload.structure_guidance = unifiedGuidance;
 
-    console.log("[createTravelBetweenImagesTask] Converted LEGACY single video to UNIFIED format:", {
-      target: unifiedGuidance.target,
-    });
   }
 
   // Attach additional_loras mapping if provided (matching original logic)
@@ -289,13 +263,11 @@ export function buildTravelBetweenImagesPayload(
   // Add phase_config if provided (for advanced mode)
   if (params.phase_config) {
     orchestratorPayload.phase_config = params.phase_config;
-    console.log("[createTravelBetweenImagesTask] Including phase_config in orchestrator payload:", params.phase_config);
   }
 
   // Add selected_phase_preset_id if provided (for UI state restoration)
   if (params.selected_phase_preset_id) {
     orchestratorPayload.selected_phase_preset_id = params.selected_phase_preset_id;
-    console.log("[createTravelBetweenImagesTask] Including selected_phase_preset_id in orchestrator payload:", params.selected_phase_preset_id);
   }
 
   // CLEANUP: Remove legacy structure video params that are now replaced by unified structure_guidance

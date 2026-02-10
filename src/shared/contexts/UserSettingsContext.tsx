@@ -1,4 +1,13 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo
+} from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserPreferences } from '@/shared/settings/userPreferences';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
@@ -51,7 +60,6 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
   const fetchUserSettings = useCallback(async () => {
     if (!userId) return;
 
-    console.log(`[UserSettingsContext:MobileDebug] Starting settings fetch for user: ${userId}`);
     setIsLoadingSettings(true);
 
     // [MobileStallFix] Set a safety timeout for mobile networks
@@ -60,7 +68,6 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
     }
 
     settingsTimeoutRef.current = setTimeout(() => {
-      console.warn(`[UserSettingsContext:MobileDebug] Settings fetch timeout, forcing recovery`);
       setIsLoadingSettings(false);
       setUserSettings({});
       userSettingsRef.current = {};
@@ -77,7 +84,6 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
 
       const settings = (data?.settings as Record<string, unknown> | null)?.['user-preferences'] as UserPreferences ?? {};
-      console.log(`[UserSettingsContext:MobileDebug] Settings loaded successfully`);
       setUserSettings(settings);
       userSettingsRef.current = settings;
     } catch (error) {
@@ -91,7 +97,6 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
         settingsTimeoutRef.current = undefined;
       }
       setIsLoadingSettings(false);
-      console.log(`[UserSettingsContext:MobileDebug] Settings loading completed`);
     }
   }, [userId]);
 
@@ -124,7 +129,6 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
     if (userId) {
       fetchUserSettings();
     } else {
-      console.log(`[UserSettingsContext:MobileDebug] No userId, clearing settings state`);
       setUserSettings(undefined);
       userSettingsRef.current = undefined;
       // [MobileStallFix] Critical fix: Reset loading state when no user

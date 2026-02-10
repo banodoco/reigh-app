@@ -74,12 +74,6 @@ export function useImageManagement({
     const selectedShot = selectedShotRef.current;
     const projectId = projectIdRef.current;
 
-    console.log('[FinalVideoDelete] handleDeleteFinalVideo (clear output) called', {
-      generationId: generationId?.substring(0, 8),
-      selectedShotId: selectedShot?.id?.substring(0, 8),
-      projectId: projectId?.substring(0, 8),
-    });
-
     setIsClearingFinalVideo(true);
 
     try {
@@ -97,8 +91,6 @@ export function useImageManagement({
         return;
       }
 
-      console.log('[FinalVideoDelete] Cleared generation location');
-
       // 2. Delete ALL variants of this generation (not just primary)
       const { data: deletedVariants, error: deleteVariantError } = await supabase
         .from('generation_variants')
@@ -108,11 +100,7 @@ export function useImageManagement({
 
       if (deleteVariantError) {
         handleError(deleteVariantError, { context: 'FinalVideoDelete', showToast: false });
-      } else {
-        console.log('[FinalVideoDelete] Deleted all variants:', deletedVariants?.length || 0);
       }
-
-      console.log('[FinalVideoDelete] Clear output SUCCESS - invalidating queries');
 
       // Invalidate queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: queryKeys.segments.parents(selectedShot?.id, projectId) });
@@ -135,13 +123,6 @@ export function useImageManagement({
       return;
     }
 
-    console.log('[ShotEditor] Reordering images in shot', {
-      shotId: shot.id,
-      projectId: projId,
-      orderedShotGenerationIds: orderedShotGenerationIds,
-      timestamp: Date.now()
-    });
-
     // Convert ordered IDs into timeline_frame updates
     const updates = orderedShotGenerationIds.map((shotGenerationId, index) => ({
       shot_id: shot.id,
@@ -158,11 +139,6 @@ export function useImageManagement({
       updates,
     }, {
       onSuccess: () => {
-        console.log('[DemoteOrphaned] 🎯 Triggering from handleReorderImagesInShot', {
-          shotId: shot.id.substring(0, 8),
-          newOrderCount: orderedShotGenerationIds.length,
-          newOrder: orderedShotGenerationIds.map(id => id.substring(0, 8)),
-        });
         demoteOrphanedVariantsRef.current(shot.id, 'image-reorder');
       },
       onError: (error: unknown) => {
@@ -176,7 +152,6 @@ export function useImageManagement({
     const newMap = new Map(pendingFramePositionsRef.current);
     if (newMap.has(generationId)) {
       newMap.delete(generationId);
-      console.log(`[ShotEditor] Cleared pending position for gen ${generationId}`);
     }
     actionsRef.current.setPendingFramePositions(newMap);
   }, [actionsRef]);

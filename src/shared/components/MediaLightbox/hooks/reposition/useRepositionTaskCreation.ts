@@ -84,12 +84,6 @@ export function useRepositionTaskCreation({
     setIsGeneratingReposition(true);
 
     try {
-      console.log('[Reposition] Starting reposition generation...', {
-        mediaId: media.id,
-        prompt: inpaintPrompt,
-        numGenerations: inpaintNumGenerations,
-        transform
-      });
 
       const transformedCanvas = await createTransformedCanvas();
       const outputWidth = transformedCanvas.width;
@@ -100,8 +94,6 @@ export function useRepositionTaskCreation({
         alphaThreshold: 200,
         dilationPixels: 3,
       });
-
-      console.log('[Reposition] Generated transformed image and mask with dilated edges (alpha threshold: 200, dilation: 3px)');
 
       // Create final image with green background to prevent anti-aliased edge artifacts
       // The transparent canvas is needed for mask generation (alpha channel), but for the
@@ -140,9 +132,6 @@ export function useRepositionTaskCreation({
         uploadImageToStorage(maskFile)
       ]);
 
-      console.log('[Reposition] Uploaded transformed image:', transformedUrl);
-      console.log('[Reposition] Uploaded mask:', maskUrl);
-
       // Create inpaint task with transformed image and mask
       const actualGenerationId = getGenerationId(media);
 
@@ -164,8 +153,6 @@ export function useRepositionTaskCreation({
         hires_fix: convertToHiresFixApiParams(advancedSettings), // Pass hires fix settings if enabled
         qwen_edit_model: qwenEditModel,
       });
-
-      console.log('[Reposition] Reposition inpaint tasks created successfully');
 
       // Show success state
       setRepositionGenerateSuccess(true);

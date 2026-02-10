@@ -55,7 +55,6 @@ if (typeof window !== 'undefined') {
       metricsStore.queryFetches = [];
       metricsStore.invalidations = [];
       metricsStore.sessionStart = Date.now();
-      console.log('[RefactorMetrics] Cleared');
     },
     
     // Export summary for a scenario
@@ -82,7 +81,6 @@ if (typeof window !== 'undefined') {
         invalidationsByKey,
       };
       
-      console.log('[RefactorMetrics] Summary:', summary);
       console.table(Object.entries(fetchesByKey).map(([key, count]) => ({ queryKey: key, fetches: count })));
       console.table(Object.entries(invalidationsByKey).map(([key, count]) => ({ queryKey: key, invalidations: count })));
       
@@ -92,11 +90,9 @@ if (typeof window !== 'undefined') {
     // Enable/disable
     enable: () => {
       localStorage.setItem('DEBUG_REFACTOR_METRICS', 'true');
-      console.log('[RefactorMetrics] Enabled - reload page to activate');
     },
     disable: () => {
       localStorage.removeItem('DEBUG_REFACTOR_METRICS');
-      console.log('[RefactorMetrics] Disabled - reload page to deactivate');
     },
   };
 }
@@ -108,10 +104,6 @@ export function RefactorMetricsCollector() {
   // Track query fetches
   useEffect(() => {
     if (!enabled) return;
-    
-    console.log('[RefactorMetrics] 📊 Metrics collection ENABLED');
-    console.log('[RefactorMetrics] Use window.__REFACTOR_METRICS.clear() before each test');
-    console.log('[RefactorMetrics] Use window.__REFACTOR_METRICS.export() to see summary');
     
     const cache = queryClient.getQueryCache();
     
@@ -126,7 +118,6 @@ export function RefactorMetricsCollector() {
           status: event.query.state.status,
         });
         
-        console.log('[RefactorMetrics:Fetch]', queryKey);
       }
     });
     
@@ -149,8 +140,6 @@ export function RefactorMetricsCollector() {
         timestamp: Date.now(),
         queryKey,
       });
-      
-      console.log('[RefactorMetrics:Invalidate]', queryKey);
       
       return originalInvalidate(...args);
     }) as typeof originalInvalidate;
@@ -184,6 +173,5 @@ export function useRenderCount(componentName: string) {
     if (!enabled) return;
 
     renderCount.current++;
-    console.log(`[RefactorMetrics:Render] ${componentName}: ${renderCount.current}`);
   });
 }

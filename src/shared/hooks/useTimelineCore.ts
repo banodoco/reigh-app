@@ -274,8 +274,6 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
 
         if (error) throw error;
 
-        console.log('[useTimelineCore.deleteItem] Deleted and normalized:', data);
-
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'delete-item', scope: 'all', includeShots: true });
       } catch (err) {
@@ -299,8 +297,6 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
         });
 
         if (error) throw error;
-
-        console.log('[useTimelineCore.unpositionItem] Unpositioned and normalized:', data);
 
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'unposition-item', scope: 'all' });
@@ -343,8 +339,6 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
           .single();
 
         if (error) throw error;
-
-        console.log('[useTimelineCore.addItem] Added item at frame', nextFrame);
 
         // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'add-item', scope: 'all' });

@@ -48,15 +48,6 @@ export function useVideoLayoutConfig({
 
     const itemsPerPage = videoColumns * videoRows;
 
-    console.log('[VideoLayoutConfig] Calculation:', {
-      projectAspectRatio,
-      isMobile,
-      windowWidth,
-      videoColumns,
-      videoRows,
-      itemsPerPage,
-    });
-
     return { columns: videoColumns, itemsPerPage };
   }, [projectAspectRatio, isMobile, windowWidth]);
 

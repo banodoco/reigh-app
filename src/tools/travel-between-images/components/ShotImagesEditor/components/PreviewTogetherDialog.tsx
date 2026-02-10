@@ -9,7 +9,12 @@
  * - Auto-scroll thumbnail strip
  */
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import {
+  useState,
+  useCallback,
+  useRef,
+  useEffect
+} from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { Button } from "@/shared/components/ui/button";
 import { Skeleton } from '@/shared/components/ui/skeleton';
@@ -547,7 +552,6 @@ export function PreviewTogetherDialog({
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('[PreviewLightbox] Expand clicked:', { segmentIndex: currentSegment.index, hasVideo: currentSegment.hasVideo });
                       onOpenInLightbox(currentSegment.index);
                     }}
                     className="absolute top-3 right-3 z-20 bg-black/50 hover:bg-black/70 text-white rounded-lg h-9 w-9"

@@ -1,26 +1,21 @@
 import React from 'react';
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Slider } from "@/shared/components/ui/slider";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Label } from "@/shared/components/ui/label";
 import { Switch } from "@/shared/components/ui/switch";
-import { Input } from "@/shared/components/ui/input";
-import { Info, Plus, Sparkles, Eraser, Check } from 'lucide-react';
+import { Info, Eraser, Check } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { CollapsibleSection } from "@/shared/components/ui/collapsible-section";
 import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { SteerableMotionSettings, DEFAULT_STEERABLE_MOTION_SETTINGS } from './ShotEditor/state/types';
 import { Project } from '@/types/project';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { SectionHeader } from '@/tools/image-generation/components/ImageGenerationForm/components/SectionHeader';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '../settings';
-import { framesToSeconds, quantizeFrameCount, getValidFrameCounts } from './Timeline/utils/time-utils';
+import { framesToSeconds, quantizeFrameCount } from './Timeline/utils/time-utils';
 
 interface BatchSettingsFormProps {
   batchVideoPrompt: string;
@@ -163,14 +158,6 @@ const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
 
     // State for clear enhanced prompts success feedback
     const [clearSuccess, setClearSuccess] = React.useState(false);
-
-    // Debug logging for toggle visibility
-    console.log("[BatchSettingsForm] Toggle visibility:", {
-      isTimelineMode,
-      turboMode,
-      shouldShow: !turboMode,
-      imageCount
-    });
 
     // Validation: Check for phaseConfig inconsistencies and warn
     React.useEffect(() => {
@@ -413,7 +400,6 @@ const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
               </div>
             </CollapsibleSection>
             
-
             {/* Turbo Mode Toggle - DISABLED - keeping code for potential future use
             {isCloudGenerationEnabled && !isTurboModeDisabled && (
               <div className="flex items-center space-x-2 p-3 bg-muted/30 rounded-lg border">
@@ -485,7 +471,6 @@ const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
               />
             </div>
 
-            
         </div>
     );
 };

@@ -153,10 +153,6 @@ const ShotsPage: React.FC = () => {
     }
 
     try {
-      console.log('[ShotsPage] Adding generation to shot with position', {
-        generationId: generationId.substring(0, 8),
-        shotId: currentShotId.substring(0, 8)
-      });
 
       // Let the mutation calculate the next available position using centralized function
       // Don't pass timelineFrame - mutation will query DB and use calculateNextAvailableFrame
@@ -189,10 +185,6 @@ const ShotsPage: React.FC = () => {
     }
 
     try {
-      console.log('[ShotsPage] Adding generation to shot without position', {
-        generationId: generationId.substring(0, 8),
-        shotId: currentShotId.substring(0, 8)
-      });
 
       await addImageToShotWithoutPositionMutation.mutateAsync({
         shot_id: currentShotId,
@@ -212,7 +204,6 @@ const ShotsPage: React.FC = () => {
 
   // Handler for changing the selected shot in the lightbox
   const handleShotChange = useCallback((shotId: string) => {
-    console.log('[ShotsPage] Shot change requested:', shotId);
     setCurrentShotId(shotId);
   }, [setCurrentShotId]);
 
@@ -227,7 +218,6 @@ const ShotsPage: React.FC = () => {
   if (shotsError) {
     const isCancelled = shotsError?.message?.includes('CancelledError') || shotsError?.message?.includes('cancelled');
     if (isCancelled) {
-      console.warn('[DeadModeInvestigation] Shots query cancelled; preserving previous data and retrying soon');
       return <div className="container mx-auto p-4">Loading shots...</div>;
     }
     return <div className="container mx-auto p-4">Error loading shots: {shotsError.message}</div>;
@@ -260,16 +250,6 @@ const ShotsPage: React.FC = () => {
             onAddToShotWithoutPosition={handleAddToShotWithoutPosition}
           />
           {/* Debug logging */}
-          {console.log('[ShotSelectorDebug] ShotsPage -> ShotImageManager', {
-            component: 'ShotsPage',
-            allShotsLength: simplifiedShotOptions.length,
-            selectedShotId: currentShotId,
-            hasOnAddToShot: !!handleAddToShot,
-            hasOnAddToShotWithoutPosition: !!handleAddToShotWithoutPosition,
-            hasOnShotChange: !!handleShotChange,
-            imagesCount: managedImages.length,
-            generationMode: 'batch'
-          })}
         </>
       )}
     </div>

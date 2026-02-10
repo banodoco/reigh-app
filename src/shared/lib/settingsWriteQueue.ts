@@ -85,13 +85,6 @@ async function processQueue() {
       throw new Error('[SettingsWriteQueue] Write function not initialized');
     }
     
-    console.log('[SettingsWriteQueue] 🚀 Flushing write:', {
-      scope: pending.write.scope,
-      entityId: pending.write.entityId?.substring(0, 8),
-      toolId: pending.write.toolId,
-      queuedFor: Date.now() - pending.enqueuedAt + 'ms',
-    });
-    
     const result = await writeFunction(pending.write);
     
     // Resolve all waiters
@@ -152,13 +145,6 @@ export function enqueueSettingsWrite(
       existing.write.patch = mergePatch(existing.write.patch, write.patch);
       existing.resolvers.push({ resolve, reject });
 
-      console.log('[SettingsWriteQueue] ♻️ Merged with pending write:', {
-        scope: write.scope,
-        entityId: write.entityId?.substring(0, 8),
-        toolId: write.toolId,
-        pendingResolvers: existing.resolvers.length,
-      });
-      
       if (mode === 'immediate') {
         // Cancel debounce timer and flush now
         scheduleFlush(key, existing);

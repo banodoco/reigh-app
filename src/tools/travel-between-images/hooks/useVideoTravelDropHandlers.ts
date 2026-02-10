@@ -126,14 +126,6 @@ export const useVideoTravelDropHandlers = ({
     const targetShot = shots?.find(s => s.id === shotId);
     const withoutPosition = options?.withoutPosition ?? false;
     
-    console.log('[ShotDrop] Adding generation to shot:', {
-      shotId: shotId.substring(0, 8),
-      shotName: targetShot?.name,
-      generationId: data.generationId?.substring(0, 8),
-      withoutPosition,
-      timestamp: Date.now()
-    });
-
     try {
       if (withoutPosition) {
         // Add without timeline position
@@ -166,10 +158,6 @@ export const useVideoTravelDropHandlers = ({
   const handleGenerationDropForNewShot = useCallback(async (
     data: GenerationDropData
   ) => {
-    console.log('[ShotDrop] Creating new shot with generation:', {
-      generationId: data.generationId?.substring(0, 8),
-      timestamp: Date.now()
-    });
 
     // Use unified shot creation - handles inheritance, lastAffectedShot, events automatically
     const result = await createShot({
@@ -189,19 +177,10 @@ export const useVideoTravelDropHandlers = ({
       return;
     }
 
-    console.log('[ShotDrop] New shot created:', {
-      shotId: result.shotId.substring(0, 8),
-      shotName: result.shotName,
-    });
   }, [createShot, setShotSortMode]);
 
   // Handle dropping files to create a new shot
   const handleFilesDropForNewShot = useCallback(async (files: File[]) => {
-    console.log('[ShotDrop] Creating new shot with files:', {
-      fileCount: files.length,
-      fileNames: files.map(f => f.name),
-      timestamp: Date.now()
-    });
 
     // Use unified shot creation - handles inheritance, lastAffectedShot, events automatically
     const result = await createShot({
@@ -217,10 +196,6 @@ export const useVideoTravelDropHandlers = ({
       return;
     }
 
-    console.log('[ShotDrop] New shot created from files:', {
-      shotId: result.shotId.substring(0, 8),
-      shotName: result.shotName,
-    });
   }, [createShot, setShotSortMode]);
 
   // Handle dropping files onto an existing shot
@@ -235,14 +210,6 @@ export const useVideoTravelDropHandlers = ({
     }
 
     const withoutPosition = options?.withoutPosition ?? false;
-
-    console.log('[ShotDrop] Adding files to existing shot:', {
-      shotId: shotId.substring(0, 8),
-      fileCount: files.length,
-      fileNames: files.map(f => f.name),
-      withoutPosition,
-      timestamp: Date.now()
-    });
 
     try {
       await handleExternalImageDropMutation.mutateAsync({

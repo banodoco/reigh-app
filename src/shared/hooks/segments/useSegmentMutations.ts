@@ -48,7 +48,6 @@ export function useSegmentMutations({
   const savePairMetadata = useCallback(
     async (settings: SegmentSettings): Promise<boolean> => {
       if (!pairShotGenerationId) {
-        console.warn('[useSegmentMutations] Cannot save - no pairShotGenerationId');
         return false;
       }
 
@@ -121,7 +120,6 @@ export function useSegmentMutations({
       shotDefaults: Partial<ShotVideoSettings>
     ): Promise<boolean> => {
       if (!shotId) {
-        console.warn('[useSegmentMutations] Cannot save as shot defaults - no shotId');
         return false;
       }
 
@@ -170,7 +168,6 @@ export function useSegmentMutations({
   const saveFieldAsDefault = useCallback(
     async (field: keyof SegmentSettings, value: unknown): Promise<boolean> => {
       if (!shotId) {
-        console.warn('[useSegmentMutations] Cannot save field - no shotId');
         return false;
       }
 
@@ -201,7 +198,6 @@ export function useSegmentMutations({
   // Clear enhanced prompt from metadata
   const clearEnhancedPrompt = useCallback(async (): Promise<boolean> => {
     if (!pairShotGenerationId) {
-      console.warn('[useSegmentMutations] Cannot clear enhanced prompt - no pairShotGenerationId');
       return false;
     }
 
@@ -249,7 +245,6 @@ export function useSegmentMutations({
   const saveEnhancePromptEnabled = useCallback(
     async (enabled: boolean): Promise<boolean> => {
       if (!pairShotGenerationId) {
-        console.warn('[useSegmentMutations] Cannot save preference - no pairShotGenerationId');
         return false;
       }
 

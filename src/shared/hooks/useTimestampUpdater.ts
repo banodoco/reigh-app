@@ -63,13 +63,7 @@ class TimestampManager {
     
     // Start timer if this is the first callback for this interval
     if (callbacks.size === 1) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[TimestampManager] Starting timer for ${interval}s interval`);
-      }
       const timer = setInterval(() => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[TimestampManager] Timer tick for ${interval}s interval, ${callbacks.size} callbacks`);
-        }
         // Batch all callbacks for this interval
         callbacks.forEach(cb => cb());
       }, interval * 1000);
@@ -167,13 +161,6 @@ export function useTimestampVisibility(ref: React.RefObject<HTMLElement>) {
     const observer = new IntersectionObserver(
       ([entry]) => {
         const newVisibility = entry.isIntersecting;
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[TimestampVisibility] Visibility changed:', {
-            isIntersecting: newVisibility,
-            intersectionRatio: entry.intersectionRatio,
-            timestamp: Date.now()
-          });
-        }
         setIsVisible(newVisibility);
       },
       {

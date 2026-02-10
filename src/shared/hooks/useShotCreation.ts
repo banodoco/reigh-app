@@ -202,11 +202,6 @@ export function useShotCreation(): UseShotCreationReturn {
     // 3. Update last created shot state
     setLastCreatedShot({ id: result.shotId, name: result.shotName });
     
-    console.log('[useShotCreation] Post-creation effects applied:', {
-      shotId: result.shotId.substring(0, 8),
-      inheritSettings,
-      updateLastAffected,
-    });
   }, [selectedProjectId, shots, setLastAffectedShotId]);
   
   /**
@@ -232,7 +227,6 @@ export function useShotCreation(): UseShotCreationReturn {
     options: CreateShotOptions = {}
   ): Promise<ShotCreationResult | null> => {
     if (!selectedProjectId) {
-      console.warn('[useShotCreation] No project selected');
       toast.error('No project selected');
       return null;
     }
@@ -248,13 +242,6 @@ export function useShotCreation(): UseShotCreationReturn {
     } = options;
     
     const shotName = name || generateShotName();
-    
-    console.log('[useShotCreation] Starting shot creation:', {
-      shotName,
-      hasGenerationId: !!generationId,
-      hasFiles: !!files?.length,
-      projectId: selectedProjectId.substring(0, 8),
-    });
     
     // Dispatch skeleton event before starting
     if (dispatchSkeletonEvents) {
@@ -273,7 +260,6 @@ export function useShotCreation(): UseShotCreationReturn {
       // PATH 1: Shot with Generation (Atomic RPC)
       // ========================================
       if (generationId && !files?.length) {
-        console.log('[useShotCreation] Using atomic shot+image creation');
         
         const rpcResult = await createShotWithImageMutation.mutateAsync({
           projectId: selectedProjectId,
@@ -349,7 +335,6 @@ export function useShotCreation(): UseShotCreationReturn {
       // PATH 2: Shot with Files (Upload Flow)
       // ========================================
       else if (files?.length) {
-        console.log('[useShotCreation] Creating shot then uploading files (preserves name)');
 
         // 1) Create the shot first so we can preserve the caller-provided name
         const created = await createShotMutation.mutateAsync({
@@ -389,7 +374,6 @@ export function useShotCreation(): UseShotCreationReturn {
       // PATH 3: Empty Shot
       // ========================================
       else {
-        console.log('[useShotCreation] Creating empty shot');
         
         const createResult = await createShotMutation.mutateAsync({
           name: shotName,
@@ -414,11 +398,6 @@ export function useShotCreation(): UseShotCreationReturn {
       
       // Call custom success handler if provided
       options.onSuccess?.(result);
-      
-      console.log('[useShotCreation] Shot creation successful:', {
-        shotId: result.shotId.substring(0, 8),
-        shotName: result.shotName,
-      });
       
       return result;
       

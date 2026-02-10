@@ -113,19 +113,6 @@ export function calculateDistributedFrames(ctx: DistributionContext): FrameUpdat
   const predecessor = newStartIndex > 0 ? allItems[newStartIndex - 1] : null;
   const successor = newEndIndex < allItems.length - 1 ? allItems[newEndIndex + 1] : null;
 
-  console.log('[DataTrace] Distribution neighbors:', {
-    predecessor: predecessor ? {
-      id: predecessor.id?.substring(0, 8),
-      frame: predecessor.timeline_frame
-    } : null,
-    successor: successor ? {
-      id: successor.id?.substring(0, 8),
-      frame: successor.timeline_frame
-    } : null,
-    newStartIndex,
-    newEndIndex,
-  });
-
   if (newStartIndex === 0 && successor) {
     // Special case: dropping at position 0
     calculateDropAtPositionZero(
@@ -136,12 +123,6 @@ export function calculateDistributedFrames(ctx: DistributionContext): FrameUpdat
     const gap = successor.timeline_frame - predecessor.timeline_frame;
     const numItems = draggedItemIds.length;
     const interval = gap / (numItems + 1);
-
-    console.log('[DataTrace] Distribution calculation (between):', {
-      predecessorFrame: predecessor.timeline_frame,
-      successorFrame: successor.timeline_frame,
-      gap, numItems, interval,
-    });
 
     draggedShotGens.forEach((sg, i) => {
       const newFrame = predecessor.timeline_frame! + (interval * (i + 1));
@@ -154,11 +135,6 @@ export function calculateDistributedFrames(ctx: DistributionContext): FrameUpdat
       .map(item => item.timeline_frame!);
     const spacing = calculateAverageSpacing(existingFrames, DEFAULT_FRAME_SPACING);
 
-    console.log('[DataTrace] Distribution calculation (at end):', {
-      predecessorFrame: predecessor.timeline_frame,
-      numItems: draggedItemIds.length, spacing,
-    });
-
     draggedShotGens.forEach((sg, i) => {
       const newFrame = predecessor.timeline_frame! + (spacing * (i + 1));
       pushUpdate(sg.id, newFrame, `Extend at end (${i + 1}/${draggedItemIds.length})`);
@@ -169,19 +145,12 @@ export function calculateDistributedFrames(ctx: DistributionContext): FrameUpdat
     const numItems = draggedItemIds.length;
     const interval = gap / (numItems + 1);
 
-    console.log('[DataTrace] Distribution calculation (at start):', {
-      successorFrame: successor.timeline_frame, gap, numItems, interval,
-    });
-
     draggedShotGens.forEach((sg, i) => {
       const newFrame = interval * (i + 1);
       pushUpdate(sg.id, newFrame, `Distributed from start (${i + 1}/${numItems})`);
     });
   } else {
     // First items in timeline - start at 0 and space by default
-    console.log('[DataTrace] Distribution calculation (first items):', {
-      numItems: draggedItemIds.length, spacing: DEFAULT_FRAME_SPACING,
-    });
 
     draggedShotGens.forEach((sg, i) => {
       const newFrame = DEFAULT_FRAME_SPACING * i;
@@ -207,13 +176,6 @@ function calculateDropAtPositionZero(
   const displacedFirstItem = successor;
   const oldSecondItem = newEndIndex + 2 < allItems.length ? allItems[newEndIndex + 2] : null;
 
-  console.log('[DataTrace] Drop at position 0 detected:', {
-    displacedFirstId: displacedFirstItem.id?.substring(0, 8),
-    displacedFirstFrame: displacedFirstItem.timeline_frame,
-    oldSecondId: oldSecondItem?.id?.substring(0, 8),
-    oldSecondFrame: oldSecondItem?.timeline_frame,
-  });
-
   // First dragged item goes to frame 0
   pushUpdate(draggedShotGens[0].id, 0, 'First item at position 0');
 
@@ -227,11 +189,6 @@ function calculateDropAtPositionZero(
     displacedNewFrame = DEFAULT_FRAME_SPACING;
   }
 
-  console.log('[DataTrace] Displaced first item new position:', {
-    oldFrame: displacedFirstItem.timeline_frame,
-    newFrame: displacedNewFrame,
-  });
-
   // Update displaced item
   const displacedShotGen = findGeneration(shotGenerations, displacedFirstItem.id);
   if (displacedShotGen?.id) {
@@ -243,10 +200,6 @@ function calculateDropAtPositionZero(
     const numRemaining = draggedItemIds.length - 1;
     const gap = displacedNewFrame;
     const interval = gap / (numRemaining + 1);
-
-    console.log('[DataTrace] Distributing remaining dragged items:', {
-      numRemaining, gap, interval,
-    });
 
     for (let i = 1; i < draggedItemIds.length; i++) {
       const newFrame = interval * i;
@@ -297,16 +250,6 @@ export function buildAndNormalizeFinalPositions(
   if (allFinalPositions.length === 0) return uniqueUpdates;
 
   const normalizedUpdates = normalizePositions(allFinalPositions);
-
-  console.log('[DataTrace] Normalization applied:', {
-    totalItems: allFinalPositions.length,
-    normalizedCount: normalizedUpdates.size,
-    updates: Array.from(normalizedUpdates.entries()).map(([id, p]) => ({
-      id: id.substring(0, 8),
-      newFrame: p.newFrame,
-      reason: p.reason
-    }))
-  });
 
   // Merge normalized updates into uniqueUpdates
   for (const [id, payload] of normalizedUpdates) {

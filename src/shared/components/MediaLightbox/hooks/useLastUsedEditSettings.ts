@@ -11,8 +11,7 @@ import {
   type PanelMode,
   type SyncedSettingKey,
   DEFAULT_LAST_USED,
-  DEFAULT_ADVANCED_SETTINGS,
-  SYNCED_SETTING_KEYS,
+  SYNCED_SETTING_KEYS
 } from './editSettingsTypes';
 
 // Re-export types for backwards compatibility
@@ -128,9 +127,6 @@ export function useLastUsedEditSettings({
   // Reset on project change
   useEffect(() => {
     if (projectId !== lastProjectIdRef.current) {
-      console.log('[EDIT_DEBUG] 🔄 LAST-USED: Project changed');
-      console.log('[EDIT_DEBUG] 🔄 LAST-USED: from:', lastProjectIdRef.current?.substring(0, 8) || 'none');
-      console.log('[EDIT_DEBUG] 🔄 LAST-USED: to:', projectId?.substring(0, 8) || 'none');
       lastProjectIdRef.current = projectId;
       hasSyncedFromDbRef.current = false;
       currentValueRef.current = getLocalStorageValue();
@@ -146,14 +142,11 @@ export function useLastUsedEditSettings({
       const merged = { ...currentValueRef.current, ...dbSettings };
       currentValueRef.current = merged;
 
-      console.log('[PanelRestore] Synced from DB:', { panelMode: merged.panelMode });
-
       // Update localStorage with DB values
       try {
         localStorage.setItem(STORAGE_KEY_PROJECT(projectId), JSON.stringify(merged));
         localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(merged));
       } catch (e) {
-        console.warn('[EDIT_DEBUG] ❌ LAST-USED SYNC: Failed to sync to localStorage:', e);
       }
     }
   }, [isDbLoading, dbSettings, projectId]);
@@ -165,16 +158,12 @@ export function useLastUsedEditSettings({
 
     // Check if anything actually changed
     if (!hasSettingsChanged(prev, merged)) {
-      console.log('[EDIT_DEBUG] 💾 LAST-USED SAVE: No changes detected, skipping save');
       return;
     }
 
     currentValueRef.current = merged;
 
     // Only log panelMode changes for PanelRestore debugging
-    if (prev.panelMode !== merged.panelMode) {
-      console.log('[PanelRestore] PERSISTING to localStorage:', { panelMode: merged.panelMode });
-    }
 
     // 1. Update localStorage (instant for next time)
     try {
@@ -183,7 +172,6 @@ export function useLastUsedEditSettings({
       }
       localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(merged));
     } catch (e) {
-      console.warn('[PanelRestore] Failed to save to localStorage:', e);
     }
 
     // 2. Update database (cross-device sync)

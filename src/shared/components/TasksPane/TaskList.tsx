@@ -4,10 +4,8 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import TaskItem from './TaskItem';
 import IncomingTaskItem from './IncomingTaskItem';
 import { TaskStatus, Task } from '@/types/tasks';
-import { Button } from '@/shared/components/ui/button';
 import { ScrollArea } from "@/shared/components/ui/scroll-area"
-import { filterVisibleTasks, isTaskVisible } from '@/shared/lib/taskConfig';
-import { RefreshCw } from 'lucide-react';
+import { filterVisibleTasks } from '@/shared/lib/taskConfig';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { FilterGroup } from './TasksPane';
 import { GenerationRow } from '@/types/shots';

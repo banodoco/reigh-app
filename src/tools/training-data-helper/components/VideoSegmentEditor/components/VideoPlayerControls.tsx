@@ -3,7 +3,6 @@ import { Button } from '@/shared/components/ui/button';
 import { Play, Pause, RotateCcw, Clock, Video, SkipBack, SkipForward } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { TrainingDataVideo, TrainingDataSegment } from '../../../hooks/useTrainingData';
-import { handleError } from '@/shared/lib/errorHandler';
 
 interface SegmentColor {
   bg: string;

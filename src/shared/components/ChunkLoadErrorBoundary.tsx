@@ -46,7 +46,6 @@ export class ChunkLoadErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error) {
-    console.warn('[ChunkLoadErrorBoundary] Chunk load failed, reloading page:', error.message);
 
     // Small delay to ensure the error boundary renders before reload
     setTimeout(() => {

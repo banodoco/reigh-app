@@ -389,17 +389,6 @@ export const useMediaGalleryFiltersOptimized = ({
       });
     }
 
-    // Debug logging for cross-page navigation
-    console.log('[CrossPageNav] 📊 filteredImages computed:', {
-      inputImagesLength: images.length,
-      outputLength: currentFiltered.length,
-      isServerPagination,
-      serverPage,
-      firstId: currentFiltered[0]?.id?.substring(0, 8) ?? 'none',
-      lastId: currentFiltered[currentFiltered.length - 1]?.id?.substring(0, 8) ?? 'none',
-      timestamp: Date.now(),
-    });
-
     return currentFiltered;
   }, [
     images,

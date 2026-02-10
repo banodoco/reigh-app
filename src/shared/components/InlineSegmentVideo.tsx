@@ -419,15 +419,8 @@ export const InlineSegmentVideo: React.FC<InlineSegmentVideoProps> = ({
         )}
         style={adjustedPositionStyle}
         onClick={() => {
-          console.log('[SegmentClick] 1️⃣ InlineSegmentVideo onClick fired', {
-            pairIndex,
-            slotType: slot.type,
-            hasOnClick: !!onClick,
-            onClickType: typeof onClick,
-          });
           try {
             onClick();
-            console.log('[SegmentClick] 1️⃣ onClick() completed successfully');
           } catch (err) {
             console.error('[SegmentClick] 1️⃣ ❌ onClick() threw error:', err);
           }
@@ -536,9 +529,6 @@ export const InlineSegmentVideo: React.FC<InlineSegmentVideoProps> = ({
               <div
                 className="absolute bottom-1 left-1 z-20 flex items-center justify-center bg-amber-500/90 hover:bg-amber-600/95 p-1 rounded-md shadow-sm cursor-default transition-colors"
                 ref={(el) => {
-                  if (el) {
-                    console.log('[SourceChange] 🔶 WARNING RENDERED seg=' + generationId?.substring(0, 8));
-                  }
                 }}
               >
                 <AlertTriangle className="w-3 h-3 text-white" />

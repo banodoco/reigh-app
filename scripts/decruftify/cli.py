@@ -422,6 +422,171 @@ def cmd_ignore_pattern(args):
     print()
 
 
+def cmd_fix(args):
+    """Auto-fix mechanical issues (unused imports)."""
+    fixer = args.fixer
+    dry_run = getattr(args, "dry_run", False)
+
+    if fixer == "unused-imports":
+        from .detectors.unused import detect_unused
+        from .fix import fix_unused_imports
+        from .state import load_state, save_state, resolve_findings
+
+        path = Path(args.path)
+        print(c("\nDetecting unused imports...", "dim"), file=sys.stderr)
+        entries = detect_unused(path, category="imports")
+        print(c(f"  Found {len(entries)} unused imports across {len(set(e['file'] for e in entries))} files\n", "dim"),
+              file=sys.stderr)
+
+        if not entries:
+            print(c("No unused imports found.", "green"))
+            return
+
+        results = fix_unused_imports(entries, dry_run=dry_run)
+
+        total_removed = sum(len(r["removed"]) for r in results)
+        total_lines = sum(r["lines_removed"] for r in results)
+        verb = "Would remove" if dry_run else "Removed"
+
+        print(c(f"\n  {verb} {total_removed} unused imports from {len(results)} files ({total_lines} lines)\n", "bold"))
+        for r in results[:30]:
+            syms = ", ".join(r["removed"][:5])
+            if len(r["removed"]) > 5:
+                syms += f" (+{len(r['removed']) - 5})"
+            print(f"  {rel(r['file'])}  →  {syms}")
+        if len(results) > 30:
+            print(f"  ... and {len(results) - 30} more files")
+
+        # Auto-resolve in state
+        if not dry_run:
+            sp = _state_path(args)
+            state = load_state(sp)
+            prev_score = state.get("score", 0)
+
+            resolved_ids = []
+            for r in results:
+                rfile = rel(r["file"])
+                for sym in r["removed"]:
+                    fid = f"unused::{rfile}::{sym}"
+                    if fid in state["findings"] and state["findings"][fid]["status"] == "open":
+                        state["findings"][fid]["status"] = "fixed"
+                        state["findings"][fid]["note"] = "auto-fixed by decruftify fix unused-imports"
+                        resolved_ids.append(fid)
+
+            save_state(state, sp)
+            delta = state["score"] - prev_score
+            delta_str = f" ({'+' if delta > 0 else ''}{delta})" if delta else ""
+            print(f"\n  Auto-resolved {len(resolved_ids)} findings in state")
+            print(f"  Score: {state['score']}/100{delta_str}")
+
+            _write_query({"command": "fix", "fixer": fixer,
+                          "files_fixed": len(results), "imports_removed": total_removed,
+                          "findings_resolved": len(resolved_ids),
+                          "score": state["score"], "prev_score": prev_score})
+        else:
+            _write_query({"command": "fix", "fixer": fixer, "dry_run": True,
+                          "files_would_fix": len(results), "imports_would_remove": total_removed})
+
+        print()
+    elif fixer == "debug-logs":
+        from .detectors.logs import detect_logs
+        from .fix import fix_debug_logs, fix_unused_imports
+        from .detectors.unused import detect_unused
+        from .state import load_state, save_state
+
+        path = Path(args.path)
+        print(c("\nDetecting tagged debug logs...", "dim"), file=sys.stderr)
+        entries = detect_logs(path)
+        print(c(f"  Found {len(entries)} tagged logs across {len(set(e['file'] for e in entries))} files\n", "dim"),
+              file=sys.stderr)
+
+        if not entries:
+            print(c("No tagged debug logs found.", "green"))
+            return
+
+        results = fix_debug_logs(entries, dry_run=dry_run)
+        total_logs = sum(r["log_count"] for r in results)
+        total_lines = sum(r["lines_removed"] for r in results)
+        verb = "Would remove" if dry_run else "Removed"
+
+        print(c(f"\n  {verb} {total_logs} debug logs from {len(results)} files ({total_lines} lines)\n", "bold"))
+        for r in results[:30]:
+            tags = ", ".join(f"[{t}]" for t in r["tags"][:4])
+            if len(r["tags"]) > 4:
+                tags += f" (+{len(r['tags']) - 4})"
+            print(f"  {rel(r['file'])}  ({r['log_count']} logs)  {tags}")
+        if len(results) > 30:
+            print(f"  ... and {len(results) - 30} more files")
+
+        # Auto-resolve log findings in state
+        log_resolved = 0
+        if not dry_run:
+            sp = _state_path(args)
+            state = load_state(sp)
+            prev_score = state.get("score", 0)
+
+            for r in results:
+                rfile = rel(r["file"])
+                for tag in r["tags"]:
+                    fid = f"logs::{rfile}::{tag}"
+                    if fid in state["findings"] and state["findings"][fid]["status"] == "open":
+                        state["findings"][fid]["status"] = "fixed"
+                        state["findings"][fid]["note"] = "auto-fixed by decruftify fix debug-logs"
+                        log_resolved += 1
+
+            save_state(state, sp)
+            delta = state["score"] - prev_score
+            delta_str = f" ({'+' if delta > 0 else ''}{delta})" if delta else ""
+            print(f"\n  Auto-resolved {log_resolved} log findings in state")
+            print(f"  Score: {state['score']}/100{delta_str}")
+
+            # Cascading cleanup: removing logs may leave orphaned imports
+            print(c("\n  Running cascading import cleanup...", "dim"), file=sys.stderr)
+            import_entries = detect_unused(path, category="imports")
+            if import_entries:
+                import_results = fix_unused_imports(import_entries, dry_run=dry_run)
+                import_removed = sum(len(r["removed"]) for r in import_results)
+                import_lines = sum(r["lines_removed"] for r in import_results)
+
+                if import_results:
+                    print(c(f"  Cascade: removed {import_removed} now-orphaned imports from {len(import_results)} files ({import_lines} lines)", "green"))
+
+                    # Resolve those too
+                    import_resolved = 0
+                    for r in import_results:
+                        rfile = rel(r["file"])
+                        for sym in r["removed"]:
+                            fid = f"unused::{rfile}::{sym}"
+                            if fid in state["findings"] and state["findings"][fid]["status"] == "open":
+                                state["findings"][fid]["status"] = "fixed"
+                                state["findings"][fid]["note"] = "cascade: orphaned after debug-log removal"
+                                import_resolved += 1
+
+                    save_state(state, sp)
+                    if import_resolved:
+                        print(f"  Cascade: auto-resolved {import_resolved} import findings")
+                        delta = state["score"] - prev_score
+                        delta_str = f" ({'+' if delta > 0 else ''}{delta})" if delta else ""
+                        print(f"  Score: {state['score']}/100{delta_str}")
+                else:
+                    print(c("  Cascade: no orphaned imports found", "dim"))
+            else:
+                print(c("  Cascade: no orphaned imports found", "dim"))
+
+            _write_query({"command": "fix", "fixer": fixer,
+                          "files_fixed": len(results), "logs_removed": total_logs,
+                          "log_findings_resolved": log_resolved,
+                          "score": state["score"], "prev_score": prev_score})
+        else:
+            _write_query({"command": "fix", "fixer": fixer, "dry_run": True,
+                          "files_would_fix": len(results), "logs_would_remove": total_logs})
+
+        print()
+    else:
+        print(c(f"Unknown fixer: {fixer}. Available: unused-imports, debug-logs", "red"))
+        sys.exit(1)
+
+
 def cmd_plan_output(args):
     """Generate a prioritized markdown plan from state."""
     from .state import load_state
@@ -591,6 +756,12 @@ def create_parser() -> argparse.ArgumentParser:
     p_ignore.add_argument("pattern", help="File path, glob, or detector::prefix")
     p_ignore.add_argument("--state", type=str, default=None)
 
+    p_fix = sub.add_parser("fix", help="Auto-fix mechanical issues")
+    p_fix.add_argument("fixer", choices=["unused-imports", "debug-logs"], help="What to fix")
+    p_fix.add_argument("--path", type=str, default=str(DEFAULT_PATH))
+    p_fix.add_argument("--state", type=str, default=None)
+    p_fix.add_argument("--dry-run", action="store_true", help="Show what would change without modifying files")
+
     p_plan = sub.add_parser("plan", help="Generate prioritized markdown plan from state")
     p_plan.add_argument("--state", type=str, default=None)
     p_plan.add_argument("--output", type=str, metavar="FILE", help="Write to file instead of stdout")
@@ -634,6 +805,7 @@ def main():
         "next": cmd_next,
         "resolve": cmd_resolve,
         "ignore": cmd_ignore_pattern,
+        "fix": cmd_fix,
         "plan": cmd_plan_output,
         "detect": cmd_detect,
     }

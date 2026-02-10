@@ -1,16 +1,15 @@
 import React, { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
-import { PromptEntry, PromptInputRow, PromptInputRowProps } from './ImageGenerationForm';
+import { PromptEntry, PromptInputRow } from './ImageGenerationForm';
 import { Wand2Icon, Edit, PackagePlus, Trash2, ChevronDown, ChevronLeft, Sparkles, Shuffle } from 'lucide-react';
 import { PromptGenerationControls, GenerationControlValues as PGC_GenerationControlValues } from './PromptGenerationControls';
 import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControlValues as BEC_BulkEditControlValues } from './BulkEditControls';
 import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
-import { AIPromptItem, GeneratePromptsParams, EditPromptParams, AIModelType } from '@/types/ai';
+import { GeneratePromptsParams, AIModelType } from '@/types/ai';
 import { toast } from "@/shared/components/ui/sonner";
 import { handleError } from '@/shared/lib/errorHandler';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
@@ -48,22 +47,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   openWithAIExpanded = false,
   onGenerateAndQueue,
 }) => {
-  // Debug: Log when component is called with detailed prop info
-  console.log(`[EDIT_DEBUG:RENDER] PromptEditorModal rendered.`, {
-    isOpen,
-    'initialPrompts.length': initialPrompts.length,
-    'onClose': typeof onClose,
-    'onSave': typeof onSave,
-    'generatePromptId': typeof generatePromptId,
-    'apiKey': apiKey ? 'present' : 'missing'
-  });
 
-  // Add mount/unmount tracking
-  useEffect(() => {
-    console.log('[PromptEditResetTrace] Modal MOUNT');
-    return () => console.log('[PromptEditResetTrace] Modal UNMOUNT');
-  }, []);
-  
   // Initialize with initialPrompts immediately to prevent content snap on open
   const [internalPrompts, setInternalPrompts] = useState<PromptEntry[]>(() => 
     initialPrompts.map(p => ({ ...p }))
@@ -71,22 +55,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   const internalPromptsRef = useRef<PromptEntry[]>([]);
   useEffect(() => { internalPromptsRef.current = internalPrompts; }, [internalPrompts]);
   
-  // Debug: Log whenever internalPrompts changes
-  useEffect(() => {
-    console.log(`[PromptEditorModal:STATE_CHANGE] internalPrompts changed. Count: ${internalPrompts.length}`, 
-      internalPrompts.map(p => ({id: p.id, text: p.fullPrompt.substring(0,30)+'...'})));
-  }, [internalPrompts]);
   const [activeTab, setActiveTab] = useState<EditorMode>('generate');
-  
-  // Debug: Track activeTab changes
-  useEffect(() => {
-    console.log(`[EDIT_DEBUG:STATE] activeTab changed to: ${activeTab}`);
-  }, [activeTab]);
-  
-  // Debug: Track render causes
-  useEffect(() => {
-    console.log(`[EDIT_DEBUG:RENDER_CAUSE] Component re-rendered`);
-  });
   
   const [activePromptIdForFullView, setActivePromptIdForFullView] = useState<string | null>(null);
   const isMobile = useIsMobile();
@@ -110,17 +79,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   // CRITICAL: Get project context BEFORE any effects that use it
   // This must be declared before the useEffect at line 213 to prevent TDZ error
   const { selectedProjectId } = useProject();
-  
-  // Debug mobile modal styling hook result
-  console.log(`[PromptEditorModal:MOBILE_STYLING_DEBUG] useExtraLargeModal result:`, {
-    isMobile: modal.isMobile,
-    fullClassName: modal.className,
-    dialogContentStyle: modal.style,
-    headerContainerClassName: modal.headerClass,
-    scrollContainerClassName: modal.scrollClass,
-    footerContainerClassName: modal.footerClass
-  });
-  
   
   // Scroll state, ref, and fade effect
   const { showFade, scrollRef } = useScrollFade({ 
@@ -152,7 +110,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     if (event.currentTarget) {
       const y = event.currentTarget.scrollTop;
-      console.log('[PromptEditResetTrace] scroll', { y });
       setShowScrollToTop(y > 200);
     }
   }, []);
@@ -185,9 +142,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   // Note: Using useLayoutEffect to sync prompts BEFORE browser paint to prevent visual snap
   // Prompts are also initialized via useState lazy initializer for first render
   useLayoutEffect(() => {
-    console.log(`[PromptEditorModal:INIT_EFFECT] Effect running. isOpen: ${isOpen}, initialPrompts.length: ${initialPrompts.length}, selectedProjectId: ${selectedProjectId}`);
     if (isOpen) {
-      console.log(`[PromptEditorModal:INIT_EFFECT] Initializing modal state.`);
       setShowScrollToTop(false);
       if (scrollRef.current) {
         scrollRef.current.scrollTop = 0;
@@ -232,7 +187,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   });
 
   const handleFinalSaveAndClose = useCallback(() => {
-    console.log(`[PromptEditorModal] 'Close' button clicked. Saving prompts. Count: ${internalPrompts.length}`, JSON.stringify(internalPrompts.map(p => ({id: p.id, text: p.fullPrompt.substring(0,30)+'...'}))));
     onSave(internalPrompts);
     lastSavedSignatureRef.current = currentSignatureRef.current;
     if (scrollRef.current) {
@@ -243,12 +197,8 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   }, [internalPrompts, onSave, onClose]);
 
   const handleInternalUpdatePrompt = useCallback((id: string, updates: Partial<Omit<PromptEntry, 'id'>>) => {
-    console.log(`[PromptEditResetTrace] Parent:setInternalPrompts`, { id, keys: Object.keys(updates) });
-    console.log(`[PromptEditorModal:MANUAL_UPDATE] About to update prompt ID: ${id}, Updates: ${JSON.stringify(updates)}`);
     setInternalPrompts(currentPrompts => {
       const newPrompts = currentPrompts.map(p => (p.id === id ? { ...p, ...updates } : p));
-      console.log(`[PromptEditResetTrace] Parent:setInternalPrompts:done`, { size: newPrompts.length });
-      console.log(`[PromptEditorModal:MANUAL_UPDATE] Prompt updated (manual edit). ID: ${id}, Updates: ${JSON.stringify(updates)}. New list count: ${newPrompts.length}`);
       return newPrompts;
     });
   }, []);
@@ -264,7 +214,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   const handleInternalRemovePrompt = (id: string) => {
     setInternalPrompts(currentPrompts => {
       const newPrompts = currentPrompts.filter(p => p.id !== id);
-      console.log(`[PromptEditorModal] Prompt removed (manual). ID: ${id}. New list count: ${newPrompts.length}`);
       return newPrompts;
     });
   };
@@ -273,7 +222,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     const newPromptEntry: PromptEntry = { id: generatePromptId(), fullPrompt: '', shortPrompt: '' };
     setInternalPrompts(currentPrompts => {
       const newPrompts = [...currentPrompts, newPromptEntry];
-      console.log(`[PromptEditorModal] Blank prompt added (manual). New prompt ID: ${newPromptEntry.id}. New list count: ${newPrompts.length}`);
       return newPrompts;
     });
     
@@ -286,27 +234,23 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   };
 
   const handleRemoveAllPrompts = () => {
-    console.log(`[PromptEditorModal:REMOVE_ALL] Clearing all prompts and leaving one empty. Current count: ${internalPrompts.length}`);
     const emptyPrompt: PromptEntry = { id: generatePromptId(), fullPrompt: '', shortPrompt: '' };
     setInternalPrompts([emptyPrompt]);    
   };
 
   const handleGenerateAndAddPrompts = async (params: GeneratePromptsParams) => {
     // API key is no longer mandatory for generating prompts (server-side edge function handles it)
-    console.log("[PromptEditorModal] AI Generation: Attempting to generate prompts. Params:", JSON.stringify(params));
     
     // Store whether summaries were requested initially to decide if we need to auto-generate them later
     const summariesInitiallyRequested = params.addSummaryForNewPrompts;
     
     const rawResults = await aiGeneratePrompts(params);
-    console.log("[PromptEditorModal] AI Generation: Raw AI results:", JSON.stringify(rawResults));
     
     const newEntries: PromptEntry[] = rawResults.map(item => ({
       id: item.id,
       fullPrompt: item.text,
       shortPrompt: item.shortText, // This will be populated if summariesInitiallyRequested was true
     }));
-    console.log(`[PromptEditorModal] AI Generation: Parsed ${newEntries.length} new PromptEntry items:`, JSON.stringify(newEntries.map(p => ({id: p.id, text: p.fullPrompt.substring(0,30)+'...'}))));
     
     // Check if all existing prompts are empty
     const allExistingPromptsAreEmpty = internalPrompts.every(p => !p.fullPrompt.trim() && !p.shortPrompt.trim());
@@ -315,11 +259,9 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     const shouldReplace = params.replaceCurrentPrompts || allExistingPromptsAreEmpty;
     
     let newlyAddedPromptIds: string[] = [];
-    console.log(`[PromptEditorModal:AI_GENERATION] About to ${shouldReplace ? 'replace' : 'add'} ${newEntries.length} AI-generated prompts${allExistingPromptsAreEmpty && !params.replaceCurrentPrompts ? ' (auto-replacing empty prompts)' : ''}`);
     setInternalPrompts(currentPrompts => {
       const updatedPrompts = shouldReplace ? newEntries : [...currentPrompts, ...newEntries];
       newlyAddedPromptIds = newEntries.map(e => e.id); // Capture IDs of newly added prompts
-      console.log(`[PromptEditorModal:AI_GENERATION] ${shouldReplace ? 'Replaced' : 'Added'} ${newEntries.length} prompts to internal list. New total: ${updatedPrompts.length}`);
       return updatedPrompts;
     });
 
@@ -327,14 +269,11 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     // AND the AI interaction service is set to add summaries, AND we actually have new prompts:
     // Iterate through the newly added prompts and generate summaries for those that don't have one.
     if (!summariesInitiallyRequested && params.addSummaryForNewPrompts && newEntries.length > 0) {
-      console.log("[PromptEditorModal] AI Generation: Summaries were not generated with initial batch, but addSummary is true. Generating summaries for new prompts.");
       for (const entry of newEntries) {
         if (!entry.shortPrompt && entry.fullPrompt) { // Only generate if no shortPrompt and fullPrompt exists
           try {
-            console.log(`[PromptEditorModal] AI Generation: Attempting to generate summary for new prompt ID: ${entry.id}`);
             const summary = await aiGenerateSummary(entry.fullPrompt);
             if (summary) {
-              console.log(`[PromptEditorModal] AI Generation: Summary generated for prompt ID: ${entry.id}: "${summary}"`);
               setInternalPrompts(currentPrompts => {
                 const updatedPrompts = currentPrompts.map(p => 
                   p.id === entry.id ? { ...p, shortPrompt: summary } : p
@@ -344,8 +283,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
                 // The final save or next auto-save cycle will pick this up.
                 return updatedPrompts;
               });
-            } else {
-              console.warn(`[PromptEditorModal] AI Generation: Summary generation returned empty for prompt ID: ${entry.id}.`);
             }
           } catch (error) {
             handleError(error, { context: 'PromptEditorModal', showToast: false });
@@ -361,7 +298,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   };
   
   const handleGenerateAndQueue = async (params: GeneratePromptsParams) => {
-    console.log("[PromptEditorModal] Generate & Queue: Starting generation");
     await handleGenerateAndAddPrompts(params);
     
     // Wait a moment for state to update
@@ -369,17 +305,14 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     
     // Get the updated prompts from the ref (which has the latest state)
     const updatedPrompts = internalPromptsRef.current;
-    console.log("[PromptEditorModal] Generate & Queue: Prompts generated, queuing images with", updatedPrompts.length, "prompts");
     
     if (onGenerateAndQueue) {
       onGenerateAndQueue(updatedPrompts);
     }
   };
   
-
   const handleBulkEditPrompts = async (params: BEC_BulkEditParams) => {
     if (internalPrompts.length === 0) { toast.info("No prompts to edit."); return; }
-    console.log("[PromptEditorModal] AI Bulk Edit: Starting bulk edit. Params:", JSON.stringify(params));
     
     const promptsToUpdate = internalPrompts.map(p => ({ id: p.id, text: p.fullPrompt }));
     const editRequests = promptsToUpdate.map(p => ({
@@ -396,7 +329,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
       const request = editRequests[i];
       const promptIdToUpdate = originalPromptIds[i];
       try {
-        console.log(`[PromptEditorModal] AI Bulk Edit: Editing prompt ID: ${promptIdToUpdate}. Instructions: "${request.editInstructions}"`);
         const result = await aiEditPrompt(request);
         
         if (result.success && result.newText) {
@@ -407,9 +339,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
             return updatedPrompts;
           });
           successCount++;
-          console.log(`[PromptEditorModal] AI Bulk Edit: Successfully edited prompt ID: ${promptIdToUpdate}. New text (start): "${result.newText.substring(0, 50)}..."`);
-        } else {
-          console.warn(`[PromptEditorModal] AI Bulk Edit: Edit returned no result or failed for prompt ID: ${promptIdToUpdate}. Success: ${result.success}`);
         }
       } catch (error) {
         handleError(error, { context: 'PromptEditorModal', toastTitle: `Error editing prompt ${promptIdToUpdate.substring(0,8)}...` });
@@ -417,9 +346,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
       }
     }
     
-    console.log(`[PromptEditorModal] AI Bulk Edit: Finished. ${successCount} / ${promptsToUpdate.length} prompts processed successfully.`);
   };
-
 
   // Keep hook order stable - don't return early
 
@@ -428,28 +355,22 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   };
 
   const handleGenerationValuesChange = useCallback((values: GenerationControlValues) => {
-    console.log(`[EDIT_DEBUG:GENERATION_CHANGE] Generation values changing`);
     setGenerationControlValues(prev => {
       // Only update if values actually changed to prevent unnecessary re-renders
       if (JSON.stringify(prev) === JSON.stringify(values)) {
-        console.log(`[EDIT_DEBUG:GENERATION_CHANGE] No actual change, preventing re-render`);
         return prev;
       }
-      console.log(`[EDIT_DEBUG:GENERATION_CHANGE] Values actually changed, updating`);
       markAsInteracted();
       return values;
     });
   }, [markAsInteracted]);
 
   const handleBulkEditValuesChange = useCallback((values: BulkEditControlValues) => {
-    console.log(`[EDIT_DEBUG:BULK_EDIT_CHANGE] Bulk edit values changing`);
     setBulkEditControlValues(prev => {
       // Only update if values actually changed to prevent unnecessary re-renders (same as Generate view)
       if (JSON.stringify(prev) === JSON.stringify(values)) {
-        console.log(`[EDIT_DEBUG:BULK_EDIT_CHANGE] No actual change, preventing re-render`);
         return prev; // 🎯 RETURNS SAME REFERENCE = NO RE-RENDER
       }
-      console.log(`[EDIT_DEBUG:BULK_EDIT_CHANGE] Values actually changed, updating`);
       markAsInteracted();
       return values;
     });
@@ -459,7 +380,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     const touch = e.touches[0];
     dragStartPos.current = { x: touch.clientX, y: touch.clientY };
     isDragging.current = false;
-    console.log(`[PromptEditorModal:DRAG_DEBUG] Touch start on button. Recording position: ${touch.clientX}, ${touch.clientY}`);
   };
 
   // Use global touch move listener to track drag without interfering with scroll
@@ -470,13 +390,9 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
         const deltaX = Math.abs(touch.clientX - dragStartPos.current.x);
         const deltaY = Math.abs(touch.clientY - dragStartPos.current.y);
         // Only log if we're actually tracking a potential button press
-        if (dragStartPos.current) {
-          console.log(`[PromptEditorModal:DRAG_DEBUG] Global touch move. deltaX: ${deltaX}, deltaY: ${deltaY}, isDragging: ${isDragging.current}`);
-        }
         // Consider it a drag if moved more than 5px in any direction
         if (deltaX > 5 || deltaY > 5) {
           isDragging.current = true;
-          console.log(`[PromptEditorModal:DRAG_DEBUG] Setting isDragging to true (global touch)`);
         }
       }
     };
@@ -508,7 +424,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     if (modalContentRef.current && modalContentRef.current.contains(target)) {
       const clickedActiveField = target.closest(`[data-prompt-id="${activePromptIdForFullView}"]`);
       if (!clickedActiveField) {
-        console.log(`[PromptEditorModal:FIELD_COLLAPSE] Inside interaction outside active field, collapsing ${activePromptIdForFullView}`);
         setActivePromptIdForFullView(null);
       }
     }
@@ -526,19 +441,10 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   }, []);
 
   const handleModalClose = useCallback((open: boolean) => {
-    console.log(`[PromptEditorModal:CLOSE_EVENT] onOpenChange triggered. open: ${open}, isOpen: ${isOpen}`);
     if (!open) {
-      console.log(`[PromptEditorModal:CLOSE_EVENT] Modal closing - calling handleFinalSaveAndClose`);
       handleFinalSaveAndClose();
     }
   }, [isOpen, handleFinalSaveAndClose]);
-
-  // Debug modal rendering
-  console.log(`[PromptEditorModal:RENDER_DEBUG] Rendering modal. isOpen: ${isOpen}, isMobile: ${isMobile}, modal:`, {
-    fullClassName: modal.className,
-    dialogContentStyle: modal.style,
-    isMobile: modal.isMobile
-  });
 
   return (
     <Dialog
@@ -550,22 +456,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
         style={modal.style}
         ref={(el) => {
           modalContentRef.current = el;
-          if (el && isOpen) {
-            console.log(`[PromptEditorModal:DOM_DEBUG] DialogContent element when open:`, {
-              element: el,
-              computedStyle: window.getComputedStyle(el),
-              boundingRect: el.getBoundingClientRect(),
-              visibility: window.getComputedStyle(el).visibility,
-              display: window.getComputedStyle(el).display,
-              opacity: window.getComputedStyle(el).opacity,
-              transform: window.getComputedStyle(el).transform,
-              zIndex: window.getComputedStyle(el).zIndex,
-              top: window.getComputedStyle(el).top,
-              left: window.getComputedStyle(el).left,
-              right: window.getComputedStyle(el).right,
-              bottom: window.getComputedStyle(el).bottom
-            });
-          }
         }}
       >
         <div className={modal.headerClass}>
@@ -711,7 +601,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
           </div>
         </div>
 
-
         <div className={`${modal.footerClass} relative`}>
           {/* Fade overlay */}
           {showFade && (
@@ -757,14 +646,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     prevProps.prompts.length === nextProps.prompts.length &&
     JSON.stringify(prevProps.prompts) === JSON.stringify(nextProps.prompts)
   );
-  
-  console.log(`[EDIT_DEBUG:MEMO] Props comparison:`, {
-    propsEqual,
-    'isOpen changed': prevProps.isOpen !== nextProps.isOpen,
-    'apiKey changed': prevProps.apiKey !== nextProps.apiKey,
-    'prompts length changed': prevProps.prompts.length !== nextProps.prompts.length,
-    'prompts content changed': JSON.stringify(prevProps.prompts) !== JSON.stringify(nextProps.prompts)
-  });
   
   return propsEqual;
 });

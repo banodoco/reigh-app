@@ -13,7 +13,6 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { StrokeOverlayHandle } from '../components/StrokeOverlay';
-import type { GenerationRow } from '@/types/shots';
 
 // Import types
 import type {
@@ -241,7 +240,6 @@ export const useInpainting = ({
   // ============================================
 
   const handleEnterInpaintMode = useCallback(() => {
-    console.log('[Inpaint] Entering inpaint mode');
     setIsInpaintMode(true);
   }, []);
 
