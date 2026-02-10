@@ -22,6 +22,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Decruftify generated files
+.decruftify/
+
 # Environment variables
 .env
 .env.local
