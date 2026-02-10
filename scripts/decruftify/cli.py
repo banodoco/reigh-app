@@ -663,6 +663,35 @@ def _get_fixer(name: str) -> dict | None:
             "detector": "unused",
             "verb": "Removed", "dry_verb": "Would remove",
         }
+    elif name == "unused-params":
+        from .detectors.unused import detect_unused
+        from .fix import fix_unused_params
+        return {
+            "label": "unused params",
+            "detect": lambda path: detect_unused(path, category="vars"),
+            "fix": fix_unused_params,
+            "detector": "unused",
+            "verb": "Prefixed", "dry_verb": "Would prefix",
+        }
+    elif name == "dead-useeffect":
+        from .fix import fix_dead_useeffect
+        return {
+            "label": "dead useEffect calls",
+            "detect": lambda path: _detect_smell_flat(path, "dead_useeffect"),
+            "fix": fix_dead_useeffect,
+            "detector": "smells",
+            "verb": "Removed", "dry_verb": "Would remove",
+            "post_fix": _cascade_import_cleanup,
+        }
+    elif name == "empty-if-chain":
+        from .fix import fix_empty_if_chain
+        return {
+            "label": "empty if/else chains",
+            "detect": lambda path: _detect_smell_flat(path, "empty_if_chain"),
+            "fix": fix_empty_if_chain,
+            "detector": "smells",
+            "verb": "Removed", "dry_verb": "Would remove",
+        }
     return None
 
 
@@ -675,6 +704,16 @@ def _wrap_debug_logs_fix(fix_fn):
             r["removed"] = r.get("tags", r.get("removed", []))
         return results
     return wrapper
+
+
+def _detect_smell_flat(path: Path, smell_id: str) -> list[dict]:
+    """Run smell detector and extract flat match list for a specific smell type."""
+    from .detectors.smells import detect_smells
+    entries = detect_smells(path)
+    for e in entries:
+        if e["id"] == smell_id:
+            return e.get("matches", [])
+    return []
 
 
 def _resolve_fixer_results(state: dict, results: list[dict], detector: str, fixer_name: str) -> list[str]:
@@ -701,7 +740,8 @@ def _suggest_next_action(by_tier: dict) -> str | None:
     if t1_open > 0:
         return f"`decruftify fix debug-logs --dry-run` or `fix unused-imports --dry-run` ({t1_open} T1 items)"
     if t2_open > 0:
-        return f"`decruftify fix dead-exports --dry-run` or `fix unused-vars --dry-run` ({t2_open} T2 items)"
+        return (f"`decruftify fix unused-vars --dry-run` or `fix unused-params --dry-run` "
+                f"or `fix dead-useeffect --dry-run` ({t2_open} T2 items)")
 
     t3_open = by_tier.get("3", {}).get("open", 0)
     if t3_open > 0:
@@ -717,8 +757,8 @@ def _suggest_next_action(by_tier: dict) -> str | None:
 _SKIP_REASON_LABELS = {
     "rest_element": "has ...rest (removing changes rest contents)",
     "array_destructuring": "array destructuring (positional — can't remove)",
-    "function_param": "function/callback parameter (positional)",
-    "standalone_var": "standalone variable (may have side effects)",
+    "function_param": "function/callback parameter (use `fix unused-params` to prefix with _)",
+    "standalone_var_with_call": "standalone variable with function call (may have side effects)",
     "no_destr_context": "destructuring member without context",
     "out_of_range": "line out of range (stale data?)",
     "other": "other patterns (needs manual review)",
@@ -949,7 +989,8 @@ def create_parser() -> argparse.ArgumentParser:
     p_ignore.add_argument("--state", type=str, default=None)
 
     p_fix = sub.add_parser("fix", help="Auto-fix mechanical issues")
-    p_fix.add_argument("fixer", choices=["unused-imports", "debug-logs", "dead-exports", "unused-vars"],
+    p_fix.add_argument("fixer", choices=["unused-imports", "debug-logs", "dead-exports", "unused-vars",
+                                         "unused-params", "dead-useeffect", "empty-if-chain"],
                        help="What to fix")
     p_fix.add_argument("--path", type=str, default=str(DEFAULT_PATH))
     p_fix.add_argument("--state", type=str, default=None)

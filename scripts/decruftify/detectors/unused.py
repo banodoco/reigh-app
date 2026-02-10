@@ -42,6 +42,9 @@ def detect_unused(path: Path, category: str = "all") -> list[dict]:
             continue
         if m:
             filepath, lineno, col, name = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4)
+            # Skip _ prefixed names (intentionally unused by convention)
+            if name.startswith('_'):
+                continue
         else:
             filepath, lineno, col = m2.group(1), int(m2.group(2)), int(m2.group(3))
             name = "(entire import)"

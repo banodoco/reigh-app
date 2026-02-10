@@ -319,7 +319,8 @@ def _detect_dead_useeffects(filepath: str, lines: list[str],
             continue
 
         # Extract the callback body (between first { after => and matching })
-        text = "".join(lines[i:end + 1])
+        # Use \n join since splitlines() strips newlines — needed for // comment stripping
+        text = "\n".join(lines[i:end + 1])
         arrow_pos = text.find("=>")
         if arrow_pos == -1:
             continue

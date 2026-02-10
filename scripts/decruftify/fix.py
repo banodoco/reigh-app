@@ -4,7 +4,10 @@ Supports:
 - Unused imports (T1): removes unused symbols from import statements.
 - Debug logs (T1): removes tagged console.log/warn/info/debug lines.
 - Dead exports (T2): removes `export` keyword from declarations with zero external importers.
-- Unused vars (T2): removes unused names from destructuring patterns.
+- Unused vars (T2): removes unused names from destructuring patterns + standalone vars.
+- Unused params (T2): prefixes unused function/callback params with _.
+- Dead useEffect (T2): deletes useEffect calls with empty/comment-only bodies.
+- Empty if chains (T2): deletes if/else chains where all branches are empty.
 """
 
 import re
@@ -829,7 +832,13 @@ def fix_unused_vars(entries: list[dict], *, dry_run: bool = False) -> list[dict]
                 elif re.search(r"(?:function|=>)\s*\(", stripped) or re.match(r"\s*\(", stripped):
                     _skip_reasons["function_param"] += 1
                 elif re.match(r"\s*(?:const|let|var)\s+\w+\s*=", stripped):
-                    _skip_reasons["standalone_var"] += 1
+                    # Standalone var: safe to delete if single-line and RHS has no function calls
+                    rhs = stripped.split("=", 1)[1] if "=" in stripped else ""
+                    if stripped.rstrip().endswith(";") and "(" not in rhs:
+                        lines_to_remove.add(line_idx)
+                        removed_names.append(name)
+                    else:
+                        _skip_reasons["standalone_var_with_call"] += 1
                 else:
                     _skip_reasons["other"] += 1
 
@@ -981,3 +990,300 @@ def _remove_names_from_destr(lines: list[str], line_idx: int, names: set[str]) -
     before = line[:brace_match.start()]
     after = line[brace_match.end():]
     return f"{before}{{ {new_inner} }}{after}"
+
+
+# ── Unused params fixer (prefix with _) ──────────────────────
+
+
+def fix_unused_params(entries: list[dict], *, dry_run: bool = False) -> list[dict]:
+    """Prefix unused function/callback/catch parameters with _.
+
+    Only handles parameters (positional — can't remove without breaking calls).
+    Prefixing with _ signals "intentionally unused" and is ignored by the scanner.
+
+    Args:
+        entries: [{file, line, col, name, category}, ...] from detect_unused(), category=="vars".
+        dry_run: If True, don't write files.
+
+    Returns:
+        List of {file, removed: [str], lines_removed: int} dicts.
+    """
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_file[e["file"]].append(e)
+
+    results = []
+    _skip_count = 0
+
+    for filepath, file_entries in sorted(by_file.items()):
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+            original = p.read_text()
+            lines = original.splitlines(keepends=True)
+
+            removed_names: list[str] = []
+
+            for e in file_entries:
+                name = e["name"]
+                if name.startswith("_"):
+                    continue  # Already prefixed
+
+                line_idx = e["line"] - 1
+                if line_idx < 0 or line_idx >= len(lines):
+                    continue
+
+                src = lines[line_idx]
+                stripped = src.strip()
+
+                # Only handle function/callback params and catch params
+                is_param = (
+                    re.search(r"(?:function\s+\w+|function)\s*\(", stripped) or
+                    re.search(r"\)\s*(?:=>|:)", stripped) or
+                    re.search(r"=>\s*\{", stripped) or
+                    re.match(r"\s*\(", stripped) or
+                    re.search(r"catch\s*\(", stripped) or
+                    _is_param_context(lines, line_idx)
+                )
+
+                if not is_param:
+                    _skip_count += 1
+                    continue
+
+                # Use column info for precise replacement when available
+                col = e.get("col", 0)
+                new_name = f"_{name}"
+
+                if col > 0:
+                    col_idx = col - 1  # Convert 1-indexed to 0-indexed
+                    if col_idx + len(name) <= len(src) and src[col_idx:col_idx + len(name)] == name:
+                        lines[line_idx] = src[:col_idx] + new_name + src[col_idx + len(name):]
+                        removed_names.append(name)
+                        continue
+
+                # Fallback: regex replacement (first occurrence)
+                new_line = re.sub(r"\b" + re.escape(name) + r"\b", new_name, src, count=1)
+                if new_line != src:
+                    lines[line_idx] = new_line
+                    removed_names.append(name)
+
+            new_content = "".join(lines)
+            if new_content != original:
+                results.append({
+                    "file": filepath,
+                    "removed": removed_names,
+                    "lines_removed": 0,
+                })
+                if not dry_run:
+                    p.write_text(new_content)
+        except Exception as ex:
+            print(c(f"  Skip {rel(filepath)}: {ex}", "yellow"), file=sys.stderr)
+
+    return results
+
+
+def _is_param_context(lines: list[str], line_idx: int) -> bool:
+    """Check if a line is inside a multi-line function parameter list.
+
+    Walks backwards looking for an unclosed ( that indicates a parameter list.
+    """
+    paren_depth = 0
+    for back in range(0, 15):
+        idx = line_idx - back
+        if idx < 0:
+            break
+        line = lines[idx]
+        # Count parens (reverse scan)
+        for ch in reversed(line):
+            if ch == ")":
+                paren_depth += 1
+            elif ch == "(":
+                paren_depth -= 1
+        if paren_depth < 0:
+            # More opens than closes — we're inside a paren block
+            # Check if it's a function context
+            for check_idx in range(max(0, idx - 1), idx + 1):
+                prev = lines[check_idx].strip()
+                if re.search(r"(?:function\s+\w+|catch|\w+\s*=\s*(?:async\s+)?)\s*$", prev):
+                    return True
+                if re.search(r"(?:function|catch)\s*\($", prev):
+                    return True
+                if prev.endswith("("):
+                    return True
+            return True  # Inside unclosed parens — likely a param list
+        if line.strip().endswith((";", "{")):
+            break  # Past statement boundary
+    return False
+
+
+# ── Dead useEffect fixer ──────────────────────────────────────
+
+
+def fix_dead_useeffect(entries: list[dict], *, dry_run: bool = False) -> list[dict]:
+    """Delete useEffect calls with empty/comment-only bodies.
+
+    Args:
+        entries: [{file, line, content}, ...] from smell detector.
+        dry_run: If True, don't write files.
+
+    Returns:
+        List of {file, removed: [str], lines_removed: int} dicts.
+    """
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_file[e["file"]].append(e)
+
+    results = []
+    for filepath, file_entries in sorted(by_file.items()):
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+            original = p.read_text()
+            lines = original.splitlines(keepends=True)
+
+            lines_to_remove: set[int] = set()
+
+            for e in file_entries:
+                line_idx = e["line"] - 1
+                if line_idx < 0 or line_idx >= len(lines):
+                    continue
+
+                # Find the extent of the useEffect call
+                end = _find_block_end(lines, line_idx)
+                if end is None:
+                    continue
+
+                for idx in range(line_idx, end + 1):
+                    lines_to_remove.add(idx)
+
+                # Remove preceding comment if orphaned
+                if line_idx > 0 and lines[line_idx - 1].strip().startswith("//"):
+                    lines_to_remove.add(line_idx - 1)
+
+            new_lines = []
+            prev_blank = False
+            for idx, line in enumerate(lines):
+                if idx in lines_to_remove:
+                    continue
+                is_blank = line.strip() == ""
+                if is_blank and prev_blank:
+                    continue
+                new_lines.append(line)
+                prev_blank = is_blank
+
+            new_content = "".join(new_lines)
+            if new_content != original:
+                results.append({
+                    "file": filepath,
+                    "removed": ["dead_useeffect"],  # Matches finding ID format
+                    "lines_removed": len(lines) - len(new_lines),
+                })
+                if not dry_run:
+                    p.write_text(new_content)
+        except Exception as ex:
+            print(c(f"  Skip {rel(filepath)}: {ex}", "yellow"), file=sys.stderr)
+
+    return results
+
+
+# ── Empty if-chain fixer ──────────────────────────────────────
+
+
+def fix_empty_if_chain(entries: list[dict], *, dry_run: bool = False) -> list[dict]:
+    """Delete if/else chains where all branches are empty.
+
+    Args:
+        entries: [{file, line, content}, ...] from smell detector.
+        dry_run: If True, don't write files.
+
+    Returns:
+        List of {file, removed: [str], lines_removed: int} dicts.
+    """
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_file[e["file"]].append(e)
+
+    results = []
+    for filepath, file_entries in sorted(by_file.items()):
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+            original = p.read_text()
+            lines = original.splitlines(keepends=True)
+
+            lines_to_remove: set[int] = set()
+
+            for e in file_entries:
+                line_idx = e["line"] - 1
+                if line_idx < 0 or line_idx >= len(lines):
+                    continue
+
+                # Find the extent of the if/else chain
+                end = _find_if_chain_end(lines, line_idx)
+                for idx in range(line_idx, end + 1):
+                    lines_to_remove.add(idx)
+
+            new_lines = []
+            prev_blank = False
+            for idx, line in enumerate(lines):
+                if idx in lines_to_remove:
+                    continue
+                is_blank = line.strip() == ""
+                if is_blank and prev_blank:
+                    continue
+                new_lines.append(line)
+                prev_blank = is_blank
+
+            new_content = "".join(new_lines)
+            if new_content != original:
+                results.append({
+                    "file": filepath,
+                    "removed": ["empty_if_chain"],  # Matches finding ID format
+                    "lines_removed": len(lines) - len(new_lines),
+                })
+                if not dry_run:
+                    p.write_text(new_content)
+        except Exception as ex:
+            print(c(f"  Skip {rel(filepath)}: {ex}", "yellow"), file=sys.stderr)
+
+    return results
+
+
+def _find_if_chain_end(lines: list[str], start: int) -> int:
+    """Find the last line of an if/else chain starting at `start`.
+
+    Tracks brace depth. Chain ends when braces balance and no else follows.
+    Returns 0-indexed line number of the last line in the chain.
+    """
+    brace_depth = 0
+    found_brace = False
+
+    for i in range(start, min(start + 100, len(lines))):
+        line = lines[i]
+        in_str = None
+        prev_ch = ""
+        for ci, ch in enumerate(line):
+            if in_str:
+                if ch == in_str and prev_ch != "\\":
+                    in_str = None
+                prev_ch = ch
+                continue
+            if ch in "'\"`":
+                in_str = ch
+            elif ch == "{":
+                brace_depth += 1
+                found_brace = True
+            elif ch == "}":
+                brace_depth -= 1
+                if found_brace and brace_depth == 0:
+                    # Braces balanced — check if else follows on this line
+                    rest = line[ci + 1:].strip()
+                    if rest.startswith("else"):
+                        break  # Continue to next line (else block opens new braces)
+                    # Check next non-blank line for else
+                    j = i + 1
+                    while j < len(lines) and lines[j].strip() == "":
+                        j += 1
+                    if j < len(lines) and lines[j].strip().startswith("else"):
+                        break  # else on next line — continue
+                    return i  # Chain ends here
+            prev_ch = ch
+
+    return start  # Fallback
