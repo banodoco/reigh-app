@@ -59,8 +59,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
-  const currentDialogSkipChoiceRef = useRef(false);
-  const [skipConfirmationNextTimeVisual, setSkipConfirmationNextTimeVisual] = useState(false);
   const [newShotState, setNewShotState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [createdShotId, setCreatedShotId] = useState<string | null>(null);
   const newShotResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,10 +69,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   // Optimistic update state for mobile reordering
   const [optimisticOrder, setOptimisticOrder] = useState<GenerationRow[]>([]);
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
-  const [reconciliationId, setReconciliationId] = useState(0);
-  
-  const isMobile = useIsMobile();
-  const { value: imageDeletionSettings } = useUserUIState('imageDeletion', { skipConfirmation: false });
+
   const { markAllViewed } = useMarkVariantViewed();
   const { 
     isShotsPaneLocked, 
@@ -257,11 +252,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       // Safety check: Ensure all images have id
       const hasMissingIds = currentImages.some(img => !img.id);
       if (hasMissingIds) {
-        const missingCount = currentImages.filter(img => !img.id).length;
-        const message = currentImages.length > 500 
-          ? `Loading metadata for ${currentImages.length} images... this may take a moment.`
-          : 'Loading image metadata... please wait a moment and try again.';
-        toast.error(message);
+        toast.error('Loading image metadata... please wait a moment and try again.');
         return;
       }
 
@@ -288,7 +279,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       const draggedItemId = selectedItems.length === 1 ? selectedItems[0].id : undefined;
 
       // 1. Apply optimistic update immediately for instant visual feedback
-      setReconciliationId(prev => prev + 1);
       setIsOptimisticUpdate(true);
       setOptimisticOrder(newOrder);
 
@@ -324,10 +314,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
     }
 
     if (validIds.length === 0) {
-      const message = currentImages.length > 500 
-        ? `Loading metadata for ${currentImages.length} images... please wait.`
-        : 'Unable to delete images. Metadata still loading, please wait a moment and try again.';
-      toast.error(message);
+      toast.error('Unable to delete images. Metadata still loading, please wait a moment and try again.');
       setConfirmOpen(false);
       return;
     }
@@ -405,13 +392,11 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
           const pairPrompt = pairPrompts?.[index];
           const enhancedPrompt = enhancedPrompts?.[index];
           const startImage = currentImages[index];
-          const endImage = currentImages[index + 1];
-          
+
           // Pair indicator from PREVIOUS image (before this image)
           const prevPairPrompt = index > 0 ? pairPrompts?.[index - 1] : undefined;
           const prevEnhancedPrompt = index > 0 ? enhancedPrompts?.[index - 1] : undefined;
           const prevStartImage = index > 0 ? currentImages[index - 1] : undefined;
-          const prevEndImage = currentImages[index];
           
           // Get segment slot for this pair (if available)
           const segmentSlot = segmentSlots?.find(s => s.index === index);

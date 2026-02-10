@@ -87,7 +87,7 @@ async function getTaskIdsForGenerations(generationIds: string[]): Promise<Map<st
  * Get generation for a task by output location
  * Includes shot associations for proper UI state
  */
-async function getGenerationForTask(taskId: string, outputLocation: string, projectId: string): Promise<GenerationRow | null> {
+async function getGenerationForTask(_taskId: string, outputLocation: string, projectId: string): Promise<GenerationRow | null> {
   if (!outputLocation) return null;
 
   const { data, error } = await supabase
@@ -113,32 +113,6 @@ async function getGenerationForTask(taskId: string, outputLocation: string, proj
 // ================================================================
 
 /**
- * Hook to get task ID for a generation with proper caching
- */
-function useGenerationTaskMapping(generationId: string | null) {
-  return useQuery({
-    queryKey: queryKeys.tasks.generationMapping(generationId || ''),
-    queryFn: () => getTaskIdForGeneration(generationId!),
-    enabled: !!generationId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - task associations rarely change
-    retry: 2,
-  });
-}
-
-/**
- * Hook to get generation data for a task
- */
-function useTaskGenerationMapping(taskId: string, outputLocation: string | null, projectId: string) {
-  return useQuery({
-    queryKey: [...queryKeys.tasks.taskMapping(taskId), outputLocation],
-    queryFn: () => getGenerationForTask(taskId, outputLocation!, projectId),
-    enabled: !!taskId && !!outputLocation && !!projectId,
-    staleTime: 10 * 60 * 1000, // 10 minutes - generated content is immutable
-    retry: 2,
-  });
-}
-
-/**
  * Mutation for getting task ID (for compatibility with existing code)
  */
 export function useGetTaskIdForGeneration() {
@@ -150,28 +124,6 @@ export function useGetTaskIdForGeneration() {
   });
 }
 
-/**
- * Hook to get full task data once we have the mapping
- */
-function useTaskData(taskId: string | null) {
-  return useQuery({
-    queryKey: [...queryKeys.tasks.all, 'single', taskId],
-    queryFn: async () => {
-      if (!taskId) return null;
-      
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!taskId,
-    staleTime: 2 * 60 * 1000, // 2 minutes for task data
-  });
-}
 
 // ================================================================
 // CACHE MANAGEMENT
@@ -236,40 +188,11 @@ export async function preloadGenerationTaskMappings(
   }
 }
 
-/**
- * Invalidate all caches related to a specific generation-task relationship
- */
-function invalidateGenerationTaskCaches(queryClient: QueryClient, generationId: string, taskId?: string) {
-  // Invalidate the mapping
-  queryClient.invalidateQueries({ queryKey: queryKeys.tasks.generationMapping(generationId) });
-
-  if (taskId) {
-    // Invalidate task data
-    queryClient.invalidateQueries({ queryKey: queryKeys.tasks.single(taskId) });
-    // Invalidate reverse mapping
-    queryClient.invalidateQueries({ queryKey: queryKeys.tasks.taskMapping(taskId) });
-  }
-}
 
 // ================================================================
 // UTILITY FUNCTIONS
 // ================================================================
 
-/**
- * Extract task IDs from generation objects
- */
-function extractTaskIds(generations: (GenerationRow | { tasks?: string[] })[]): string[] {
-  const taskIds: string[] = [];
-  
-  generations.forEach(gen => {
-    const tasks = 'tasks' in gen ? gen.tasks : undefined;
-    if (Array.isArray(tasks) && tasks.length > 0) {
-      taskIds.push(tasks[0]); // First task ID
-    }
-  });
-  
-  return [...new Set(taskIds)]; // Remove duplicates
-}
 
 /**
  * Enhance generations with task data from cache

@@ -101,9 +101,6 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
 
   // Segment info
   const isSegmentTask = parsedParams?.segment_index !== undefined;
-  const segmentIndex = parsedParams?.segment_index;
-  const isFirstSegment = parsedParams?.is_first_segment;
-  const isLastSegment = parsedParams?.is_last_segment;
 
   // Layout for two-column on large screens when phases present AND in advanced mode
   // In basic mode, we don't show phase config details even if they exist internally
@@ -126,7 +123,6 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
   const structureVideo = structureGuidance?.videos?.[0];
   const videoPath = structureVideo?.path || orchestratorDetails?.structure_video_path || orchestratorPayload?.structure_video_path || parsedParams?.structure_video_path;
   const videoTreatment = structureVideo?.treatment || orchestratorDetails?.structure_video_treatment || orchestratorPayload?.structure_video_treatment || parsedParams?.structure_video_treatment;
-  const videoType = orchestratorDetails?.structure_video_type || orchestratorPayload?.structure_video_type || parsedParams?.structure_video_type;
   const motionStrength = orchestratorDetails?.structure_video_motion_strength ?? orchestratorPayload?.structure_video_motion_strength ?? parsedParams?.structure_video_motion_strength;
 
   const styleImage = parsedParams?.style_reference_image || orchestratorDetails?.style_reference_image;
@@ -162,7 +158,6 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
 
   // Technical settings
   const modelName = orchestratorDetails?.model_name || orchestratorPayload?.model_name || parsedParams?.model_name;
-  const steps = orchestratorDetails?.steps || orchestratorPayload?.steps || parsedParams?.num_inference_steps;
   const resolution = orchestratorDetails?.parsed_resolution_wh || parsedParams?.parsed_resolution_wh;
   const frames = isSegmentTask
     ? (individualSegmentParams?.num_frames || parsedParams?.num_frames || parsedParams?.segment_frames_target)

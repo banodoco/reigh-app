@@ -75,9 +75,9 @@ export const mapDbTaskToTask = (row: TaskDbRow): Task => ({
 });
 
 // Hook to update task status
-const useUpdateTaskStatus = () => {
+const _useUpdateTaskStatus = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: TaskStatus }) => {
       const { data, error } = await supabase
@@ -93,7 +93,7 @@ const useUpdateTaskStatus = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       // Task status change event is now handled by DataFreshnessManager via realtime events
     },
     onError: (error: Error) => {
@@ -147,8 +147,8 @@ export const usePaginatedTasks = (params: PaginatedTasksParams) => {
   const query = useQuery<PaginatedTasksResponse, Error>({
     // CRITICAL: Use page-based cache keys like gallery
     queryKey: [...queryKeys.tasks.paginated(cacheProjectKey as string), page, limit, status, taskType],
-    queryFn: async (queryContext) => {
-      
+    queryFn: async () => {
+
       // For all projects mode, we need allProjectIds; otherwise we need effectiveProjectId
       if (allProjects && (!allProjectIds || allProjectIds.length === 0)) {
         return { tasks: [], total: 0, hasMore: false, totalPages: 0, distinctTaskTypes: [] };
@@ -238,9 +238,6 @@ export const usePaginatedTasks = (params: PaginatedTasksParams) => {
           fetchLimit = effectiveBaseLimit;
         }
         
-        if (effectiveBaseLimit !== limit) {
-          // Limit override for processing view
-        }
         dataQuery = dataQuery.limit(fetchLimit);
       } else {
         // For Succeeded/Failed: use proper database pagination - no client sorting needed
@@ -329,30 +326,16 @@ export const usePaginatedTasks = (params: PaginatedTasksParams) => {
     retry: STANDARD_RETRY,
     retryDelay: STANDARD_RETRY_DELAY,
   });
-  
-  // [TasksPaneCountMismatch] CRITICAL DEBUG: Log the actual query state to catch cache/stale issues
-  // Reduced to simplified debug object without logging
-  const queryDebugInfo = {
-    projectId,
-    page,
-    limit,
-    status,
-    hasData: !!query.data,
-    dataTasksCount: query.data?.tasks ? query.data.tasks.length : 0,
-    dataAge: query.dataUpdatedAt ? Math.round((Date.now() - query.dataUpdatedAt) / 1000) + 's' : 'never',
-  };
-  
+
   // NUCLEAR OPTION: Force refetch if query has data but no tasks for Processing view
   // SAFETY: Only trigger if data is genuinely stale (older than 30 seconds) to prevent infinite loops
   const isProcessingFilter = status && status.includes('Queued') && status.includes('In Progress');
   const hasStaleEmptyData = query.data && query.data.tasks && query.data.tasks.length === 0 && !query.isFetching;
   const dataAge = query.dataUpdatedAt ? Date.now() - query.dataUpdatedAt : Infinity;
-  const isDataStale = dataAge > 30000; // 30 seconds
-  
+
   // Use React ref to prevent rapid refetches
   const lastRefetchRef = React.useRef<number>(0);
   const timeSinceLastRefetch = Date.now() - lastRefetchRef.current;
-  const canRefetch = timeSinceLastRefetch > 10000; // 10 seconds minimum between refetches
   
   // When backgrounded, dampen nuclear refetches to avoid thrash under timer clamping
   const isHidden = typeof document !== 'undefined' ? document.hidden : false;
@@ -451,7 +434,7 @@ export const useCancelTask = (projectId: string | null) => {
 
   return useMutation({
     mutationFn: cancelTask,
-    onSuccess: (_, taskId) => {
+    onSuccess: () => {
       // Immediately invalidate tasks queries so cancelled task disappears
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginatedAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });
@@ -549,7 +532,7 @@ const useCancelPendingTasks = () => {
 
   return useMutation({
     mutationFn: cancelPendingTasks,
-    onSuccess: (data, projectId) => {
+    onSuccess: () => {
       // Immediately invalidate tasks queries so cancelled tasks disappear
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginatedAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });

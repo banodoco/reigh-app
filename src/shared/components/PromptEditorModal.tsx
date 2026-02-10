@@ -81,12 +81,11 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   const { selectedProjectId } = useProject();
   
   // Scroll state, ref, and fade effect
-  const { showFade, scrollRef } = useScrollFade({ 
+  const { showFade, scrollRef } = useScrollFade({
     isOpen: isOpen,
     debug: false,
     preloadFade: modal.isMobile
   });
-  const [showScrollToTop, setShowScrollToTop] = useState(false);
 
   // Note: Project change resets are now handled by usePersistentToolState hook
   // which properly hydrates saved values per-project or uses defaults if none exist
@@ -107,18 +106,8 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   });
 
   // Scroll handler
-  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    if (event.currentTarget) {
-      const y = event.currentTarget.scrollTop;
-      setShowScrollToTop(y > 200);
-    }
-  }, []);
-
-  // Scroll to top function
-  const scrollToTop = useCallback(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  const handleScroll = useCallback((_event: React.UIEvent<HTMLDivElement>) => {
+    // Scroll handling removed - showScrollToTop state was unused
   }, []);
 
   // -------------------------------------------------------------
@@ -143,7 +132,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   // Prompts are also initialized via useState lazy initializer for first render
   useLayoutEffect(() => {
     if (isOpen) {
-      setShowScrollToTop(false);
       if (scrollRef.current) {
         scrollRef.current.scrollTop = 0;
       }
@@ -179,7 +167,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     generateSummary: aiGenerateSummary,
     isGenerating: isAIGenerating,
     isEditing: isAIEditing,
-    isSummarizing: isAISummarizing,
     isLoading: isAILoading,
   } = useAIInteractionService({
     apiKey,
@@ -192,7 +179,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     if (scrollRef.current) {
         scrollRef.current.scrollTop = 0;
     }
-    setShowScrollToTop(false);
     onClose();
   }, [internalPrompts, onSave, onClose]);
 
@@ -257,11 +243,9 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     
     // Auto-replace if user explicitly chose replace, OR if all existing prompts are empty
     const shouldReplace = params.replaceCurrentPrompts || allExistingPromptsAreEmpty;
-    
-    let newlyAddedPromptIds: string[] = [];
+
     setInternalPrompts(currentPrompts => {
       const updatedPrompts = shouldReplace ? newEntries : [...currentPrompts, ...newEntries];
-      newlyAddedPromptIds = newEntries.map(e => e.id); // Capture IDs of newly added prompts
       return updatedPrompts;
     });
 
@@ -349,10 +333,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   };
 
   // Keep hook order stable - don't return early
-
-  const toggleFullView = (promptId: string) => {
-    setActivePromptIdForFullView(currentId => currentId === promptId ? null : promptId);
-  };
 
   const handleGenerationValuesChange = useCallback((values: GenerationControlValues) => {
     setGenerationControlValues(prev => {

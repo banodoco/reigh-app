@@ -55,13 +55,6 @@ const travelExamples = [
   },
 ];
 
-const loraOptions = [
-  { id: 'slow-motion-explode', label: 'slow-motion-explode', video: '/slow-motion-explode.mp4', poster: '/slow-motion-explode-poster.jpg' },
-  { id: 'animatediff', label: 'animatediff', video: '/animatediff.mp4', poster: '/animatediff-poster.jpg' },
-  { id: 'water-morphing', label: 'water-morphing', video: '/water-morphing.mp4', poster: '/water-morphing-poster.jpg' },
-  { id: 'steampunk-willy', label: 'steampunk-willy', video: '/steampunk-willy.mp4', poster: '/steampunk-willy-poster.jpg' },
-];
-
 const referenceTypes = ['Style', 'Character', 'Scene'] as const;
 
 const imageLoraOptions = [
@@ -275,12 +268,9 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
   const philosophyVideoRef = useRef<HTMLVideoElement | null>(null);
   const travelVideoRefs = useRef<(HTMLVideoElement | null)[]>([null, null, null]);
   const loraVideosRef = useRef<(HTMLVideoElement | null)[]>([]);
-  const loraVideosReadyRef = useRef<boolean[]>([false, false, false, false]);
-  const loraVideosSyncedStartRef = useRef(false);
 
   // State for interactive sections
   const [selectedTravelExample, setSelectedTravelExample] = useState(0);
-  const [selectedLora, setSelectedLora] = useState(0);
   const [selectedReferenceType, setSelectedReferenceType] = useState<typeof referenceTypes[number]>('Style');
   const [selectedReferenceImage, setSelectedReferenceImage] = useState(0);
   const [selectedImageLora, setSelectedImageLora] = useState(0);

@@ -54,17 +54,17 @@ export default function HomePage() {
   const [posterLoaded, setPosterLoaded] = useState(false);
   
   // Tooltip State
-  const [openTipOpen, setOpenTipOpen] = useState(false);
-  const [openTipDisabled, setOpenTipDisabled] = useState(false);
-  
-  const [emergingTipOpen, setEmergingTipOpen] = useState(false);
-  const [emergingTipDisabled, setEmergingTipDisabled] = useState(false);
+  const [, setOpenTipOpen] = useState(false);
+  const [, setOpenTipDisabled] = useState(false);
+
+  const [, setEmergingTipOpen] = useState(false);
+  const [, setEmergingTipDisabled] = useState(false);
   
   const [ecosystemTipOpen, setEcosystemTipOpen] = useState(false);
   const [ecosystemTipDisabled, setEcosystemTipDisabled] = useState(false);
   
   // Example Style State
-  const [selectedExampleStyle, setSelectedExampleStyle] = useState('Dramatic');
+  const [selectedExampleStyle] = useState('Dramatic');
   const currentExample = exampleStyles[selectedExampleStyle as keyof typeof exampleStyles];
 
   // Pane Logic Hook
@@ -81,7 +81,7 @@ export default function HomePage() {
   const [videoBReady, setVideoBReady] = useState(false);
 
   // Painterly video reveal
-  const [videoReady, setVideoReady] = useState(false);
+  const [videoReady] = useState(false);
   const videoRevealRef = useRef<HTMLDivElement>(null);
   const revealTriggeredRef = useRef(false);
   
@@ -437,10 +437,6 @@ export default function HomePage() {
     setTimeout(() => setEmergingTipDisabled(false), 500);
   };
 
-  const wrappedHandleExploringActivate = () => {
-      paneState.handleExploringActivate();
-      // Assuming there might be a tooltip here too in future, currently unused in original code but consistent pattern
-  };
 
   const barTransitionCompleted = useDebounce(assetsLoaded, 200);
 
@@ -484,7 +480,6 @@ export default function HomePage() {
                 pointerEvents: isLoopVideo ? 'none' : 'auto',
               }}
               onTimeUpdate={() => {
-                const v = videoARef.current;
               }}
               onEnded={() => {
                 // When Video A ends, switch to Video B

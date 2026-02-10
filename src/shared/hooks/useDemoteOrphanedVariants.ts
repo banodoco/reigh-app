@@ -15,15 +15,15 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 export function useDemoteOrphanedVariants() {
   const queryClient = useQueryClient();
 
-  const demoteOrphanedVariants = useCallback(async (shotId: string, triggerReason?: string): Promise<number> => {
+  const demoteOrphanedVariants = useCallback(async (shotId: string, _triggerReason?: string): Promise<number> => {
     if (!shotId) {
       return 0;
     }
 
     try {
 
-      // First, let's query what video variants exist for this shot before demotion
-      const { data: preCheckData } = await supabase
+      // Query video variants that exist for this shot before demotion
+      await supabase
         .from('generations')
         .select(`
           id,
@@ -36,15 +36,8 @@ export function useDemoteOrphanedVariants() {
         .eq('type', 'video')
         .not('pair_shot_generation_id', 'is', null);
 
-      // Filter to variants linked to this shot
-      const linkedVariants = preCheckData?.filter(g => {
-        // We'd need to join with shot_generations to filter by shot_id
-        // For now, log all child videos with their details
-        return true;
-      }) || [];
-
-      // Also check what's currently at each shot_generation slot
-      const { data: shotGens } = await supabase
+      // Check what's currently at each shot_generation slot
+      await supabase
         .from('shot_generations')
         .select('id, generation_id, timeline_frame')
         .eq('shot_id', shotId)
@@ -66,7 +59,7 @@ export function useDemoteOrphanedVariants() {
       if (demotedCount > 0) {
 
         // Query which variants were demoted (they'll now have is_primary = false but no other primary)
-        const { data: postCheckData } = await supabase
+        await supabase
           .from('generations')
           .select(`
             id,

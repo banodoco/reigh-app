@@ -67,7 +67,7 @@ const EMPTY_PAGE_PREFS: ImageGenPagePrefs = {};
 // Create a proper memo comparison - since this component has no props, it should never re-render due to props
 const ImageGenerationToolPage: React.FC = React.memo(() => {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImageWithMetadata[]>([]);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeleting] = useState<string | null>(null);
   const [isUpscalingImageId, setIsUpscalingImageId] = useState<string | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   // Enable generations loading immediately to leverage React Query cache on revisits
@@ -95,7 +95,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     return true; // Default to expanded instead of undefined to avoid skeleton
   });
   const [isSticky, setIsSticky] = useState(false);
-  const [isScrollingToForm, setIsScrollingToForm] = useState(false);
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   // Phone only (not iPad) - phones have no header, iPads do
@@ -110,11 +109,11 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   } = usePanes();
   
   // Early prefetch of public LoRAs to reduce loading time
-  const publicLorasResult = usePublicLoras();
+  usePublicLoras();
 
   // Early prefetch of style references to reduce loading time in browser modal
-  const publicStyleRefsResult = usePublicStyleReferences();
-  const myStyleRefsResult = useMyStyleReferences();
+  usePublicStyleReferences();
+  useMyStyleReferences();
   
   // Use the new task queue notifier hook
   const { selectedProjectId, projects } = useProject();
@@ -152,15 +151,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     enabled: !!formAssociatedShotId && !!selectedProjectId,
   });
 
-  // Use stable object for task queue notifier options
-  const taskQueueOptions = useStableObject(() => ({
-    projectId: selectedProjectId,
-    suppressPerTaskToast: true 
-  }), [selectedProjectId]);
-  
   // REMOVED: useTaskQueueNotifier was interfering with RealtimeProvider
-  const isEnqueuing = false;
-  const justQueued = false;
   const [localIsGenerating, setLocalIsGenerating] = useState(false);
   const [localJustQueued, setLocalJustQueued] = useState(false);
   const localQueuedTimeoutRef = useRef<number | null>(null);
@@ -181,19 +172,11 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   // Removed projectTasks tracking - was causing performance issues with 1000+ tasks
   // TaskQueueNotifier now handles task tracking internally
   // Use shots from context instead of direct hook call - this prevents loading state on revisit
-  const { shots, isLoading: isLoadingShots, error: shotsError } = useShots();
+  const { shots } = useShots();
 
-  // Use stable object to prevent recreation on every render
-  const persistentStateContext = useStableObject(() => ({ 
-    projectId: selectedProjectId 
-  }), [selectedProjectId]);
-  
   // Skip persistent state hook for form expansion to avoid loading delay
   // We handle persistence manually with sessionStorage for instant UI
   const formStateReady = true; // Always ready since we handle it manually
-  const markFormStateInteracted = useCallback(() => {
-    // No-op since we handle persistence manually
-  }, []);
   
   // Handle URL parameter to override saved state when specified (run only once)
   useEffect(() => {
@@ -305,8 +288,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   );
 
   const deleteGenerationMutation = useDeleteGeneration();
-  const updateGenerationLocationMutation = useUpdateGenerationLocation();
-  const createGenerationMutation = useCreateGeneration();
 
   // 🔧 FIX: Consolidate all filter resets into ONE useEffect to prevent query cancellation cascade
   // Previously, 4 separate useEffects would fire sequentially on mount, each cancelling the previous query
@@ -425,7 +406,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
   const handleNewGenerate = async (taskParams: BatchImageGenerationTaskParams): Promise<string[]> => {
     const generateStartTime = Date.now();
-    const generateId = `gen-${generateStartTime}-${Math.random().toString(36).slice(2, 6)}`;
 
     if (!selectedProjectId) {
       toast.error("No project selected. Please select a project before generating images.");
@@ -453,8 +433,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       // Invalidate tasks query so TasksPane count updates promptly
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginatedAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });
-
-      const generateDuration = Date.now() - generateStartTime;
 
       setLocalJustQueued(true);
       if (localQueuedTimeoutRef.current) {
@@ -531,12 +509,12 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
         });
       } else {
         // Use the regular add function
-        const result = await addImageToShotMutation?.mutateAsync({
+        await addImageToShotMutation?.mutateAsync({
           shot_id: targetShotInfo.targetShotIdForButton,
           generation_id: generationId,
           imageUrl: imageUrl,
           thumbUrl: thumbUrl,
-          project_id: selectedProjectId, 
+          project_id: selectedProjectId,
         });
         // Debug logging removed for performance
       }
@@ -568,14 +546,14 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
     try {
       // Always use the add without position function
-      const result = await addImageToShotWithoutPositionMutation?.mutateAsync({
+      await addImageToShotWithoutPositionMutation?.mutateAsync({
         shot_id: targetShotInfo.targetShotIdForButton,
         generation_id: generationId,
         imageUrl: imageUrl,
         thumbUrl: thumbUrl,
-        project_id: selectedProjectId, 
+        project_id: selectedProjectId,
       });
-      
+
       setLastAffectedShotId(targetShotInfo.targetShotIdForButton);
 
       // Force refresh of generations data to show updated association
@@ -676,87 +654,11 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
   // Unified handler for Collapsible open/close with smooth scroll on open
   // Only perform scroll-then-open when triggered from the sticky toggle
-  const handleCollapsibleOpenChange = useCallback((nextOpen: boolean, triggeredFromSticky?: boolean) => {
-    const wasExpanded = isFormExpanded === true;
-    
-    // If we're expanding from collapsed state, scroll first, then expand
-    if (nextOpen && !wasExpanded && triggeredFromSticky) {
-      setIsScrollingToForm(true);
-      
-      // Scroll to the form container first
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (collapsibleContainerRef.current) {
-            try {
-              const element = collapsibleContainerRef.current;
-              const elementRect = element.getBoundingClientRect();
-              const headerHeight = isMobile ? 80 : 96;
-              const bufferSpace = 30;
-              const targetScrollTop = window.scrollY + elementRect.top - headerHeight - bufferSpace;
-              
-              // Use smooth scroll with completion detection
-              window.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' });
-              
-              // Listen for scroll completion or timeout
-              let scrollTimeout: NodeJS.Timeout;
-              let lastScrollTop = window.scrollY;
-              let scrollStableCount = 0;
-              
-              const checkScrollComplete = () => {
-                const currentScrollTop = window.scrollY;
-                const targetReached = Math.abs(currentScrollTop - Math.max(0, targetScrollTop)) < 5;
-                
-                if (targetReached || currentScrollTop === lastScrollTop) {
-                  scrollStableCount++;
-                  if (scrollStableCount >= 3 || targetReached) {
-                    // Scroll completed - now expand the form
-                    setIsFormExpanded(nextOpen);
-                    try { window.sessionStorage.setItem('ig:formExpanded', String(nextOpen)); } catch {}
-                    setTimeout(() => { setIsScrollingToForm(false); }, 300);
-                    clearTimeout(scrollTimeout);
-                    return;
-                  }
-                } else {
-                  scrollStableCount = 0;
-                }
-                
-                lastScrollTop = currentScrollTop;
-                scrollTimeout = setTimeout(checkScrollComplete, 50);
-              };
-              
-              // Start checking for scroll completion after a brief delay
-              setTimeout(checkScrollComplete, 100);
-              
-              // Fallback timeout - expand form after max 1.5 seconds regardless
-              setTimeout(() => {
-                if (!isFormExpanded) {
-                  setIsFormExpanded(nextOpen);
-                  try { window.sessionStorage.setItem('ig:formExpanded', String(nextOpen)); } catch {}
-                  setIsScrollingToForm(false);
-                }
-                clearTimeout(scrollTimeout);
-              }, 1500);
-              
-            } catch (error) {
-              console.warn('Scroll calculation failed:', error);
-              // Fallback - just expand immediately
-              collapsibleContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              setIsFormExpanded(nextOpen);
-              try { window.sessionStorage.setItem('ig:formExpanded', String(nextOpen)); } catch {}
-              setTimeout(() => { setIsScrollingToForm(false); }, 1000);
-            }
-          }
-        });
-      });
-    } else {
-      // For collapsing or immediate expanding, handle normally
-      setIsFormExpanded(nextOpen);
-      try { window.sessionStorage.setItem('ig:formExpanded', String(nextOpen)); } catch {}
-      if (!nextOpen) {
-        setIsScrollingToForm(false);
-      }
-    }
-  }, [isFormExpanded, isMobile]);
+  const handleCollapsibleOpenChange = useCallback((nextOpen: boolean, _triggeredFromSticky?: boolean) => {
+    // For collapsing or immediate expanding, handle normally
+    setIsFormExpanded(nextOpen);
+    try { window.sessionStorage.setItem('ig:formExpanded', String(nextOpen)); } catch {}
+  }, []);
 
   // Effect for sticky header (RAF + precomputed threshold to avoid layout thrash)
   useEffect(() => {

@@ -84,12 +84,9 @@ export const useShotPositioning = ({
     if (!selectedShotId || !media.id) return false;
 
     const compositeKey = `${media.id}:${selectedShotId}`;
-    const optimisticSetSize = optimisticPositionedIds?.size || 0;
-    const optimisticKeys = optimisticPositionedIds ? Array.from(optimisticPositionedIds) : [];
-    
+
     // Check optimistic state first (most up-to-date and shot-specific)
     const hasComposite = optimisticPositionedIds?.has(compositeKey);
-    const hasSimple = optimisticPositionedIds?.has(media.id);
     
     // Optimistic state takes precedence - if we have a composite key match, trust it
     if (hasComposite) {
@@ -132,7 +129,6 @@ export const useShotPositioning = ({
 
   // [ShotNavDebug] Log computed positioned state
   useEffect(() => {
-    const mediaExtDbg = media as GenerationRow & MediaWithShotFields;
   }, [isAlreadyPositionedInSelectedShot, media?.id, selectedShotId, optimisticPositionedIds, positionedInSelectedShot]);
 
   const handleAddToShot = async () => {
@@ -168,7 +164,6 @@ export const useShotPositioning = ({
     if (success) {
       onShowTick?.(actualGenerationId);
       // Pass selectedShotId so optimistic state can use composite keys (mediaId:shotId)
-      const optimisticKey = `${actualGenerationId}:${selectedShotId}`;
       onOptimisticPositioned?.(actualGenerationId, selectedShotId);
     }
   };
@@ -213,7 +208,6 @@ export const useShotPositioning = ({
 
   // [ShotNavDebug] Log computed unpositioned state
   useEffect(() => {
-    const mediaExtDbg2 = media as GenerationRow & MediaWithShotFields;
   }, [isAlreadyAssociatedWithoutPosition, media?.id, selectedShotId, optimisticUnpositionedIds, associatedWithoutPositionInSelectedShot]);
 
   const handleAddToShotWithoutPosition = async () => {

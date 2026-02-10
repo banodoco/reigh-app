@@ -106,35 +106,20 @@ const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
   isTimelineMode,
   turboMode,
   imageCount = 0,
-  onAmountOfMotionChange,
   enhancePrompt,
   onEnhancePromptChange,
   advancedMode,
   phaseConfig = DEFAULT_PHASE_CONFIG,
-  onPhaseConfigChange,
-  selectedPhasePresetId,
-  onPhasePresetSelect,
-  onPhasePresetRemove,
   onBlurSave,
   onClearEnhancedPrompts,
-  videoControlMode = 'batch',
   textBeforePrompts = '',
   onTextBeforePromptsChange,
   textAfterPrompts = '',
   onTextAfterPromptsChange,
   readOnly = false,
 }) => {
-    // Get project context for persistent state
-    const { selectedProjectId: contextProjectId } = useProject();
     // Mobile detection for touch-friendly tooltips
     const isMobile = useIsMobile();
-    // Get generation location settings to conditionally show turbo mode
-    const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
-    const isCloudGenerationEnabled = generationMethods.inCloud && !generationMethods.onComputer;
-    
-    // Check if turbo mode should be disabled due to too many images
-    const hasTooManyImages = imageCount > 2;
-    const isTurboModeDisabled = hasTooManyImages;
 
     // State for clear enhanced prompts success feedback
     const [clearSuccess, setClearSuccess] = React.useState(false);

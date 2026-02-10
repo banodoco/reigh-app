@@ -169,7 +169,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   // Panes context for tasks pane
   const {
     isTasksPaneOpen: tasksPaneOpenContext,
-    setIsTasksPaneOpen: setTasksPaneOpenContext,
     tasksPaneWidth: tasksPaneWidthContext,
     isTasksPaneLocked,
   } = usePanes();
@@ -180,7 +179,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
 
   // Count cancellable tasks
   const { data: statusCounts } = useTaskStatusCounts(selectedProjectId);
-  const cancellableTaskCount = statusCounts?.processing || 0;
 
   // Refs
   const contentRef = useRef<HTMLDivElement>(null);
@@ -189,7 +187,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
 
   // State
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isSelectOpen, setIsSelectOpen] = useState(false);
   const [replaceImages, setReplaceImages] = useState(true);
   const [variantParamsToLoad, setVariantParamsToLoad] = useState<Record<string, unknown> | null>(null);
 
@@ -331,7 +328,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     editMode: persistedEditMode,
     setEditMode: setPersistedEditMode,
     panelMode: persistedPanelMode,
-    setPanelMode: setPersistedPanelMode,
     isReady: isEditSettingsReady,
     hasPersistedSettings,
   } = editSettingsPersistence;
@@ -513,8 +509,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     onSelectionChange,
     onTextModeHint,
     strokeOverlayRef,
-    isImageLoaded: isInpaintImageLoaded,
-    imageLoadError: inpaintImageLoadError,
   } = inpaintingHook;
 
   // ========================================

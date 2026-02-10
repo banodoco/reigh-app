@@ -85,18 +85,14 @@ export class NetworkStatusManager {
     const newIsOnline = navigator.onLine;
     const nav = navigator as NavigatorWithDeviceInfo;
     const newEffectiveType = nav.connection?.effectiveType;
-    const connection = nav.connection;
-    
+
     const onlineStatusChanged = newIsOnline !== this.status.isOnline;
     const connectionChanged = newEffectiveType !== this.status.effectiveType;
-    
-    // Enhanced network transition logging - always log for debugging
-    const timeSinceLastTransition = now - this.status.lastTransitionAt;
-    
+
     if (!onlineStatusChanged && !connectionChanged) {
       return;
     }
-    
+
     const previousStatus = { ...this.status };
     this.status = {
       isOnline: newIsOnline,
@@ -104,13 +100,6 @@ export class NetworkStatusManager {
       lastTransitionAt: now,
       previousOnlineStatus: previousStatus.isOnline
     };
-    
-    // Enhanced transition logging with impact analysis
-    const transitionType = onlineStatusChanged ? 
-      (newIsOnline ? 'OFFLINE_TO_ONLINE' : 'ONLINE_TO_OFFLINE') : 
-      'CONNECTION_TYPE_CHANGE';
-    
-    // Browser online/offline event logging
     
     this.subscribers.forEach(callback => {
       try {
@@ -135,8 +124,8 @@ export function getNetworkStatusManager(): NetworkStatusManager {
       
       // Add debug helper
       (window as any).checkNetworkStatus = () => {
-        const status = networkStatusManager.getStatus();
-        const intervals = networkStatusManager.getRecommendedIntervals();
+        networkStatusManager.getStatus();
+        networkStatusManager.getRecommendedIntervals();
       };
       
       // Add manual network change simulator for testing

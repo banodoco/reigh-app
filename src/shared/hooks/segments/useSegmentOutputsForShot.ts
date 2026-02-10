@@ -269,7 +269,6 @@ export function useSegmentOutputsForShot(
     if (isControlled) return;
 
     if (parentGenerations.length > 0 && !selectedParentId) {
-      const toSelect = parentGenerations[0];
       setSelectedParentId(parentGenerations[0].id);
     } else if (parentGenerations.length > 0 && selectedParentId) {
       // Validate that current selection exists in the list
@@ -296,9 +295,6 @@ export function useSegmentOutputsForShot(
     // We need to find the generation_id for the selected parent
     const selectedParent = parentGenerations.find(p => p.id === selectedParentId || p.generation_id === selectedParentId);
     const parentGenId = selectedParent?.generation_id || selectedParentId;
-
-    // Log all generations with parent_generation_id set (for debugging)
-    const generationsWithParent = preloadedGenerations.filter(gen => gen.parent_generation_id);
 
     const children = preloadedGenerations.filter(gen => {
       // Check if this generation's parent_generation_id matches the selected parent
@@ -334,8 +330,6 @@ export function useSegmentOutputsForShot(
 
         if (videosWithPairId && videosWithPairId.length > 0) {
 
-          // Check if any have a DIFFERENT parent than the selected one
-          const wrongParent = videosWithPairId.filter(v => v.parent_generation_id !== selectedParentId);
         }
       }
 
@@ -349,22 +343,6 @@ export function useSegmentOutputsForShot(
       if (error) {
         console.error('[useSegmentOutputsForShot] Error fetching children:', error);
         throw error;
-      }
-
-      // [DemoteOrphaned] Log children with their location state to track demotion
-      if (data && data.length > 0) {
-        const childrenWithLocationInfo = data.map((child: RawGenerationDbRow) => {
-          const indivParams = (child.params as Record<string, unknown> | undefined)?.individual_segment_params as Record<string, unknown> | undefined;
-          return {
-            id: child.id.substring(0, 8),
-            hasLocation: !!child.location,
-            location: child.location?.substring(0, 40),
-            primaryVariantId: child.primary_variant_id?.substring(0, 8),
-            childOrder: child.child_order,
-            pairShotGenId: child.pair_shot_generation_id?.substring(0, 8),
-            storedStartImageId: (indivParams?.start_image_generation_id as string | undefined)?.substring(0, 8),
-          };
-        });
       }
 
       return (data || []).map(transformToGenerationRow);
@@ -381,15 +359,6 @@ export function useSegmentOutputsForShot(
   // Filter to only segments (not join outputs)
   const segments = useMemo(() => {
     const filtered = childGenerations.filter(child => isSegment(child.params as Record<string, unknown> | null));
-
-    // [TrailingDebug] Check if any children were filtered out and if one was the trailing video
-    if (trailingShotGenId && childGenerations.length !== filtered.length) {
-      const filteredOut = childGenerations.filter(child => !isSegment(child.params as Record<string, unknown> | null));
-      filteredOut.forEach(child => {
-        const { pairShotGenId } = getPairIdentifiers(child, child.params as Record<string, unknown> | null);
-        const isTrailingVideo = pairShotGenId === trailingShotGenId;
-      });
-    }
 
     return filtered;
   }, [childGenerations, trailingShotGenId]);
@@ -470,19 +439,6 @@ export function useSegmentOutputsForShot(
     // Add extra slot for trailing segment if provided
     const slotCount = trailingShotGenId ? baseSlotCount + 1 : baseSlotCount;
 
-    const expectedCount = expectedSegmentData?.count || slotCount;
-
-    // Summary log: show full state in one place
-    const positionSummary = [...positionMap.entries()]
-      .sort((a, b) => a[1] - b[1])
-      .map(([id, pos]) => `[${pos}]=${id.substring(0, 8)}`)
-      .join(' ');
-    const videoSummary = segments.map(v => {
-      const { pairShotGenId } = getPairIdentifiers(v, v.params as Record<string, unknown> | null);
-      const pos = pairShotGenId ? positionMap.get(pairShotGenId) : undefined;
-      return `${v.id.substring(0, 8)}→${pairShotGenId?.substring(0, 8) || 'NULL'}@${pos ?? '?'}`;
-    }).join(' | ');
-
     // Use slotCount (current timeline) for positioning, not expectedCount (original generation)
     if (slotCount === 0) {
       // No position data, just show what we have
@@ -558,7 +514,6 @@ export function useSegmentOutputsForShot(
         usedSlots.add(derivedSlot);
       } else if (derivedSlot !== undefined && usedSlots.has(derivedSlot)) {
         // Slot collision! Another segment wants the same slot
-        const existingChild = childrenBySlot.get(derivedSlot);
         childrenWithoutValidSlot.push(child);
       } else {
         childrenWithoutValidSlot.push(child);
@@ -593,14 +548,6 @@ export function useSegmentOutputsForShot(
       }
     }
 
-    // [TrailingDebug] Final slot summary
-    if (trailingShotGenId) {
-      const trailingSlot = slots.find(s =>
-        s.type === 'child' &&
-        getPairIdentifiers(s.child, s.child.params as Record<string, unknown> | null).pairShotGenId === trailingShotGenId
-      );
-    }
-
     return slots;
   }, [segments, expectedSegmentData, effectiveTimelineData, liveShotGenIdToPosition, localShotGenPositions, trailingShotGenId]);
 
@@ -608,9 +555,6 @@ export function useSegmentOutputsForShot(
   const segmentProgress = useMemo(() => {
     const completed = segmentSlots.filter(s => s.type === 'child' && s.child.location).length;
     const total = segmentSlots.length;
-
-    // [DemoteOrphaned] Log demoted videos (have slot but no location)
-    const demotedVideos = segmentSlots.filter(s => s.type === 'child' && !s.child.location);
 
     return { completed, total };
   }, [segmentSlots]);

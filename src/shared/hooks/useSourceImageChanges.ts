@@ -243,11 +243,6 @@ export function useSourceImageChanges(
 
       const hasMismatch = startMismatch || endMismatch;
 
-      // Log comparison for each segment
-      const startStoredFile = startUrl ? normalizeUrl(startUrl).split('/').pop() : 'none';
-      const startCurrentFile = currentStartUrl ? normalizeUrl(currentStartUrl).split('/').pop() : 'none';
-      const endStoredFile = endUrl ? normalizeUrl(endUrl).split('/').pop() : 'none';
-      const endCurrentFile = currentEndUrl ? normalizeUrl(currentEndUrl).split('/').pop() : 'none';
 
       if (hasMismatch) {
         // Find the most recent change
@@ -280,7 +275,6 @@ export function useSourceImageChanges(
           ? (now - changedAt.getTime()) < SOURCE_CHANGE_WARNING_DURATION_MS
           : false;
 
-
         map.set(seg.segmentId, {
           segmentId: seg.segmentId,
           hasMismatch,
@@ -291,13 +285,6 @@ export function useSourceImageChanges(
         });
       }
     });
-
-    if (map.size > 0) {
-      const recentCount = Array.from(map.values()).filter(m => m.isRecent).length;
-      const warningIds = Array.from(map.entries())
-        .filter(([, info]) => info.isRecent)
-        .map(([id]) => id.substring(0, 8));
-    }
 
     return map;
   }, [segments, slotData]);

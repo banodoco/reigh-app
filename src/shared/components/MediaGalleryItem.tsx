@@ -61,19 +61,16 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   mobileActiveImageId,
   mobilePopoverOpenImageId,
   onMobileTap,
-  setMobilePopoverOpenImageId,
   setSelectedShotIdLocal,
   setLastAffectedShotId,
   toggleStarMutation,
   shouldLoad = true,
   isPriority = false,
-  isGalleryLoading = false,
   onCreateShot,
   currentViewingShotId,
   projectAspectRatio,
   showShare = true,
   showDelete = true,
-  showDownload = true,
   showEdit = true,
   showStar = true,
   showAddToShot = true,
@@ -135,7 +132,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // Use content_type from task_types table. Fallback to legacy tool_type for video travel.
   const isVideoTask = taskTypeInfo?.content_type === 'video' ||
     (!taskTypeInfo && image.metadata?.tool_type === 'travel-between-images');
-  const isImageTask = taskTypeInfo?.content_type === 'image';
   const isImageEditTask = isImageEditTaskType(taskType || undefined);
   const shouldShowTaskDetails = (!!taskData) && (isVideoTask || isImageEditTask);
 
@@ -179,7 +175,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // Progressive loading for thumbnail → full image transition
   // DISABLE progressive loading for videos - we want to show thumbnails, not load the full video file
   const progressiveEnabled = isProgressiveLoadingEnabled() && !image.isVideo;
-  const { src: progressiveSrc, isThumbShowing, isFullLoaded, error: progressiveError, retry: retryProgressive, ref: progressiveRef } = useProgressiveImage(
+  const { src: progressiveSrc, isThumbShowing, isFullLoaded, ref: progressiveRef } = useProgressiveImage(
     progressiveEnabled ? image.thumbUrl : null,
     image.url,
     {
@@ -264,17 +260,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   const isCurrentDeleting = isDeleting;
   const imageKey = image.id || `image-${actualDisplayUrl}-${index}`;
 
-  // Determine if it's a video ONLY if the display URL points to a video file
-  // Thumbnails for videos are images (png/jpg) and must be treated as images here
-  const urlIsVideo = Boolean(
-    actualDisplayUrl && (
-      actualDisplayUrl.toLowerCase().endsWith('.webm') ||
-      actualDisplayUrl.toLowerCase().endsWith('.mp4') ||
-      actualDisplayUrl.toLowerCase().endsWith('.mov')
-    )
-  );
-  // If the display URL is not a video file, force image rendering even if image.isVideo is true
-  const isActuallyVideo = urlIsVideo;
   // Content type: whether this item represents a video generation at all
   const isVideoContent = useMemo(() => {
     if (typeof image.isVideo === 'boolean') return image.isVideo;
@@ -282,16 +267,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     const lower = url.toLowerCase();
     return lower.endsWith('.webm') || lower.endsWith('.mp4') || lower.endsWith('.mov');
   }, [image.isVideo, image.url]);
-
-  // Check if we have a real image thumbnail (not a video file)
-  const hasThumbnailImage = useMemo(() => {
-    const thumb = image.thumbUrl || '';
-    if (!thumb) return false;
-    const lower = thumb.toLowerCase();
-    // Treat as image only if not a video extension
-    const isVideoExt = lower.endsWith('.webm') || lower.endsWith('.mp4') || lower.endsWith('.mov');
-    return !isVideoExt;
-  }, [image.thumbUrl]);
 
   const videoUrl = useMemo(() => (isVideoContent ? (image.url || null) : null), [isVideoContent, image.url]);
 
@@ -453,9 +428,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
       </div>
     );
   }
-
-  // Check if this image is optimistically deleted
-  const isOptimisticallyDeleted = optimisticDeletedIds?.has(image.id) ?? false;
 
   // Handle drag start for dropping onto timeline
   const handleDragStart = useCallback((e: React.DragEvent) => {

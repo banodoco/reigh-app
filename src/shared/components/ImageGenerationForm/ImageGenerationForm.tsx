@@ -621,29 +621,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     automatedSubmitButton,
   });
 
-  // Get current selected reference ID - from shot settings if shot selected, otherwise project settings
-  // Note: Unlike other fields, reference ID intentionally falls back to project value while loading
-  const effectiveSelectedReferenceId = useMemo<string | null>(() => {
-    if (associatedShotId && isShotSettingsReady) {
-      // Shot-level reference takes precedence if explicitly set
-      const shotRefId = shotPromptSettings.settings.selectedReferenceId;
-      if (shotRefId !== undefined) {
-        return shotRefId;
-      }
-    }
-    // Fall back to project-level selection
-    return selectedReferenceId;
-  }, [associatedShotId, isShotSettingsReady, shotPromptSettings.settings.selectedReferenceId, selectedReferenceId]);
-
-  // Helper to update selected reference ID - routes to shot settings
-  const setEffectiveSelectedReferenceId = useCallback((newRefId: string | null) => {
-    if (associatedShotId) {
-      shotPromptSettings.updateField('selectedReferenceId', newRefId);
-      markAsInteracted();
-    }
-    // Also update the project-level per-shot mapping for backwards compatibility
-    // (handled by existing handleReferenceSelection)
-  }, [associatedShotId, shotPromptSettings, markAsInteracted]);
 
   // NOTE: currentBeforePromptText, setCurrentBeforePromptText, currentAfterPromptText,
   //       setCurrentAfterPromptText now come from usePromptManagement hook
@@ -760,9 +737,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   // NOTE: Prompt handlers (handleAddPrompt, handleUpdatePrompt, handleRemovePrompt, handleDeleteAllPrompts,
   //       handleSavePromptsFromModal) now come from usePromptManagement hook
 
-  const handleOpenMagicPrompt = useCallback(() => {
-    uiActions.openMagicPrompt();
-  }, [uiActions]);
 
   // Handle creating a new shot
   const handleCreateShot = useCallback(async (shotName: string, files: File[]) => {
@@ -795,11 +769,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   const handleSliderChange = useCallback((setter: React.Dispatch<React.SetStateAction<number>>) => (value: number) => {
     markAsInteracted();
     setter(value);
-  }, [markAsInteracted]);
-
-  const handleTextChange = useCallback((setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    markAsInteracted();
-    setter(e.target.value);
   }, [markAsInteracted]);
 
   // Ensure the `promptIdCounter` is always ahead of any existing numeric IDs.
