@@ -26,8 +26,6 @@ interface TimelineItemProps {
   fullMinFrames: number;
   fullRange: number;
   currentDragFrame: number | null;
-  dragDistances: { distanceToPrev?: number; distanceToNext?: number } | null;
-  maxAllowedGap: number;
   originalFramePos: number;
   /** When provided, image src will only be set once this is true */
   shouldLoad?: boolean;
@@ -66,8 +64,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   fullMinFrames,
   fullRange,
   currentDragFrame,
-  dragDistances,
-  maxAllowedGap,
   originalFramePos,
   shouldLoad = true,
   onDelete,
@@ -341,34 +337,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
       className={isSwapTarget ? "ring-4 ring-primary/60" : ""}
     >
       <div className="flex flex-col items-center relative group">
-        {/* Distance indicators on left/right */}
-        {isDragging && dragDistances && (
-          <>
-            {dragDistances.distanceToPrev !== undefined && (
-              <div
-                className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full text-xs font-light px-1 py-0.5 rounded mr-1 ${
-                  dragDistances.distanceToPrev > maxAllowedGap
-                    ? 'bg-red-500/90 text-white'
-                    : 'bg-primary/90 text-primary-foreground'
-                }`}
-    >
-                {framesToSeconds(dragDistances.distanceToPrev)}
-              </div>
-            )}
-            {dragDistances.distanceToNext !== undefined && (
-              <div
-                className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-full text-xs font-light px-1 py-0.5 rounded ml-1 ${
-                  dragDistances.distanceToNext > maxAllowedGap
-                    ? 'bg-red-500/90 text-white'
-                    : 'bg-primary/90 text-primary-foreground'
-                }`}
-              >
-                {framesToSeconds(dragDistances.distanceToNext)}
-              </div>
-            )}
-          </>
-        )}
-
         <div
           className={`relative border-2 ${isDragging ? "border-primary/50" : "border-primary"} rounded-lg overflow-hidden group`}
           style={{

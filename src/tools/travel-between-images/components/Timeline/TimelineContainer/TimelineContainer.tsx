@@ -141,7 +141,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     dragOffset,
     currentDragFrame,
     swapTargetId,
-    dragDistances,
     pushMode,
     handleMouseDown,
     zoomLevel,
@@ -915,8 +914,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                   fullMinFrames={fullMin}
                   fullRange={fullRange}
                   currentDragFrame={isDragging ? currentDragFrame : null}
-                  dragDistances={isDragging ? dragDistances : null}
-                  maxAllowedGap={maxAllowedGap}
                   originalFramePos={framePositions.get(imageKey) ?? 0}
                   onDelete={onImageDelete}
                   onDuplicate={handleDuplicateInterceptor}

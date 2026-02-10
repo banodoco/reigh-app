@@ -65,7 +65,6 @@ interface UseTimelineOrchestratorReturn {
   dragOffset: number;
   currentDragFrame: number | null;
   swapTargetId: string | null;
-  dragDistances: { left: number; right: number } | null;
   pushMode: 'right' | 'left' | null;
   handleMouseDown: (e: React.MouseEvent, id: string, containerRef: React.RefObject<HTMLDivElement>) => void;
 
@@ -241,7 +240,6 @@ export function useTimelineOrchestrator({
     dragOffset,
     currentDragFrame,
     swapTargetId,
-    dragDistances,
     pushMode,
     dynamicPositions,
     handleMouseDown,
@@ -730,7 +728,6 @@ export function useTimelineOrchestrator({
     dragOffset,
     currentDragFrame,
     swapTargetId,
-    dragDistances,
     pushMode,
     handleMouseDown,
 

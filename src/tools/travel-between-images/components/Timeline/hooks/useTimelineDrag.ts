@@ -434,34 +434,11 @@ export const useTimelineDrag = ({
       )?.[0] ?? null
     : null;
 
-  const dragDistances = currentDragFrame !== null && dragState.activeId
-    ? (() => {
-        const preview = calculateDragPreview();
-        const others = [...preview.entries()]
-          .filter(([id]) => id !== dragState.activeId)
-          .map(([_, pos]) => pos)
-          .sort((a, b) => a - b);
-
-        let prev: number | undefined;
-        let next: number | undefined;
-        others.forEach(pos => {
-          if (pos < currentDragFrame) prev = pos;
-          if (pos > currentDragFrame && next === undefined) next = pos;
-        });
-
-        return {
-          distanceToPrev: prev !== undefined ? Math.round(currentDragFrame - prev) : undefined,
-          distanceToNext: next !== undefined ? Math.round(next - currentDragFrame) : undefined,
-        };
-      })()
-    : null;
-
   return {
     dragState,
     dragOffset,
     currentDragFrame,
     swapTargetId,
-    dragDistances,
     pushMode,
     dynamicPositions: calculateDragPreview,
     calculateDragPreviewWithPosition,
