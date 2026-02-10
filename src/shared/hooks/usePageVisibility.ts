@@ -30,14 +30,6 @@ function usePageVisibility() {
           lastVisibilityChange: now,
         }));
         
-        // Debug logging for polling breakage issue (only on actual changes)
-        if (signals.justBecameVisible || signals.justHidden) {
-
-          // Additional context for React Query behavior
-          if (signals.justHidden) {
-          } else if (signals.justBecameVisible) {
-          }
-        }
       }
     }, {
       id: 'use-page-visibility',

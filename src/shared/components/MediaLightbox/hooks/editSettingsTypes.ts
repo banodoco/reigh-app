@@ -201,7 +201,7 @@ export const DEFAULT_LAST_USED: LastUsedEditSettings = {
 // ============================================================================
 
 /** Keys of settings that sync between per-generation and last-used */
-export type SyncedSettingKey = keyof SyncedEditSettings;
+type SyncedSettingKey = keyof SyncedEditSettings;
 
 /** All synced setting keys for iteration */
 export const SYNCED_SETTING_KEYS: SyncedSettingKey[] = [

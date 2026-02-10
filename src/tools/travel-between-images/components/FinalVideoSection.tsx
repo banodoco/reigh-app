@@ -221,10 +221,6 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
         return false;
       });
 
-      if (matchingTask) {
-      } else if (data && data.length > 0) {
-      }
-
       return matchingTask || null;
     },
     enabled: !!shotId && !!projectId,

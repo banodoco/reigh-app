@@ -280,10 +280,6 @@ export function useSourceImageChanges(
           ? (now - changedAt.getTime()) < SOURCE_CHANGE_WARNING_DURATION_MS
           : false;
 
-        const minutesAgo = changedAt ? Math.round((now - changedAt.getTime()) / 60000) : null;
-        if (isRecent) {
-        } else if (hasMismatch) {
-        }
 
         map.set(seg.segmentId, {
           segmentId: seg.segmentId,

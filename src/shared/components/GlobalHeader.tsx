@@ -206,18 +206,6 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ contentOffsetRight =
   const [projectSearchQueryMobile, setProjectSearchQueryMobile] = useState('');
   const [createProjectInitialName, setCreateProjectInitialName] = useState<string | undefined>(undefined);
 
-  // [MobileStallFix] Add mobile-specific debug logging for stalling detection
-  useEffect(() => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      
-      // Check for stall condition
-      if (isLoadingProjects && projects.length === 0) {
-      } else if (!isLoadingProjects && projects.length === 0) {
-      } else if (projects.length > 0 && !selectedProjectId) {
-      }
-    }
-  }, [isLoadingProjects, projects.length, selectedProjectId]);
 
   const handleProjectChange = (projectId: string) => {
     if (projectId === 'create-new') {

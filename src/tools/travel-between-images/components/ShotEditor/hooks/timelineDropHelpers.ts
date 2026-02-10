@@ -187,15 +187,6 @@ const queryShotGenerationRecords = async (
     throw queryError;
   }
   
-  // Check if records already have positions (they shouldn't with skipAutoPosition: true)
-  const recordsWithPositions = shotGenRecords?.filter(
-    r => r.timeline_frame !== null && r.timeline_frame !== undefined
-  );
-  
-  if (recordsWithPositions && recordsWithPositions.length > 0) {
-  } else if (shotGenRecords && shotGenRecords.length > 0) {
-  }
-  
   // If no records found, retry once after 500ms
   if (!shotGenRecords || shotGenRecords.length === 0) {
     await new Promise(resolve => setTimeout(resolve, 500));

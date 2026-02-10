@@ -125,14 +125,6 @@ function useGenerationsPageLogic({
   // 2. Filter changed and we're showing stale placeholder data
   const isLoading = generationsQuery.isLoading || (isFetching && isPlaceholderData);
 
-  // [SkeletonCountDebug] Log loading state transitions
-  useEffect(() => {
-
-    // [SkeletonCountDebug] When data arrives, log what we got vs what we expected
-    if (!isLoading && generationsResponse?.items && selectedShotFilter !== SHOT_FILTER.ALL) {
-      const shot = shotsData?.find(s => s.id === selectedShotFilter);
-    }
-  }, [selectedShotFilter, generationsQuery.isLoading, isFetching, isPlaceholderData, isLoading, generationsResponse?.total, generationsResponse?.items?.length, shotsData, excludePositioned, generationsResponse?.items]);
 
   // ============================================================================
   // QUERY FALLBACK - delegate to filter state hook

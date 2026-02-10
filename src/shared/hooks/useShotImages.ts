@@ -327,24 +327,13 @@ const usePrimeShotGenerationsCache = (
   const queryClient = useQueryClient();
   
   React.useEffect(() => {
-    // [SelectorDebug] Log every priming attempt
-    const existingData = queryClient.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(shotId!));
-    
-    const willPrime = shotId && 
-                      contextImages && 
-                      contextImages.length > 0 && 
-                      (!existingData || existingData.length === 0);
+    if (!shotId || !contextImages || contextImages.length === 0) return;
 
-    if (!willPrime) {
-      if (shotId && !existingData) {
-      } else if (shotId) {
-      }
-      return;
-    }
-    
+    const existingData = queryClient.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(shotId));
+    if (existingData && existingData.length > 0) return;
+
     // Prime the cache with context data
-    queryClient.setQueryData(queryKeys.generations.byShot(shotId!), contextImages);
-    
+    queryClient.setQueryData(queryKeys.generations.byShot(shotId), contextImages);
   }, [shotId, contextImages, queryClient]);
 };
 
