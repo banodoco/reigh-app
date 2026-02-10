@@ -1,9 +1,3 @@
-import type {
-  VideoMotionApiParams,
-  PromptConfig,
-  MotionConfig,
-  ModelConfig,
-} from './types';
 
 /**
  * Default values for video structure API params (legacy single-video format)

@@ -22,7 +22,7 @@ export type { StructureVideoConfig, StructureVideoConfigWithMetadata };
  * Legacy structure video configuration with snake_case fields matching API params.
  * @deprecated Use StructureVideoConfigWithMetadata[] array instead
  */
-export interface LegacyStructureVideoConfig {
+interface LegacyStructureVideoConfig {
   /** Path to structure video (S3/Storage URL) */
   structure_video_path?: string | null;
   /** How to handle frame count mismatches between structure video and generation */
@@ -40,7 +40,7 @@ export interface LegacyStructureVideoConfig {
 }
 
 /** Default structure video config (legacy single-video format) */
-export const DEFAULT_STRUCTURE_VIDEO_CONFIG: LegacyStructureVideoConfig = {
+const DEFAULT_STRUCTURE_VIDEO_CONFIG: LegacyStructureVideoConfig = {
   structure_video_path: null,
   structure_video_treatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
   structure_video_motion_strength: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_motion_strength,

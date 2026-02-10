@@ -77,7 +77,7 @@ export interface StructureGuidanceConfig {
  * Controls how a reference video guides the motion/structure of generation.
  * @deprecated Use `structure_guidance` + `structure_videos` array format instead.
  */
-export interface VideoStructureApiParams {
+interface VideoStructureApiParams {
   /** Path to structure video (S3/Storage URL) */
   structure_video_path?: string | null;
   /** How to handle frame count mismatches between structure video and generation */
