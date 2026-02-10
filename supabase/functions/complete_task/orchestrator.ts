@@ -6,8 +6,21 @@
 import { extractOrchestratorTaskId, extractOrchestratorRunId } from './params.ts';
 import { triggerCostCalculation } from './billing.ts';
 import { TASK_TYPES, SEGMENT_TYPE_CONFIG } from './constants.ts';
+import type { TaskContext } from './index.ts';
 
-// ===== ORCHESTRATOR COMPLETION =====
+/** Minimal shape for segment tasks returned from DB queries */
+interface SegmentTask {
+  id: string;
+  status: string;
+  generation_started_at: string | null;
+}
+
+/** Minimal shape for the orchestrator task fetched from DB */
+interface OrchestratorTask {
+  id: string;
+  status: string;
+  params: Record<string, any>;
+}
 
 /**
  * Check if all sibling segments are complete and mark orchestrator done if so
@@ -15,12 +28,12 @@ import { TASK_TYPES, SEGMENT_TYPE_CONFIG } from './constants.ts';
 export async function checkOrchestratorCompletion(
   supabase: any,
   taskIdString: string,
-  completedTask: any,
+  completedTask: TaskContext,
   publicUrl: string,
   supabaseUrl: string,
   serviceKey: string
 ): Promise<void> {
-  const taskType = completedTask?.task_type;
+  const taskType = completedTask.task_type;
   const config = taskType ? SEGMENT_TYPE_CONFIG[taskType] : null;
 
   if (!config) {
@@ -36,12 +49,21 @@ export async function checkOrchestratorCompletion(
 
   console.log(`[OrchestratorComplete] ${taskType} ${taskIdString} completed. Checking siblings for orchestrator ${orchestratorTaskId}`);
 
-  // Fetch orchestrator task
-  const { data: orchestratorTask, error: orchError } = await supabase
-    .from("tasks")
-    .select("id, status, params")
-    .eq("id", orchestratorTaskId)
-    .single();
+  // FETCH: orchestrator task + sibling segments in parallel
+  const segmentTypeToQuery = config.isFinalStep
+    ? (config.billingSegmentType || config.segmentType)
+    : config.segmentType;
+
+  const orchPromise: Promise<{ data: OrchestratorTask | null; error: any }> =
+    supabase.from("tasks").select("id, status, params").eq("id", orchestratorTaskId).single();
+
+  const [orchResult, allSegments] = await Promise.all([
+    orchPromise,
+    findSiblingSegments(supabase, segmentTypeToQuery, completedTask.project_id, orchestratorTaskId, orchestratorRunId),
+  ]);
+
+  // VALIDATE: orchestrator exists and isn't already done
+  const { data: orchestratorTask, error: orchError } = orchResult;
 
   if (orchError) {
     console.error(`[OrchestratorComplete] Error fetching orchestrator task ${orchestratorTaskId}:`, orchError);
@@ -58,33 +80,23 @@ export async function checkOrchestratorCompletion(
     return;
   }
 
-  // Handle final step tasks (like join_final_stitch) - they directly complete the orchestrator
+  // FINAL STEP: tasks like join_final_stitch complete the orchestrator directly
   if (config.isFinalStep) {
     console.log(`[OrchestratorComplete] ${taskType} is a final step task - marking orchestrator complete directly`);
-
-    // Fetch the segment tasks for billing timestamps
-    const segmentTasks = await findSiblingSegments(
-      supabase,
-      TASK_TYPES.JOIN_CLIPS_SEGMENT,
-      completedTask.project_id,
-      orchestratorTaskId,
-      orchestratorRunId
-    );
 
     await markOrchestratorComplete(
       supabase,
       orchestratorTaskId,
-      orchestratorTask,
-      segmentTasks || [],
+      allSegments || [],
       publicUrl,
-      taskType,
+      true,
       supabaseUrl,
       serviceKey
     );
     return;
   }
 
-  // Get expected segment count
+  // COUNT: check segment completion status
   let expectedSegmentCount: number | null = null;
 
   if (taskType === TASK_TYPES.TRAVEL_SEGMENT) {
@@ -101,28 +113,18 @@ export async function checkOrchestratorCompletion(
 
   console.log(`[OrchestratorComplete] Orchestrator expects ${expectedSegmentCount ?? 'unknown'} segments`);
 
-  // Query sibling segments
-  const allSegments = await findSiblingSegments(
-    supabase,
-    config.segmentType,
-    completedTask.project_id,
-    orchestratorTaskId,
-    orchestratorRunId
-  );
-
   if (!allSegments || allSegments.length === 0) {
     console.log(`[OrchestratorComplete] No segments found for orchestrator`);
     return;
   }
 
   const foundSegments = allSegments.length;
-  const completedSegments = allSegments.filter((s: any) => s.status === 'Complete').length;
-  const failedSegments = allSegments.filter((s: any) => s.status === 'Failed' || s.status === 'Cancelled').length;
+  const completedSegments = allSegments.filter((s) => s.status === 'Complete').length;
+  const failedSegments = allSegments.filter((s) => s.status === 'Failed' || s.status === 'Cancelled').length;
   const pendingSegments = foundSegments - completedSegments - failedSegments;
 
   console.log(`[OrchestratorComplete] ${taskType} status: ${completedSegments} complete, ${failedSegments} failed, ${pendingSegments} pending`);
 
-  // Validate segment count
   if (expectedSegmentCount !== null && foundSegments !== expectedSegmentCount) {
     console.log(`[OrchestratorComplete] Warning: Found ${foundSegments} segments but expected ${expectedSegmentCount}`);
     return;
@@ -134,19 +136,17 @@ export async function checkOrchestratorCompletion(
   }
 
   if (failedSegments > 0) {
-    // Mark orchestrator as Failed
     await markOrchestratorFailed(supabase, orchestratorTaskId, failedSegments, foundSegments);
     return;
   }
 
-  // Check if we need to wait for a final step task (like join_final_stitch)
+  // WAIT: check if a final step task (like join_final_stitch) is still pending
   if (config.waitForFinalStepType) {
     const finalStitchStatus = await checkFinalStitchStatus(
       supabase,
       config.waitForFinalStepType,
       completedTask.project_id,
       orchestratorTaskId,
-      orchestratorRunId
     );
 
     if (finalStitchStatus === 'pending') {
@@ -160,41 +160,92 @@ export async function checkOrchestratorCompletion(
       return;
     }
 
-    // finalStitchStatus === 'complete' or 'not_found' - continue to mark orchestrator complete
     if (finalStitchStatus === 'complete') {
       console.log(`[OrchestratorComplete] Final stitch is complete - will mark orchestrator complete`);
     }
   }
 
-  if (completedSegments === foundSegments && (expectedSegmentCount === null || foundSegments === expectedSegmentCount)) {
-    // All segments complete! Mark orchestrator as Complete
-    await markOrchestratorComplete(
-      supabase,
-      orchestratorTaskId,
-      orchestratorTask,
-      allSegments,
-      publicUrl,
-      taskType,
-      supabaseUrl,
-      serviceKey
-    );
+  // COMPLETE: all segments done, no pending final step
+  await markOrchestratorComplete(
+    supabase,
+    orchestratorTaskId,
+    allSegments,
+    publicUrl,
+    false,
+    supabaseUrl,
+    serviceKey
+  );
+}
+
+/**
+ * Find sibling segment tasks using run_id (preferred) or orchestrator_task_id (fallback)
+ */
+async function findSiblingSegments(
+  supabase: any,
+  segmentType: string,
+  projectId: string,
+  orchestratorTaskId: string,
+  orchestratorRunId: string | null
+): Promise<SegmentTask[] | null> {
+  let allSegments: SegmentTask[] | null = null;
+  let segmentsError: any = null;
+
+  if (orchestratorRunId) {
+    console.log(`[OrchestratorComplete] Querying ${segmentType} by run_id: ${orchestratorRunId}`);
+
+    const runIdResult = await supabase
+      .from("tasks")
+      .select("id, status, generation_started_at")
+      .eq("task_type", segmentType)
+      .eq("project_id", projectId)
+      .or(`params->>orchestrator_run_id.eq.${orchestratorRunId},params->>run_id.eq.${orchestratorRunId},params->orchestrator_details->>run_id.eq.${orchestratorRunId}`);
+
+    allSegments = runIdResult.data;
+    segmentsError = runIdResult.error;
+
+    if (allSegments && allSegments.length > 0) {
+      console.log(`[OrchestratorComplete] Found ${allSegments.length} segments via run_id query`);
+      return allSegments;
+    }
   }
+
+  if ((!allSegments || allSegments.length === 0) && !segmentsError) {
+    console.log(`[OrchestratorComplete] Trying orchestrator_task_id: ${orchestratorTaskId}`);
+
+    const orchIdResult = await supabase
+      .from("tasks")
+      .select("id, status, generation_started_at")
+      .eq("task_type", segmentType)
+      .eq("project_id", projectId)
+      .or(`params->>orchestrator_task_id.eq.${orchestratorTaskId},params->>orchestrator_task_id_ref.eq.${orchestratorTaskId},params->orchestrator_details->>orchestrator_task_id.eq.${orchestratorTaskId}`);
+
+    allSegments = orchIdResult.data;
+    segmentsError = orchIdResult.error;
+
+    if (allSegments && allSegments.length > 0) {
+      console.log(`[OrchestratorComplete] Found ${allSegments.length} segments via orchestrator_task_id query`);
+    }
+  }
+
+  if (segmentsError) {
+    console.error(`[OrchestratorComplete] Error querying segments:`, segmentsError);
+    return null;
+  }
+
+  return allSegments;
 }
 
 /**
  * Check the status of the final stitch task for this orchestrator
- * Returns: 'not_found' | 'pending' | 'complete' | 'failed'
  */
 async function checkFinalStitchStatus(
   supabase: any,
   finalStepType: string,
   projectId: string,
   orchestratorTaskId: string,
-  orchestratorRunId: string | null
 ): Promise<'not_found' | 'pending' | 'complete' | 'failed'> {
   console.log(`[OrchestratorComplete] Checking status of ${finalStepType} tasks for orchestrator ${orchestratorTaskId}`);
 
-  // Query for any final step tasks for this orchestrator (any status)
   const { data: finalStepTasks, error } = await supabase
     .from("tasks")
     .select("id, status")
@@ -212,8 +263,7 @@ async function checkFinalStitchStatus(
     return 'not_found';
   }
 
-  // Check the status of the final stitch task(s)
-  const task = finalStepTasks[0]; // Should only be one per orchestrator
+  const task = finalStepTasks[0];
   console.log(`[OrchestratorComplete] Found ${finalStepType} task ${task.id} with status: ${task.status}`);
 
   if (task.status === 'Complete') {
@@ -221,71 +271,8 @@ async function checkFinalStitchStatus(
   } else if (task.status === 'Failed' || task.status === 'Cancelled') {
     return 'failed';
   } else {
-    // Queued or In Progress
     return 'pending';
   }
-}
-
-/**
- * Find sibling segment tasks
- */
-async function findSiblingSegments(
-  supabase: any,
-  segmentType: string,
-  projectId: string,
-  orchestratorTaskId: string,
-  orchestratorRunId: string | null
-): Promise<any[] | null> {
-  let allSegments: any[] | null = null;
-  let segmentsError: any = null;
-
-  // Strategy 1: Query by run_id
-  if (orchestratorRunId) {
-    console.log(`[OrchestratorComplete] Querying ${segmentType} by run_id: ${orchestratorRunId}`);
-    
-    const runIdQuery = supabase
-      .from("tasks")
-      .select("id, status, params, generation_started_at")
-      .eq("task_type", segmentType)
-      .eq("project_id", projectId)
-      .or(`params->>orchestrator_run_id.eq.${orchestratorRunId},params->>run_id.eq.${orchestratorRunId},params->orchestrator_details->>run_id.eq.${orchestratorRunId}`);
-
-    const runIdResult = await runIdQuery;
-    allSegments = runIdResult.data;
-    segmentsError = runIdResult.error;
-    
-    if (allSegments && allSegments.length > 0) {
-      console.log(`[OrchestratorComplete] Found ${allSegments.length} segments via run_id query`);
-      return allSegments;
-    }
-  }
-
-  // Strategy 2: Fallback to orchestrator_task_id
-  if ((!allSegments || allSegments.length === 0) && !segmentsError) {
-    console.log(`[OrchestratorComplete] Trying orchestrator_task_id: ${orchestratorTaskId}`);
-    
-    const orchIdQuery = supabase
-      .from("tasks")
-      .select("id, status, params, generation_started_at")
-      .eq("task_type", segmentType)
-      .eq("project_id", projectId)
-      .or(`params->>orchestrator_task_id.eq.${orchestratorTaskId},params->>orchestrator_task_id_ref.eq.${orchestratorTaskId},params->orchestrator_details->>orchestrator_task_id.eq.${orchestratorTaskId}`);
-
-    const orchIdResult = await orchIdQuery;
-    allSegments = orchIdResult.data;
-    segmentsError = orchIdResult.error;
-    
-    if (allSegments && allSegments.length > 0) {
-      console.log(`[OrchestratorComplete] Found ${allSegments.length} segments via orchestrator_task_id query`);
-    }
-  }
-
-  if (segmentsError) {
-    console.error(`[OrchestratorComplete] Error querying segments:`, segmentsError);
-    return null;
-  }
-
-  return allSegments;
 }
 
 /**
@@ -317,19 +304,18 @@ async function markOrchestratorFailed(
 }
 
 /**
- * Mark orchestrator as Complete and handle billing
+ * Mark orchestrator as Complete and trigger billing
  */
 async function markOrchestratorComplete(
   supabase: any,
   orchestratorTaskId: string,
-  orchestratorTask: any,
-  allSegments: any[],
+  allSegments: SegmentTask[],
   publicUrl: string,
-  taskType: string,
+  isFinalStep: boolean,
   supabaseUrl: string,
   serviceKey: string
 ): Promise<void> {
-  console.log(`[OrchestratorComplete] All ${allSegments.length} segments complete! Marking orchestrator ${orchestratorTaskId} as Complete`);
+  console.log(`[OrchestratorComplete] Marking orchestrator ${orchestratorTaskId} as Complete`);
 
   // Find earliest sub-task start time for billing
   let earliestStartTime: string | null = null;
@@ -341,23 +327,17 @@ async function markOrchestratorComplete(
     }
   }
 
-  // For travel_orchestrator with independent_segments, don't set output_location
-  // The orchestrator doesn't produce a single combined output - each segment is standalone
-  const independentSegments = orchestratorTask.params?.orchestrator_details?.independent_segments ??
-                              orchestratorTask.params?.independent_segments ?? true;
-  const isIndependentTravelOrchestrator = taskType === TASK_TYPES.TRAVEL_SEGMENT && independentSegments;
-
   const updateData: Record<string, any> = {
     status: "Complete",
     generation_started_at: earliestStartTime || new Date().toISOString(),
     generation_processed_at: new Date().toISOString()
   };
 
-  // Only set output_location if NOT an independent travel orchestrator
-  if (!isIndependentTravelOrchestrator) {
+  // Only set output_location for final step tasks (e.g. join_final_stitch)
+  // where publicUrl is the actual stitched output. For segment completions,
+  // publicUrl is an arbitrary segment URL that shouldn't be the orchestrator's output.
+  if (isFinalStep) {
     updateData.output_location = publicUrl;
-  } else {
-    console.log(`[OrchestratorComplete] Skipping output_location for independent travel orchestrator ${orchestratorTaskId}`);
   }
 
   const { error: updateOrchError } = await supabase
@@ -372,8 +352,6 @@ async function markOrchestratorComplete(
   }
 
   console.log(`[OrchestratorComplete] Successfully marked orchestrator ${orchestratorTaskId} as Complete`);
-  
-  // Trigger billing
+
   await triggerCostCalculation(supabaseUrl, serviceKey, orchestratorTaskId, 'OrchestratorComplete');
 }
-

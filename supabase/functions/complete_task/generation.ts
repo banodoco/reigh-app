@@ -20,11 +20,7 @@ import {
   handleStandaloneGeneration,
   type HandlerContext,
 } from './generation-handlers.ts';
-
-// Re-export for orchestrator.ts
-export { createVariant } from './generation-core.ts';
-
-// ===== MAIN GENERATION CREATION =====
+import { TASK_TYPES } from './constants.ts';
 
 /**
  * Main function to create generation from completed task
@@ -103,7 +99,7 @@ export async function createGenerationFromTask(
       console.log(`[GenMigration] Variant creation failed, falling back to generation`);
     }
 
-    // 3. Build context for remaining handlers
+    // Build context for remaining handlers
     const ctx: HandlerContext = {
       supabase,
       taskId,
@@ -111,7 +107,6 @@ export async function createGenerationFromTask(
       publicUrl,
       thumbnailUrl: thumbnailUrl || null,
       logger,
-      // Extracted params for easy access
       childGenerationId,
       parentGenerationId,
       childOrder,
@@ -120,7 +115,7 @@ export async function createGenerationFromTask(
 
     let result: any = null;
 
-    // 4. VARIANT ON CHILD: child_generation_id present → update existing child
+    // 3. VARIANT ON CHILD: child_generation_id present → update existing child
     if (childGenerationId) {
       console.log(`[GenMigration] VARIANT_ON_CHILD: Task ${taskId} updating child ${childGenerationId}`);
       result = await handleVariantOnChild(ctx);
@@ -128,9 +123,9 @@ export async function createGenerationFromTask(
       // Fall through to child generation if variant failed
     }
 
-    // 5. STITCH TASK: variant on parent (travel_stitch, join_final_stitch)
+    // 4. STITCH TASK: variant on parent (travel_stitch, join_final_stitch)
     // These have parent_generation_id but create a variant on parent, not a child under it
-    const isStitchTask = taskData.task_type === 'travel_stitch' || taskData.task_type === 'join_final_stitch';
+    const isStitchTask = taskData.task_type === TASK_TYPES.TRAVEL_STITCH || taskData.task_type === TASK_TYPES.JOIN_FINAL_STITCH;
     if (isStitchTask && parentGenerationId) {
       console.log(`[GenMigration] STITCH: Task ${taskId} creating variant on parent ${parentGenerationId}`);
       result = await handleVariantOnParent(ctx);
@@ -138,7 +133,7 @@ export async function createGenerationFromTask(
       console.log(`[GenMigration] Stitch variant creation failed, falling back`);
     }
 
-    // 6. CHILD GENERATION: parent_generation_id present → child under parent
+    // 5. CHILD GENERATION: parent_generation_id present → child under parent
     if (parentGenerationId) {
       console.log(`[GenMigration] CHILD: Task ${taskId} under parent ${parentGenerationId}`);
       result = await handleChildGeneration(ctx);
