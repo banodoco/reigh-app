@@ -93,10 +93,16 @@ export const useLightboxNavigation = ({
       });
       if (hasHigherZIndexDialog) return;
 
-      if (e.key === 'ArrowLeft' && onPreviousRef.current) {
+      // Don't intercept arrow keys when user is in a text field
+      const active = document.activeElement;
+      const isTextInput = active instanceof HTMLInputElement
+        || active instanceof HTMLTextAreaElement
+        || (active as HTMLElement)?.isContentEditable;
+
+      if (e.key === 'ArrowLeft' && onPreviousRef.current && !isTextInput) {
         e.preventDefault();
         onPreviousRef.current();
-      } else if (e.key === 'ArrowRight' && onNextRef.current) {
+      } else if (e.key === 'ArrowRight' && onNextRef.current && !isTextInput) {
         e.preventDefault();
         onNextRef.current();
       } else if (e.key === 'Escape') {
