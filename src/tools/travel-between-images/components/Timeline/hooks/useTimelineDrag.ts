@@ -79,27 +79,28 @@ export const useTimelineDrag = ({
   });
 
   const currentMousePosRef = useRef<{ x: number; y: number } | null>(null);
-  const modifierKeysRef = useRef({ metaKey: false, altKey: false });
+  const pushModRef = useRef(false);
   const [pushMode, setPushMode] = useState<'right' | 'left' | null>(null);
 
-  // Track modifier keys during drag for responsive hint updates
+  // Track modifier keys during drag for hint + calculation
   useEffect(() => {
     if (!dragState.isDragging) {
-      if (pushMode !== null) setPushMode(null);
+      setPushMode(null);
       return;
     }
-    const handler = (e: KeyboardEvent) => {
-      modifierKeysRef.current = { metaKey: e.metaKey, altKey: e.altKey };
-      const mode = e.metaKey ? 'right' : e.altKey ? 'left' : null;
+    const update = (e: KeyboardEvent | MouseEvent) => {
+      const push = e.metaKey || e.ctrlKey || e.altKey;
+      pushModRef.current = push;
+      const mode = (e.metaKey || e.ctrlKey) ? 'right' : e.altKey ? 'left' : null;
       setPushMode(prev => prev !== mode ? mode : prev);
     };
-    window.addEventListener('keydown', handler);
-    window.addEventListener('keyup', handler);
+    window.addEventListener('keydown', update);
+    window.addEventListener('keyup', update);
     return () => {
-      window.removeEventListener('keydown', handler);
-      window.removeEventListener('keyup', handler);
+      window.removeEventListener('keydown', update);
+      window.removeEventListener('keyup', update);
     };
-  }, [dragState.isDragging, pushMode]);
+  }, [dragState.isDragging]);
 
   // Calculate target frame from mouse position
   const calculateTargetFrame = useCallback((clientX: number, containerRect: DOMRect | null): number => {
@@ -148,21 +149,12 @@ export const useTimelineDrag = ({
     const finalPosition = calculateFinalPosition(targetFrame);
     const isMultiSelectDrag = selectedIds.length > 1 && selectedIds.includes(dragState.activeId);
 
-    // Push/pull mode: modifier key shifts items on one side
-    const { metaKey, altKey } = modifierKeysRef.current;
-    const pushDirection = metaKey ? 'right' : altKey ? 'left' : null;
-
-    if (pushDirection) {
-      // Both push-right (⌘) and pull-left (⌥) shift items to the RIGHT
-      // of the dragged item by the drag delta. Push-right is for dragging
-      // rightward (expanding), pull-left for dragging leftward (compressing).
+    // Push/pull: ⌘/Ctrl or ⌥/Alt shifts all items right of the dragged item by delta
+    if (pushModRef.current) {
       const newPositions = new Map(framePositions);
       const delta = finalPosition - dragState.originalFramePos;
       const draggedIds = isMultiSelectDrag ? selectedIds : [dragState.activeId];
-
-      // Determine the boundary from original positions of dragged items
-      const draggedOriginals = draggedIds.map(id => framePositions.get(id) ?? 0);
-      const rightBoundary = Math.max(...draggedOriginals);
+      const rightBoundary = Math.max(...draggedIds.map(id => framePositions.get(id) ?? 0));
 
       // Position dragged items
       if (isMultiSelectDrag) {
@@ -177,9 +169,7 @@ export const useTimelineDrag = ({
       // Shift items to the right of the dragged item by delta
       for (const [id, pos] of framePositions) {
         if (draggedIds.includes(id) || id === TRAILING_ENDPOINT_KEY) continue;
-        if (pos > rightBoundary) {
-          newPositions.set(id, pos + delta);
-        }
+        if (pos > rightBoundary) newPositions.set(id, pos + delta);
       }
 
       const result = applyFluidTimeline(
@@ -318,9 +308,7 @@ export const useTimelineDrag = ({
     }
 
     currentMousePosRef.current = { x: e.clientX, y: e.clientY };
-    modifierKeysRef.current = { metaKey: e.metaKey, altKey: e.altKey };
-    const mode = e.metaKey ? 'right' : e.altKey ? 'left' : null;
-    setPushMode(prev => prev !== mode ? mode : prev);
+    pushModRef.current = e.metaKey || e.ctrlKey || e.altKey;
   }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.hasMovedPastThreshold, onDragStart]);
 
   const handleMouseUp = useCallback((e: MouseEvent, containerRef: React.RefObject<HTMLDivElement>) => {

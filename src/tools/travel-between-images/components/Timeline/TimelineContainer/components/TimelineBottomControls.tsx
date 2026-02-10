@@ -20,6 +20,8 @@ export interface TimelineBottomControlsProps {
   showDragHint?: boolean;
 }
 
+const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
+
 /** Bottom controls overlay with gap slider, reset button, and add images button */
 export const TimelineBottomControls: React.FC<TimelineBottomControlsProps> = ({
   resetGap,
@@ -78,11 +80,11 @@ export const TimelineBottomControls: React.FC<TimelineBottomControlsProps> = ({
       {showDragHint ? (
         <div className="flex gap-3 text-xs text-muted-foreground/70 select-none">
           <span className={pushMode === 'left' ? 'text-foreground font-medium' : ''}>
-            ⌥ Pull left
+            {isMac ? '⌥' : 'Alt'} Pull left
           </span>
           <span className="text-muted-foreground/40">·</span>
           <span className={pushMode === 'right' ? 'text-foreground font-medium' : ''}>
-            ⌘ Push right
+            {isMac ? '⌘' : 'Ctrl'} Push right
           </span>
         </div>
       ) : <div />}
