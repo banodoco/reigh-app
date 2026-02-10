@@ -329,7 +329,7 @@ export const useAddImageToShot = () => {
     },
 
     onSuccess: (data, variables, context) => {
-      const { project_id, shot_id, generation_id } = variables;
+      const { project_id, shot_id } = variables;
 
       // Replace temp ID with real ID in cache
       if (context?.tempId) {

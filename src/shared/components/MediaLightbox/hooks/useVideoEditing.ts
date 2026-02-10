@@ -15,7 +15,7 @@ import { usePublicLoras } from '@/shared/hooks/useResources';
 import type { LoraModel } from '@/shared/hooks/useLoraManager';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 
-export interface UseVideoEditingProps {
+interface UseVideoEditingProps {
   media: GenerationRow | null;
   selectedProjectId: string | null;
   projectAspectRatio?: string;
@@ -73,7 +73,6 @@ export const useVideoEditing = ({
   media,
   selectedProjectId,
   projectAspectRatio,
-  isVideo,
   videoDuration,
   videoUrl,
   onExitVideoEditMode,

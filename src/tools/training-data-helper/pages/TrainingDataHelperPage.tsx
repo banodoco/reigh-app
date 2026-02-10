@@ -13,7 +13,6 @@ import { handleError } from '@/shared/lib/errorHandler';
 export default function TrainingDataHelperPage() {
   const { 
     videos, 
-    uploadVideo, 
     uploadVideosWithSplitModes,
     isUploading, 
     segments, 
@@ -26,7 +25,6 @@ export default function TrainingDataHelperPage() {
     deleteBatch,
     setSelectedBatchId,
     getVideoUrl,
-    markVideoAsInvalid
   } = useTrainingData();
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const segmentEditorRef = useRef<HTMLDivElement>(null);

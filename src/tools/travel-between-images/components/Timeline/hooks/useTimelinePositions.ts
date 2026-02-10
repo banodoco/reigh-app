@@ -108,7 +108,6 @@ const OPERATION_TIMEOUT_MS = 10000; // 10 seconds max for any operation
 export function useTimelinePositions({
   shotId,
   shotGenerations,
-  frameSpacing = DEFAULT_FRAME_SPACING,
   onPositionsChange,
 }: UseTimelinePositionsProps): UseTimelinePositionsReturn {
   

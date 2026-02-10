@@ -9,8 +9,6 @@ interface AnnotationModeToggleProps {
 }
 
 export const AnnotationModeToggle: React.FC<AnnotationModeToggleProps> = ({
-  mode,
-  onChange,
   variant,
 }) => {
   const textSize = variant === 'tablet' ? 'text-xs' : 'text-[10px]';

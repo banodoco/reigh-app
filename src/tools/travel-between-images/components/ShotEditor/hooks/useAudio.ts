@@ -6,7 +6,7 @@ export interface AudioMetadata {
   name?: string;
 }
 
-export interface UseAudioParams {
+interface UseAudioParams {
   projectId: string;
   shotId: string | undefined;
 }

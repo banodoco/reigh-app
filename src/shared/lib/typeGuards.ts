@@ -25,7 +25,7 @@ export interface ShotGenerationsLike {
 }
 
 /** Union type for any item with potential timeline_frame */
-export interface PositionedItem {
+interface PositionedItem {
   timeline_frame?: number | null;
 }
 

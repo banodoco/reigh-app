@@ -7,13 +7,13 @@
 
 import type { NavigatorWithDeviceInfo } from '@/types/browser-extensions';
 
-export interface LoadingConfig {
+interface LoadingConfig {
   isMobile: boolean;
   totalImages: number;
   isPreloaded: boolean;
 }
 
-export interface ImageLoadingStrategy {
+interface ImageLoadingStrategy {
   shouldLoadInInitialBatch: boolean;
   progressiveDelay: number; // Unified delay calculation
   batchGroup: number;
@@ -84,7 +84,7 @@ const trackImageLoadTime = (loadTimeMs: number): void => {
 /**
  * Adaptive batch configuration based on device capabilities
  */
-export const getUnifiedBatchConfig = (isMobile: boolean) => {
+const getUnifiedBatchConfig = (isMobile: boolean) => {
   const capabilities = getDeviceCapabilities();
   
   // Very low-end mobile: minimal initial batch

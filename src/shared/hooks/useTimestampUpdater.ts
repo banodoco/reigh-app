@@ -101,7 +101,6 @@ const timestampManager = new TimestampManager();
  */
 export function useTimestampUpdater({ 
   date, 
-  updateInterval, 
   isVisible = true, 
   disabled = false 
 }: TimestampUpdateOptions) {

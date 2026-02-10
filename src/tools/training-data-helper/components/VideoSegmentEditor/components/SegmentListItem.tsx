@@ -10,7 +10,7 @@ interface SegmentColor {
   border: string;
 }
 
-export interface SegmentListItemProps {
+interface SegmentListItemProps {
   segment: TrainingDataSegment;
   color: SegmentColor;
   isCurrentSegment: boolean;

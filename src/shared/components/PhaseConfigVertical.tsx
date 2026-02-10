@@ -70,10 +70,6 @@ export const PhaseConfigVertical: React.FC<PhaseConfigVerticalProps> = ({
   onPhasePresetRemove,
   currentSettings,
   generationTypeMode = 'i2v',
-  onGenerationTypeModeChange,
-  hasStructureVideo = false,
-  structureType,
-  amountOfMotion = 50,
   onRestoreDefaults,
 }) => {
   // State for LoRA selector modal for each phase

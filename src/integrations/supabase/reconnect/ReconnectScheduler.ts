@@ -9,7 +9,7 @@ import { handleError } from '@/shared/lib/errorHandler';
  * visibility changes) by coalescing reconnection requests and enforcing debouncing.
  */
 
-export interface ReconnectIntent {
+interface ReconnectIntent {
   source: string;
   reason: string;
   timestamp: number;

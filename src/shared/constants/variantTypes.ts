@@ -46,7 +46,7 @@ export const VARIANT_TYPE = {
   CHILD_PROMOTED: 'child_promoted',
 } as const;
 
-export type VariantType = typeof VARIANT_TYPE[keyof typeof VARIANT_TYPE];
+type VariantType = typeof VARIANT_TYPE[keyof typeof VARIANT_TYPE];
 
 /**
  * Variant types that represent image edits (should appear in "Based on this" section).
@@ -59,4 +59,4 @@ export const EDIT_VARIANT_TYPES = [
   VARIANT_TYPE.EDIT,
 ] as const;
 
-export type EditVariantType = typeof EDIT_VARIANT_TYPES[number];
+type EditVariantType = typeof EDIT_VARIANT_TYPES[number];

@@ -22,7 +22,7 @@ const commandVariants = cva(
   }
 )
 
-export interface CommandProps
+interface CommandProps
   extends React.ComponentPropsWithoutRef<typeof CommandPrimitive>,
     VariantProps<typeof commandVariants> {}
 
@@ -140,7 +140,7 @@ const commandItemVariants = cva(
   }
 )
 
-export interface CommandItemProps
+interface CommandItemProps
   extends React.ComponentPropsWithoutRef<typeof CommandPrimitive.Item>,
     VariantProps<typeof commandItemVariants> {}
 

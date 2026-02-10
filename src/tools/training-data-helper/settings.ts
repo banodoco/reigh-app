@@ -1,4 +1,4 @@
-export interface TrainingDataHelperSettings {
+interface TrainingDataHelperSettings {
   // Basic settings for the tool
   autoPlaySegments: boolean;
   defaultSegmentDuration: number; // in seconds

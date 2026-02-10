@@ -16,9 +16,9 @@
 
 import { useCallback, useMemo } from 'react';
 
-export type PromptBadgeType = 'enhanced' | 'default' | null;
+type PromptBadgeType = 'enhanced' | 'default' | null;
 
-export interface UsePromptFieldStateOptions {
+interface UsePromptFieldStateOptions {
   /** Current segment settings (contains user's prompt edit if any) */
   settingsPrompt: string | undefined;
   /** AI-generated enhanced prompt (from metadata) */
@@ -33,7 +33,7 @@ export interface UsePromptFieldStateOptions {
   onClearEnhancedPrompt?: () => void;
 }
 
-export interface PromptFieldState {
+interface PromptFieldState {
   /**
    * The value to display in the textarea.
    */

@@ -6,7 +6,7 @@ import { getDisplayUrl } from '@/shared/lib/utils';
 import { GeneratedImageWithMetadata, DisplayableMetadata } from '../index';
 import { handleError } from '@/shared/lib/errorHandler';
 
-export interface UseMediaGalleryActionsProps {
+interface UseMediaGalleryActionsProps {
   onDelete?: (id: string) => void;
   onApplySettings?: (metadata: DisplayableMetadata) => void;
   onAddToLastShot?: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
@@ -38,7 +38,7 @@ export interface UseMediaGalleryActionsProps {
   onPageBoundsExceeded?: (newLastPage: number) => void;
 }
 
-export interface UseMediaGalleryActionsReturn {
+interface UseMediaGalleryActionsReturn {
   handleOptimisticDelete: (imageId: string) => Promise<void>;
   handleOpenLightbox: (image: GeneratedImageWithMetadata) => void;
   handleCloseLightbox: () => void;
@@ -51,10 +51,6 @@ export interface UseMediaGalleryActionsReturn {
 
 export const useMediaGalleryActions = ({
   onDelete,
-  onApplySettings,
-  onAddToLastShot,
-  onAddToLastShotWithoutPosition,
-  onToggleStar,
   activeLightboxMedia,
   setActiveLightboxMedia,
   setAutoEnterEditMode,
@@ -76,7 +72,6 @@ export const useMediaGalleryActions = ({
   setSelectedShotIdLocal,
   totalCount,
   offset = 0,
-  optimisticDeletedCount,
   onPageBoundsExceeded,
 }: UseMediaGalleryActionsProps): UseMediaGalleryActionsReturn => {
 

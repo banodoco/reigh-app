@@ -21,7 +21,7 @@ export type Json =
   | Json[];
 
 // Segment generation parameters
-export interface SegmentGenerationParams {
+interface SegmentGenerationParams {
   prompts: string[];
   frames: number[];
   context: number[];
@@ -29,7 +29,7 @@ export interface SegmentGenerationParams {
 }
 
 // Interface for individual video pair configuration
-export interface VideoPairConfig {
+interface VideoPairConfig {
   id: string;
   imageA: GenerationRow;
   imageB: GenerationRow;
@@ -41,7 +41,7 @@ export interface VideoPairConfig {
 
 // Main props interface for ShotEditor
 // NEW: Simplified settings bundle approach
-export interface ShotSettings {
+interface ShotSettings {
   videoControlMode: 'individual' | 'batch';
   prompt: string;  // Main prompt for video generation
   batchVideoFrames: number;
@@ -214,7 +214,7 @@ export type ShotEditorAction =
   | { type: 'SET_HAS_INITIALIZED_UI_SETTINGS'; payload: string | null };
 
 // Settings that can be applied from tasks
-export interface TaskSettings {
+interface TaskSettings {
   prompt?: string;
   prompts?: string[];
   negativePrompt?: string;

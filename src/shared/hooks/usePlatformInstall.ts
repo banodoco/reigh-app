@@ -6,7 +6,7 @@ export type Browser = 'chrome' | 'safari' | 'edge' | 'firefox' | 'samsung' | 'un
 export type InstallMethod = 'prompt' | 'safari-dock' | 'safari-home-screen' | 'none';
 export type DeviceType = 'phone' | 'tablet' | 'desktop';
 
-export interface PlatformInstallState {
+interface PlatformInstallState {
   // Platform & Browser
   platform: Platform;
   browser: Browser;

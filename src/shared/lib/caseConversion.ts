@@ -14,7 +14,7 @@ type CamelToSnakeCase<S extends string> =
     : S;
 
 // Type-level: convert all keys of an object from camelCase to snake_case
-export type SnakeCaseKeys<T> = {
+type SnakeCaseKeys<T> = {
   [K in keyof T as K extends string ? CamelToSnakeCase<K> : K]: T[K];
 };
 

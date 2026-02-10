@@ -77,7 +77,7 @@ const evictOldestEntries = <K, V>(
 /**
  * Enforce tracker limits - call this periodically or after adding entries
  */
-export const enforceLoadTrackerLimits = (): void => {
+const enforceLoadTrackerLimits = (): void => {
   const config = getTrackerConfig();
   evictOldestEntries(loadedImagesById, config.maxImages, 'loadedImagesById');
   evictOldestEntries(loadedImagesByUrl, config.maxUrls, 'loadedImagesByUrl');

@@ -1,7 +1,7 @@
 // Snapshot utilities for realtime state inspection
 
 // Helper: locate the effective Supabase WebSocket regardless of where it is stored
-export function getEffectiveRealtimeSocket(): any {
+function getEffectiveRealtimeSocket(): any {
   try {
     const rt: any = (window as any)?.supabase?.realtime;
     if (!rt) return null;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useIsMobile } from './use-mobile';
 
-export interface UseDeviceDetectionReturn {
+interface UseDeviceDetectionReturn {
   // Tablet detection
   isTablet: boolean;
   isPhone: boolean;

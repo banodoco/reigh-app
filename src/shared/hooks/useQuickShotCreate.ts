@@ -3,7 +3,7 @@ import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { handleError } from '@/shared/lib/errorHandler';
 
-export interface QuickCreateSuccessState {
+interface QuickCreateSuccessState {
   isSuccessful: boolean;
   shotId: string | null;
   shotName: string | null;
@@ -15,7 +15,7 @@ export interface ShotOption {
   name: string;
 }
 
-export interface UseQuickShotCreateProps {
+interface UseQuickShotCreateProps {
   /** The generation ID to add to the new shot */
   generationId: string;
   /** Optional preview data for optimistic UI (helps shots list feel instant) */
@@ -37,7 +37,7 @@ export interface UseQuickShotCreateProps {
   onLoadingEnd?: () => void;
 }
 
-export interface UseQuickShotCreateReturn {
+interface UseQuickShotCreateReturn {
   /** Whether shot creation is in progress */
   isCreatingShot: boolean;
   /** Success state for showing "Visit" button */

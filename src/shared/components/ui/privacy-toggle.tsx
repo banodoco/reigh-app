@@ -44,7 +44,7 @@ const privacyToggleButtonVariants = cva(
   }
 )
 
-export interface PrivacyToggleProps
+interface PrivacyToggleProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, "onChange">,
     VariantProps<typeof privacyToggleVariants> {
   isPublic: boolean

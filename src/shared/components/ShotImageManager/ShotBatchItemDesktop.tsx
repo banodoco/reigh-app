@@ -49,7 +49,6 @@ const ShotBatchItemDesktopComponent: React.FC<ShotBatchItemDesktopProps> = ({
   onMobileTap,
   onClick,
   onPointerDown,
-  onInpaintClick,
   isSelected,
   isDragDisabled = false,
   timeline_frame,

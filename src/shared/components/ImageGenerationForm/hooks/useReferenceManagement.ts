@@ -35,7 +35,7 @@ import {
 // Types
 // ============================================================================
 
-export interface UseReferenceManagementProps {
+interface UseReferenceManagementProps {
   selectedProjectId: string | undefined;
   effectiveShotId: string;
   selectedReferenceId: string | null;
@@ -57,7 +57,7 @@ export interface UseReferenceManagementProps {
   setHiresFixConfig?: React.Dispatch<React.SetStateAction<Partial<HiresFixConfig>>>;
 }
 
-export interface UseReferenceManagementReturn {
+interface UseReferenceManagementReturn {
   // Local UI state
   styleReferenceStrength: number;
   subjectStrength: number;

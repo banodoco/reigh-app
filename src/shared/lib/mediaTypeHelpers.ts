@@ -1,7 +1,7 @@
 /**
  * Media item that may have generation_id (from variants) or just id
  */
-export interface MediaWithGenerationId {
+interface MediaWithGenerationId {
   id: string;
   generation_id?: string;
 }
@@ -10,7 +10,7 @@ export interface MediaWithGenerationId {
  * Loose type for objects that might have generation_id and/or id.
  * Use this when dealing with untyped or loosely-typed media objects.
  */
-export interface MaybeHasGenerationId {
+interface MaybeHasGenerationId {
   generation_id?: string | null;
   id?: string | null;
   metadata?: { generation_id?: string | null };
@@ -37,7 +37,7 @@ export function getGenerationId(
 /**
  * Media item with various URL properties (normalized across sources)
  */
-export interface MediaWithUrls {
+interface MediaWithUrls {
   location?: string;
   url?: string;
   thumbnail_url?: string;

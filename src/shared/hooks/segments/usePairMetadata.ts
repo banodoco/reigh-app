@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { PairMetadata } from '@/shared/components/segmentSettingsUtils';
 
-export interface UsePairMetadataReturn {
+interface UsePairMetadataReturn {
   data: PairMetadata | null | undefined;
   isLoading: boolean;
   error: Error | null;

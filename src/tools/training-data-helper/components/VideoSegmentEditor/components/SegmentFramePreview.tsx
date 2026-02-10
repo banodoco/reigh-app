@@ -3,7 +3,7 @@ import { Video } from 'lucide-react';
 import { TrainingDataSegment } from '../../../hooks/useTrainingData';
 import { handleError } from '@/shared/lib/errorHandler';
 
-export interface SegmentFramePreviewProps {
+interface SegmentFramePreviewProps {
   segment: TrainingDataSegment;
   captureFrameAtTime: (timeInSeconds: number) => Promise<string | null>;
   videoReady: boolean;

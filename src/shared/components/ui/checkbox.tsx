@@ -30,7 +30,7 @@ const checkboxVariants = cva(
   }
 )
 
-export interface CheckboxProps
+interface CheckboxProps
   extends Omit<React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>, 'onCheckedChange'>,
     VariantProps<typeof checkboxVariants> {
   onCheckedChange?: (checked: boolean) => void

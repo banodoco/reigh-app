@@ -170,7 +170,6 @@ export function MultiPortionTimeline({
   activeSelectionId,
   onSelectionChange,
   onSelectionClick,
-  onRemoveSelection,
   videoRef,
   videoUrl,
   fps,

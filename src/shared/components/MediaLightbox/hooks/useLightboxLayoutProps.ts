@@ -20,7 +20,7 @@ import type { AdjacentSegmentsData, SegmentSlotModeData } from '../types';
 import type { LightboxLayoutProps } from '../components/layouts/types';
 
 // Input types - all the values needed to build layout props
-export interface UseLightboxLayoutPropsInput {
+interface UseLightboxLayoutPropsInput {
   // Core
   onClose: () => void;
   readOnly: boolean;
@@ -283,7 +283,7 @@ export interface UseLightboxLayoutPropsInput {
   segmentSlotMode?: SegmentSlotModeData;
 }
 
-export interface UseLightboxLayoutPropsReturn {
+interface UseLightboxLayoutPropsReturn {
   layoutProps: LightboxLayoutProps;
 }
 

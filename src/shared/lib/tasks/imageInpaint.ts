@@ -1,7 +1,7 @@
 import { createTask } from '../taskCreation';
 import type { HiresFixApiParams } from './imageGeneration';
 
-export interface CreateImageInpaintTaskParams {
+interface CreateImageInpaintTaskParams {
   project_id: string;
   image_url: string;
   mask_url: string;

@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { readShotSettings, type ShotVideoSettings } from '@/shared/utils/settingsMigration';
 
-export interface UseShotVideoSettingsReturn {
+interface UseShotVideoSettingsReturn {
   data: ShotVideoSettings | null | undefined;
   isLoading: boolean;
   error: Error | null;

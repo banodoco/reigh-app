@@ -78,7 +78,6 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
   selectorClassName,
   buttonClassName,
   container,
-  isMobile = false,
 }) => {
   const { toast } = useToast();
   const { navigateToShot } = useShotNavigation();

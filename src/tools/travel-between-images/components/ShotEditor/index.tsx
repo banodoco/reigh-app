@@ -163,10 +163,8 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
     effectiveAspectRatio,
     allShotImages,
     timelineImages,
-    unpositionedImages,
     videoOutputs,
     contextImages,
-    isLoadingFullImages,
     initialParentGenerations,
     refs: { selectedShotRef, projectIdRef, allShotImagesRef, batchVideoFramesRef },
   } = useShotEditorSetup({

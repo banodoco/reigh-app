@@ -3,12 +3,12 @@ import { GenerationRow } from '@/types/shots';
 import { useDerivedItems, type DerivedItem } from '@/shared/hooks/useDerivedItems';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
-export interface UseGenerationLineageProps {
+interface UseGenerationLineageProps {
   media: GenerationRow;
   enabled?: boolean;
 }
 
-export interface UseGenerationLineageReturn {
+interface UseGenerationLineageReturn {
   // Derived items (generations + variants based on this one) - NEW UNIFIED
   derivedItems: DerivedItem[] | undefined;
   isDerivedLoading: boolean;

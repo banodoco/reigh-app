@@ -18,13 +18,13 @@ import {
   DEFAULT_ENHANCE_SETTINGS,
 } from './editSettingsTypes';
 
-export interface UseEditSettingsPersistenceProps {
+interface UseEditSettingsPersistenceProps {
   generationId: string | null;
   projectId: string | null;
   enabled?: boolean;
 }
 
-export interface UseEditSettingsPersistenceReturn {
+interface UseEditSettingsPersistenceReturn {
   // Current settings values
   editMode: EditMode;
   loraMode: LoraMode;

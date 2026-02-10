@@ -57,7 +57,7 @@ export interface TaskDetailsData {
   onApplySettingsFromTask?: (params: Record<string, unknown>) => void;
 }
 
-export interface UseAdjustedTaskDetailsProps {
+interface UseAdjustedTaskDetailsProps {
   activeVariant: {
     id: string;
     params?: Record<string, unknown>;
@@ -70,7 +70,7 @@ export interface UseAdjustedTaskDetailsProps {
   initialVariantId: string | undefined;
 }
 
-export interface UseAdjustedTaskDetailsReturn {
+interface UseAdjustedTaskDetailsReturn {
   adjustedTaskDetailsData: TaskDetailsData | undefined;
   isLoadingVariantTask: boolean;
 }

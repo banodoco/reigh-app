@@ -16,7 +16,7 @@ import { handleError } from '@/shared/lib/errorHandler';
  * FILM frame interpolation parameters
  * Model: fal-ai/film/video
  */
-export interface FilmInterpolationApiParams {
+interface FilmInterpolationApiParams {
   /** Number of frames to add between each pair of input frames (1-4) */
   num_frames?: number;
   /** Whether to auto-calculate FPS to maintain playback speed */
@@ -37,7 +37,7 @@ export interface FilmInterpolationApiParams {
  * FlashVSR video upscaling parameters
  * Model: fal-ai/flashvsr/upscale/video
  */
-export interface FlashVsrUpscaleApiParams {
+interface FlashVsrUpscaleApiParams {
   /** Scaling multiplier (1-4) */
   upscale_factor?: number;
   /** VAE decoding mode: regular (quality), high (balanced), full (fastest) */
@@ -205,7 +205,7 @@ function buildVideoEnhancePayload(
 /**
  * Result of creating a video enhancement task
  */
-export interface VideoEnhanceTaskResult {
+interface VideoEnhanceTaskResult {
   task: TaskCreationResult;
 }
 

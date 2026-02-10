@@ -147,7 +147,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     starred,
     showTaskDetails = false,
     taskDetailsData,
-    onShowTaskDetails,
     onCreateShot,
     onNavigateToShot,
     optimisticPositionedIds,
@@ -224,7 +223,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     setIsTasksPaneOpen: setTasksPaneOpenContext,
     tasksPaneWidth: tasksPaneWidthContext,
     isTasksPaneLocked,
-    setIsTasksPaneLocked,
   } = usePanes();
 
   const effectiveTasksPaneOpen = tasksPaneOpen ?? tasksPaneOpenContext;
@@ -440,8 +438,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     variants,
     intendedActiveVariantIdRef,
     navigation,
-    star,
-    references,
     lineage,
     shots,
     sourceGeneration,
@@ -531,8 +527,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     handleEnterVideoReplaceMode,
     handleEnterVideoRegenerateMode,
     handleEnterVideoEnhanceMode,
-    handleExitVideoTrimMode,
-    isVideoTrimMode,
     isInVideoEditMode,
     isVideoTrimModeActive,
     isVideoEditModeActive,

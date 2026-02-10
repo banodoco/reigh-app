@@ -103,7 +103,7 @@ export function findShotsCache(
  * Update the shot-generations cache for a specific shot.
  * This is the fast cache used by Timeline/Editor.
  */
-export function updateShotGenerationsCache(
+function updateShotGenerationsCache(
   queryClient: QueryClient,
   shotId: string,
   updater: (old: GenerationRow[] | undefined) => GenerationRow[]

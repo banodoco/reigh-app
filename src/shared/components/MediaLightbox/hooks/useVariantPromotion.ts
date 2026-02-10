@@ -12,11 +12,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePromoteVariantToGeneration } from '@/shared/hooks/usePromoteVariantToGeneration';
 import { useAddImageToShot } from '@/shared/hooks/useShots';
 
-export interface UseVariantPromotionProps {
+interface UseVariantPromotionProps {
   selectedProjectId: string | null;
 }
 
-export interface UseVariantPromotionReturn {
+interface UseVariantPromotionReturn {
   promoteSuccess: boolean;
   isPromoting: boolean;
   handlePromoteToGeneration: (variantId: string) => Promise<void>;

@@ -20,7 +20,7 @@ export interface TaskDetailsData {
  * Information about an adjacent segment (video) for navigation.
  * Used to show "jump to video" buttons when viewing an image in the lightbox.
  */
-export interface AdjacentSegmentInfo {
+interface AdjacentSegmentInfo {
   /** Pair index to navigate to */
   pairIndex: number;
   /** Whether this segment has a generated video */

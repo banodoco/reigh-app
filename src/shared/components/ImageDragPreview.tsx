@@ -26,7 +26,7 @@ interface ImagePreviewProps {
 export const SingleImagePreview: React.FC<ImagePreviewProps> = ({ image }) => {
   // Progressive loading for drag preview - use thumbnail only for performance during drag
   const progressiveEnabled = isProgressiveLoadingEnabled();
-  const { src: progressiveSrc, phase, isThumbShowing, ref: progressiveRef } = useProgressiveImage(
+  const { src: progressiveSrc, isThumbShowing, ref: progressiveRef } = useProgressiveImage(
     progressiveEnabled ? image.thumbUrl : null,
     image.imageUrl,
     {
@@ -64,7 +64,7 @@ interface MultiImagePreviewProps {
 export const MultiImagePreview: React.FC<MultiImagePreviewProps> = ({ count, image }) => {
   // Progressive loading for multi-image drag preview
   const progressiveEnabled = isProgressiveLoadingEnabled();
-  const { src: progressiveSrc, phase, isThumbShowing, ref: progressiveRef } = useProgressiveImage(
+  const { src: progressiveSrc, isThumbShowing, ref: progressiveRef } = useProgressiveImage(
     progressiveEnabled ? image.thumbUrl : null,
     image.imageUrl,
     {

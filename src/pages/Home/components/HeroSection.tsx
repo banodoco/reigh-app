@@ -98,14 +98,12 @@ const retroButtonInlineStyles = {
 } as const;
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
-  barTransitionCompleted,
   session,
   handleDiscordSignIn,
   navigate,
   assetsLoaded,
   handleOpenToolActivate,
   handleEmergingActivate,
-  currentExample,
   isPaneOpen = false,
 }) => {
   const [phase, setPhase] = useState<AnimationPhase>('initial');

@@ -27,7 +27,6 @@ export const TrailingDurationIndicator: React.FC<TrailingDurationIndicatorProps>
   fps = 16,
   onClick,
   readOnly = false,
-  projectAspectRatio,
 }) => {
   const durationSeconds = (frames / fps).toFixed(1);
 

@@ -136,7 +136,7 @@ export interface GenerationRow {
  * const pairPrompt = timelineImages[0].metadata.pair_prompt;
  * ```
  */
-export interface TimelineGenerationRow extends GenerationRow {
+interface TimelineGenerationRow extends GenerationRow {
   timeline_frame: number; // Required for timeline positioning
   metadata: GenerationMetadata; // Required for pair prompts and timeline metadata
 }
@@ -158,7 +158,7 @@ export interface Shot {
   hasUnpositionedImages?: boolean;
 }
 
-export interface ShotImage {
+interface ShotImage {
   shot_id: string;
   generation_id: string; // Assuming generation_id is a string. If it's BIGINT, this might be number.
   timeline_frame?: number;

@@ -46,7 +46,7 @@ interface TabsListContextValue {
 
 const TabsListContext = React.createContext<TabsListContextValue>({})
 
-export interface TabsListProps
+interface TabsListProps
   extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>,
     VariantProps<typeof tabsListVariants> {}
 
@@ -66,7 +66,7 @@ const TabsList = React.forwardRef<
 ))
 TabsList.displayName = "TabsList"
 
-export interface TabsTriggerProps
+interface TabsTriggerProps
   extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Tab>,
     VariantProps<typeof tabsTriggerVariants> {}
 

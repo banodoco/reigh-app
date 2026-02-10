@@ -40,7 +40,6 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
   onLoadedMetadata,
   playbackStart,
   playbackEnd,
-  videoDimensions,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const isMobile = useIsMobile();

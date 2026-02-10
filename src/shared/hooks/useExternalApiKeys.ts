@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { handleError } from '@/shared/lib/errorHandler';
 
-export type ExternalService = 'huggingface' | 'replicate' | 'civitai';
+type ExternalService = 'huggingface' | 'replicate' | 'civitai';
 
 interface ExternalApiKey {
   id: string;
@@ -50,7 +50,7 @@ async function saveExternalApiKey(
   if (!user) throw new Error('Not authenticated');
 
   // Call RPC to save encrypted in Vault
-  const { data, error } = await supabase.rpc('save_external_api_key', {
+  const { error } = await supabase.rpc('save_external_api_key', {
     p_service: service,
     p_key_value: keyValue,
     p_metadata: metadata || {},

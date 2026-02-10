@@ -97,8 +97,6 @@ interface InlineEditVideoViewProps {
 export function InlineEditVideoView({
   media,
   onClose,
-  onVideoSaved,
-  onNavigateToGeneration,
   initialSegments,
   onSegmentsChange,
 }: InlineEditVideoViewProps) {

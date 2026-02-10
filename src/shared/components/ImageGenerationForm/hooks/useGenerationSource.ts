@@ -29,7 +29,7 @@ import {
 // Types
 // ============================================================================
 
-export interface UseGenerationSourceProps {
+interface UseGenerationSourceProps {
   selectedProjectId: string | undefined;
   projectImageSettings: ProjectImageSettings | undefined;
   isLoadingProjectSettings: boolean;
@@ -46,7 +46,7 @@ export interface UseGenerationSourceProps {
   queryClient?: QueryClient;
 }
 
-export interface UseGenerationSourceReturn {
+interface UseGenerationSourceReturn {
   // State
   generationSource: GenerationSource;
   selectedTextModel: TextToImageModel;

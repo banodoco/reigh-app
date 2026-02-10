@@ -12,12 +12,12 @@ import type { GenerationRow } from '@/types/shots';
 
 // ==================== Types ====================
 
-export interface TaskData {
+interface TaskData {
   params: Record<string, unknown>;
   orchestrator: Record<string, unknown>;
 }
 
-export interface ExtractedSettings {
+interface ExtractedSettings {
   // Prompts
   prompt?: string;
   prompts?: string[];

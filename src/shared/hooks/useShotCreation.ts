@@ -36,7 +36,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 // TYPES
 // ============================================================================
 
-export interface ShotCreationResult {
+interface ShotCreationResult {
   /** The created shot's ID */
   shotId: string;
   /** The created shot's name */
@@ -47,7 +47,7 @@ export interface ShotCreationResult {
   generationIds?: string[];
 }
 
-export interface CreateShotOptions {
+interface CreateShotOptions {
   /** Shot name (auto-generated if not provided) */
   name?: string;
   

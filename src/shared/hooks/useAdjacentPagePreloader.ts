@@ -22,7 +22,7 @@ import {
   PRIORITY_VALUES,
 } from '@/shared/lib/preloading';
 
-export interface UseAdjacentPagePreloaderProps {
+interface UseAdjacentPagePreloaderProps {
   /** Project ID to scope queries */
   projectId: string | null;
   /** Current page (1-indexed, as used by the API) */

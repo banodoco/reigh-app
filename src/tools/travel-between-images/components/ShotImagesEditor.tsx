@@ -82,8 +82,6 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
     onGenerationDrop,
     onBatchFileDrop,
     onBatchGenerationDrop,
-    pendingPositions,
-    onPendingPositionApplied,
     onImageDelete,
     onBatchImageDelete,
     onImageDuplicate,
@@ -250,12 +248,10 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
   }, []);
 
   const {
-    segmentSlotLightboxIndex,
     setSegmentSlotLightboxIndex,
     pendingImageToOpen,
     setPendingImageToOpen,
     pendingImageVariantId,
-    pairDataByIndex,
     segmentSlotModeData,
     handlePairClick,
     updatePairFrameCount,

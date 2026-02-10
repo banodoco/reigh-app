@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { handleError } from '@/shared/lib/errorHandler';
 
-export interface ShotGenerationMetadata {
+interface ShotGenerationMetadata {
   magicEditPrompts?: Array<{
     prompt: string;
     timestamp: string;

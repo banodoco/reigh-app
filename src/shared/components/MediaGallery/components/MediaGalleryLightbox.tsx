@@ -86,7 +86,6 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   isServerPagination,
   serverPage,
   totalPages,
-  onServerPageChange,
   onNext,
   onPrevious,
   onDelete,

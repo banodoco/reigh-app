@@ -175,7 +175,7 @@ export function isImageEnhanceTaskType(taskType: string | undefined): boolean {
 /**
  * LoRA info extracted from task params
  */
-export interface LoraInfo {
+interface LoraInfo {
   url: string;
   strength: number;
   displayName: string;

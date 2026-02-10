@@ -9,7 +9,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import type { VideoEnhanceSettings } from './useGenerationEditSettings';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 
-export interface UseVideoEnhanceProps {
+interface UseVideoEnhanceProps {
   projectId: string | undefined;
   videoUrl: string | undefined;
   shotId?: string;
@@ -23,7 +23,7 @@ export interface UseVideoEnhanceProps {
   updateSettings: (updates: Partial<VideoEnhanceSettings>) => void;
 }
 
-export interface UseVideoEnhanceReturn {
+interface UseVideoEnhanceReturn {
   // Settings passed through for convenience
   settings: VideoEnhanceSettings;
   updateSetting: <K extends keyof VideoEnhanceSettings>(

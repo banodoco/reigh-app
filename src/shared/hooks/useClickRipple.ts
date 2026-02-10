@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 
-export interface ClickRippleState {
+interface ClickRippleState {
   isActive: boolean;
   position: { x: number; y: number };
 }
 
-export interface UseClickRippleOptions {
+interface UseClickRippleOptions {
   duration?: number;
   targetSelector?: string;
 }

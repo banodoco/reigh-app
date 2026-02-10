@@ -23,7 +23,6 @@ interface ReferenceThumbnailProps {
 }
 
 export const ReferenceThumbnail: React.FC<ReferenceThumbnailProps> = ({
-  id,
   name,
   imageUrl,
   isSelected,

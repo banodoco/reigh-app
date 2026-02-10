@@ -13,7 +13,7 @@ interface CoordinateSystemData {
   fullRange: number;
 }
 
-export function useCoordinateSystem({ positions, shotId, isDragInProgress = false }: CoordinateSystemProps) {
+function useCoordinateSystem({ positions, shotId, isDragInProgress = false }: CoordinateSystemProps) {
 
   // Calculate dimensions from positions
   const coordinateSystem = useMemo(() => {

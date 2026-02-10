@@ -30,7 +30,7 @@ import { buildBatchTaskParams } from './buildBatchTaskParams';
 // Types
 // ============================================================================
 
-export interface UseFormSubmissionProps {
+interface UseFormSubmissionProps {
   // Project context
   selectedProjectId: string | undefined;
 
@@ -88,7 +88,7 @@ export interface UseFormSubmissionProps {
   };
 }
 
-export interface UseFormSubmissionReturn {
+interface UseFormSubmissionReturn {
   // Handlers
   getTaskParams: (
     promptsToUse: PromptEntry[],

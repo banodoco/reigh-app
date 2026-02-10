@@ -55,7 +55,6 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   onCreateNewShot,
   shots: propShots,
   sortMode = 'ordered',
-  onSortModeChange,
   highlightedShotId,
   onGenerationDropOnShot,
   onGenerationDropForNewShot,

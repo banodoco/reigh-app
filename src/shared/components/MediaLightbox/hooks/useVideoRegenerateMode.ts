@@ -20,7 +20,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import type { SegmentRegenerateFormProps } from '../components/SegmentRegenerateForm';
 import type { SegmentSlotModeData } from '../types';
 
-export interface CurrentSegmentImages {
+interface CurrentSegmentImages {
   startUrl?: string;
   endUrl?: string;
   startGenerationId?: string;
@@ -38,7 +38,7 @@ export interface TaskDetailsData {
   inputImages?: string[];
 }
 
-export interface UseVideoRegenerateModeProps {
+interface UseVideoRegenerateModeProps {
   isVideo: boolean;
   media: {
     id: string;
@@ -64,7 +64,7 @@ export interface UseVideoRegenerateModeProps {
   currentFrameCount?: number;
 }
 
-export interface UseVideoRegenerateModeReturn {
+interface UseVideoRegenerateModeReturn {
   /** Whether regeneration is available for this video */
   canRegenerate: boolean;
   /** Props to pass to SegmentRegenerateForm (null if can't regenerate) */

@@ -22,7 +22,7 @@ import { useVideoEditing } from './useVideoEditing';
 import { useVideoEnhance, type VideoEnhanceSettings } from './useVideoEnhance';
 import { useVideoEditModeHandlers } from './useVideoEditModeHandlers';
 
-export interface UseLightboxVideoModeProps {
+interface UseLightboxVideoModeProps {
   // Core
   media: GenerationRow;
   isVideo: boolean;
@@ -59,7 +59,7 @@ export interface UseLightboxVideoModeProps {
   canRegenerate: boolean;
 }
 
-export interface UseLightboxVideoModeReturn {
+interface UseLightboxVideoModeReturn {
   // Refs
   trimVideoRef: React.RefObject<HTMLVideoElement>;
 

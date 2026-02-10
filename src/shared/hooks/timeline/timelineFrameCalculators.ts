@@ -17,7 +17,7 @@ import { MAX_FRAME_GAP } from '@/shared/lib/timelineNormalization';
 // Types
 // ============================================================================
 
-export interface FrameUpdate {
+interface FrameUpdate {
   id: string;
   newFrame: number;
   reason: string;

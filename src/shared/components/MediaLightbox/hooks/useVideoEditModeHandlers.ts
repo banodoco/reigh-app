@@ -11,7 +11,7 @@ import { useCallback } from 'react';
 
 export type VideoEditSubMode = 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
 
-export interface UseVideoEditModeHandlersProps {
+interface UseVideoEditModeHandlersProps {
   /** Setter for video edit sub-mode (combines local state + persistence) */
   setVideoEditSubMode: (mode: VideoEditSubMode) => void;
   /** Persisted video edit sub-mode (for restoring on enter) */
@@ -30,7 +30,7 @@ export interface UseVideoEditModeHandlersProps {
   setVideoDuration: (duration: number) => void;
 }
 
-export interface UseVideoEditModeHandlersReturn {
+interface UseVideoEditModeHandlersReturn {
   /** Enter video edit mode - restores last used sub-mode */
   handleEnterVideoEditMode: () => void;
   /** Exit video edit mode entirely */

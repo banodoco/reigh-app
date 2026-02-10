@@ -8,7 +8,7 @@
 import { useRef, useEffect } from 'react';
 import type { EditMode } from './useGenerationEditSettings';
 
-export interface UseEditSettingsSyncProps {
+interface UseEditSettingsSyncProps {
   /** Current generation ID for tracking changes */
   actualGenerationId: string | undefined;
   /** Whether edit settings are ready to use */
@@ -37,7 +37,7 @@ export interface UseEditSettingsSyncProps {
   setPersistedPrompt: (prompt: string) => void;
 }
 
-export interface UseEditSettingsSyncReturn {
+interface UseEditSettingsSyncReturn {
   /** Whether initial sync from persistence to UI has completed */
   hasInitializedFromPersistence: boolean;
 }

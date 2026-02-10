@@ -62,7 +62,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   onMouseDown,
   onDoubleClick,
   onMobileTap,
-  zoomLevel,
   timelineWidth,
   fullMinFrames,
   fullRange,
@@ -82,7 +81,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   onPrefetch,
   isSelected = false,
   onSelectionClick,
-  selectedCount = 0,
 }) => {
   
   // Track hover state
@@ -213,7 +211,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
 
   // Progressive loading for timeline images
   const progressiveEnabled = isProgressiveLoadingEnabled();
-  const { src: progressiveSrc, phase, isThumbShowing, isFullLoaded, ref: progressiveRef } = useProgressiveImage(
+  const { src: progressiveSrc, isThumbShowing, isFullLoaded, ref: progressiveRef } = useProgressiveImage(
     progressiveEnabled ? image.thumbUrl : null,
     image.imageUrl,
     {

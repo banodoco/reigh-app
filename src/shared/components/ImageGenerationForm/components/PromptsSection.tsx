@@ -34,7 +34,7 @@ export const PromptsSection: React.FC<PromptsSectionProps> = ({
   onPromptModeChange,
 }) => {
   // Pull from context
-  const { uiState, uiActions } = useFormUIContext();
+  const { uiActions } = useFormUIContext();
   const { isGenerating, hasApiKey, ready } = useFormCoreContext();
   const {
     prompts,

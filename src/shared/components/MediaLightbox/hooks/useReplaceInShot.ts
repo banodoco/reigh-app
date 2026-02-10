@@ -9,12 +9,12 @@ import { useCallback } from 'react';
 import { handleError } from '@/shared/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface UseReplaceInShotProps {
+interface UseReplaceInShotProps {
   /** Callback to close the lightbox after successful replacement */
   onClose: () => void;
 }
 
-export interface UseReplaceInShotReturn {
+interface UseReplaceInShotReturn {
   /**
    * Replace parent's timeline position with current image
    * @param parentGenerationId - ID of the parent generation to remove from timeline

@@ -67,7 +67,7 @@ export function ShotEditorView({
   const location = useLocation();
   const isMobile = useIsMobile();
 
-  const { currentShotId, setCurrentShotId } = useCurrentShot();
+  const { setCurrentShotId } = useCurrentShot();
   const { navigateToPreviousShot, navigateToNextShot } = useShotNavigation();
   const updateShotNameMutation = useUpdateShotName();
   const invalidateGenerations = useInvalidateGenerations();
@@ -78,7 +78,7 @@ export function ShotEditorView({
 
   // Project caches
   const { getShotVideoCount, getFinalVideoCount, invalidateOnVideoChanges } = useProjectVideoCountsCache(selectedProjectId);
-  const { getShotGenerationMode, updateShotMode } = useProjectGenerationModesCache(selectedProjectId);
+  const { updateShotMode } = useProjectGenerationModesCache(selectedProjectId);
 
   // Shot settings
   const shotSettings = useShotSettings(shotToEdit.id, selectedProjectId);

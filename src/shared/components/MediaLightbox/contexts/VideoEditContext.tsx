@@ -25,7 +25,7 @@ export interface TrimState {
   videoDuration: number;
 }
 
-export interface EnhanceSettings {
+interface EnhanceSettings {
   enableInterpolation: boolean;
   enableUpscale: boolean;
   numFrames: number;

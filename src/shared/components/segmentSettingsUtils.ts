@@ -77,7 +77,7 @@ export const SEGMENT_VACE_FEATURED_PRESET_IDS: string[] = [
 /**
  * Result of computing a defaultable field's display state.
  */
-export interface DefaultableFieldResult {
+interface DefaultableFieldResult {
   /** Whether the field is currently showing the default value */
   isUsingDefault: boolean;
   /** The value to display in the field */
@@ -480,7 +480,7 @@ void mergeSegmentSettings;
  *
  * Uses the new format (pair_X fields at root level) and clears legacy fields.
  */
-export interface PairSettingsToSave {
+interface PairSettingsToSave {
   prompt?: string;
   negativePrompt?: string;
   textBeforePrompts?: string;

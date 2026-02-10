@@ -14,8 +14,8 @@ export const SHOT_FILTER = {
   NO_SHOT: 'no-shot',
 } as const;
 
-export type SpecialShotFilter = typeof SHOT_FILTER[keyof typeof SHOT_FILTER];
-export type ShotFilterValue = SpecialShotFilter | string; // string for shot UUIDs
+type SpecialShotFilter = typeof SHOT_FILTER[keyof typeof SHOT_FILTER];
+type ShotFilterValue = SpecialShotFilter | string; // string for shot UUIDs
 
 /**
  * Type guard to check if a filter value is a special filter (all/no-shot) vs a shot UUID.

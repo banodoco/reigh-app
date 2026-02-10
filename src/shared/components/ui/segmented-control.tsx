@@ -76,7 +76,7 @@ interface SegmentedControlContextValue {
 
 const SegmentedControlContext = React.createContext<SegmentedControlContextValue | null>(null)
 
-export interface SegmentedControlProps
+interface SegmentedControlProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, "onChange">,
     VariantProps<typeof segmentedControlVariants> {
   value: string
@@ -107,7 +107,7 @@ const SegmentedControl = React.forwardRef<HTMLDivElement, SegmentedControlProps>
 )
 SegmentedControl.displayName = "SegmentedControl"
 
-export interface SegmentedControlItemProps
+interface SegmentedControlItemProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "value">,
     VariantProps<typeof segmentedControlItemVariants> {
   value: string

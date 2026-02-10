@@ -8,16 +8,16 @@
 import { handleError } from '@/shared/lib/errorHandler';
 import type { NavigatorWithDeviceInfo } from '@/types/browser-extensions';
 
-export interface NetworkStatus {
+interface NetworkStatus {
   isOnline: boolean;
   effectiveType?: '2g' | '3g' | '4g' | 'slow-2g';
   lastTransitionAt: number;
   previousOnlineStatus: boolean;
 }
 
-export type NetworkEventType = 'online' | 'offline' | 'connection-change';
+type NetworkEventType = 'online' | 'offline' | 'connection-change';
 
-export interface NetworkStatusSubscriber {
+interface NetworkStatusSubscriber {
   (status: NetworkStatus, eventType: NetworkEventType, event?: Event): void;
 }
 

@@ -58,7 +58,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   const [copied, setCopied] = useState(false);
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const isMobile = useIsMobile();
-  const { mobileColumns, isPhone } = useDeviceDetection();
+  const { mobileColumns } = useDeviceDetection();
 
   // Data comes directly from RPC - same format as the hooks
   const { generation, images, settings } = shareData;

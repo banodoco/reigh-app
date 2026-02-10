@@ -14,7 +14,7 @@ export interface ZImageLoraConfig {
  * Parameters for creating a Z Image Turbo I2I task
  * Maps to fal-ai/z-image/turbo/image-to-image endpoint
  */
-export interface ZImageTurboI2ITaskParams {
+interface ZImageTurboI2ITaskParams {
   project_id: string;
   image_url: string;           // Source image URL (required)
   prompt?: string;             // Text prompt (default "")
@@ -33,7 +33,7 @@ export interface ZImageTurboI2ITaskParams {
 /**
  * Parameters for batch Z Image Turbo I2I task creation
  */
-export interface BatchZImageTurboI2ITaskParams {
+interface BatchZImageTurboI2ITaskParams {
   project_id: string;
   image_url: string;
   prompt?: string;

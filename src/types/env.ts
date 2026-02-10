@@ -6,4 +6,4 @@ export const AppEnv = {
 
 export type AppEnvValue = typeof AppEnv[keyof typeof AppEnv];
 
-export const LOCAL_ENVS: AppEnvValue[] = [AppEnv.LOCAL]; 
+const LOCAL_ENVS: AppEnvValue[] = [AppEnv.LOCAL]; 

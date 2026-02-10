@@ -20,7 +20,7 @@ import type { ImageTransform } from '../hooks/useRepositionMode';
 // Types
 // ============================================================================
 
-export type ImageEditMode = 'inpaint' | 'annotate' | 'reposition' | 'img2img' | 'text' | 'upscale' | null;
+type ImageEditMode = 'inpaint' | 'annotate' | 'reposition' | 'img2img' | 'text' | 'upscale' | null;
 
 export interface ImageEditState {
   // ========================================

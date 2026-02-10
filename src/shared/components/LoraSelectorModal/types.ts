@@ -6,14 +6,14 @@ export type ModelFilterCategory = 'all' | 'qwen' | 'wan' | 'z-image';
 
 export type SortOption = 'default' | 'downloads' | 'likes' | 'lastModified' | 'name';
 
-export interface LoraModelImage {
+interface LoraModelImage {
   alt_text: string;
   url: string;
   type?: string;
   source?: string;
 }
 
-export interface LoraModelFile {
+interface LoraModelFile {
   path: string;
   url: string;
   size?: number;

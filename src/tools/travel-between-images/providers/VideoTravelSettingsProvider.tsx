@@ -33,7 +33,7 @@ import { LoraModel } from '@/shared/components/LoraSelectorModal';
 // CONTEXT TYPES
 // =============================================================================
 
-export interface VideoTravelSettingsContextValue {
+interface VideoTravelSettingsContextValue {
   // Core state
   settings: VideoTravelSettings;
   status: 'idle' | 'loading' | 'ready' | 'saving' | 'error';

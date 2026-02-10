@@ -171,7 +171,7 @@ export interface PreviewTogetherDialogProps {
 // Segment Slot Types
 // =============================================================================
 
-export interface SegmentSlotState {
+interface SegmentSlotState {
   segmentSlotLightboxIndex: number | null;
   activePairData: PairData | null;
   pendingImageToOpen: string | null;
@@ -183,7 +183,7 @@ export interface SegmentSlotState {
 // Stable Callback Dependencies
 // =============================================================================
 
-export interface StableCallbackDeps {
+interface StableCallbackDeps {
   loadPositions: (options?: { silent?: boolean }) => Promise<void>;
   pairDataByIndex: Map<number, PairData>;
   setSegmentSlotLightboxIndex: (index: number | null) => void;
@@ -197,7 +197,7 @@ export interface StableCallbackDeps {
 // Hook Return Types
 // =============================================================================
 
-export interface UsePreviewStateReturn {
+interface UsePreviewStateReturn {
   isPreviewTogetherOpen: boolean;
   setIsPreviewTogetherOpen: (open: boolean) => void;
   currentPreviewIndex: number;

@@ -131,7 +131,7 @@ export const DEFAULT_VACE_PHASE_CONFIG: PhaseConfig = {
 /**
  * User LoRA input format for buildBasicModePhaseConfig
  */
-export interface UserLoraInput {
+interface UserLoraInput {
   path: string;
   strength: number;
   /** For multi-stage LoRAs - low noise variant path */

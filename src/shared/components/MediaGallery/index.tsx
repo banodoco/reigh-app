@@ -456,7 +456,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   // Listen for custom event to select a shot for adding images (from VideoShotDisplay)
   useEffect(() => {
     const handleSelectShotForAddition = (event: CustomEvent<{ shotId: string; shotName: string }>) => {
-      const { shotId, shotName } = event.detail;
+      const { shotId } = event.detail;
       // Use handleShotChange to update both selectedShotIdLocal AND lastAffectedShotId
       // This ensures handleAddToShot will use the correct target shot
       actionsHook.handleShotChange(shotId);
@@ -516,7 +516,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   }, [actionsHook.handleOpenLightbox, stateHook.setActiveLightboxMedia, stateHook.setPendingLightboxTarget, onServerPageChange]);
 
   const handlePreviousImage = useCallback(() => {
-    const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage, totalPages } = navigationDataRef.current;
+    const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage } = navigationDataRef.current;
 
     if (!activeLightboxMedia) return;
     const currentIndex = filteredImages.findIndex(img => img.id === activeLightboxMedia.id);

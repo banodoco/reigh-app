@@ -58,7 +58,7 @@ export function useContainerWidth(): [RefObject<HTMLDivElement | null>, number] 
   return [containerRef, width];
 }
 
-export interface ContainerDimensions {
+interface ContainerDimensions {
   width: number;
   height: number;
 }

@@ -15,7 +15,7 @@ import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidatio
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import type { GenerationRow } from '@/types/shots';
 
-export interface UseMakeMainVariantProps {
+interface UseMakeMainVariantProps {
   /** Current media being viewed */
   media: GenerationRow;
   /** Parent generation data (if viewing a child) */
@@ -38,7 +38,7 @@ export interface UseMakeMainVariantProps {
   onClose: () => void;
 }
 
-export interface UseMakeMainVariantReturn {
+interface UseMakeMainVariantReturn {
   /** Whether the make main variant operation is in progress */
   isMakingMainVariant: boolean;
   /** Handler to make current media the main variant */

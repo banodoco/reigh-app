@@ -27,7 +27,7 @@ interface PersistedEditorControlsSettings {
   activeTab?: EditorMode;
 }
 
-export interface PromptEditorModalProps {
+interface PromptEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   prompts: PromptEntry[];

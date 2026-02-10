@@ -8,14 +8,14 @@ import { getGenerationId, getMediaUrl } from '@/shared/lib/mediaTypeHelpers';
 import type { ImageUpscaleSettings } from '../components/ImageUpscaleForm';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 
-export interface UseUpscaleProps {
+interface UseUpscaleProps {
   media: GenerationRow | undefined;
   selectedProjectId: string | null;
   isVideo: boolean;
   shotId?: string;
 }
 
-export interface UseUpscaleReturn {
+interface UseUpscaleReturn {
   isUpscaling: boolean;
   upscaleSuccess: boolean;
   handleUpscale: (settings: ImageUpscaleSettings) => Promise<void>;

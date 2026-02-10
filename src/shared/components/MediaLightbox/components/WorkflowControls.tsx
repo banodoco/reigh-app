@@ -97,9 +97,6 @@ export const WorkflowControls: React.FC<WorkflowControlsProps> = ({
   onApplySettings,
   handleApplySettings,
   onDelete,
-  handleDelete,
-  isDeleting,
-  onNavigateToShot,
   onClose,
 }) => {
   // Handle add without position

@@ -13,7 +13,7 @@ import { convertToHiresFixApiParams } from '../useGenerationEditSettings';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 
-export interface UseRepositionTaskCreationProps {
+interface UseRepositionTaskCreationProps {
   media: GenerationRow;
   selectedProjectId: string | null;
   shotId?: string;
@@ -32,7 +32,7 @@ export interface UseRepositionTaskCreationProps {
   createTransformedCanvas: () => Promise<HTMLCanvasElement>;
 }
 
-export interface UseRepositionTaskCreationReturn {
+interface UseRepositionTaskCreationReturn {
   isGeneratingReposition: boolean;
   repositionGenerateSuccess: boolean;
   handleGenerateReposition: () => Promise<void>;

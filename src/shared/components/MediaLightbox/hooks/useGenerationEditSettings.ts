@@ -23,7 +23,7 @@ export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, VideoEnha
 /**
  * Result type for convertToHiresFixApiParams - includes num_inference_steps for single-pass mode.
  */
-export interface EditApiParams {
+interface EditApiParams {
   num_inference_steps?: number;
   hires_scale?: number;
   hires_steps?: number;
@@ -59,7 +59,7 @@ export function convertToHiresFixApiParams(settings: EditAdvancedSettings | unde
   };
 }
 
-export interface UseGenerationEditSettingsReturn {
+interface UseGenerationEditSettingsReturn {
   // Current settings
   settings: GenerationEditSettings;
 

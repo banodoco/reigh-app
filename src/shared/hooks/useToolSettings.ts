@@ -445,7 +445,7 @@ export function useToolSettings<T>(
   }, []);
 
   // Fetch merged settings using Supabase with mobile optimizations
-  const { data: queryResult, isLoading, error, fetchStatus, dataUpdatedAt } = useQuery({
+  const { data: queryResult, isLoading, error, fetchStatus } = useQuery({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
     queryFn: async ({ signal }) => {
       try {

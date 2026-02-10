@@ -54,7 +54,7 @@ import { handleError } from '@/shared/lib/errorHandler';
  * check if it starts as `true` (init pattern) or `false` (operation pattern).
  */
 
-export interface AsyncOperationOptions {
+interface AsyncOperationOptions {
   /** Context string for error reporting (e.g., 'ImageUpload') */
   context?: string;
   /** Whether to show a toast on error (default: true) */
@@ -63,7 +63,7 @@ export interface AsyncOperationOptions {
   toastTitle?: string;
 }
 
-export interface UseAsyncOperationReturn<T> {
+interface UseAsyncOperationReturn<T> {
   /** Whether an operation is currently in progress */
   isLoading: boolean;
   /** The last error that occurred, if any */
@@ -77,7 +77,7 @@ export interface UseAsyncOperationReturn<T> {
   clearError: () => void;
 }
 
-export interface UseAsyncOperationMapReturn<T> {
+interface UseAsyncOperationMapReturn<T> {
   /** Check if an operation is in progress for a given key */
   isLoading: (key: string) => boolean;
   /** Get the error for a given key, if any */

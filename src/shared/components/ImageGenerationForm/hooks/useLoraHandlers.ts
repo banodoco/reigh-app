@@ -23,7 +23,7 @@ import {
 // Types
 // ============================================================================
 
-export interface UseLoraHandlersProps {
+interface UseLoraHandlersProps {
   // LORA manager from useLoraManager
   loraManager: {
     selectedLoras: ActiveLora[];
@@ -45,7 +45,7 @@ export interface UseLoraHandlersProps {
   updateProjectImageSettings: ((scope: string, updates: Partial<ProjectImageSettings>) => Promise<void>) | null;
 }
 
-export interface UseLoraHandlersReturn {
+interface UseLoraHandlersReturn {
   handleAddLora: (lora: LoraModel) => void;
   handleRemoveLora: (id: string) => void;
   handleLoraStrengthChange: (id: string, strength: number) => void;

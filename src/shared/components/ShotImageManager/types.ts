@@ -12,7 +12,7 @@ import type {
 } from '@/shared/types/imageHandlers';
 
 /** Per-pair parameter overrides for showing override icons */
-export type PairOverridesMap = Record<number, {
+type PairOverridesMap = Record<number, {
   phaseConfig?: PhaseConfig;
   loras?: PairLoraConfig[];
   motionSettings?: PairMotionSettings;
@@ -97,7 +97,7 @@ export interface DerivedNavContext {
   derivedGenerationIds: string[];
 }
 
-export interface ExternalGeneration extends GenerationRow {
+interface ExternalGeneration extends GenerationRow {
   based_on?: string;
 }
 

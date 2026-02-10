@@ -18,7 +18,7 @@ interface PendingSegmentTask {
   pair_shot_generation_id: string | null;
 }
 
-export interface UsePendingSegmentTasksReturn {
+interface UsePendingSegmentTasksReturn {
   /** Check if a pair_shot_generation_id has a pending task (real or optimistic) */
   hasPendingTask: (pairShotGenerationId: string | null | undefined) => boolean;
   /** Get the task status for a pair_shot_generation_id */

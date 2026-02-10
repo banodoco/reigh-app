@@ -29,7 +29,7 @@ import { useSegmentSettings, UseSegmentSettingsOptions } from './useSegmentSetti
 import type { SegmentSettingsFormProps } from '@/shared/components/SegmentSettingsForm';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
-export interface UseSegmentSettingsFormOptions extends UseSegmentSettingsOptions {
+interface UseSegmentSettingsFormOptions extends UseSegmentSettingsOptions {
   // These are passed through to the form
   segmentIndex?: number;
   startImageUrl?: string;
@@ -80,7 +80,7 @@ export interface UseSegmentSettingsFormOptions extends UseSegmentSettingsOptions
   onNavigateToImage?: (shotGenerationId: string) => void;
 }
 
-export interface UseSegmentSettingsFormReturn {
+interface UseSegmentSettingsFormReturn {
   /**
    * Props to spread onto SegmentSettingsForm.
    * Includes: settings, onChange, hasOverride, shotDefaults,

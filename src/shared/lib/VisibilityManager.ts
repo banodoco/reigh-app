@@ -14,7 +14,7 @@
 
 import { handleError } from '@/shared/lib/errorHandler';
 
-export interface VisibilityState {
+interface VisibilityState {
   /** Current visibility state */
   isVisible: boolean;
   /** Document visibility state ('visible' | 'hidden') */
@@ -44,7 +44,7 @@ export interface VisibilitySignals extends VisibilityState {
 
 export type VisibilityEventType = 'visibilitychange' | 'pageshow' | 'pagehide';
 
-export interface VisibilitySubscription {
+interface VisibilitySubscription {
   /** Unique identifier for this subscription */
   id: string;
   /** Callback function called on visibility changes */

@@ -7,7 +7,7 @@
 
 import { useRef, useEffect } from 'react';
 
-export interface UsePanelModeRestoreProps {
+interface UsePanelModeRestoreProps {
   /** Current media ID for tracking changes */
   mediaId: string;
   /** Persisted panel mode from last used settings */
@@ -28,7 +28,7 @@ export interface UsePanelModeRestoreProps {
   handleEnterMagicEditMode: () => void;
 }
 
-export interface UsePanelModeRestoreReturn {
+interface UsePanelModeRestoreReturn {
   /** Whether panel mode has been restored for current media */
   hasRestoredPanelMode: boolean;
 }

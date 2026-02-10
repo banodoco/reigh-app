@@ -10,12 +10,12 @@ import { useNavigate } from 'react-router-dom';
 import { handleError } from '@/shared/lib/errorHandler';
 import { GenerationRow } from '@/types/shots';
 
-export interface UseJoinClipsProps {
+interface UseJoinClipsProps {
   media: GenerationRow;
   isVideo: boolean;
 }
 
-export interface UseJoinClipsReturn {
+interface UseJoinClipsReturn {
   isAddingToJoin: boolean;
   addToJoinSuccess: boolean;
   handleAddToJoin: () => void;

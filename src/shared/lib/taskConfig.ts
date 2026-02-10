@@ -83,7 +83,7 @@ function dbConfigToTaskConfig(dbConfig: TaskTypeInfo): TaskTypeConfig {
  * Get configuration for a specific task type
  * Checks the database cache first, falls back to hardcoded defaults
  */
-export function getTaskConfig(taskType: string): TaskTypeConfig {
+function getTaskConfig(taskType: string): TaskTypeConfig {
   // Check database cache first (populated by useAllTaskTypesConfig hook)
   if (isTaskTypeConfigCacheInitialized()) {
     const cache = getTaskTypeConfigCache();
@@ -110,7 +110,7 @@ export function getTaskConfig(taskType: string): TaskTypeConfig {
 /**
  * Check if a task type should be visible in the UI
  */
-export function isTaskVisible(taskType: string): boolean {
+function isTaskVisible(taskType: string): boolean {
   return getTaskConfig(taskType).isVisible;
 }
 

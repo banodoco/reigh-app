@@ -166,7 +166,7 @@ toastFn.info = (
 export const toast = toastFn
 
 // ── Type exports (backwards compat) ─────────────────────────────────────────
-export type ToastProps = React.ComponentPropsWithoutRef<typeof Toast.Root> & VariantProps<typeof toastVariants>
-export type ToastActionElement = React.ReactElement<typeof Toast.Action>
+type ToastProps = React.ComponentPropsWithoutRef<typeof Toast.Root> & VariantProps<typeof toastVariants>
+type ToastActionElement = React.ReactElement<typeof Toast.Action>
 
 export { toastVariants }

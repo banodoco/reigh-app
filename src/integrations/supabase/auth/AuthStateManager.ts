@@ -86,4 +86,3 @@ export function initAuthStateManager(supabase: SupabaseClient) {
   }
 }
 
-

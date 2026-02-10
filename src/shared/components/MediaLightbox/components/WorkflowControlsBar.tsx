@@ -77,7 +77,6 @@ export const WorkflowControlsBar: React.FC<WorkflowControlsBarProps> = ({
   onAddToShot,
   onDelete,
   onApplySettings,
-  isSpecialEditMode,
   isVideo,
   mediaId,
   imageUrl,

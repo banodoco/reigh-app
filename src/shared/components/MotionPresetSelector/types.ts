@@ -6,7 +6,7 @@ import type { LoraModel } from '@/shared/hooks/useLoraManager';
 // =============================================================================
 
 export type MotionMode = 'basic' | 'advanced';
-export type GenerationTypeMode = 'i2v' | 'vace';
+type GenerationTypeMode = 'i2v' | 'vace';
 
 /**
  * Sample generation attached to a preset
@@ -45,7 +45,7 @@ export interface BuiltinPreset {
 /**
  * Preset from database with metadata
  */
-export interface DatabasePreset {
+interface DatabasePreset {
   id: string;
   metadata: PresetMetadata;
   createdAt?: string;

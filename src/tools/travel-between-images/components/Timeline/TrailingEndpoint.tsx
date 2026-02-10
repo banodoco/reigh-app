@@ -39,7 +39,7 @@ interface TrailingEndpointProps {
 }
 
 // Constant ID for the endpoint - used in positions map and drag system
-export const TRAILING_ENDPOINT_ID = '__trailing_endpoint';
+const TRAILING_ENDPOINT_ID = '__trailing_endpoint';
 
 /**
  * TrailingEndpoint - A draggable marker for trailing segment duration

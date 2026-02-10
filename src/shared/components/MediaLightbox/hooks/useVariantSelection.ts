@@ -21,7 +21,7 @@ interface Variant {
   // ... other fields
 }
 
-export interface UseVariantSelectionProps {
+interface UseVariantSelectionProps {
   /** Media being viewed (needed for generation_id) */
   media: GenerationRow;
   /** Raw setter from useVariants hook */
@@ -34,7 +34,7 @@ export interface UseVariantSelectionProps {
   initialVariantId?: string;
 }
 
-export interface UseVariantSelectionReturn {
+interface UseVariantSelectionReturn {
   /** Wrapped setter that logs and marks viewed */
   setActiveVariantId: (variantId: string) => void;
   /** Whether viewing a non-primary variant */

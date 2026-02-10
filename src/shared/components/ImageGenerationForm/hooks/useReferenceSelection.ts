@@ -15,7 +15,7 @@ import { HydratedReferenceImage } from '../types';
 // Types
 // ============================================================================
 
-export interface UseReferenceSelectionProps {
+interface UseReferenceSelectionProps {
   effectiveShotId: string;
   referenceCount: number;
   selectedReferenceId: string | null;
@@ -24,7 +24,7 @@ export interface UseReferenceSelectionProps {
   isLoadingReferences: boolean;
 }
 
-export interface UseReferenceSelectionReturn {
+interface UseReferenceSelectionReturn {
   /** The reference ID to display (persisted selection or computed fallback) */
   displayedReferenceId: string | null;
   /** The full reference object (with refetch stability - keeps last valid) */

@@ -31,7 +31,7 @@ export interface TaskDetailsProps {
 /**
  * Configuration for different display variants (hover, modal, panel)
  */
-export interface VariantConfig {
+interface VariantConfig {
   textSize: string;
   fontWeight: string;
   iconSize: string;

@@ -50,8 +50,6 @@ export function ShotListView({
   selectedProjectId,
   projectAspectRatio,
   refetchShots,
-  projectUISettings,
-  updateProjectUISettings,
   uploadSettings,
   shotSortMode,
   setShotSortMode,

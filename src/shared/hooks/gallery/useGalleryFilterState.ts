@@ -47,7 +47,7 @@ interface UseGalleryFilterStateOptions {
  * Data from the generations query needed for the query-based fallback.
  * The parent hook passes this in so we can react to empty results.
  */
-export interface QueryFallbackData {
+interface QueryFallbackData {
   isLoading: boolean;
   isFetching: boolean;
   total: number | undefined;
@@ -55,7 +55,7 @@ export interface QueryFallbackData {
   hasResponse: boolean;
 }
 
-export interface GalleryFilterStateResult {
+interface GalleryFilterStateResult {
   // State values
   selectedShotFilter: string;
   excludePositioned: boolean;

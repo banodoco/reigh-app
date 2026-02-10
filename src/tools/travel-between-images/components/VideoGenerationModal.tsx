@@ -25,7 +25,6 @@ import { SectionHeader } from '@/tools/image-generation/components/ImageGenerati
 import {
   generateVideo,
   buildBasicModePhaseConfig,
-  type StructureVideoConfig,
   DEFAULT_STRUCTURE_VIDEO_CONFIG
 } from './ShotEditor/services/generateVideoService';
 import { usePublicLoras } from '@/shared/hooks/useResources';
@@ -91,7 +90,6 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     settings,
     status,
     updateField,
-    updateFields,
   } = useShotSettings(isOpen ? shot.id : null, selectedProjectId);
   
   // Available LoRAs

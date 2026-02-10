@@ -7,7 +7,7 @@
 
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 
-export interface CreateGifOptions {
+interface CreateGifOptions {
   /** Milliseconds between frames (default: 800) */
   frameDelay?: number;
   /** Output width in pixels (default: 512) */

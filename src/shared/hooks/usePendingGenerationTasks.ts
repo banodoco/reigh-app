@@ -19,7 +19,7 @@ interface PendingGenerationTask {
   task_type: string;
 }
 
-export interface UsePendingGenerationTasksReturn {
+interface UsePendingGenerationTasksReturn {
   /** Number of pending tasks that will create variants/derived from this generation */
   pendingCount: number;
   /** The pending tasks */

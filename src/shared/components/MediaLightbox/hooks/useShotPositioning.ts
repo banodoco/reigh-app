@@ -27,7 +27,7 @@ export interface ShotOption {
   name: string;
 }
 
-export interface UseShotPositioningProps {
+interface UseShotPositioningProps {
   media: GenerationRow;
   selectedShotId: string | undefined;
   allShots: ShotOption[];
@@ -46,7 +46,7 @@ export interface UseShotPositioningProps {
   onOptimisticUnpositioned?: (mediaId: string, shotId: string) => void;
 }
 
-export interface UseShotPositioningReturn {
+interface UseShotPositioningReturn {
   isAlreadyPositionedInSelectedShot: boolean;
   isAlreadyAssociatedWithoutPosition: boolean;
   handleAddToShot: () => Promise<void>;

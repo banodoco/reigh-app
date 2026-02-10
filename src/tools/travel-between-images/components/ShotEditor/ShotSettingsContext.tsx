@@ -39,7 +39,7 @@ import type {
 // ============================================================================
 
 /** Core shot data and identifiers */
-export interface ShotCoreState {
+interface ShotCoreState {
   selectedShot: Shot;
   selectedShotId: string;
   projectId: string;
@@ -48,13 +48,13 @@ export interface ShotCoreState {
 }
 
 /** LoRA management state */
-export interface ShotLoraState {
+interface ShotLoraState {
   loraManager: LoraManagerReturn;
   availableLoras: LoraModel[];
 }
 
 /** Shot images data */
-export interface ShotImagesState {
+interface ShotImagesState {
   allShotImages: GenerationRow[];
   timelineImages: GenerationRow[];
   contextImages: GenerationRow[];
@@ -90,7 +90,7 @@ export interface ShotImageHandlers {
 }
 
 /** Shot management actions */
-export interface ShotManagementState {
+interface ShotManagementState {
   allShots: Shot[];
   onShotChange: (shotId: string) => void;
   onAddToShot: (shotId: string, generationId: string, position?: number) => Promise<void>;

@@ -127,7 +127,7 @@ class MobilePerformanceMonitor {
 }
 
 // Singleton instance
-export const perfMonitor = new MobilePerformanceMonitor();
+const perfMonitor = new MobilePerformanceMonitor();
 
 // Make it available in window for console access
 if (typeof window !== 'undefined') {

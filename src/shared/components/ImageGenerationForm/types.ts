@@ -228,7 +228,7 @@ export type { ReferenceApiParams, HiresFixApiParams, ReferenceMode } from '@/sha
  * Per-LoRA phase strength override for two-pass hires fix generation.
  * Allows different LoRA strengths for the initial pass vs the upscaling pass.
  */
-export interface PhaseLoraStrength {
+interface PhaseLoraStrength {
   /** References ActiveLora.id for syncing with base LoRA selection */
   loraId: string;
   /** LoRA file URL for task payload */
@@ -341,7 +341,7 @@ export function getHiresFixDefaultsForModel(modelName: string): HiresFixConfig {
 // Reference Mode Strength Defaults
 // ============================================================================
 
-export interface ReferenceModeStrengths {
+interface ReferenceModeStrengths {
   styleReferenceStrength: number;
   subjectStrength: number;
   inThisSceneStrength: number;

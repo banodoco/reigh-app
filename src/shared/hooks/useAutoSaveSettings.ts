@@ -7,12 +7,12 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 /**
  * Status states for the auto-save settings lifecycle
  */
-export type AutoSaveStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
+type AutoSaveStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
 /**
  * Options for useAutoSaveSettings hook
  */
-export interface UseAutoSaveSettingsOptions<T> {
+interface UseAutoSaveSettingsOptions<T> {
   /** Tool identifier for storage */
   toolId: string;
   /** Shot ID for shot-scoped settings */
@@ -40,7 +40,7 @@ export interface UseAutoSaveSettingsOptions<T> {
 /**
  * Return type for useAutoSaveSettings hook
  */
-export interface UseAutoSaveSettingsReturn<T> {
+interface UseAutoSaveSettingsReturn<T> {
   /** Current settings (merged from DB + defaults) */
   settings: T;
   /** Current status of the settings lifecycle */

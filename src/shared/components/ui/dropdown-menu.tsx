@@ -84,7 +84,7 @@ const dropdownMenuContentVariants = cva(
   }
 )
 
-export interface DropdownMenuContentProps
+interface DropdownMenuContentProps
   extends React.ComponentPropsWithoutRef<typeof MenuPrimitive.Popup>,
     VariantProps<typeof dropdownMenuContentVariants> {
   sideOffset?: number
@@ -130,7 +130,7 @@ const dropdownMenuItemVariants = cva(
   }
 )
 
-export interface DropdownMenuItemProps
+interface DropdownMenuItemProps
   extends React.ComponentPropsWithoutRef<typeof MenuPrimitive.Item>,
     VariantProps<typeof dropdownMenuItemVariants> {
   inset?: boolean

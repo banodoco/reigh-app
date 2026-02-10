@@ -10,7 +10,7 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 
-export interface UseVideoScrubbingOptions {
+interface UseVideoScrubbingOptions {
   /** Whether scrubbing is enabled */
   enabled?: boolean;
   /** Start playing after user stops scrubbing (but stays hovering) */

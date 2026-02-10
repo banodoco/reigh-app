@@ -17,7 +17,7 @@ import { GenerationRow, Shot } from '@/types/shots';
 // PROP TYPES (grouped for clarity)
 // =============================================================================
 
-export interface VideosQueryProps {
+interface VideosQueryProps {
   videosData: { items: GenerationRow[]; total: number } | undefined;
   videosLoading: boolean;
   videosFetching: boolean;
@@ -28,7 +28,7 @@ export interface VideosQueryProps {
   shots: Shot[] | undefined;
 }
 
-export interface VideosFiltersProps {
+interface VideosFiltersProps {
   videoPage: number;
   setVideoPage: (page: number) => void;
   videoShotFilter: string;
@@ -45,19 +45,19 @@ export interface VideosFiltersProps {
   setVideoStarredOnly: (starred: boolean) => void;
 }
 
-export interface AddToShotProps {
+interface AddToShotProps {
   targetShotIdForButton: string | undefined;
   targetShotNameForButtonTooltip: string;
   handleAddVideoToTargetShot: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   handleAddVideoToTargetShotWithoutPosition: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
 }
 
-export interface DeleteProps {
+interface DeleteProps {
   onDelete?: (id: string) => void;
   isDeleting?: boolean;
 }
 
-export interface PreloadingProps {
+interface PreloadingProps {
   /** @deprecated Use generationFilters instead */
   onPrefetchAdjacentPages?: (prevPage: number | null, nextPage: number | null) => void;
   enableAdjacentPagePreloading?: boolean;
@@ -65,7 +65,7 @@ export interface PreloadingProps {
   generationFilters?: Record<string, unknown>;
 }
 
-export interface VideoTravelVideosGalleryProps {
+interface VideoTravelVideosGalleryProps {
   query: VideosQueryProps;
   filters: VideosFiltersProps;
   addToShot: AddToShotProps;

@@ -6,7 +6,7 @@
  * Performance-monitored setTimeout wrapper
  * Automatically detects when callback execution exceeds 16ms and logs warnings
  */
-export const performanceMonitoredTimeout = (
+const performanceMonitoredTimeout = (
   callback: () => void,
   delay: number,
   context: string = 'Unknown'
@@ -25,7 +25,7 @@ export const performanceMonitoredTimeout = (
 /**
  * Helper for measuring async operations with consistent logging
  */
-export const measureAsync = async <T>(
+const measureAsync = async <T>(
   operation: () => Promise<T>,
   context: string,
   warnThreshold: number = 100

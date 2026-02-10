@@ -496,4 +496,3 @@ export const InstallInstructionsModal: React.FC<InstallInstructionsModalProps> =
   );
 };
 
-

@@ -10,7 +10,7 @@
 import { useMemo } from 'react';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 
-export interface UseEffectiveMediaProps {
+interface UseEffectiveMediaProps {
   isVideo: boolean;
   activeVariant: {
     id: string;
@@ -23,7 +23,7 @@ export interface UseEffectiveMediaProps {
   projectAspectRatio: string | undefined;
 }
 
-export interface UseEffectiveMediaReturn {
+interface UseEffectiveMediaReturn {
   effectiveVideoUrl: string | undefined;
   effectiveMediaUrl: string | undefined;
   effectiveImageDimensions: { width: number; height: number };

@@ -58,7 +58,7 @@ const ToggleGroupContext = React.createContext<ToggleGroupContextValue>({
   groupVariant: "default",
 })
 
-export interface ToggleGroupProps
+interface ToggleGroupProps
   extends Omit<React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive>, 'value' | 'defaultValue' | 'onValueChange'>,
     VariantProps<typeof toggleGroupVariants> {
   size?: VariantProps<typeof toggleVariants>["size"]

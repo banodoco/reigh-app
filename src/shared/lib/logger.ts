@@ -195,7 +195,7 @@ function time(tag: string, label: string): void {
   console.time(`[${tag}] ${label}`);
 }
 
-export function timeEnd(tag: string, label: string): void {
+function timeEnd(tag: string, label: string): void {
   if (!shouldLog()) return;
   // eslint-disable-next-line no-console
   console.timeEnd(`[${tag}] ${label}`);

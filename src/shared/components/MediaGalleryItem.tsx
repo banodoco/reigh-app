@@ -39,17 +39,14 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   index,
   isDeleting,
   onDelete,
-  onApplySettings,
   onOpenLightbox,
   onAddToLastShot,
   onAddToLastShotWithoutPosition,
-  onDownloadImage,
   onToggleStar,
   selectedShotIdLocal,
   simplifiedShotOptions,
   showTickForImageId,
   onShowTick,
-  showTickForSecondaryImageId,
   onShowSecondaryTick,
   optimisticUnpositionedIds,
   optimisticPositionedIds,
@@ -60,7 +57,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   setAddingToShotImageId,
   addingToShotWithoutPositionImageId,
   setAddingToShotWithoutPositionImageId,
-  downloadingImageId,
   isMobile,
   mobileActiveImageId,
   mobilePopoverOpenImageId,
@@ -157,7 +153,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   }, [actualGenerationId, markAllViewed]);
 
   const { navigateToShot } = useShotNavigation();
-  const { lastAffectedShotId, setLastAffectedShotId: updateLastAffectedShotId } = useLastAffectedShot();
+  const { setLastAffectedShotId: updateLastAffectedShotId } = useLastAffectedShot();
   
   // Use consolidated hook for quick shot creation
   const {
@@ -183,7 +179,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // Progressive loading for thumbnail → full image transition
   // DISABLE progressive loading for videos - we want to show thumbnails, not load the full video file
   const progressiveEnabled = isProgressiveLoadingEnabled() && !image.isVideo;
-  const { src: progressiveSrc, phase, isThumbShowing, isFullLoaded, error: progressiveError, retry: retryProgressive, ref: progressiveRef } = useProgressiveImage(
+  const { src: progressiveSrc, isThumbShowing, isFullLoaded, error: progressiveError, retry: retryProgressive, ref: progressiveRef } = useProgressiveImage(
     progressiveEnabled ? image.thumbUrl : null,
     image.url,
     {
@@ -226,7 +222,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     actualSrc,
     actualDisplayUrl,
     imageLoaded,
-    imageLoading,
     imageLoadError,
     handleImageLoad,
     handleImageError,

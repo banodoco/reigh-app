@@ -123,7 +123,7 @@ function filterReferenceSettingsByMode(
  * Parameters for creating an image generation task.
  * Extends ReferenceApiParams and HiresFixApiParams for single source of truth.
  */
-export interface ImageGenerationTaskParams extends Partial<ReferenceApiParams>, Partial<HiresFixApiParams> {
+interface ImageGenerationTaskParams extends Partial<ReferenceApiParams>, Partial<HiresFixApiParams> {
   project_id: string;
   prompt: string;
   negative_prompt?: string;
@@ -231,7 +231,7 @@ function validateBatchImageGenerationParams(params: BatchImageGenerationTaskPara
 /**
  * Options for calculateTaskResolution
  */
-export interface CalculateTaskResolutionOptions {
+interface CalculateTaskResolutionOptions {
   /** Project ID for resolution lookup */
   projectId: string;
   /** Optional explicit resolution override (bypasses all calculations) */

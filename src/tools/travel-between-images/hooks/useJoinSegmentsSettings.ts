@@ -31,7 +31,7 @@ const DEFAULT_JOIN_SEGMENTS_SETTINGS: JoinSegmentsSettings = {
   stitchAfterGenerate: false,
 };
 
-export interface UseJoinSegmentsSettingsReturn {
+interface UseJoinSegmentsSettingsReturn {
   // State
   settings: JoinSegmentsSettings;
   status: 'idle' | 'loading' | 'ready' | 'saving' | 'error';

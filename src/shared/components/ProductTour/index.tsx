@@ -123,7 +123,7 @@ function CustomTooltip({
 }
 
 export function ProductTour() {
-  const { isRunning, startTour, completeTour, skipTour, tourState } = useProductTour();
+  const { isRunning, completeTour, skipTour } = useProductTour();
   const {
     setIsGenerationsPaneLocked,
     setIsTasksPaneLocked,

@@ -30,8 +30,6 @@ export const AudioStrip: React.FC<AudioStripProps> = ({
   audioUrl,
   audioMetadata,
   onRemove,
-  fullMin,
-  fullMax,
   fullRange,
   containerWidth,
   zoomLevel,

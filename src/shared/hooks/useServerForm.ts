@@ -35,7 +35,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 
-export interface UseServerFormOptions<TServer, TLocal> {
+interface UseServerFormOptions<TServer, TLocal> {
   /** Server data (from React Query or other source) */
   serverData: TServer | undefined;
   /** Whether server data is still loading */
@@ -54,7 +54,7 @@ export interface UseServerFormOptions<TServer, TLocal> {
   onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export interface UseServerFormReturn<TLocal> {
+interface UseServerFormReturn<TLocal> {
   /** Current form data (local edits if any, otherwise transformed server data) */
   data: TLocal;
   /** Update local state with partial values */

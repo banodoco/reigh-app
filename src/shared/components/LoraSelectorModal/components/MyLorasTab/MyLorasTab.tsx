@@ -18,7 +18,6 @@ import { SampleGenerationsSection } from './components/SampleGenerationsSection'
 
 export const MyLorasTab: React.FC<MyLorasTabProps> = ({
   myLorasResource,
-  deleteResource,
   createResource,
   updateResource,
   onSwitchToBrowse,

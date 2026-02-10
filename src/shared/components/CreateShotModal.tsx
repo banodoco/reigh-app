@@ -26,7 +26,6 @@ const CreateShotModal: React.FC<CreateShotModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  isLoading,
   defaultShotName,
   projectAspectRatio,
   initialAspectRatio,

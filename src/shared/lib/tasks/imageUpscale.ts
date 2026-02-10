@@ -5,7 +5,7 @@ import { handleError } from '@/shared/lib/errorHandler';
 /**
  * Parameters for creating an image upscale task
  */
-export interface ImageUpscaleTaskParams {
+interface ImageUpscaleTaskParams {
   project_id: string;
   image_url: string; // The source image to upscale
   generation_id?: string | null; // Optional: the generation ID to update with upscaled URL

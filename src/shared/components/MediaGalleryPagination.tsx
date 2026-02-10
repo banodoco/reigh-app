@@ -41,7 +41,6 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
   totalFilteredItems,
   loadingButton,
   whiteText = false,
-  reducedSpacing = false,
   hidePagination = false,
   onPageChange,
   compact = false,

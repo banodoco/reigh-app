@@ -3,7 +3,7 @@
  * Extracts mask from canvas alpha channel and dilates to eliminate edge artifacts.
  */
 
-export interface MaskGenerationOptions {
+interface MaskGenerationOptions {
   /** Alpha threshold (0-255). Pixels with alpha above this are considered solid. Default: 200 */
   alphaThreshold?: number;
   /** Number of pixels to dilate the mask into the image. Default: 3 */

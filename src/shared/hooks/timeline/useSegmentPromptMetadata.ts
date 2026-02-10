@@ -102,7 +102,7 @@ export function useSegmentPromptMetadata({
     delete updatedMetadata.pair_prompt;
     delete updatedMetadata.pair_negative_prompt;
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('shot_generations')
       .update({ metadata: updatedMetadata as unknown as Json })
       .eq('id', shotGen.id)

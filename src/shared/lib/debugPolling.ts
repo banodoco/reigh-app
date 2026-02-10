@@ -14,7 +14,7 @@ export const debugPolling = {
   async testConnection(projectId: string) {
     
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('tasks')
         .select('id')
         .eq('project_id', projectId)
@@ -53,7 +53,7 @@ export const debugPolling = {
         .in('status', ['Queued', 'In Progress'])
         .is('params->orchestrator_task_id_ref', null);
         
-      const { count, error } = await processingQuery;
+      const { error } = await processingQuery;
       
       if (error) {
         console.error('[PollingDebug] Processing query failed:', {

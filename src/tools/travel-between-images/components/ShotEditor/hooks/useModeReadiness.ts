@@ -37,7 +37,6 @@ export function useModeReadiness({
   generationMode,
   state,
   actions,
-  onGenerationModeChange,
 }: UseModeReadinessProps): void {
   // Track previous shot ID for change detection
   const prevShotIdRef = useRef<string | undefined>(undefined);

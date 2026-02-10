@@ -5,7 +5,7 @@ const modules = import.meta.glob('/docs/blog/*.md', {
   import: 'default',
 }) as Record<string, string>;
 
-export interface BlogPost {
+interface BlogPost {
   title: string;
   slug: string;
   date: string;

@@ -17,7 +17,7 @@ import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { Shot } from '@/types/shots';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
-export interface UseVideoTravelAddToShotParams {
+interface UseVideoTravelAddToShotParams {
   /** Current project ID */
   selectedProjectId: string | null | undefined;
   /** Current shots list */
@@ -44,7 +44,7 @@ export interface UseVideoTravelAddToShotParams {
   };
 }
 
-export interface UseVideoTravelAddToShotReturn {
+interface UseVideoTravelAddToShotReturn {
   /** Info about the target shot for the "Add to Shot" button */
   targetShotInfo: {
     targetShotIdForButton: string | undefined;

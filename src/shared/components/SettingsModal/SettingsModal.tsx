@@ -24,7 +24,6 @@ import type { SettingsModalProps } from "./types";
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onOpenChange,
-  initialTab = "generate-locally",
   creditsTab = "purchase",
 }) => {
   const isMobile = useIsMobile();

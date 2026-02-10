@@ -27,7 +27,7 @@ import { useState, useRef, useCallback } from 'react';
  * ```
  */
 
-export interface UseSwipeNavigationProps {
+interface UseSwipeNavigationProps {
   /** Called when user swipes left (navigate to next) */
   onSwipeLeft?: () => void;
   /** Called when user swipes right (navigate to previous) */
@@ -46,7 +46,7 @@ export interface UseSwipeNavigationProps {
   maxElasticOffset?: number;
 }
 
-export interface UseSwipeNavigationReturn {
+interface UseSwipeNavigationReturn {
   /** Handlers to spread on the swipeable element */
   swipeHandlers: {
     onPointerDown: (e: React.PointerEvent) => void;

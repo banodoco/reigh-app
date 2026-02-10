@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
-export interface LineageItem {
+interface LineageItem {
   id: string;
   imageUrl: string;
   thumbnailUrl: string | null;

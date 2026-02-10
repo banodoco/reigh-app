@@ -56,7 +56,7 @@ export const FEATURED_PRESET_IDS: string[] = [
   '18b879a5-1251-41dc-b263-613358ced541',
 ];
 
-export interface MotionControlProps {
+interface MotionControlProps {
   // Motion mode selection (Basic or Advanced only - Presets tab removed)
   motionMode: 'basic' | 'advanced';
   onMotionModeChange: (mode: 'basic' | 'advanced') => void;
@@ -129,11 +129,6 @@ export const MotionControl: React.FC<MotionControlProps> = ({
   onGenerationTypeModeChange,
   hasStructureVideo = false,
   structureType,
-  structureVideoMotionStrength = 1.0,
-  onStructureVideoMotionStrengthChange,
-  onStructureTypeChange,
-  uni3cEndPercent = 0.1,
-  onUni3cEndPercentChange,
   selectedLoras,
   availableLoras,
   onAddLoraClick,

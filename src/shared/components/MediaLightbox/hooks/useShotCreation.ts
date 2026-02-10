@@ -4,7 +4,7 @@ import { QuickCreateSuccess, ShotOption } from '../types';
 import { useQuickShotCreate } from '@/shared/hooks/useQuickShotCreate';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
-export interface UseShotCreationProps {
+interface UseShotCreationProps {
   media: GenerationRow;
   selectedProjectId: string | null;
   allShots: ShotOption[];

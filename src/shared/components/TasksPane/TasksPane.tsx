@@ -296,7 +296,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     });
   };
 
-  const { isLocked, isOpen, toggleLock, openPane, paneProps, transformClass, handlePaneEnter, handlePaneLeave, isMobile, showBackdrop, closePane } = useSlidingPane({
+  const { isLocked, isOpen, toggleLock, openPane, paneProps, transformClass, handlePaneEnter, handlePaneLeave, showBackdrop, closePane } = useSlidingPane({
     side: 'right',
     isLocked: isTasksPaneLocked,
     onToggleLock: () => {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { GeneratedImageWithMetadata } from '../MediaGallery';
 
-export interface UseMobileInteractionsProps {
+interface UseMobileInteractionsProps {
   isMobile: boolean;
   mobileActiveImageId: string | null;
   setMobileActiveImageId: (id: string | null) => void;
@@ -13,13 +13,12 @@ export interface UseMobileInteractionsProps {
   onOpenLightbox: (image: GeneratedImageWithMetadata) => void;
 }
 
-export interface UseMobileInteractionsReturn {
+interface UseMobileInteractionsReturn {
   handleMobileTap: (image: GeneratedImageWithMetadata) => void;
 }
 
 export const useMobileInteractions = ({
   isMobile,
-  mobileActiveImageId,
   setMobileActiveImageId,
   mobilePopoverOpenImageId,
   setMobilePopoverOpenImageId,

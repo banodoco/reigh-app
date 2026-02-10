@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { handleError } from '@/shared/lib/errorHandler';
 import { getErrorMessage, isError } from '@/shared/lib/errorUtils';
 
-export type VoiceRecordingState = "idle" | "recording" | "processing";
+type VoiceRecordingState = "idle" | "recording" | "processing";
 
 interface UseVoiceRecordingOptions {
   onResult?: (result: { transcription: string; prompt?: string }) => void;

@@ -90,7 +90,6 @@ function performInvalidation(
 ): void {
   const { 
     scope = 'all', 
-    reason, 
     includeShots = false,
     projectId,
     includeProjectUnified = false
@@ -209,7 +208,7 @@ export async function invalidateVariantChange(
   queryClient: QueryClient,
   options: VariantInvalidationOptions
 ): Promise<void> {
-  const { reason, generationId, shotId, projectId, delayMs } = options;
+  const { generationId, shotId, projectId, delayMs } = options;
   
   // Apply delay if specified (e.g., for DB trigger to complete)
   if (delayMs && delayMs > 0) {
@@ -280,7 +279,7 @@ function invalidateGenerationUpdate(
   queryClient: QueryClient,
   options: GenerationUpdateOptions
 ): void {
-  const { reason, generationId, projectId } = options;
+  const { generationId, projectId } = options;
 
   // 1. Invalidate the specific generation
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.detail(generationId) });

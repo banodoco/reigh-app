@@ -3,6 +3,8 @@
 Supports:
 - Unused imports (T1): removes unused symbols from import statements.
 - Debug logs (T1): removes tagged console.log/warn/info/debug lines.
+- Dead exports (T2): removes `export` keyword from declarations with zero external importers.
+- Unused vars (T2): removes unused names from destructuring patterns.
 """
 
 import re
@@ -643,3 +645,314 @@ def _remove_symbols_from_import(import_stmt: str, symbols_to_remove: set[str]) -
             break
 
     return f"{indent}import {type_prefix}{', '.join(parts)} {from_clause}\n"
+
+
+# ── Dead exports fixer ─────────────────────────────────────
+
+# Matches: export [declare] (const|let|function|class|type|interface|enum) name
+_EXPORT_DECL_RE = re.compile(
+    r"^(\s*)export\s+(declare\s+)?"
+    r"((?:const|let|var|function|async\s+function|class|abstract\s+class|type|interface|enum)\s)"
+)
+
+
+def fix_dead_exports(entries: list[dict], *, dry_run: bool = False) -> list[dict]:
+    """Remove `export` keyword from declarations with zero external importers.
+
+    Args:
+        entries: [{file, line, name}, ...] from detect_dead_exports().
+        dry_run: If True, don't write files.
+
+    Returns:
+        List of {file, removed: [str], lines_removed: int} dicts.
+    """
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_file[e["file"]].append(e)
+
+    results = []
+    for filepath, file_entries in sorted(by_file.items()):
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+            original = p.read_text()
+            lines = original.splitlines(keepends=True)
+
+            target_lines = {e["line"] for e in file_entries}  # 1-indexed
+            removed_names = []
+
+            for line_idx in range(len(lines)):
+                lineno = line_idx + 1
+                if lineno not in target_lines:
+                    continue
+
+                line = lines[line_idx]
+                m = _EXPORT_DECL_RE.match(line)
+                if m:
+                    # Remove 'export ' (and optional 'declare ') keeping the rest
+                    indent = m.group(1)
+                    declare = m.group(2) or ""
+                    decl_keyword = m.group(3)
+                    rest = line[m.end():]
+                    lines[line_idx] = f"{indent}{declare}{decl_keyword}{rest}"
+                    name = next((e["name"] for e in file_entries if e["line"] == lineno), "?")
+                    removed_names.append(name)
+                    continue
+
+                # Handle: export { name1, name2 } — remove individual names
+                stripped = line.strip()
+                if stripped.startswith("export {"):
+                    # Parse the export list
+                    names_in_entry = {e["name"] for e in file_entries if e["line"] == lineno}
+                    brace_content = re.search(r"\{([^}]*)\}", stripped)
+                    if brace_content:
+                        all_names = [n.strip() for n in brace_content.group(1).split(",") if n.strip()]
+                        remaining = [n for n in all_names if n.split(" as ")[0].strip() not in names_in_entry]
+                        if not remaining:
+                            # All names dead — remove entire export statement
+                            lines[line_idx] = ""
+                        else:
+                            # Keep remaining names
+                            indent_str = line[:len(line) - len(line.lstrip())]
+                            from_clause = ""
+                            from_match = re.search(r"from\s+['\"].*?['\"];?\s*$", stripped)
+                            if from_match:
+                                from_clause = " " + from_match.group(0).rstrip()
+                                if not from_clause.rstrip().endswith(";"):
+                                    from_clause += ";"
+                            else:
+                                from_clause = ";"
+                            lines[line_idx] = f"{indent_str}export {{ {', '.join(remaining)} }}{from_clause}\n"
+                        removed_names.extend(names_in_entry)
+
+            new_content = "".join(lines)
+            if new_content != original:
+                results.append({
+                    "file": filepath,
+                    "removed": removed_names,
+                    "lines_removed": 0,  # We don't remove lines, just the keyword
+                })
+                if not dry_run:
+                    p.write_text(new_content)
+        except Exception as ex:
+            print(c(f"  Skip {rel(filepath)}: {ex}", "yellow"), file=sys.stderr)
+
+    return results
+
+
+# ── Unused vars fixer (destructuring patterns) ──────────────
+
+# Check if a line is inside an object destructuring pattern
+_DESTR_MEMBER_RE = re.compile(r"^\s*(\w+)\s*(?:=\s*[^,]+)?\s*,?\s*$")
+_REST_ELEMENT_RE = re.compile(r"\.\.\.\w+")
+
+
+def fix_unused_vars(entries: list[dict], *, dry_run: bool = False) -> list[dict]:
+    """Remove unused names from destructuring patterns.
+
+    Handles two patterns:
+    1. Multi-line destructuring: name on its own line → remove line
+    2. Single-line destructuring: const { a, unused, b } = ... → remove unused
+
+    Skips:
+    - Array destructuring (positional — can't just remove)
+    - Destructuring with rest elements (removing changes ...rest)
+    - Function parameters
+    - Standalone variable declarations (may have side effects)
+
+    Args:
+        entries: [{file, line, name, category}, ...] from detect_unused(), category=="vars".
+        dry_run: If True, don't write files.
+
+    Returns:
+        List of {file, removed: [str], lines_removed: int} dicts.
+    """
+    by_file: dict[str, list[dict]] = defaultdict(list)
+    for e in entries:
+        by_file[e["file"]].append(e)
+
+    results = []
+    for filepath, file_entries in sorted(by_file.items()):
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+            original = p.read_text()
+            lines = original.splitlines(keepends=True)
+
+            lines_to_remove: set[int] = set()  # 0-indexed
+            inline_removals: dict[int, set[str]] = defaultdict(set)  # line_idx → names to remove
+            removed_names: list[str] = []
+
+            for e in file_entries:
+                name = e["name"]
+                line_idx = e["line"] - 1
+                if line_idx < 0 or line_idx >= len(lines):
+                    continue
+
+                src = lines[line_idx]
+                stripped = src.strip()
+
+                # Pattern 1: Multi-line destructuring member (name on its own line)
+                # e.g., "  unusedProp," or "  unusedProp = defaultVal,"
+                if _is_destr_member_line(stripped, name):
+                    # Check context: is this inside a { } destructuring?
+                    destr_start = _find_destr_open_brace(lines, line_idx)
+                    if destr_start is not None:
+                        # Check for rest element in this destructuring
+                        destr_text = _get_destr_text(lines, destr_start, line_idx + 20)
+                        if _REST_ELEMENT_RE.search(destr_text):
+                            continue  # Skip — removing would change ...rest
+                        lines_to_remove.add(line_idx)
+                        removed_names.append(name)
+                    continue
+
+                # Pattern 2: Single-line object destructuring
+                # e.g., "const { a, unused, b } = useHook();"
+                if re.match(r"\s*(?:const|let|var)\s*\{", stripped):
+                    destr_text = _collect_full_statement(lines, line_idx)
+                    if _REST_ELEMENT_RE.search(destr_text):
+                        continue  # Skip — rest element present
+                    inline_removals[line_idx].add(name)
+                    removed_names.append(name)
+                    continue
+
+                # Skip everything else (standalone vars, function params, etc.)
+
+            # Apply inline removals (single-line destructuring edits)
+            for line_idx, names_to_remove in inline_removals.items():
+                new_line = _remove_names_from_destr(lines, line_idx, names_to_remove)
+                if new_line is not None:
+                    lines[line_idx] = new_line
+
+            # Apply line removals (multi-line members)
+            new_lines = []
+            prev_blank = False
+            for idx, line in enumerate(lines):
+                if idx in lines_to_remove:
+                    continue
+                is_blank = line.strip() == ""
+                if is_blank and prev_blank:
+                    continue
+                new_lines.append(line)
+                prev_blank = is_blank
+
+            # Fix trailing commas: if we removed the last member before },
+            # the previous member now has a trailing comma which is fine in TS.
+            # But if we removed a middle member, commas are already correct.
+
+            new_content = "".join(new_lines)
+            if new_content != original:
+                lines_removed = len(original.splitlines()) - len(new_content.splitlines())
+                results.append({
+                    "file": filepath,
+                    "removed": removed_names,
+                    "lines_removed": lines_removed,
+                })
+                if not dry_run:
+                    p.write_text(new_content)
+        except Exception as ex:
+            print(c(f"  Skip {rel(filepath)}: {ex}", "yellow"), file=sys.stderr)
+
+    return results
+
+
+def _is_destr_member_line(stripped: str, name: str) -> bool:
+    """Check if a stripped line is a destructuring member matching `name`.
+
+    Matches patterns like:
+      name,
+      name = defaultValue,
+      name: renamedAs,
+      name,  // comment
+    """
+    # Must start with the name (possibly with `type ` prefix for inline type imports)
+    patterns = [
+        rf"^(?:type\s+)?{re.escape(name)}\s*[,}}]",  # name, or name}
+        rf"^(?:type\s+)?{re.escape(name)}\s*=\s*[^,]+[,}}]",  # name = default,
+        rf"^(?:type\s+)?{re.escape(name)}\s*:\s*\w+\s*[,}}]",  # name: alias,
+        rf"^(?:type\s+)?{re.escape(name)}\s*$",  # name (last in list, no comma)
+        rf"^(?:type\s+)?{re.escape(name)}\s*=\s*[^,]+\s*$",  # name = default (last)
+        rf"^(?:type\s+)?{re.escape(name)}\s*,",  # name, (with trailing content/comment)
+    ]
+    clean = stripped.split("//")[0].strip()  # remove inline comments
+    return any(re.match(p, clean) for p in patterns)
+
+
+def _find_destr_open_brace(lines: list[str], member_idx: int) -> int | None:
+    """Walk backwards from a member line to find the opening { of a destructuring."""
+    for idx in range(member_idx - 1, max(member_idx - 30, -1), -1):
+        stripped = lines[idx].strip()
+        if "{" in stripped:
+            return idx
+        # If we hit a line that doesn't look like it's part of a destructuring, stop
+        if stripped and not stripped.endswith(",") and "{" not in stripped:
+            # Could be the line with = or => before the {
+            if "=" in stripped or "=>" in stripped or "(" in stripped:
+                continue
+            break
+    return None
+
+
+def _get_destr_text(lines: list[str], start: int, max_end: int) -> str:
+    """Get the text of a destructuring block from start to closing }."""
+    text = ""
+    depth = 0
+    for idx in range(start, min(max_end, len(lines))):
+        text += lines[idx]
+        for ch in lines[idx]:
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth <= 0:
+                    return text
+    return text
+
+
+def _collect_full_statement(lines: list[str], start: int) -> str:
+    """Collect a potentially multi-line statement starting at start."""
+    text = ""
+    for idx in range(start, min(start + 20, len(lines))):
+        text += lines[idx]
+        if ";" in lines[idx] or (idx > start and "}" in lines[idx]):
+            break
+    return text
+
+
+def _remove_names_from_destr(lines: list[str], line_idx: int, names: set[str]) -> str | None:
+    """Remove specific names from a single-line object destructuring.
+
+    Given: const { a, unused, b } = expr;
+    Returns: const { a, b } = expr;\n
+
+    Returns None if we can't safely parse/modify.
+    """
+    line = lines[line_idx]
+    # Find the { } block
+    brace_match = re.search(r"\{([^}]*)\}", line)
+    if not brace_match:
+        return None
+
+    inner = brace_match.group(1)
+    members = [m.strip() for m in inner.split(",") if m.strip()]
+
+    # Filter out the unused names
+    remaining = []
+    for m in members:
+        # Extract the name (handle `type X`, `X: alias`, `X = default`)
+        member_name = m.split(":")[0].split("=")[0].strip()
+        if member_name.startswith("type "):
+            member_name = member_name[5:].strip()
+        if member_name.startswith("..."):
+            remaining.append(m)  # Always keep rest elements
+            continue
+        if member_name in names:
+            continue  # Skip this one
+        remaining.append(m)
+
+    if not remaining:
+        return None  # All removed — caller should handle
+
+    # Reconstruct
+    new_inner = ", ".join(remaining)
+    before = line[:brace_match.start()]
+    after = line[brace_match.end():]
+    return f"{before}{{ {new_inner} }}{after}"

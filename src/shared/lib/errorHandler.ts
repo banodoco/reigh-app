@@ -18,7 +18,7 @@ import {
   SilentError
 } from './errors';
 
-export interface HandleErrorOptions {
+interface HandleErrorOptions {
   /** Context string for logging (e.g., "ImageUpload", "TaskCreation") */
   context: string;
   /** Additional data to include in logs */

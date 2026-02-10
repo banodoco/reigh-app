@@ -16,7 +16,7 @@ import { camelToSnakeKeys } from '@/shared/lib/caseConversion';
 /**
  * Describes an individual clip that will participate in the join workflow
  */
-export interface JoinClipDescriptor {
+interface JoinClipDescriptor {
   url: string;
   name?: string;
 }
@@ -24,7 +24,7 @@ export interface JoinClipDescriptor {
 /**
  * Describes per-join override settings between two adjacent clips
  */
-export interface JoinClipsPerJoinSettings {
+interface JoinClipsPerJoinSettings {
   prompt?: string;
   gap_frame_count?: number;
   context_frame_count?: number;
@@ -47,7 +47,7 @@ export interface JoinClipsPerJoinSettings {
 /**
  * Frame-accurate portion selection for video editing
  */
-export interface PortionToRegenerate {
+interface PortionToRegenerate {
   start_frame: number;
   end_frame: number;
   start_time_seconds: number;

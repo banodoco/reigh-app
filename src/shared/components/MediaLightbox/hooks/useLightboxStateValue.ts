@@ -12,7 +12,7 @@ import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import type { LightboxStateValue } from '../contexts/LightboxStateContext';
 import type { CurrentSegmentImagesData } from '@/shared/components/VariantSelector/utils';
 
-export interface UseLightboxStateValueInput {
+interface UseLightboxStateValueInput {
   // Core
   onClose: () => void;
   readOnly: boolean;

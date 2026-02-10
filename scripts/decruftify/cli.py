@@ -425,168 +425,248 @@ def cmd_ignore_pattern(args):
 
 
 def cmd_fix(args):
-    """Auto-fix mechanical issues (unused imports)."""
-    fixer = args.fixer
+    """Auto-fix mechanical issues."""
+    import subprocess
+    fixer_name = args.fixer
     dry_run = getattr(args, "dry_run", False)
+    path = Path(args.path)
 
-    if fixer == "unused-imports":
+    fixer = _get_fixer(fixer_name)
+    if fixer is None:
+        print(c(f"Unknown fixer: {fixer_name}", "red"))
+        sys.exit(1)
+
+    # Safety: warn about uncommitted changes when not dry-running
+    if not dry_run:
+        _warn_uncommitted_changes()
+
+    # Step 1: Detect
+    print(c(f"\nDetecting {fixer['label']}...", "dim"), file=sys.stderr)
+    entries = fixer["detect"](path)
+    file_count = len(set(e["file"] for e in entries))
+    print(c(f"  Found {len(entries)} {fixer['label']} across {file_count} files\n", "dim"), file=sys.stderr)
+
+    if not entries:
+        print(c(f"No {fixer['label']} found.", "green"))
+        return
+
+    # Step 2: Fix
+    results = fixer["fix"](entries, dry_run=dry_run)
+    total_items = sum(len(r["removed"]) for r in results)
+    total_lines = sum(r.get("lines_removed", 0) for r in results)
+    verb = fixer.get("dry_verb", "Would fix") if dry_run else fixer.get("verb", "Fixed")
+
+    lines_str = f" ({total_lines} lines)" if total_lines else ""
+    print(c(f"\n  {verb} {total_items} {fixer['label']} across {len(results)} files{lines_str}\n", "bold"))
+    for r in results[:30]:
+        syms = ", ".join(r["removed"][:5])
+        if len(r["removed"]) > 5:
+            syms += f" (+{len(r['removed']) - 5})"
+        extra = f"  ({r['lines_removed']} lines)" if r.get("lines_removed") else ""
+        print(f"  {rel(r['file'])}{extra}  →  {syms}")
+    if len(results) > 30:
+        print(f"  ... and {len(results) - 30} more files")
+
+    # Dry-run: show before/after samples
+    if dry_run and results:
+        _show_dry_run_samples(entries, results, fixer_name)
+
+    # Step 3: Resolve in state
+    if not dry_run:
+        sp = _state_path(args)
+        from .state import load_state, save_state
+        state = load_state(sp)
+        prev_score = state.get("score", 0)
+
+        resolved_ids = _resolve_fixer_results(state, results, fixer["detector"], fixer_name)
+        save_state(state, sp)
+
+        delta = state["score"] - prev_score
+        delta_str = f" ({'+' if delta > 0 else ''}{delta})" if delta else ""
+        print(f"\n  Auto-resolved {len(resolved_ids)} findings in state")
+        print(f"  Score: {state['score']}/100{delta_str}")
+
+        # Step 4: Post-fix hooks (e.g., cascade cleanup)
+        post_fix = fixer.get("post_fix")
+        if post_fix:
+            post_fix(path, state, prev_score, dry_run)
+            save_state(state, sp)
+
+        _write_query({"command": "fix", "fixer": fixer_name,
+                      "files_fixed": len(results), "items_fixed": total_items,
+                      "findings_resolved": len(resolved_ids),
+                      "score": state["score"], "prev_score": prev_score})
+    else:
+        _write_query({"command": "fix", "fixer": fixer_name, "dry_run": True,
+                      "files_would_fix": len(results), "items_would_fix": total_items})
+
+    print()
+
+
+def _warn_uncommitted_changes():
+    """Warn if there are uncommitted changes and suggest git push."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"], capture_output=True, text=True, timeout=5
+        )
+        if result.stdout.strip():
+            print(c("\n  ⚠ You have uncommitted changes. Consider running:", "yellow"))
+            print(c("    git add -A && git commit -m 'pre-fix checkpoint' && git push", "yellow"))
+            print(c("    This ensures you can revert if the fixer produces unexpected results.\n", "dim"))
+    except Exception:
+        pass
+
+
+def _show_dry_run_samples(entries: list[dict], results: list[dict], fixer_name: str):
+    """Show before/after samples for dry-run to help understand what will happen."""
+    import random
+    random.seed(42)
+
+    # Pick up to 5 random files from results
+    sample_results = random.sample(results, min(5, len(results)))
+
+    print(c("\n  ── Sample changes (before → after) ──", "cyan"))
+    for r in sample_results:
+        filepath = r["file"]
+        removed_set = set(r["removed"])
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else Path(".") / filepath
+            lines = p.read_text().splitlines()
+
+            # Find entries for this file that match the removed names
+            file_entries = [
+                e for e in entries
+                if e["file"] == filepath and e.get("name", "") in removed_set
+            ]
+            if not file_entries:
+                continue
+
+            # Show up to 2 changes per file
+            shown = 0
+            for e in file_entries[:2]:
+                line_idx = e.get("line", e.get("detail", {}).get("line", 0)) - 1
+                if line_idx < 0 or line_idx >= len(lines):
+                    continue
+
+                name = e.get("name", e.get("summary", "?"))
+                context_start = max(0, line_idx - 1)
+                context_end = min(len(lines), line_idx + 2)
+
+                if shown == 0:
+                    print(c(f"\n  {rel(filepath)}:", "cyan"))
+
+                print(c(f"    {name} (line {line_idx + 1}):", "dim"))
+                for i in range(context_start, context_end):
+                    marker = c("  →", "red") if i == line_idx else "   "
+                    print(f"    {marker} {i+1:4d}  {lines[i][:90]}")
+                shown += 1
+        except Exception:
+            continue
+
+    skipped = sum(len(r["removed"]) for r in results)
+    detected = len(entries)
+    if detected > skipped:
+        print(c(f"\n  Note: {detected - skipped} of {detected} entries were skipped (complex patterns, rest elements, etc.)", "dim"))
+    print()
+
+
+def _get_fixer(name: str) -> dict | None:
+    """Lazy-load and return fixer config by name."""
+    if name == "unused-imports":
         from .detectors.unused import detect_unused
         from .fix import fix_unused_imports
-        from .state import load_state, save_state, resolve_findings
-
-        path = Path(args.path)
-        print(c("\nDetecting unused imports...", "dim"), file=sys.stderr)
-        entries = detect_unused(path, category="imports")
-        print(c(f"  Found {len(entries)} unused imports across {len(set(e['file'] for e in entries))} files\n", "dim"),
-              file=sys.stderr)
-
-        if not entries:
-            print(c("No unused imports found.", "green"))
-            return
-
-        results = fix_unused_imports(entries, dry_run=dry_run)
-
-        total_removed = sum(len(r["removed"]) for r in results)
-        total_lines = sum(r["lines_removed"] for r in results)
-        verb = "Would remove" if dry_run else "Removed"
-
-        print(c(f"\n  {verb} {total_removed} unused imports from {len(results)} files ({total_lines} lines)\n", "bold"))
-        for r in results[:30]:
-            syms = ", ".join(r["removed"][:5])
-            if len(r["removed"]) > 5:
-                syms += f" (+{len(r['removed']) - 5})"
-            print(f"  {rel(r['file'])}  →  {syms}")
-        if len(results) > 30:
-            print(f"  ... and {len(results) - 30} more files")
-
-        # Auto-resolve in state
-        if not dry_run:
-            sp = _state_path(args)
-            state = load_state(sp)
-            prev_score = state.get("score", 0)
-
-            resolved_ids = []
-            for r in results:
-                rfile = rel(r["file"])
-                for sym in r["removed"]:
-                    fid = f"unused::{rfile}::{sym}"
-                    if fid in state["findings"] and state["findings"][fid]["status"] == "open":
-                        state["findings"][fid]["status"] = "fixed"
-                        state["findings"][fid]["note"] = "auto-fixed by decruftify fix unused-imports"
-                        resolved_ids.append(fid)
-
-            save_state(state, sp)
-            delta = state["score"] - prev_score
-            delta_str = f" ({'+' if delta > 0 else ''}{delta})" if delta else ""
-            print(f"\n  Auto-resolved {len(resolved_ids)} findings in state")
-            print(f"  Score: {state['score']}/100{delta_str}")
-
-            _write_query({"command": "fix", "fixer": fixer,
-                          "files_fixed": len(results), "imports_removed": total_removed,
-                          "findings_resolved": len(resolved_ids),
-                          "score": state["score"], "prev_score": prev_score})
-        else:
-            _write_query({"command": "fix", "fixer": fixer, "dry_run": True,
-                          "files_would_fix": len(results), "imports_would_remove": total_removed})
-
-        print()
-    elif fixer == "debug-logs":
+        return {
+            "label": "unused imports",
+            "detect": lambda path: detect_unused(path, category="imports"),
+            "fix": fix_unused_imports,
+            "detector": "unused",
+            "verb": "Removed", "dry_verb": "Would remove",
+        }
+    elif name == "debug-logs":
         from .detectors.logs import detect_logs
-        from .fix import fix_debug_logs, fix_unused_imports
+        from .fix import fix_debug_logs
+        return {
+            "label": "tagged debug logs",
+            "detect": detect_logs,
+            "fix": _wrap_debug_logs_fix(fix_debug_logs),
+            "detector": "logs",
+            "verb": "Removed", "dry_verb": "Would remove",
+            "post_fix": _cascade_import_cleanup,
+        }
+    elif name == "dead-exports":
+        from .detectors.exports import detect_dead_exports
+        from .fix import fix_dead_exports
+        return {
+            "label": "dead exports",
+            "detect": detect_dead_exports,
+            "fix": fix_dead_exports,
+            "detector": "exports",
+            "verb": "De-exported", "dry_verb": "Would de-export",
+        }
+    elif name == "unused-vars":
         from .detectors.unused import detect_unused
-        from .state import load_state, save_state
+        from .fix import fix_unused_vars
+        return {
+            "label": "unused vars",
+            "detect": lambda path: detect_unused(path, category="vars"),
+            "fix": fix_unused_vars,
+            "detector": "unused",
+            "verb": "Removed", "dry_verb": "Would remove",
+        }
+    return None
 
-        path = Path(args.path)
-        print(c("\nDetecting tagged debug logs...", "dim"), file=sys.stderr)
-        entries = detect_logs(path)
-        print(c(f"  Found {len(entries)} tagged logs across {len(set(e['file'] for e in entries))} files\n", "dim"),
-              file=sys.stderr)
 
-        if not entries:
-            print(c("No tagged debug logs found.", "green"))
-            return
+def _wrap_debug_logs_fix(fix_fn):
+    """Wrap debug-logs fixer to normalize result shape (tags → removed)."""
+    def wrapper(entries, *, dry_run=False):
+        results = fix_fn(entries, dry_run=dry_run)
+        # Normalize: debug-logs uses 'tags' but pipeline expects 'removed'
+        for r in results:
+            r["removed"] = r.get("tags", r.get("removed", []))
+        return results
+    return wrapper
 
-        results = fix_debug_logs(entries, dry_run=dry_run)
-        total_logs = sum(r["log_count"] for r in results)
-        total_lines = sum(r["lines_removed"] for r in results)
-        verb = "Would remove" if dry_run else "Removed"
 
-        print(c(f"\n  {verb} {total_logs} debug logs from {len(results)} files ({total_lines} lines)\n", "bold"))
-        for r in results[:30]:
-            tags = ", ".join(f"[{t}]" for t in r["tags"][:4])
-            if len(r["tags"]) > 4:
-                tags += f" (+{len(r['tags']) - 4})"
-            print(f"  {rel(r['file'])}  ({r['log_count']} logs)  {tags}")
-        if len(results) > 30:
-            print(f"  ... and {len(results) - 30} more files")
+def _resolve_fixer_results(state: dict, results: list[dict], detector: str, fixer_name: str) -> list[str]:
+    """Resolve findings in state for fixer results. Returns list of resolved IDs."""
+    resolved_ids = []
+    for r in results:
+        rfile = rel(r["file"])
+        for sym in r["removed"]:
+            fid = f"{detector}::{rfile}::{sym}"
+            if fid in state["findings"] and state["findings"][fid]["status"] == "open":
+                state["findings"][fid]["status"] = "fixed"
+                state["findings"][fid]["note"] = f"auto-fixed by decruftify fix {fixer_name}"
+                resolved_ids.append(fid)
+    return resolved_ids
 
-        # Auto-resolve log findings in state
-        log_resolved = 0
-        if not dry_run:
-            sp = _state_path(args)
-            state = load_state(sp)
-            prev_score = state.get("score", 0)
 
-            for r in results:
-                rfile = rel(r["file"])
-                for tag in r["tags"]:
-                    fid = f"logs::{rfile}::{tag}"
-                    if fid in state["findings"] and state["findings"][fid]["status"] == "open":
-                        state["findings"][fid]["status"] = "fixed"
-                        state["findings"][fid]["note"] = "auto-fixed by decruftify fix debug-logs"
-                        log_resolved += 1
+def _cascade_import_cleanup(path: Path, state: dict, prev_score: int, dry_run: bool):
+    """Post-fix hook: removing debug logs may leave orphaned imports."""
+    from .detectors.unused import detect_unused
+    from .fix import fix_unused_imports
+    from .state import save_state
 
-            save_state(state, sp)
-            delta = state["score"] - prev_score
-            delta_str = f" ({'+' if delta > 0 else ''}{delta})" if delta else ""
-            print(f"\n  Auto-resolved {log_resolved} log findings in state")
-            print(f"  Score: {state['score']}/100{delta_str}")
+    print(c("\n  Running cascading import cleanup...", "dim"), file=sys.stderr)
+    import_entries = detect_unused(path, category="imports")
+    if not import_entries:
+        print(c("  Cascade: no orphaned imports found", "dim"))
+        return
 
-            # Cascading cleanup: removing logs may leave orphaned imports
-            print(c("\n  Running cascading import cleanup...", "dim"), file=sys.stderr)
-            import_entries = detect_unused(path, category="imports")
-            if import_entries:
-                import_results = fix_unused_imports(import_entries, dry_run=dry_run)
-                import_removed = sum(len(r["removed"]) for r in import_results)
-                import_lines = sum(r["lines_removed"] for r in import_results)
+    import_results = fix_unused_imports(import_entries, dry_run=dry_run)
+    if not import_results:
+        print(c("  Cascade: no orphaned imports found", "dim"))
+        return
 
-                if import_results:
-                    print(c(f"  Cascade: removed {import_removed} now-orphaned imports from {len(import_results)} files ({import_lines} lines)", "green"))
+    import_removed = sum(len(r["removed"]) for r in import_results)
+    import_lines = sum(r["lines_removed"] for r in import_results)
+    print(c(f"  Cascade: removed {import_removed} now-orphaned imports "
+            f"from {len(import_results)} files ({import_lines} lines)", "green"))
 
-                    # Resolve those too
-                    import_resolved = 0
-                    for r in import_results:
-                        rfile = rel(r["file"])
-                        for sym in r["removed"]:
-                            fid = f"unused::{rfile}::{sym}"
-                            if fid in state["findings"] and state["findings"][fid]["status"] == "open":
-                                state["findings"][fid]["status"] = "fixed"
-                                state["findings"][fid]["note"] = "cascade: orphaned after debug-log removal"
-                                import_resolved += 1
-
-                    save_state(state, sp)
-                    if import_resolved:
-                        print(f"  Cascade: auto-resolved {import_resolved} import findings")
-                        delta = state["score"] - prev_score
-                        delta_str = f" ({'+' if delta > 0 else ''}{delta})" if delta else ""
-                        print(f"  Score: {state['score']}/100{delta_str}")
-                else:
-                    print(c("  Cascade: no orphaned imports found", "dim"))
-            else:
-                print(c("  Cascade: no orphaned imports found", "dim"))
-
-            _write_query({"command": "fix", "fixer": fixer,
-                          "files_fixed": len(results), "logs_removed": total_logs,
-                          "log_findings_resolved": log_resolved,
-                          "score": state["score"], "prev_score": prev_score})
-        else:
-            _write_query({"command": "fix", "fixer": fixer, "dry_run": True,
-                          "files_would_fix": len(results), "logs_would_remove": total_logs})
-
-        print()
-    else:
-        print(c(f"Unknown fixer: {fixer}. Available: unused-imports, debug-logs", "red"))
-        sys.exit(1)
+    resolved = _resolve_fixer_results(state, import_results, "unused", "debug-logs (cascade)")
+    if resolved:
+        print(f"  Cascade: auto-resolved {len(resolved)} import findings")
 
 
 def cmd_plan_output(args):
@@ -761,7 +841,8 @@ def create_parser() -> argparse.ArgumentParser:
     p_ignore.add_argument("--state", type=str, default=None)
 
     p_fix = sub.add_parser("fix", help="Auto-fix mechanical issues")
-    p_fix.add_argument("fixer", choices=["unused-imports", "debug-logs"], help="What to fix")
+    p_fix.add_argument("fixer", choices=["unused-imports", "debug-logs", "dead-exports", "unused-vars"],
+                       help="What to fix")
     p_fix.add_argument("--path", type=str, default=str(DEFAULT_PATH))
     p_fix.add_argument("--state", type=str, default=None)
     p_fix.add_argument("--dry-run", action="store_true", help="Show what would change without modifying files")

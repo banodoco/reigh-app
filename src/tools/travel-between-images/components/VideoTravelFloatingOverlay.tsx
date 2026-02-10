@@ -16,7 +16,7 @@ import { useIsTablet } from '@/shared/hooks/use-mobile';
 // PROP TYPES
 // =============================================================================
 
-export interface StickyHeaderProps {
+interface StickyHeaderProps {
   shouldShowShotEditor: boolean;
   stickyHeader: {
     isSticky: boolean;
@@ -36,7 +36,7 @@ export interface StickyHeaderProps {
   onFloatingHeaderNameClick: () => void;
 }
 
-export interface VideoTravelFloatingOverlayProps {
+interface VideoTravelFloatingOverlayProps {
   sticky: StickyHeaderProps;
 }
 

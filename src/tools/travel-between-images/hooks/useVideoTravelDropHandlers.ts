@@ -28,7 +28,7 @@ export interface GenerationDropData {
   metadata?: Record<string, unknown>;
 }
 
-export interface UseVideoTravelDropHandlersParams {
+interface UseVideoTravelDropHandlersParams {
   /** Current project ID */
   selectedProjectId: string | null | undefined;
   /** Current shots list */
@@ -69,7 +69,7 @@ export interface UseVideoTravelDropHandlersParams {
   setShotSortMode: (mode: 'ordered' | 'newest' | 'oldest') => void;
 }
 
-export interface UseVideoTravelDropHandlersReturn {
+interface UseVideoTravelDropHandlersReturn {
   /** Handle dropping a generation onto an existing shot */
   handleGenerationDropOnShot: (
     shotId: string,

@@ -25,7 +25,7 @@ const UploadingVideoState: React.FC = () => (
   </div>
 );
 
-export interface SortableClipProps {
+interface SortableClipProps {
   clip: VideoClip;
   index: number;
   clips: VideoClip[];
@@ -60,7 +60,6 @@ export const SortableClip: React.FC<SortableClipProps> = ({
   draggingOverClipId,
   isScrolling,
   settingsLoaded,
-  videoRefs,
   fileInputRefs,
   transitionPrompts,
   useIndividualPrompts,

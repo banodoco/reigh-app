@@ -8,7 +8,7 @@
  * Priority order (highest to lowest): shot → project → user → defaults
  */
 
-export type GenerationModeRaw = 'batch' | 'timeline' | 'by-pair' | undefined;
+type GenerationModeRaw = 'batch' | 'timeline' | 'by-pair' | undefined;
 export type GenerationModeNormalized = 'batch' | 'timeline';
 
 /**
@@ -24,7 +24,7 @@ function normalizeGenerationMode(mode: GenerationModeRaw): GenerationModeNormali
  * Settings sources for resolution.
  * Each source should contain tool-specific settings (already extracted from the parent object).
  */
-export interface SettingsSources {
+interface SettingsSources {
   defaults?: Record<string, unknown>;
   user?: Record<string, unknown>;
   project?: Record<string, unknown>;

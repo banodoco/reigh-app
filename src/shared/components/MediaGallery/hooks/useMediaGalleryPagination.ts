@@ -14,9 +14,9 @@ import { GeneratedImageWithMetadata } from '../MediaGallery';
  * The loading state is ALWAYS shown immediately when navigating starts,
  * and is ONLY cleared by onImagesReady (called by ProgressiveLoadingManager).
  */
-export type NavigationStatus = 'idle' | 'navigating';
+type NavigationStatus = 'idle' | 'navigating';
 
-export interface NavigationState {
+interface NavigationState {
   status: NavigationStatus;
   direction: 'prev' | 'next' | null;  // null when idle
   targetPage: number | null;           // null when idle
@@ -30,7 +30,7 @@ const INITIAL_NAVIGATION_STATE: NavigationState = {
   startedAt: null,
 };
 
-export interface UseMediaGalleryPaginationProps {
+interface UseMediaGalleryPaginationProps {
   filteredImages: GeneratedImageWithMetadata[];
   itemsPerPage: number;
   onServerPageChange?: (page: number, fromBottom?: boolean) => void;
@@ -42,7 +42,7 @@ export interface UseMediaGalleryPaginationProps {
   galleryTopRef: React.RefObject<HTMLDivElement>;
 }
 
-export interface UseMediaGalleryPaginationReturn {
+interface UseMediaGalleryPaginationReturn {
   // Pagination state
   page: number;
   setPage: (page: number) => void;
@@ -79,7 +79,6 @@ export const useMediaGalleryPagination = ({
   serverPage,
   offset = 0,
   totalCount,
-  enableAdjacentPagePreloading = true,
   isMobile,
   galleryTopRef,
 }: UseMediaGalleryPaginationProps): UseMediaGalleryPaginationReturn => {

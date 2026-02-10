@@ -18,7 +18,7 @@ import { SHOT_FILTER } from '@/shared/constants/filterConstants';
 // Types
 // ============================================================================
 
-export interface UsePromptManagementProps {
+interface UsePromptManagementProps {
   // Shot context
   associatedShotId: string | null;
   effectiveShotId: string;
@@ -51,7 +51,7 @@ export interface UsePromptManagementProps {
   generatePromptId: () => string;
 }
 
-export interface UsePromptManagementReturn {
+interface UsePromptManagementReturn {
   // Computed state (routes to shot or project)
   prompts: PromptEntry[];
   masterPromptText: string;

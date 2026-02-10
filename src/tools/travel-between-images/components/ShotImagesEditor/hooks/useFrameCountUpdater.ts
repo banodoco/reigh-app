@@ -7,7 +7,7 @@ import { useCallback, type RefObject } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { GenerationRow } from '@/types/shots';
 
-export interface UseFrameCountUpdaterProps {
+interface UseFrameCountUpdaterProps {
   /** Shot generations (images) */
   shotGenerations: GenerationRow[];
   /** Current generation mode */
@@ -24,7 +24,7 @@ export interface UseFrameCountUpdaterProps {
   trailingFrameUpdateRef?: RefObject<((endFrame: number) => void) | null>;
 }
 
-export interface UseFrameCountUpdaterReturn {
+interface UseFrameCountUpdaterReturn {
   /** Update the frame count for a pair, shifting subsequent images as needed */
   updatePairFrameCount: (pairShotGenerationId: string, newFrameCount: number) => Promise<{ finalFrameCount: number } | void>;
 }

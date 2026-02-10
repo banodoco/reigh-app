@@ -166,7 +166,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
   const localQueuedTimeoutRef = useRef<number | null>(null);
   
   // Always use hooks - no environment-based disabling
-  const { apiKeys, getApiKey } = useApiKeys();
+  const { getApiKey } = useApiKeys();
   const imageGenerationFormRef = useRef<ImageGenerationFormHandles>(null);
   // Measure gallery container dimensions for calculating correct items per page
   // Height offset accounts for gallery internal chrome:
@@ -816,7 +816,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       ro.disconnect();
     };
   }, [isFormExpanded, isMobile]);
-
 
   useEffect(() => {
     if (generationsResponse && isPageChange) {

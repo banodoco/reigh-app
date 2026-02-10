@@ -50,7 +50,7 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
 }) => {
   // Pull from ShotSettingsContext
   const { selectedShotId } = useShotCore();
-  const { simpleFilteredImages, videoOutputs } = useShotImages();
+  const { simpleFilteredImages } = useShotImages();
   const generationMode = useGenerationMode();
   const joinState = useJoinState();
 

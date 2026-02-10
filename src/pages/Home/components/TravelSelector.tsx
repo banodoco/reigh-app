@@ -57,7 +57,6 @@ interface SelectorButtonProps {
  */
 const SelectorButton: React.FC<SelectorButtonProps> = ({
   example,
-  idx,
   isSelected,
   onClick,
   isNextWithBorder,

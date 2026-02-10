@@ -112,7 +112,7 @@ export async function generateClientThumbnail(
   });
 }
 
-export interface UploadWithThumbnailOptions {
+interface UploadWithThumbnailOptions {
   onProgress?: (progress: number) => void;
   signal?: AbortSignal;
 }

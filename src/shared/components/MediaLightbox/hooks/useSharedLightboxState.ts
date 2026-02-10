@@ -53,7 +53,7 @@ import {
 // Props Interface
 // ============================================================================
 
-export interface UseSharedLightboxStateProps {
+interface UseSharedLightboxStateProps {
   // Core
   media: GenerationRow;
   isVideo: boolean;
@@ -135,7 +135,7 @@ export interface UseSharedLightboxStateProps {
 // Return Interface
 // ============================================================================
 
-export interface UseSharedLightboxStateReturn {
+interface UseSharedLightboxStateReturn {
   // Variants
   variants: {
     list: GenerationVariant[];

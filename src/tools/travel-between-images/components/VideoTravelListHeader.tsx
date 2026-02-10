@@ -19,12 +19,12 @@ import { cn } from '@/shared/lib/utils';
 // PROP TYPES (grouped for clarity)
 // =============================================================================
 
-export interface ViewModeProps {
+interface ViewModeProps {
   showVideosView: boolean;
   setViewMode: (mode: 'shots' | 'videos', opts?: { blurTarget?: HTMLElement | null }) => void;
 }
 
-export interface SearchProps {
+interface SearchProps {
   isMobile: boolean;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
@@ -39,7 +39,7 @@ export interface SearchProps {
   setVideoPage: (page: number) => void;
 }
 
-export interface SortProps {
+interface SortProps {
   showVideosView: boolean;
   shotSortMode: 'ordered' | 'newest' | 'oldest';
   setShotSortMode: (mode: 'ordered' | 'newest' | 'oldest') => void;
@@ -48,7 +48,7 @@ export interface SortProps {
   setVideoPage: (page: number) => void;
 }
 
-export interface VideoTravelListHeaderProps {
+interface VideoTravelListHeaderProps {
   viewMode: ViewModeProps;
   search: SearchProps;
   sort: SortProps;

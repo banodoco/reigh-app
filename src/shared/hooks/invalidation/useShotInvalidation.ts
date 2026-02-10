@@ -33,7 +33,7 @@ function performShotInvalidation(
   queryClient: QueryClient,
   options: ShotInvalidationOptions
 ): void {
-  const { scope = 'all', reason, shotId, projectId } = options;
+  const { scope = 'all', shotId, projectId } = options;
 
   if ((scope === 'list' || scope === 'all') && projectId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(projectId) });

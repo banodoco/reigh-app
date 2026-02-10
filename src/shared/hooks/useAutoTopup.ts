@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
-export interface AutoTopupPreferences {
+interface AutoTopupPreferences {
   enabled: boolean;
   setupCompleted: boolean;
   amount: number; // in dollars

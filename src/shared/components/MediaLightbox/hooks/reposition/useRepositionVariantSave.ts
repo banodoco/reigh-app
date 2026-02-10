@@ -16,7 +16,7 @@ interface MediaWithShotFields {
   all_shot_associations?: Array<{ shot_id: string; position: number | null }>;
 }
 
-export interface UseRepositionVariantSaveProps {
+interface UseRepositionVariantSaveProps {
   media: GenerationRow;
   selectedProjectId: string | null;
   shotId?: string;
@@ -40,7 +40,7 @@ export interface UseRepositionVariantSaveProps {
   markSkipNextCache: () => void;
 }
 
-export interface UseRepositionVariantSaveReturn {
+interface UseRepositionVariantSaveReturn {
   isSavingAsVariant: boolean;
   saveAsVariantSuccess: boolean;
   handleSaveAsVariant: () => Promise<void>;

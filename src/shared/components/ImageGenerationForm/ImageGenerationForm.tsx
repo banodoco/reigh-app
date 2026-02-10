@@ -587,12 +587,10 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   // Form Submission (extracted hook)
   // ============================================================================
   const {
-    getTaskParams,
     handleSubmit,
     handleGenerateAndQueue,
     handleUseExistingPrompts,
     handleNewPromptsLikeExisting,
-    isGeneratingAutomatedPrompts,
   } = useFormSubmission({
     selectedProjectId,
     prompts,
@@ -737,7 +735,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     handleAddLora,
     handleRemoveLora,
     handleLoraStrengthChange,
-    handleLoadProjectLoras,
   } = useLoraHandlers({
     loraManager: {
       selectedLoras: loraManager.selectedLoras,

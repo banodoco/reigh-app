@@ -52,7 +52,7 @@ const switchThumbVariants = cva(
   }
 )
 
-export interface SwitchProps
+interface SwitchProps
   extends Omit<React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>, 'onCheckedChange'>,
     VariantProps<typeof switchVariants> {
   onCheckedChange?: (checked: boolean) => void

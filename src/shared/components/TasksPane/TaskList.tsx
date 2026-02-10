@@ -144,7 +144,6 @@ const TaskListComponent: React.FC<TaskListProps> = ({
   onCloseLightbox,
   mobileActiveTaskId,
   onMobileActiveTaskChange,
-  taskTypeFilter,
   showProjectIndicator = false,
   projectNameMap = {},
 }) => {

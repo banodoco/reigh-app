@@ -12,7 +12,7 @@ import type { GenerationRow } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
 /** Generation row with badge data merged in */
-export interface GenerationWithBadges extends GenerationRow {
+interface GenerationWithBadges extends GenerationRow {
   derivedCount?: number;
   hasUnviewedVariants?: boolean;
   unviewedVariantCount?: number;

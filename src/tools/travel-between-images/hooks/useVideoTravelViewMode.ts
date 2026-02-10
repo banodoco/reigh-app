@@ -17,7 +17,7 @@
 import { useState, useCallback, useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useLocation } from 'react-router-dom';
 
-export interface VideoGalleryFilters {
+interface VideoGalleryFilters {
   videoPage: number;
   videoShotFilter: string;
   videoExcludePositioned: boolean;
@@ -28,7 +28,7 @@ export interface VideoGalleryFilters {
   videoSortMode: 'newest' | 'oldest';
 }
 
-export interface UseVideoTravelViewModeParams {
+interface UseVideoTravelViewModeParams {
   /** Project ID - used to reset video page on project change */
   selectedProjectId: string | null | undefined;
   /** Initial shot sort mode from persisted settings */
@@ -37,7 +37,7 @@ export interface UseVideoTravelViewModeParams {
   onShotSortModeChange?: (mode: 'ordered' | 'newest' | 'oldest') => void;
 }
 
-export interface UseVideoTravelViewModeReturn {
+interface UseVideoTravelViewModeReturn {
   // View mode
   showVideosView: boolean;
   /**

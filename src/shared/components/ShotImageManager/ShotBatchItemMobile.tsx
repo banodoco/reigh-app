@@ -22,13 +22,10 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
   onDelete,
   onDuplicate,
   onOpenLightbox,
-  onInpaintClick,
-  hideDeleteButton = false,
   duplicatingImageId,
   duplicateSuccessImageId,
   shouldLoad = true,
   projectAspectRatio,
-  frameNumber,
   readOnly = false,
   onMarkAllViewed,
 }) => {

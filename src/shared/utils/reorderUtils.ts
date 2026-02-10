@@ -3,13 +3,13 @@
  * These functions contain no side effects and can be easily tested
  */
 
-export interface SwapStep {
+interface SwapStep {
   shotGenIdA: string;
   shotGenIdB: string;
   reason: string;
 }
 
-export interface ReorderAnalysis {
+interface ReorderAnalysis {
   swapSequence: SwapStep[];
   finalOrder: string[];
   noChangesNeeded: boolean;

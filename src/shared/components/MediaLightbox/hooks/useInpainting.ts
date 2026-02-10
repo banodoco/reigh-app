@@ -45,7 +45,6 @@ export const useInpainting = ({
   toolTypeOverride,
   isVideo,
   imageDimensions,
-  imageContainerRef,
   handleExitInpaintMode,
   loras,
   activeVariantId,
@@ -53,8 +52,6 @@ export const useInpainting = ({
   createAsGeneration,
   advancedSettings,
   qwenEditModel,
-  imageUrl,
-  thumbnailUrl,
   initialEditMode,
 }: UseInpaintingProps): UseInpaintingReturn => {
   // ============================================

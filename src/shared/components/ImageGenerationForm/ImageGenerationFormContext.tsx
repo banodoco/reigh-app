@@ -105,7 +105,7 @@ export interface FormLoraHandlers {
 }
 
 /** Full context value */
-export interface ImageGenerationFormContextValue {
+interface ImageGenerationFormContextValue {
   // UI state from reducer
   uiState: ImageGenerationFormUIState;
   uiActions: FormUIActions;
@@ -136,7 +136,7 @@ const ImageGenerationFormContext = createContext<ImageGenerationFormContextValue
 // Hook
 // ============================================================================
 
-export function useImageGenerationFormContext(): ImageGenerationFormContextValue {
+function useImageGenerationFormContext(): ImageGenerationFormContextValue {
   const context = useContext(ImageGenerationFormContext);
   if (!context) {
     throw new Error(

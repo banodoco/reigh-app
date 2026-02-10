@@ -4,7 +4,7 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Scissors, Trash2, Plus, Video } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 
-export interface SegmentFormDialogProps {
+interface SegmentFormDialogProps {
   segmentStartTime: number | null;
   segmentEndTime: number | null;
   currentTime: number;

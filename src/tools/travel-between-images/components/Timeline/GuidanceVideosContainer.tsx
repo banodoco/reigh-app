@@ -3,7 +3,7 @@ import { GuidanceVideoStrip } from './GuidanceVideoStrip';
 import { TIMELINE_PADDING_OFFSET } from './constants';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
-export interface GuidanceVideosContainerProps {
+interface GuidanceVideosContainerProps {
   /** Array of structure video configurations */
   structureVideos: StructureVideoConfigWithMetadata[];
   /** Update a structure video at index */

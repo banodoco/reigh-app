@@ -16,7 +16,7 @@ import type { Resource, StructureVideoMetadata } from '@/shared/hooks/useResourc
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
 
-export interface UseTimelineOrchestratorProps {
+interface UseTimelineOrchestratorProps {
   shotId: string;
   projectId?: string;
   images: GenerationRow[];
@@ -49,7 +49,7 @@ export interface UseTimelineOrchestratorProps {
   ) => void;
 }
 
-export interface UseTimelineOrchestratorReturn {
+interface UseTimelineOrchestratorReturn {
   // Refs
   timelineRef: React.RefObject<HTMLDivElement>;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -139,7 +139,6 @@ export interface UseTimelineOrchestratorReturn {
 
 export function useTimelineOrchestrator({
   shotId,
-  projectId,
   images,
   framePositions,
   setFramePositions,

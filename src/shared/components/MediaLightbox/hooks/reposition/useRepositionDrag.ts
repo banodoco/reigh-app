@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ImageTransform } from './types';
 
-export interface UseRepositionDragProps {
+interface UseRepositionDragProps {
   transform: ImageTransform;
   imageDimensions: { width: number; height: number } | null;
   imageContainerRef: React.RefObject<HTMLDivElement>;
@@ -9,7 +9,7 @@ export interface UseRepositionDragProps {
   onTransformChange: (updates: Partial<ImageTransform>) => void;
 }
 
-export interface UseRepositionDragReturn {
+interface UseRepositionDragReturn {
   isDragging: boolean;
   dragHandlers: {
     onPointerDown: (e: React.PointerEvent) => void;

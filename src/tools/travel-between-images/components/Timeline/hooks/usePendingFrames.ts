@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { GenerationRow } from '@/types/shots';
 
-export interface UsePendingFramesProps {
+interface UsePendingFramesProps {
   shotId: string;
   images: GenerationRow[];
   isUploadingImage: boolean;
 }
 
-export interface UsePendingFramesReturn {
+interface UsePendingFramesReturn {
   pendingDropFrame: number | null;
   setPendingDropFrame: (frame: number | null) => void;
   pendingDuplicateFrame: number | null;

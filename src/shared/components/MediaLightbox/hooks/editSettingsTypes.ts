@@ -133,7 +133,7 @@ const DEFAULT_SYNCED_SETTINGS: SyncedEditSettings = {
  * Settings only stored per-generation (not inherited to new generations).
  * Prompts and generation-specific options.
  */
-export interface PerGenerationOnlySettings {
+interface PerGenerationOnlySettings {
   prompt: string;
   img2imgPrompt: string;
   img2imgPromptHasBeenSet: boolean;
@@ -153,7 +153,7 @@ const DEFAULT_PER_GENERATION_SETTINGS: PerGenerationOnlySettings = {
  * Settings only stored at user level (preferences that persist across generations).
  * These control UI state, not generation parameters.
  */
-export interface UserPreferenceSettings {
+interface UserPreferenceSettings {
   editMode: EditMode;
   videoEditSubMode: VideoEditSubMode;
   panelMode: PanelMode;

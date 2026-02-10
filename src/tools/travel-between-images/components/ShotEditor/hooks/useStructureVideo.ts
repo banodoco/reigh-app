@@ -8,7 +8,7 @@ import {
   StructureVideoConfigWithMetadata,
 } from '@/shared/lib/tasks/travelBetweenImages';
 
-export interface UseStructureVideoParams {
+interface UseStructureVideoParams {
   projectId: string;
   shotId: string | undefined;
   /** Timeline frame range for auto-calculating default video ranges */
@@ -182,7 +182,6 @@ function arrayToLegacyConfig(videos: StructureVideoConfigWithMetadata[]): Legacy
 export function useStructureVideo({
   projectId,
   shotId,
-  timelineStartFrame = 0,
   timelineEndFrame = 81,
 }: UseStructureVideoParams): UseStructureVideoReturn {
   // Structure video persistence using tool settings (per-shot basis)

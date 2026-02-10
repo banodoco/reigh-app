@@ -290,10 +290,10 @@ export const queryKeys = {
 // ============================================================================
 
 /** Full query keys object type */
-export type QueryKeys = typeof queryKeys;
+type QueryKeys = typeof queryKeys;
 
 /** Helper type to extract return type of a query key function */
-export type QueryKeyOf<T> = T extends (...args: any[]) => infer R ? R : T;
+type QueryKeyOf<T> = T extends (...args: any[]) => infer R ? R : T;
 
 // ============================================================================
 // LEGACY KEY CONSTANTS

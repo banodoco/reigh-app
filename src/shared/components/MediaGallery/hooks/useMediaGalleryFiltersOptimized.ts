@@ -3,7 +3,7 @@ import { GeneratedImageWithMetadata } from '../index';
 import { hasVideoExtension } from '@/shared/lib/typeGuards';
 
 // Consolidated filters state interface
-export interface MediaGalleryFiltersState {
+interface MediaGalleryFiltersState {
   // Filter states
   filterByToolType: boolean;
   mediaTypeFilter: 'all' | 'image' | 'video';
@@ -18,7 +18,7 @@ export interface MediaGalleryFiltersState {
 }
 
 // Action types for the filters reducer
-export type MediaGalleryFiltersAction =
+type MediaGalleryFiltersAction =
   | { type: 'SET_FILTER_BY_TOOL_TYPE'; payload: boolean }
   | { type: 'SET_MEDIA_TYPE_FILTER'; payload: 'all' | 'image' | 'video' }
   | { type: 'SET_SHOT_FILTER'; payload: string }
@@ -117,7 +117,7 @@ const mediaGalleryFiltersReducer = (
   }
 };
 
-export interface UseMediaGalleryFiltersOptimizedProps {
+interface UseMediaGalleryFiltersOptimizedProps {
   images: GeneratedImageWithMetadata[];
   optimisticDeletedIds: Set<string>;
   currentToolType?: string;
@@ -138,7 +138,7 @@ export interface UseMediaGalleryFiltersOptimizedProps {
   onToolTypeFilterChange?: (enabled: boolean) => void;
 }
 
-export interface UseMediaGalleryFiltersOptimizedReturn {
+interface UseMediaGalleryFiltersOptimizedReturn {
   // State
   filtersState: MediaGalleryFiltersState;
   
@@ -191,9 +191,7 @@ export const useMediaGalleryFiltersOptimized = ({
   onShotFilterChange,
   onExcludePositionedChange,
   onSearchChange,
-  onMediaTypeFilterChange,
   onStarredFilterChange,
-  onToolTypeFilterChange,
 }: UseMediaGalleryFiltersOptimizedProps): UseMediaGalleryFiltersOptimizedReturn => {
   
   // Initialize state with useReducer instead of multiple useState calls

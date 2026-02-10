@@ -8,7 +8,7 @@ export function isError(value: unknown): value is Error {
 /**
  * Type guard for errors with a code property (e.g., Supabase errors)
  */
-export interface ErrorWithCode extends Error {
+interface ErrorWithCode extends Error {
   code?: string;
 }
 
@@ -19,7 +19,7 @@ export function isErrorWithCode(value: unknown): value is ErrorWithCode {
 /**
  * Type guard for errors with status (e.g., HTTP errors)
  */
-export interface ErrorWithStatus extends Error {
+interface ErrorWithStatus extends Error {
   status?: number;
 }
 

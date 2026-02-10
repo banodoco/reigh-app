@@ -25,13 +25,10 @@ interface GenerateVideoCTAProps {
  * Used in both the original position and floating position
  */
 export const GenerateVideoCTA: React.FC<GenerateVideoCTAProps> = ({
-  variantName,
-  onVariantNameChange,
   onGenerate,
   isGenerating,
   justQueued,
   disabled,
-  inputId = 'variant-name',
   videoCount = 1,
   middleContent,
   bottomContent,

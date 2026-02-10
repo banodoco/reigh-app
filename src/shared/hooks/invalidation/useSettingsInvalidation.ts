@@ -38,7 +38,7 @@ function performSettingsInvalidation(
   queryClient: QueryClient,
   options: SettingsInvalidationOptions
 ): void {
-  const { scope, reason, toolId, projectId, shotId, pairId } = options;
+  const { scope, toolId, projectId, shotId, pairId } = options;
 
   if ((scope === 'tool' || scope === 'all') && toolId && projectId) {
     queryClient.invalidateQueries({

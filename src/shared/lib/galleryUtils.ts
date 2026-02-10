@@ -8,7 +8,7 @@
 /**
  * Result of extracting segment input images from params
  */
-export interface SegmentImageInfo {
+interface SegmentImageInfo {
   startUrl: string | undefined;
   endUrl: string | undefined;
   startGenId: string | undefined;

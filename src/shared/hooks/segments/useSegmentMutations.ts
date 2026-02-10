@@ -17,12 +17,12 @@ import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { buildMetadataUpdate, type SegmentSettings } from '@/shared/components/segmentSettingsUtils';
 import type { ShotVideoSettings } from '@/shared/utils/settingsMigration';
 
-export interface UseSegmentMutationsOptions {
+interface UseSegmentMutationsOptions {
   pairShotGenerationId: string | null | undefined;
   shotId: string | null | undefined;
 }
 
-export interface UseSegmentMutationsReturn {
+interface UseSegmentMutationsReturn {
   /** Save segment settings to pair metadata */
   savePairMetadata: (settings: SegmentSettings) => Promise<boolean>;
   /** Save current settings as shot-level defaults */

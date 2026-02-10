@@ -135,8 +135,8 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
 // Status Display Component (optional, for debugging or user feedback)
 // =============================================================================
 
-export function RealtimeStatusIndicator() {
-  const { status, error, reconnectAttempt, reconnect, isFailed } = useRealtime();
+function RealtimeStatusIndicator() {
+  const { status, reconnectAttempt, reconnect, isFailed } = useRealtime();
 
   if (status === 'connected') {
     return null; // Don't show anything when connected

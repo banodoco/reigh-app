@@ -31,7 +31,7 @@ import type { PhaseConfig } from '@/shared/types/phaseConfig';
 // Types
 // ============================================================================
 
-export interface PairPrompts {
+interface PairPrompts {
   prompt: string;
   negativePrompt: string;
 }
@@ -89,7 +89,7 @@ export interface PositionMetadata {
   pair_motion_settings?: { motionMode?: 'basic' | 'advanced'; amountOfMotion?: number };
 }
 
-export interface TimelineCoreResult {
+interface TimelineCoreResult {
   // Data
   generations: GenerationRow[] | undefined;
   positionedItems: GenerationRow[];
@@ -267,7 +267,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
 
       try {
         // Use delete_and_normalize RPC for atomic delete + normalize
-        const { data, error } = await supabase.rpc('delete_and_normalize', {
+        const { error } = await supabase.rpc('delete_and_normalize', {
           p_shot_id: shotId,
           p_shot_generation_id: shotGenerationId,
         });
@@ -291,7 +291,7 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
 
       try {
         // Use unposition_and_normalize RPC for atomic unposition + normalize
-        const { data, error } = await supabase.rpc('unposition_and_normalize', {
+        const { error } = await supabase.rpc('unposition_and_normalize', {
           p_shot_id: shotId,
           p_shot_generation_id: shotGenerationId,
         });

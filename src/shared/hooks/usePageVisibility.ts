@@ -7,7 +7,7 @@ import { VisibilityManager, type VisibilitySignals, type VisibilityEventType } f
  * 
  * Now uses centralized VisibilityManager to prevent duplicate listeners
  */
-export function usePageVisibility() {
+function usePageVisibility() {
   const [state, setState] = useState(() => {
     const initialState = VisibilityManager.getState();
     return {

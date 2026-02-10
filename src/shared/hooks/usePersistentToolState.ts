@@ -27,11 +27,11 @@ function inferEmptyValue(value: unknown): unknown {
   return undefined;
 }
 
-export interface StateMapping<T> {
+interface StateMapping<T> {
   [key: string]: [T[keyof T], React.Dispatch<React.SetStateAction<T[keyof T]>>];
 }
 
-export interface UsePersistentToolStateOptions {
+interface UsePersistentToolStateOptions {
   debounceMs?: number;
   scope?: SettingsScope;
   /**
@@ -41,7 +41,7 @@ export interface UsePersistentToolStateOptions {
   enabled?: boolean;
 }
 
-export interface UsePersistentToolStateResult {
+interface UsePersistentToolStateResult {
   ready: boolean;
   isSaving: boolean;
   saveError?: Error;

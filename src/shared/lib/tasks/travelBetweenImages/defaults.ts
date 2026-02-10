@@ -18,7 +18,7 @@ export const DEFAULT_VIDEO_STRUCTURE_PARAMS: Required<Pick<VideoStructureApiPara
 /**
  * Default values for video motion API params
  */
-export const DEFAULT_VIDEO_MOTION_PARAMS: Required<Pick<VideoMotionApiParams, 'amount_of_motion' | 'motion_mode' | 'advanced_mode'>> = {
+const DEFAULT_VIDEO_MOTION_PARAMS: Required<Pick<VideoMotionApiParams, 'amount_of_motion' | 'motion_mode' | 'advanced_mode'>> = {
   amount_of_motion: 0.5,
   motion_mode: 'basic',
   advanced_mode: false,
@@ -27,7 +27,7 @@ export const DEFAULT_VIDEO_MOTION_PARAMS: Required<Pick<VideoMotionApiParams, 'a
 /**
  * Default values for prompt config
  */
-export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
+const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   base_prompt: '',
   enhance_prompt: false,
   text_before_prompts: '',
@@ -38,7 +38,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
 /**
  * Default values for motion config
  */
-export const DEFAULT_MOTION_CONFIG: MotionConfig = {
+const DEFAULT_MOTION_CONFIG: MotionConfig = {
   amount_of_motion: 50,
   motion_mode: 'basic',
   advanced_mode: false,
@@ -49,7 +49,7 @@ export const DEFAULT_MOTION_CONFIG: MotionConfig = {
 /**
  * Default values for model config
  */
-export const DEFAULT_MODEL_CONFIG: ModelConfig = {
+const DEFAULT_MODEL_CONFIG: ModelConfig = {
   seed: 11111,
   random_seed: true,
   turbo_mode: false,

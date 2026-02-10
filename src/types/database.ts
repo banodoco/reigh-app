@@ -19,7 +19,7 @@ const CREDIT_LEDGER_TYPE = {
   REFUND: 'refund'
 } as const;
 
-export type CreditLedgerType = typeof CREDIT_LEDGER_TYPE[keyof typeof CREDIT_LEDGER_TYPE];
+type CreditLedgerType = typeof CREDIT_LEDGER_TYPE[keyof typeof CREDIT_LEDGER_TYPE];
 
 // Core table types (matching your database structure)
 export interface User {
@@ -95,7 +95,7 @@ export interface Worker {
   metadata?: Record<string, unknown>;
 }
 
-export interface CreditLedger {
+interface CreditLedger {
   id: string;
   user_id: string;
   amount: number;
@@ -107,7 +107,7 @@ export interface CreditLedger {
 
 
 
-export interface UserAPIToken {
+interface UserAPIToken {
   id: string;
   user_id: string;
   name: string;
@@ -133,7 +133,7 @@ export interface TrainingDataBatch {
   created_at: string;
 }
 
-export interface TrainingData {
+interface TrainingData {
   id: string;
   batch_id: string;
   filename: string;

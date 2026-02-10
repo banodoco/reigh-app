@@ -12,7 +12,7 @@ import { handleError } from '@/shared/lib/errorHandler';
  * Join Segments settings are also inherited separately (joinSegmentsSettings)
  * to preserve the user's last Join mode configuration.
  */
-export interface InheritSettingsParams {
+interface InheritSettingsParams {
   newShotId: string;
   projectId: string;
   shots?: Array<{
@@ -23,7 +23,7 @@ export interface InheritSettingsParams {
   }>;
 }
 
-export interface InheritedSettings {
+interface InheritedSettings {
   mainSettings: Record<string, unknown> | null;
   uiSettings: Record<string, unknown> | null;
   joinSegmentsSettings: Record<string, unknown> | null; // Join Segments mode settings

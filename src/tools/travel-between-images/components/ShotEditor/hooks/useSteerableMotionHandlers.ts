@@ -42,7 +42,6 @@ interface UseSteerableMotionHandlersReturn {
 
 export function useSteerableMotionHandlers({
   accelerated,
-  randomSeed,
   turboMode,
   steerableMotionSettings,
   isShotUISettingsLoading,

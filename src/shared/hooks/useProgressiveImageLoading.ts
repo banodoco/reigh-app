@@ -49,7 +49,6 @@ export const useProgressiveImageLoading = ({
   isMobile,
   useIntersectionObserver = true, // Enable by default for better mobile performance
   isLightboxOpen = false, // Pause loading when lightbox is open
-  instanceId = 'default' // Default instance ID
 }: UseProgressiveImageLoadingProps) => {
   const [showImageIndices, setShowImageIndices] = useState<Set<number>>(new Set());
   const currentPageRef = useRef(page);

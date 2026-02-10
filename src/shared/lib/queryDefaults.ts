@@ -146,12 +146,12 @@ export const QUERY_PRESETS = {
 /**
  * Type helper for extracting preset keys
  */
-export type QueryPresetKey = keyof typeof QUERY_PRESETS;
+type QueryPresetKey = keyof typeof QUERY_PRESETS;
 
 /**
  * Classify an error to determine retry strategy
  */
-export const classifyNetworkError = (error: Error): {
+const classifyNetworkError = (error: Error): {
   type: 'transient' | 'client' | 'server' | 'auth' | 'abort';
   shouldRetry: boolean;
   maxRetries: number;
@@ -246,7 +246,7 @@ export const STANDARD_RETRY_DELAY = (attemptIndex: number, error?: Error) => {
  *   }),
  * })
  */
-export function withCircuitBreaker<T>(
+function withCircuitBreaker<T>(
   queryKey: string[],
   queryFn: () => Promise<T>
 ): () => Promise<T> {
@@ -273,7 +273,7 @@ export function withCircuitBreaker<T>(
  *   ...createQueryOptionsWithCircuitBreaker(['my-query', id]),
  * })
  */
-export function createQueryOptionsWithCircuitBreaker(queryKey: string[]) {
+function createQueryOptionsWithCircuitBreaker(queryKey: string[]) {
   return {
     retry: STANDARD_RETRY,
     retryDelay: STANDARD_RETRY_DELAY,

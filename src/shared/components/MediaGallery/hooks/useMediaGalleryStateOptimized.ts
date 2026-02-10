@@ -8,7 +8,7 @@ import { GenerationRow } from '@/types/shots';
 import { GeneratedImageWithMetadata } from '../index';
 
 // Consolidated state interface
-export interface MediaGalleryState {
+interface MediaGalleryState {
   // Lightbox state
   activeLightboxMedia: GenerationRow | null;
   autoEnterEditMode: boolean;
@@ -42,7 +42,7 @@ export interface MediaGalleryState {
 }
 
 // Action types for the reducer
-export type MediaGalleryStateAction =
+type MediaGalleryStateAction =
   | { type: 'SET_LIGHTBOX_MEDIA'; payload: GenerationRow | null }
   | { type: 'SET_AUTO_ENTER_EDIT_MODE'; payload: boolean }
   | { type: 'SET_SELECTED_IMAGE_FOR_DETAILS'; payload: GenerationRow | null }
@@ -266,7 +266,7 @@ const mediaGalleryStateReducer = (
   }
 };
 
-export interface UseMediaGalleryStateOptimizedProps {
+interface UseMediaGalleryStateOptimizedProps {
   images: GeneratedImageWithMetadata[];
   currentShotId?: string;
   lastShotId?: string;
@@ -275,7 +275,7 @@ export interface UseMediaGalleryStateOptimizedProps {
   serverPage?: number;
 }
 
-export interface UseMediaGalleryStateOptimizedReturn {
+interface UseMediaGalleryStateOptimizedReturn {
   // State
   state: MediaGalleryState;
   
@@ -318,8 +318,6 @@ export const useMediaGalleryStateOptimized = ({
   currentShotId,
   lastShotId,
   simplifiedShotOptions,
-  isServerPagination = false,
-  serverPage
 }: UseMediaGalleryStateOptimizedProps): UseMediaGalleryStateOptimizedReturn => {
   
   // Initialize state with useReducer instead of multiple useState calls

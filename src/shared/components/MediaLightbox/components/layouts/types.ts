@@ -81,7 +81,7 @@ interface LayoutEditModeProps {
 /**
  * Button group props (from useButtonGroupProps)
  */
-export interface LayoutButtonGroupProps {
+interface LayoutButtonGroupProps {
   topLeft: React.ReactNode;
   topRight: React.ReactNode;
   bottomLeft: React.ReactNode;
@@ -91,7 +91,7 @@ export interface LayoutButtonGroupProps {
 /**
  * Workflow controls bar props
  */
-export interface LayoutWorkflowBarProps {
+interface LayoutWorkflowBarProps {
   onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   onDelete?: (id: string) => void;
   onApplySettings?: (metadata: Record<string, unknown>) => void;
@@ -126,7 +126,7 @@ interface LayoutPanelProps {
  * Simplified floating tool props as consumed by LightboxLayout
  * (FloatingToolControls reads most state from ImageEditContext)
  */
-export interface LayoutFloatingToolPropsSimple {
+interface LayoutFloatingToolPropsSimple {
   repositionTransform: ImageTransform;
   onRepositionScaleChange: (value: number) => void;
   onRepositionRotationChange: (value: number) => void;
@@ -138,7 +138,7 @@ export interface LayoutFloatingToolPropsSimple {
 /**
  * Workflow controls props for below-media controls (centered layout only)
  */
-export interface LayoutWorkflowControlsProps extends LayoutWorkflowBarProps {
+interface LayoutWorkflowControlsProps extends LayoutWorkflowBarProps {
   isDeleting?: string | null;
   handleDelete: () => void;
 }

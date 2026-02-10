@@ -112,7 +112,7 @@ export const generateAIInstructions = (
   config: CommandConfig,
   activeInstallTab: string
 ): string => {
-  const { computerType, token } = config;
+  const { computerType } = config;
   const isWindows = computerType === "windows";
   const isInstalling = activeInstallTab === "need-install";
 

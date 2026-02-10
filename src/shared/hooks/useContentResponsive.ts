@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { usePanes } from '@/shared/contexts/PanesContext';
 
 // Local fallback type definition (mirrors original)
-export interface ContentBreakpoints {
+interface ContentBreakpoints {
   isSm: boolean;
   isMd: boolean;
   isLg: boolean;

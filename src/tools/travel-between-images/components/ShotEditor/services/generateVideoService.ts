@@ -157,7 +157,7 @@ function buildStructureGuidance(
 
 // ============================================================================
 
-export interface GenerateVideoParams {
+interface GenerateVideoParams {
   projectId: string;
   selectedShotId: string;
   selectedShot: Shot;
@@ -179,7 +179,7 @@ export interface GenerateVideoParams {
   stitchConfig?: StitchConfig;
 }
 
-export interface GenerateVideoResult {
+interface GenerateVideoResult {
   success: boolean;
   error?: string;
   parentGenerationId?: string;

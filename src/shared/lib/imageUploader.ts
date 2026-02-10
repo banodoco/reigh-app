@@ -11,7 +11,7 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const DEFAULT_TIMEOUT_MS = 60000; // 60 seconds for images
 const STALL_TIMEOUT_MS = 15000; // 15 seconds without progress = stalled
 
-export interface UploadOptions {
+interface UploadOptions {
   maxRetries?: number;
   onProgress?: (progress: number) => void;
   signal?: AbortSignal;

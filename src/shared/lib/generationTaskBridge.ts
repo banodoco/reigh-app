@@ -22,13 +22,13 @@ import { handleError } from '@/shared/lib/errorHandler';
 // TYPES
 // ================================================================
 
-export interface GenerationTaskMapping {
+interface GenerationTaskMapping {
   generationId: string;
   taskId: string | null;
   taskData?: Task; // Full task object when available
 }
 
-export interface TaskGenerationMapping {
+interface TaskGenerationMapping {
   taskId: string;
   generationId: string | null;
   generationData?: GenerationRow; // Full generation object when available

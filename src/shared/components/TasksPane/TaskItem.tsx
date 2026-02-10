@@ -135,7 +135,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   });
 
   // Image generation hook
-  const { generationData, actualGeneration, variantId: imageVariantId } = useImageGeneration({
+  const { generationData, variantId: imageVariantId } = useImageGeneration({
     task,
     taskParams,
     isImageTask: taskInfo.isImageTask,

@@ -40,12 +40,6 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
   onZoomReset,
   onZoomToStart,
   onResetFrames,
-  shotId,
-  projectId,
-  structureVideoPath,
-  structureVideoTreatment = 'adjust',
-  structureVideoMotionStrength = 1.0,
-  onStructureVideoChange,
 }) => {
   // Default to 9 (valid 4N+1 value: 4*2+1)
   const [resetGap, setResetGap] = React.useState<number>(9);

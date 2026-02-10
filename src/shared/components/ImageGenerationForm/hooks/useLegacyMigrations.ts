@@ -26,7 +26,7 @@ import {
 // Types
 // ============================================================================
 
-export interface UseLegacyMigrationsProps {
+interface UseLegacyMigrationsProps {
   selectedProjectId: string | null;
   effectiveShotId: string;
 

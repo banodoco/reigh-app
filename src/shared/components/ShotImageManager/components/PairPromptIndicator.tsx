@@ -34,15 +34,10 @@ interface PairPromptIndicatorProps {
  */
 const PairPromptIndicatorComponent: React.FC<PairPromptIndicatorProps> = ({
   pairIndex,
-  frames,
-  startFrame,
-  endFrame,
   onPairClick,
   pairPrompt,
   pairNegativePrompt,
   enhancedPrompt,
-  defaultPrompt,
-  defaultNegativePrompt,
   className,
   isMobile = false,
   onClearEnhancedPrompt,

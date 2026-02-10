@@ -12,7 +12,7 @@ import { cropFilename } from '@/shared/lib/utils';
 import { generateUUID } from '@/shared/lib/taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';
 
-export type SplitMode = 'take-all' | 'manual' | 'auto-scene';
+type SplitMode = 'take-all' | 'manual' | 'auto-scene';
 
 interface VideoFile {
   file: File;

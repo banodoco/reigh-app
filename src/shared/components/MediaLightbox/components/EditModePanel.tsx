@@ -114,15 +114,6 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   hideInfoEditToggle = false,
   simplifiedHeader = false,
   // Source generation props (specialized)
-  sourceGenerationData,
-  onOpenExternalGeneration,
-  currentShotId,
-  allShots,
-  isCurrentMediaPositioned,
-  onReplaceInShot,
-  sourcePrimaryVariant,
-  onMakeMainVariant,
-  canMakeMainVariant,
   taskId,
   currentMediaId,
   // Specialized async handlers

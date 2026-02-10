@@ -56,8 +56,6 @@ export const VideoItem = React.memo<VideoItemProps>(({
   onHoverStart,
   onHoverEnd,
   onMobileModalOpen,
-  selectedVideoForDetails,
-  showTaskDetailsModal,
   onApplySettingsFromTask,
   existingShareSlug,
   onShareCreated,
@@ -100,8 +98,6 @@ export const VideoItem = React.memo<VideoItemProps>(({
     setThumbnailError,
     hasThumbnail,
     isInitiallyCached,
-    inPreloaderCache,
-    inBrowserCache
   } = thumbnailLoader;
 
   // Hook for video element integration

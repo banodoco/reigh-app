@@ -54,7 +54,7 @@ export const quantizePositions = (positions: Map<string, number>): Map<string, n
 };
 
 // Calculate max gap based on context frames (81 frames default)
-export const calculateMaxGap = (contextFrames: number = 0, baseMax: number = 81): number => {
+const calculateMaxGap = (contextFrames: number = 0, baseMax: number = 81): number => {
   return Math.max(1, baseMax - (contextFrames * 2));
 };
 
@@ -62,7 +62,7 @@ export const calculateMaxGap = (contextFrames: number = 0, baseMax: number = 81)
 const MIN_GAP = 5;
 
 // Validate gap constraints
-export const validateGaps = (
+const validateGaps = (
   testPositions: Map<string, number>,
   excludeId?: string,
   checkQuantization: boolean = false
@@ -280,7 +280,7 @@ export const applyFluidTimelineMulti = (
  *
  * @returns Object with start_frame, end_frame, and optional lastVideoUpdate if clipping is needed
  */
-export interface VideoPlacementResult {
+interface VideoPlacementResult {
   start_frame: number;
   end_frame: number;
   lastVideoUpdate?: { index: number; newEndFrame: number };

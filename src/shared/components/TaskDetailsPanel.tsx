@@ -30,7 +30,6 @@ interface TaskDetailsPanelProps {
 const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
   task,
   isLoading,
-  error,
   inputImages,
   replaceImages,
   onReplaceImagesChange,
@@ -39,7 +38,6 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
   className = "",
   basedOnSection,
   derivedSection,
-  showUserImage = true,
   hideHeader = false
 }) => {
   const isMobile = useIsMobile();

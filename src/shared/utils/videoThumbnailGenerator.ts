@@ -10,13 +10,13 @@ import { getDisplayUrl } from '@/shared/lib/utils';
 import { storagePaths, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
 import { handleError } from '@/shared/lib/errorHandler';
 
-export interface ThumbnailGenerationResult {
+interface ThumbnailGenerationResult {
   success: boolean;
   thumbnailUrl?: string;
   error?: string;
 }
 
-export interface ThumbnailExtractResult {
+interface ThumbnailExtractResult {
   success: boolean;
   thumbnailUrl?: string;
   error?: string;
@@ -111,7 +111,7 @@ async function uploadThumbnailToStorage(
   const fileName = `${generationId}-thumb.jpg`;
   const filePath = storagePaths.thumbnail(userId, fileName);
 
-  const { data, error } = await supabase.storage
+  const { error } = await supabase.storage
     .from(MEDIA_BUCKET)
     .upload(filePath, blob, {
       contentType: 'image/jpeg',

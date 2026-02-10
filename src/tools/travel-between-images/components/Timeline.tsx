@@ -34,7 +34,7 @@ import TimelineContainer from "./Timeline/TimelineContainer";
 import { ImageUploadActions } from "@/shared/components/ImageUploadActions";
 
 // Main Timeline component props
-export interface TimelineProps {
+interface TimelineProps {
   shotId: string;
   projectId?: string;
   frameSpacing: number;

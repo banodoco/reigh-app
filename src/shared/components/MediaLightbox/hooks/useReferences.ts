@@ -21,14 +21,14 @@ interface ProjectImageSettingsForReferences {
   [key: string]: unknown;
 }
 
-export interface UseReferencesProps {
+interface UseReferencesProps {
   media: GenerationRow;
   selectedProjectId: string | null;
   selectedShotId?: string;
   isVideo: boolean;
 }
 
-export interface UseReferencesReturn {
+interface UseReferencesReturn {
   isAddingToReferences: boolean;
   addToReferencesSuccess: boolean;
   handleAddToReferences: () => Promise<void>;

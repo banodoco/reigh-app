@@ -13,7 +13,7 @@ const DEFAULT_ASPECT_RATIO = "1:1";
 /**
  * Interface for project resolution lookup result
  */
-export interface ProjectResolutionResult {
+interface ProjectResolutionResult {
   resolution: string;
   aspectRatio: string;
 }
@@ -117,7 +117,7 @@ export class TaskValidationError extends ValidationError {
 /**
  * Common task creation parameters that all tasks should have
  */
-export interface BaseTaskParams {
+interface BaseTaskParams {
   project_id: string;
   task_type: string;
   params: Record<string, unknown>;

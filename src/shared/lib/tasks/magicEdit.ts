@@ -17,7 +17,7 @@ export interface LoraConfig {
   strength: number;
 }
 
-export interface MagicEditTaskParams {
+interface MagicEditTaskParams {
   project_id: string;
   prompt: string;
   image_url: string; // The source image to edit
@@ -44,7 +44,7 @@ export interface MagicEditTaskParams {
 /**
  * Parameters for creating multiple magic edit tasks (batch generation)
  */
-export interface BatchMagicEditTaskParams {
+interface BatchMagicEditTaskParams {
   project_id: string;
   prompt: string;
   image_url: string;

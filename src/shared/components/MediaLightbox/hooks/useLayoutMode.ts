@@ -22,7 +22,6 @@ interface UseLayoutModeReturn {
  * Determines which layout variant to use (desktop/mobile/tablet)
  */
 export const useLayoutMode = ({
-  isMobile,
   showTaskDetails,
   isSpecialEditMode,
   isVideo,

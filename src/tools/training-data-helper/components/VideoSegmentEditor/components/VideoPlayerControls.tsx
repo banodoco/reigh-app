@@ -14,7 +14,7 @@ interface CurrentSegmentInfo {
   index: number;
 }
 
-export interface VideoPlayerControlsProps {
+interface VideoPlayerControlsProps {
   video: TrainingDataVideo;
   videoRef: RefObject<HTMLVideoElement | null>;
   videoUrl: string;

@@ -11,7 +11,7 @@ interface UseShareGenerationResult {
   shareSlug: string | null;
 }
 
-export interface UseShareGenerationOptions {
+interface UseShareGenerationOptions {
   /** Pre-existing share slug (e.g. batch-fetched by parent) */
   initialShareSlug?: string;
   /** Called after a new share is successfully created */

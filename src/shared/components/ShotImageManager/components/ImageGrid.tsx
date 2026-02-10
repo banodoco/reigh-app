@@ -98,7 +98,6 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   defaultNegativePrompt,
   onClearEnhancedPrompt,
   pairOverrides,
-  isDragging = false,
   activeDragId = null,
   dropTargetIndex = null,
   segmentSlots,

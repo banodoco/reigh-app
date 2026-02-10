@@ -88,7 +88,6 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
   onOptimisticPositioned,
   onShowSecondaryTick,
   onOptimisticUnpositioned,
-  setIsSelectOpen,
   contentRef,
   onNavigateToShot,
   onClose,

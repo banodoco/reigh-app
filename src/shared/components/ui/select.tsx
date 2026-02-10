@@ -61,7 +61,7 @@ const selectTriggerVariants = cva(
   }
 )
 
-export interface SelectTriggerProps
+interface SelectTriggerProps
   extends Omit<React.ComponentPropsWithoutRef<"button">, "className">,
     VariantProps<typeof selectTriggerVariants> {
   hideIcon?: boolean;
@@ -152,7 +152,7 @@ const selectContentVariants = cva(
   }
 )
 
-export interface SelectContentProps
+interface SelectContentProps
   extends Omit<React.ComponentPropsWithoutRef<"div">, "className">,
     VariantProps<typeof selectContentVariants> {
   header?: React.ReactNode;
@@ -252,7 +252,7 @@ const selectItemVariants = cva(
   }
 )
 
-export interface SelectItemProps
+interface SelectItemProps
   extends Omit<React.ComponentPropsWithoutRef<"div">, "className" | "value">,
     VariantProps<typeof selectItemVariants> {
   onTouchStart?: React.TouchEventHandler;

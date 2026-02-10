@@ -4,13 +4,13 @@ import { useToggleGenerationStar } from '@/shared/hooks/useGenerationMutations';
 import { GenerationRow } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
-export interface UseStarToggleProps {
+interface UseStarToggleProps {
   media: GenerationRow;
   starred?: boolean;
   shotId?: string;
 }
 
-export interface UseStarToggleReturn {
+interface UseStarToggleReturn {
   localStarred: boolean;
   setLocalStarred: React.Dispatch<React.SetStateAction<boolean>>;
   toggleStarMutation: UseMutationResult<void, Error, { id: string; starred: boolean; shotId?: string }>;

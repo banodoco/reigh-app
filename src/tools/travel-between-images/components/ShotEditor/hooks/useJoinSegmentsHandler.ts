@@ -83,7 +83,6 @@ interface UseJoinSegmentsHandlerReturn {
 
 export function useJoinSegmentsHandler({
   projectId,
-  selectedProjectId,
   selectedShotId,
   effectiveAspectRatio,
   audioUrl,

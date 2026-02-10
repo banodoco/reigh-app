@@ -1,12 +1,12 @@
 import { useEffect, useCallback, useRef } from 'react';
 
-export interface UseLightboxNavigationProps {
+interface UseLightboxNavigationProps {
   onNext?: () => void;
   onPrevious?: () => void;
   onClose: () => void;
 }
 
-export interface UseLightboxNavigationReturn {
+interface UseLightboxNavigationReturn {
   safeClose: () => void;
   activateClickShield: () => void;
 }

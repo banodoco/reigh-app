@@ -3,13 +3,9 @@ import { useToolSettings } from '@/shared/hooks/useToolSettings';
 
 // Import canonical types from single source of truth
 import {
-  type EditMode,
-  type LoraMode,
-  type EditAdvancedSettings,
   type LastUsedEditSettings,
   type VideoEditSubMode,
   type PanelMode,
-  type SyncedSettingKey,
   DEFAULT_LAST_USED,
   SYNCED_SETTING_KEYS
 } from './editSettingsTypes';
@@ -21,7 +17,7 @@ export type { LastUsedEditSettings, VideoEditSubMode, PanelMode };
 const STORAGE_KEY_PROJECT = (projectId: string) => `lightbox-edit-last-used-${projectId}`;
 const STORAGE_KEY_GLOBAL = 'lightbox-edit-last-used-global';
 
-export interface UseLastUsedEditSettingsReturn {
+interface UseLastUsedEditSettingsReturn {
   lastUsed: LastUsedEditSettings;
   updateLastUsed: (settings: Partial<LastUsedEditSettings>) => void;
   isLoading: boolean;

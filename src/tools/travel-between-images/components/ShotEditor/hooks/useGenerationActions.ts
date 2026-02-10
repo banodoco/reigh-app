@@ -53,7 +53,6 @@ export const useGenerationActions = ({
   batchVideoFrames,
   onShotImagesUpdate,
   orderedShotImages,
-  skipNextSyncRef,
 }: UseGenerationActionsProps) => {
   const { projects } = useProject();
   const queryClient = useQueryClient();

@@ -3,7 +3,7 @@ import type { ImageTransform } from './types';
 import type { GenerationRow } from '@/types/shots';
 import { getMediaUrl } from '@/shared/lib/mediaTypeHelpers';
 
-export interface UseCanvasTransformProps {
+interface UseCanvasTransformProps {
   transform: ImageTransform;
   imageDimensions: { width: number; height: number } | null;
   media: GenerationRow;
@@ -11,7 +11,7 @@ export interface UseCanvasTransformProps {
   activeVariantLocation?: string | null;
 }
 
-export interface UseCanvasTransformReturn {
+interface UseCanvasTransformReturn {
   /** Get CSS transform style for preview rendering */
   getTransformStyle: () => React.CSSProperties;
   /** Create a canvas with the transformed image at source resolution */

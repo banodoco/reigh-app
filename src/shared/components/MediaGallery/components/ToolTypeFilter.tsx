@@ -59,7 +59,6 @@ interface ToolTypeFilterProps extends VariantProps<typeof toolTypeFilterVariants
 export const ToolTypeFilter: React.FC<ToolTypeFilterProps> = ({
   enabled,
   onToggle,
-  toolTypeName,
   whiteText = false,
   isMobile = false,
   variant: variantProp,

@@ -17,7 +17,7 @@ import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { VideoTravelSettings } from '../settings';
 import { Shot } from '@/types/shots';
 
-export interface ProjectUISettings {
+interface ProjectUISettings {
   acceleratedMode?: boolean;
   randomSeed?: boolean;
   shotSortMode?: 'ordered' | 'newest' | 'oldest';
@@ -27,7 +27,7 @@ export interface UploadSettings {
   cropToProjectSize?: boolean;
 }
 
-export interface UseVideoTravelDataReturn {
+interface UseVideoTravelDataReturn {
   // Shots data
   shots: Shot[] | undefined;
   shotsLoading: boolean;

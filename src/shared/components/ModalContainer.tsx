@@ -11,7 +11,7 @@ import { useModal, ModalSize } from '@/shared/hooks/useModal';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 
-export interface ModalContainerProps {
+interface ModalContainerProps {
   /** Whether the modal is open */
   open: boolean;
   /** Callback when the modal open state changes */

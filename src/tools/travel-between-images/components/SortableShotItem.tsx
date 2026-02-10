@@ -45,7 +45,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
   onSelectShot,
   currentProjectId,
   isDragDisabled = false,
-  disabledReason,
   shouldLoadImages = true,
   shotIndex = 0,
   projectAspectRatio,
@@ -59,8 +58,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
   finalVideo,
 }) => {
   const {
-    attributes,
-    listeners,
     setNodeRef,
     transform,
     transition,
@@ -437,7 +434,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
       setIsOverWithoutPositionZone(false);
     }
   }, []);
-
 
   const style = {
     transform: CSS.Transform.toString(transform),

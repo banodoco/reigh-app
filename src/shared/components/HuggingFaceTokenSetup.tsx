@@ -30,7 +30,6 @@ export const HuggingFaceTokenSetup: React.FC<HuggingFaceTokenSetupProps> = ({
     verifyToken,
     saveToken,
     deleteToken,
-    isSaving,
     isDeleting,
   } = useHuggingFaceToken();
 

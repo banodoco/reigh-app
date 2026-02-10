@@ -24,7 +24,7 @@ export type EditMode = 'text' | 'inpaint' | 'annotate';
 
 export type AnnotationMode = 'rectangle' | null;
 
-export interface ImageDimensions {
+interface ImageDimensions {
   width: number;
   height: number;
 }

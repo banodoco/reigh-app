@@ -1,10 +1,10 @@
-export interface CropResult {
+interface CropResult {
   croppedFile: File;
   apiImageSize: string;
   croppedImageUrl: string;
 }
 
-export interface ProjectCropResult {
+interface ProjectCropResult {
   croppedFile: File;
   croppedImageUrl: string;
 }

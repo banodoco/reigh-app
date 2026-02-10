@@ -147,7 +147,7 @@ export interface RawShotGeneration {
 /**
  * Options for transformation customization
  */
-export interface TransformOptions {
+interface TransformOptions {
   /** Shot image entry ID (from shot_generations table) */
   shotImageEntryId?: string;
   /** Timeline frame position */

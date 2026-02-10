@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ImageTransform, DEFAULT_TRANSFORM } from './types';
 
-export interface UseImageTransformProps {
+interface UseImageTransformProps {
   /** Active variant ID or generation ID for cache key */
   activeVariantId?: string | null;
   /** Media/generation ID as fallback cache key */
@@ -10,7 +10,7 @@ export interface UseImageTransformProps {
   activeVariantParams?: Record<string, unknown> | null;
 }
 
-export interface UseImageTransformReturn {
+interface UseImageTransformReturn {
   transform: ImageTransform;
   hasTransformChanges: boolean;
   setTranslateX: (value: number) => void;

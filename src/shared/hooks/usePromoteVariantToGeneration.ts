@@ -16,14 +16,14 @@ import { hasVideoExtension } from '@/shared/lib/typeGuards';
 import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
-export interface PromoteVariantParams {
+interface PromoteVariantParams {
   /** ID of the variant to promote */
   variantId: string;
   /** Project ID for the new generation */
   projectId: string;
 }
 
-export interface PromotedGeneration {
+interface PromotedGeneration {
   id: string;
   location: string;
   thumbnail_url: string | null;

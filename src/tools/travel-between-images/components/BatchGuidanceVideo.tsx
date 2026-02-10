@@ -40,18 +40,10 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
   videoUrl,
   videoMetadata,
   treatment,
-  motionStrength,
-  structureType = 'uni3c',
   onVideoUploaded,
   onTreatmentChange,
-  onMotionStrengthChange,
-  onStructureTypeChange,
-  uni3cEndPercent = 0.1,
-  onUni3cEndPercentChange,
-  imageCount = 0,
   timelineFramePositions = [],
   readOnly = false,
-  hideStructureSettings = false,
 }) => {
   // ALL HOOKS MUST BE AT THE TOP - before any conditional returns
   const [isUploading, setIsUploading] = useState(false);

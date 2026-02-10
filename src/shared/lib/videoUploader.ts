@@ -7,7 +7,7 @@ import { handleError } from '@/shared/lib/errorHandler';
 const DEFAULT_VIDEO_TIMEOUT_MS = 300000; // 5 minutes for videos
 const STALL_TIMEOUT_MS = 30000; // 30 seconds without progress = stalled (longer for videos)
 
-export interface VideoUploadOptions {
+interface VideoUploadOptions {
   onProgress?: (progress: number) => void;
   maxRetries?: number;
   signal?: AbortSignal;

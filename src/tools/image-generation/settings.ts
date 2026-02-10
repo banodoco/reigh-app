@@ -33,7 +33,7 @@ export interface HiresFixConfig {
   }>;
 }
 
-export interface ImageGenerationSettings {
+interface ImageGenerationSettings {
   prompts?: PromptEntry[];
   promptsByShot?: Record<string, PromptEntry[]>; // Prompts organized by shot ID
   imagesPerPrompt?: number;

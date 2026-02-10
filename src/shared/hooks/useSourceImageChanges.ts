@@ -23,7 +23,7 @@ import { extractSegmentImages } from '@/shared/lib/galleryUtils';
 // How long to show the warning after a source change (in milliseconds)
 const SOURCE_CHANGE_WARNING_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
-export interface SourceMismatchInfo {
+interface SourceMismatchInfo {
   segmentId: string;
   hasMismatch: boolean;
   isRecent: boolean;

@@ -17,7 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { calculateDerivedCounts, DerivedCountsResult } from '@/shared/lib/generationTransformers';
 
-export interface VariantBadgeData {
+interface VariantBadgeData {
   derivedCount: number;
   hasUnviewedVariants: boolean;
   unviewedVariantCount: number;

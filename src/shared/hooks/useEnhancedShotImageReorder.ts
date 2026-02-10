@@ -61,14 +61,12 @@ export const useEnhancedShotImageReorder = (
   const {
     shotGenerations,
     getImagesForMode,
-    exchangePositions,
     deleteItem,
     loadPositions,
     isLoading
   } = parentHook || ownHook;
   
   const {
-    batchExchangePositions,
     exchangePositionsNoReload
   } = parentHook ? {
     batchExchangePositions: parentHook.batchExchangePositions,
@@ -281,7 +279,7 @@ export const useEnhancedShotImageReorder = (
         throw error;
       }
       
-      const { swapSequence, finalOrder, noChangesNeeded } = reorderAnalysis;
+      const { swapSequence, noChangesNeeded } = reorderAnalysis;
       
       // Execute the swap sequence
       if (!noChangesNeeded && swapSequence.length > 0) {

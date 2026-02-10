@@ -9,7 +9,7 @@ import type { GenerationRow } from '@/types/shots';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import { readSegmentOverrides } from '@/shared/utils/settingsMigration';
 
-export interface UsePairDataProps {
+interface UsePairDataProps {
   /** Shot generations (images) */
   shotGenerations: GenerationRow[];
   /** Current generation mode */
@@ -18,7 +18,7 @@ export interface UsePairDataProps {
   batchVideoFrames: number;
 }
 
-export interface UsePairDataReturn {
+interface UsePairDataReturn {
   /** Map of pair index to pair data */
   pairDataByIndex: Map<number, PairData>;
 }

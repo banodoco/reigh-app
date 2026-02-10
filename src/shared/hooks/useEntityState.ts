@@ -4,12 +4,12 @@ import { deepEqual } from '@/shared/lib/deepEqual';
 /**
  * Status states for the entity state lifecycle
  */
-export type EntityStateStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
+type EntityStateStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
 /**
  * Options for useEntityState hook
  */
-export interface UseEntityStateOptions<T> {
+interface UseEntityStateOptions<T> {
   /**
    * Unique identifier for the entity being edited.
    * When this changes, state is reset and reloaded.
@@ -72,7 +72,7 @@ export interface UseEntityStateOptions<T> {
 /**
  * Return type for useEntityState hook
  */
-export interface UseEntityStateReturn<T> {
+interface UseEntityStateReturn<T> {
   /** Current state (merged from loaded data + defaults) */
   state: T;
 

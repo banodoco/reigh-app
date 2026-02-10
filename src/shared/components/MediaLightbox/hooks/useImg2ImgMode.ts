@@ -9,7 +9,7 @@ import { useLoraManager, UseLoraManagerReturn, ActiveLora, LoraModel } from '@/s
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 
-export interface UseImg2ImgModeProps {
+interface UseImg2ImgModeProps {
   media: GenerationRow;
   selectedProjectId: string | null;
   isVideo: boolean;
@@ -36,7 +36,7 @@ export interface UseImg2ImgModeProps {
   shotId?: string;
 }
 
-export interface UseImg2ImgModeReturn {
+interface UseImg2ImgModeReturn {
   // State
   img2imgPrompt: string;
   img2imgStrength: number;

@@ -10,7 +10,7 @@ import {
 import { VariantBadge } from '@/shared/components/VariantBadge';
 import { GenerationRow } from '@/types/shots';
 
-export interface VideoItemActionsProps {
+interface VideoItemActionsProps {
   video: GenerationRow;
   originalIndex: number;
   isMobile: boolean;

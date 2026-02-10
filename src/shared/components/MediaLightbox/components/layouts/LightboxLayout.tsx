@@ -56,7 +56,7 @@ export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
   const editState = useLightboxEditSafe();
 
   const { onClose, readOnly, isMobile, actualGenerationId, selectedProjectId } = core;
-  const { media, isVideo, effectiveMediaUrl, effectiveVideoUrl, imageDimensions, setImageDimensions, effectiveImageDimensions } = mediaState;
+  const { media, isVideo, effectiveMediaUrl, effectiveVideoUrl, setImageDimensions, effectiveImageDimensions } = mediaState;
   const { variants, activeVariant, primaryVariant, promoteSuccess, isPromoting, handlePromoteToGeneration, isMakingMainVariant, canMakeMainVariant, handleMakeMainVariant } = variantsState;
   const { showNavigation, hasNext, hasPrevious, handleSlotNavNext, handleSlotNavPrev, swipeNavigation } = navigation;
   const { isInpaintMode, isSpecialEditMode, editMode } = editState;

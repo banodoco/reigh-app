@@ -39,7 +39,7 @@ interface MediaGalleryFiltersProps {
   isMobile?: boolean;
 }
 
-export const MediaGalleryFilters: React.FC<MediaGalleryFiltersProps> = ({
+const MediaGalleryFilters: React.FC<MediaGalleryFiltersProps> = ({
   showShotFilter = false,
   allShots,
   shotFilter,
@@ -57,8 +57,6 @@ export const MediaGalleryFilters: React.FC<MediaGalleryFiltersProps> = ({
   hideTopFilters = false,
   showStarredOnly,
   onStarredFilterChange,
-  onDownloadStarred,
-  isDownloadingStarred,
   toolTypeFilterEnabled = true,
   onToolTypeFilterChange,
   currentToolTypeName,

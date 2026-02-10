@@ -26,7 +26,7 @@ export const SUPABASE_ERROR = {
   FUNCTION_NOT_FOUND: '42883',
 } as const;
 
-export type SupabaseErrorCode = typeof SUPABASE_ERROR[keyof typeof SUPABASE_ERROR];
+type SupabaseErrorCode = typeof SUPABASE_ERROR[keyof typeof SUPABASE_ERROR];
 
 /**
  * Type guard for objects with a `code` property.

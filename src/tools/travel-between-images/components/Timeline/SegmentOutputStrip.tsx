@@ -82,11 +82,9 @@ interface SegmentOutputStripProps {
 
 export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
   shotId,
-  projectId,
   projectAspectRatio,
   pairInfo,
   fullMin,
-  fullMax,
   fullRange,
   containerWidth,
   zoomLevel,
