@@ -1,7 +1,7 @@
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 
 /** Frame-accurate selection sent to the backend */
-export interface FrameRangeSelection {
+interface FrameRangeSelection {
   start_frame: number;
   end_frame: number;
   start_time: number;
