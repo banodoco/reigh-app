@@ -59,6 +59,13 @@ export function usePointerHandlers({
   const [currentStroke, setCurrentStroke] = useState<Array<{ x: number; y: number }>>([]);
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 
+  // Refs for synchronous access in pointer event handlers.
+  // React state updates are asynchronous, so useCallback closures may see stale
+  // values when pointer events fire in rapid succession (down → move → up).
+  // These refs provide the ground truth for the hot path.
+  const isDrawingRef = useRef(false);
+  const currentStrokeRef = useRef<Array<{ x: number; y: number }>>([]);
+
   // Drag state (encapsulated in useDragState hook)
   const {
     isDragging: isDraggingShape,
@@ -119,7 +126,6 @@ export function usePointerHandlers({
       for (let i = brushStrokes.length - 1; i >= 0; i--) {
         const stroke = brushStrokes[i];
         if (stroke.shapeType === 'rectangle' && isPointOnShape(x, y, stroke)) {
-          console.log('[Annotate] Clicked on rectangle:', stroke.id);
           setSelectedShapeId(stroke.id);
 
           // Check for corner click (for free-form dragging)
@@ -176,11 +182,13 @@ export function usePointerHandlers({
     }
 
     // Start new stroke
-    console.log('[Inpaint] Starting new stroke (Konva)', { x, y, isAnnotateMode, annotationMode });
+    isDrawingRef.current = true;
     setIsDrawing(true);
     hasInitializedCanvasRef.current = false;
     lastDrawnPointRef.current = null;
-    setCurrentStroke([{ x, y }]);
+    const initialStroke = [{ x, y }];
+    currentStrokeRef.current = initialStroke;
+    setCurrentStroke(initialStroke);
   }, [isInpaintMode, isAnnotateMode, annotationMode, brushStrokes, selectedShapeId, editMode, setBrushStrokes, setShowTextModeHint, startCornerDrag, startMoveDrag, startResizeDrag]);
 
   /**
@@ -190,21 +198,6 @@ export function usePointerHandlers({
     // Allow both inpaint mode and annotate mode
     if (!isInpaintMode && !isAnnotateMode) return;
     if (editMode === 'text' && !isDraggingShape) return;
-
-    // Check if the pointer button was released outside the canvas and user returned
-    if ((isDrawing || isDraggingShape) && e.evt.buttons === 0) {
-      console.log('[Inpaint] Pointer returned with no button pressed - canceling');
-      if (isDrawing) {
-        setIsDrawing(false);
-        hasInitializedCanvasRef.current = false;
-        lastDrawnPointRef.current = null;
-        setCurrentStroke([]);
-      }
-      if (isDraggingShape) {
-        endDrag();
-      }
-      return;
-    }
 
     const { x, y } = point;
 
@@ -269,11 +262,13 @@ export function usePointerHandlers({
       }
     }
 
-    // Continue drawing stroke
-    if (!isDrawing) return;
+    // Continue drawing stroke (use ref for synchronous check)
+    if (!isDrawingRef.current) return;
 
-    setCurrentStroke(prev => [...prev, { x, y }]);
-  }, [isInpaintMode, isAnnotateMode, editMode, isDrawing, isDraggingShape, dragMode, dragOffset, draggingCornerIndex, brushStrokes, setBrushStrokes, endDrag, updateDraggedShape]);
+    const newStroke = [...currentStrokeRef.current, { x, y }];
+    currentStrokeRef.current = newStroke;
+    setCurrentStroke(newStroke);
+  }, [isInpaintMode, isAnnotateMode, editMode, isDraggingShape, dragMode, dragOffset, draggingCornerIndex, brushStrokes, setBrushStrokes, updateDraggedShape]);
 
   /**
    * Handle pointer up - finish drawing or dragging
@@ -286,30 +281,35 @@ export function usePointerHandlers({
     }
 
     // Allow both inpaint mode and annotate mode
-    if ((!isInpaintMode && !isAnnotateMode) || !isDrawing) return;
+    if ((!isInpaintMode && !isAnnotateMode) || !isDrawingRef.current) return;
     if (editMode === 'text') return;
 
+    isDrawingRef.current = false;
     setIsDrawing(false);
     hasInitializedCanvasRef.current = false;
     lastDrawnPointRef.current = null;
 
-    if (currentStroke.length > 1) {
+    // Read stroke from ref (synchronous, not stale closure)
+    const finalStroke = currentStrokeRef.current;
+
+    if (finalStroke.length > 1) {
       const shapeType = isAnnotateMode && annotationMode ? annotationMode : 'line';
 
       // For rectangles, require minimum drag distance
       if (shapeType === 'rectangle') {
-        const startPoint = currentStroke[0];
-        const endPoint = currentStroke[currentStroke.length - 1];
+        const startPoint = finalStroke[0];
+        const endPoint = finalStroke[finalStroke.length - 1];
         const dragDistance = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
         if (dragDistance < 10) {
+          currentStrokeRef.current = [];
           setCurrentStroke([]);
           return;
         }
       }
 
       const strokePoints = shapeType === 'rectangle'
-        ? [currentStroke[0], currentStroke[currentStroke.length - 1]]
-        : currentStroke;
+        ? [finalStroke[0], finalStroke[finalStroke.length - 1]]
+        : finalStroke;
 
       const newStroke: BrushStroke = {
         id: nanoid(),
@@ -321,10 +321,8 @@ export function usePointerHandlers({
 
       // Limit to one rectangle in annotate mode
       if (isAnnotateMode && shapeType === 'rectangle' && annotationStrokes.length > 0) {
-        console.log('[Annotate] Replacing existing rectangle');
         setAnnotationStrokes([newStroke]);
       } else {
-        console.log('[Inpaint] Adding new stroke');
         if (isAnnotateMode) {
           setAnnotationStrokes(prev => [...prev, newStroke]);
         } else {
@@ -337,22 +335,16 @@ export function usePointerHandlers({
         setSelectedShapeId(newStroke.id);
       }
 
-      console.log('[Inpaint] Stroke added', {
-        strokeId: newStroke.id,
-        shapeType,
-        points: newStroke.points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
-        mode: isAnnotateMode ? 'annotate' : 'inpaint',
-      });
     }
 
+    currentStrokeRef.current = [];
     setCurrentStroke([]);
-  }, [isInpaintMode, isDrawing, currentStroke, isEraseMode, brushSize, isAnnotateMode, annotationMode, isDraggingShape, editMode, annotationStrokes.length, setBrushStrokes, setAnnotationStrokes, endDrag]);
+  }, [isInpaintMode, isAnnotateMode, isEraseMode, brushSize, annotationMode, isDraggingShape, editMode, annotationStrokes.length, setBrushStrokes, setAnnotationStrokes, endDrag]);
 
   /**
    * Handle shape click (from StrokeOverlay)
    */
   const handleShapeClick = useCallback((strokeId: string, point: { x: number; y: number }) => {
-    console.log('[Annotate] Shape clicked:', strokeId);
     setSelectedShapeId(strokeId);
   }, []);
 
@@ -365,10 +357,11 @@ export function usePointerHandlers({
     if (!isDrawing) return;
 
     const handleGlobalPointerUp = () => {
-      console.log('[Inpaint] Global pointerup - releasing stuck drawing state');
+      isDrawingRef.current = false;
       setIsDrawing(false);
       hasInitializedCanvasRef.current = false;
       lastDrawnPointRef.current = null;
+      currentStrokeRef.current = [];
       setCurrentStroke([]);
     };
 

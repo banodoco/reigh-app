@@ -330,9 +330,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
   
   // Track component lifecycle
   React.useEffect(() => {
-    console.log(`[${debugContext}] 🎬 Component MOUNTED`);
     return () => {
-      console.log(`[${debugContext}] 💀 Component UNMOUNTED`);
     };
   }, [debugContext]);
   
@@ -363,15 +361,6 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
 
     // Debug: Log sizing mode (imageDimensions read from ref-stable prop, not a dependency)
     const willForceThumbnailSize = imageDimensions && !newFullImageLoaded && isShowingThumbnail;
-    console.log(`[${debugContext}] 📐 Sizing mode:`, {
-      fullImageLoaded: newFullImageLoaded,
-      hasThumbnail: !!thumbUrl,
-      isShowingThumbnail,
-      hasImageDimensions: !!imageDimensions,
-      imageDimensions,
-      willForceThumbnailSize,
-      sizingMode: willForceThumbnailSize ? 'FORCED_FULL_SIZE' : 'NATURAL_SIZE',
-    });
     // NOTE: imageDimensions is intentionally NOT in deps to avoid infinite loop:
     // This effect calls onImageLoad which updates imageDimensions in parent,
     // which would trigger this effect again if imageDimensions was a dependency.
@@ -388,14 +377,6 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
 
     const updateSize = () => {
       const { clientWidth, clientHeight, offsetLeft, offsetTop } = img;
-      console.log('[KonvaDebug] Image element:', {
-        clientWidth,
-        clientHeight,
-        offsetLeft,
-        offsetTop,
-        wrapperWidth: wrapper.clientWidth,
-        wrapperHeight: wrapper.clientHeight
-      });
       if (clientWidth > 0 && clientHeight > 0) {
         setDisplaySize({ width: clientWidth, height: clientHeight });
         setImageOffset({ left: offsetLeft, top: offsetTop });
@@ -596,11 +577,6 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
                 // Call onImageLoad for both thumbnail and full image to set dimensions immediately
                 // This prevents size jump by setting CSS aspectRatio from thumbnail dimensions
                 if (img.src === effectiveImageUrl || !thumbUrl || thumbUrl === effectiveImageUrl) {
-                  console.log(`[${debugContext}] ✅ Full image loaded successfully:`, {
-                    url: effectiveImageUrl.substring(0, 100),
-                    width: img.naturalWidth,
-                    height: img.naturalHeight
-                  });
                   setFullImageLoaded(true);
                   onImageLoad?.({
                     width: img.naturalWidth,
@@ -609,10 +585,6 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
                 } else {
                   // Thumbnail loaded - still call onImageLoad to set aspect ratio immediately
                   // This prevents the thumbnail from displaying smaller than the final image
-                  console.log(`[${debugContext}] 🖼️ Thumbnail loaded, setting dimensions and preloading full image...`, {
-                    width: img.naturalWidth,
-                    height: img.naturalHeight
-                  });
                   onImageLoad?.({
                     width: img.naturalWidth,
                     height: img.naturalHeight
@@ -675,7 +647,6 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
               className="hidden"
               onLoad={(e) => {
                 const img = e.target as HTMLImageElement;
-                console.log(`[${debugContext}] ✅ Full image preloaded, swapping...`);
                 setFullImageLoaded(true);
                 onImageLoad?.({
                   width: img.naturalWidth,

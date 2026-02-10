@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useRef, useImperativeHandle, forwardRef } from 'react';
 import { Stage, Layer, Line, Rect } from 'react-konva';
 import Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -100,7 +100,6 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
       const pixelRatio = options?.pixelRatio ?? 1.5;
 
       if (strokes.length === 0) {
-        console.log('[StrokeOverlay] exportMask: No strokes to export');
         return null;
       }
 
@@ -194,13 +193,6 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
           mimeType: 'image/png',
         });
 
-        console.log('[StrokeOverlay] exportMask: Generated mask', {
-          imageSize: { width: maskWidth, height: maskHeight },
-          pixelRatio,
-          outputSize: { width: maskWidth * pixelRatio, height: maskHeight * pixelRatio },
-          strokeCount: strokes.length,
-        });
-
         // Cleanup
         offscreenStage.destroy();
         document.body.removeChild(container);
@@ -245,12 +237,14 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
     const pos = getClampedPointerPosition(e);
     if (!pos) return;
 
-    // Capture pointer to receive events even when outside the canvas
+    // Capture pointer to receive events even when outside the canvas.
+    // IMPORTANT: Must capture on stage.content (the content div where Konva
+    // attaches event listeners), NOT stage.container(). Capturing on container
+    // redirects events away from Konva's internal listener, breaking pointermove.
     const stage = e.target.getStage();
-    const container = stage?.container();
-    if (container && e.evt.pointerId !== undefined) {
+    if (stage?.content && e.evt.pointerId !== undefined) {
       try {
-        container.setPointerCapture(e.evt.pointerId);
+        stage.content.setPointerCapture(e.evt.pointerId);
       } catch {
         // Pointer capture may fail in some browsers/situations, continue anyway
       }
@@ -269,12 +263,11 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
   };
 
   const handlePointerUp = (e: KonvaEventObject<PointerEvent>) => {
-    // Release pointer capture
+    // Release pointer capture (from content div, matching handlePointerDown)
     const stage = e.target.getStage();
-    const container = stage?.container();
-    if (container && e.evt.pointerId !== undefined) {
+    if (stage?.content && e.evt.pointerId !== undefined) {
       try {
-        container.releasePointerCapture(e.evt.pointerId);
+        stage.content.releasePointerCapture(e.evt.pointerId);
       } catch {
         // May fail if not captured, ignore
       }
