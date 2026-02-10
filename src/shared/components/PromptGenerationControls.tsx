@@ -13,6 +13,17 @@ import {
   Zap
 } from 'lucide-react';
 
+/** Auto-format text lines with bullet point prefixes */
+const formatBulletLines = (text: string): string => {
+  return text.split('\n').map((line) => {
+    const trimmedLine = line.trim();
+    if (trimmedLine !== '' && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*')) {
+      return `• ${line}`;
+    }
+    return line;
+  }).join('\n');
+};
+
 export interface GenerationControlValues {
   overallPromptText: string;
   remixPromptText: string;
@@ -335,18 +346,7 @@ export const PromptGenerationControls: React.FC<PromptGenerationControlsProps> =
             id="gen_rulesToRememberText"
             value={rulesToRememberText}
             onChange={(e) => {
-              const next = e.target.value;
-              // Add bullet points for lines that have content (not empty lines)
-              const lines = next.split('\n');
-              const formattedLines = lines.map((line) => {
-                const trimmedLine = line.trim();
-                // Only add bullet to lines that have content and don't already have a bullet
-                if (trimmedLine !== '' && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*')) {
-                  return `• ${line}`;
-                }
-                return line;
-              });
-              const formatted = formattedLines.join('\n');
+              const formatted = formatBulletLines(e.target.value);
               setRulesToRememberText(formatted);
               emitChange({ rulesToRememberText: formatted });
             }}

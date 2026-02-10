@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/co
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useExtraLargeModal } from "@/shared/hooks/useModal";
 import { useScrollFade } from "@/shared/hooks/useScrollFade";
+import { useTouchDragDetection } from "@/shared/hooks/useTouchDragDetection";
 
 // Use aliased types for internal state if they were named the same
 interface GenerationControlValues extends PGC_GenerationControlValues {}
@@ -67,9 +68,8 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   const lastSavedSignatureRef = useRef<string>('');
   
   // Drag detection for collapsible trigger
-  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
-  const isDragging = useRef(false);
-  
+  const { isDragging, handleTouchStart } = useTouchDragDetection();
+
   // Modal content ref for outside click detection
   const modalContentRef = useRef<HTMLDivElement>(null);
   
@@ -376,46 +376,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     });
   }, [markAsInteracted]); // Same dependencies as Generate view
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    dragStartPos.current = { x: touch.clientX, y: touch.clientY };
-    isDragging.current = false;
-  };
-
-  // Use global touch move listener to track drag without interfering with scroll
-  useEffect(() => {
-    const handleGlobalTouchMove = (e: TouchEvent) => {
-      if (dragStartPos.current && e.touches.length > 0) {
-        const touch = e.touches[0];
-        const deltaX = Math.abs(touch.clientX - dragStartPos.current.x);
-        const deltaY = Math.abs(touch.clientY - dragStartPos.current.y);
-        // Only log if we're actually tracking a potential button press
-        // Consider it a drag if moved more than 5px in any direction
-        if (deltaX > 5 || deltaY > 5) {
-          isDragging.current = true;
-        }
-      }
-    };
-
-    const handleGlobalTouchEnd = () => {
-      // Reset drag tracking when touch ends
-      setTimeout(() => {
-        dragStartPos.current = null;
-        isDragging.current = false;
-      }, 50); // Small delay to allow click handler to check isDragging
-    };
-
-    if (isOpen) {
-      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: true });
-      document.addEventListener('touchend', handleGlobalTouchEnd);
-    }
-
-    return () => {
-      document.removeEventListener('touchmove', handleGlobalTouchMove);
-      document.removeEventListener('touchend', handleGlobalTouchEnd);
-    };
-  }, [isOpen]);
-
   // Handle inside interactions to collapse active field without closing modal
   const handleInsideInteraction = useCallback((event: React.MouseEvent | React.TouchEvent) => {
     if (!activePromptIdForFullView) return;
@@ -435,9 +395,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     if (!isDragging.current) {
       setIsAIPromptSectionExpanded(prev => !prev);
     }
-    // Reset for next interaction
-    dragStartPos.current = null;
-    isDragging.current = false;
   }, []);
 
   const handleModalClose = useCallback((open: boolean) => {

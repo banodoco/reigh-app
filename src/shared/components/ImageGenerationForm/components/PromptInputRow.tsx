@@ -3,13 +3,14 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { Trash2 } from "lucide-react";
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from "@/shared/components/ui/tooltip";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useTouchDragDetection } from "@/shared/hooks/useTouchDragDetection";
 import { PromptInputRowProps } from "../types";
 
 export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
@@ -35,8 +36,7 @@ export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
   const [pendingEnterEdit, setPendingEnterEdit] = useState(false);
 
   // Drag detection for prompt field clicks
-  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
-  const isDragging = useRef(false);
+  const { isDragging, handleTouchStart } = useTouchDragDetection();
 
   // Track if the change came from parent (like AI edit) to prevent feedback loops
   const [lastParentUpdate, setLastParentUpdate] = useState(promptEntry.fullPrompt);
@@ -149,43 +149,6 @@ export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
     // Mobile: do nothing on focus to prevent keyboard opening
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    dragStartPos.current = { x: touch.clientX, y: touch.clientY };
-    isDragging.current = false;
-  };
-
-  // Global touch move listener for drag detection
-  useEffect(() => {
-    const handleGlobalTouchMove = (e: TouchEvent) => {
-      if (dragStartPos.current && e.touches.length > 0) {
-        const touch = e.touches[0];
-        const deltaX = Math.abs(touch.clientX - dragStartPos.current.x);
-        const deltaY = Math.abs(touch.clientY - dragStartPos.current.y);
-        // Consider it a drag if moved more than 5px in any direction
-        if (deltaX > 5 || deltaY > 5) {
-          isDragging.current = true;
-        }
-      }
-    };
-
-    const handleGlobalTouchEnd = () => {
-      // Reset drag tracking when touch ends
-      setTimeout(() => {
-        dragStartPos.current = null;
-        isDragging.current = false;
-      }, 50); // Small delay to allow click handler to check isDragging
-    };
-
-    document.addEventListener('touchmove', handleGlobalTouchMove, { passive: true });
-    document.addEventListener('touchend', handleGlobalTouchEnd);
-
-    return () => {
-      document.removeEventListener('touchmove', handleGlobalTouchMove);
-      document.removeEventListener('touchend', handleGlobalTouchEnd);
-    };
-  }, [promptEntry.id]);
-
   const handleClick = () => {
     if (isMobile) {
       // Only activate if it wasn't a drag
@@ -194,9 +157,6 @@ export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
         setPendingEnterEdit(true);
         onSetActiveForFullView(promptEntry.id);
       }
-      // Reset drag state
-      dragStartPos.current = null;
-      isDragging.current = false;
     }
   };
 

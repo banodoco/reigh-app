@@ -5,6 +5,7 @@ import React, {
   useRef,
   useCallback
 } from 'react';
+import { useFileDragTracking } from '@/shared/hooks/useFileDragTracking';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
 import { LayoutGrid, Upload, ChevronDown, ChevronUp, ImageIcon } from 'lucide-react';
@@ -55,8 +56,7 @@ export default function EditImagesPage() {
   const uploadOperation = useAsyncOperation<GenerationRow>();
   const [showResults, setShowResults] = useState(true);
   const [isLoadingPersistedMedia, setIsLoadingPersistedMedia] = useState(false);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const dragCounterRef = useRef(0);
+  const { isDraggingOver, handleDragEnter, handleDragLeave, resetDrag: resetDragState } = useFileDragTracking();
   const isMobile = useIsMobile();
   const { data: shots } = useListShots(selectedProjectId);
   
@@ -228,24 +228,6 @@ export default function EditImagesPage() {
   const isEditingOnMobile = selectedMedia && isMobile;
 
   // Drag and drop handlers
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current++;
-    if (e.dataTransfer.types.includes('Files')) {
-      setIsDraggingOver(true);
-    }
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current--;
-    if (dragCounterRef.current === 0) {
-      setIsDraggingOver(false);
-    }
-  }, []);
-
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -254,8 +236,7 @@ export default function EditImagesPage() {
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    dragCounterRef.current = 0;
-    setIsDraggingOver(false);
+    resetDragState();
 
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;

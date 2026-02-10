@@ -764,13 +764,17 @@ def fix_unused_vars(entries: list[dict], *, dry_run: bool = False) -> list[dict]
         dry_run: If True, don't write files.
 
     Returns:
-        List of {file, removed: [str], lines_removed: int} dicts.
+        List of {file, removed: [str], lines_removed: int, skip_reasons: dict} dicts.
+        skip_reasons maps reason string → count for entries that were skipped.
     """
     by_file: dict[str, list[dict]] = defaultdict(list)
     for e in entries:
         by_file[e["file"]].append(e)
 
     results = []
+    # Global skip reason tracking
+    _skip_reasons: dict[str, int] = defaultdict(int)
+
     for filepath, file_entries in sorted(by_file.items()):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
@@ -785,6 +789,7 @@ def fix_unused_vars(entries: list[dict], *, dry_run: bool = False) -> list[dict]
                 name = e["name"]
                 line_idx = e["line"] - 1
                 if line_idx < 0 or line_idx >= len(lines):
+                    _skip_reasons["out_of_range"] += 1
                     continue
 
                 src = lines[line_idx]
@@ -799,9 +804,12 @@ def fix_unused_vars(entries: list[dict], *, dry_run: bool = False) -> list[dict]
                         # Check for rest element in this destructuring
                         destr_text = _get_destr_text(lines, destr_start, line_idx + 20)
                         if _REST_ELEMENT_RE.search(destr_text):
+                            _skip_reasons["rest_element"] += 1
                             continue  # Skip — removing would change ...rest
                         lines_to_remove.add(line_idx)
                         removed_names.append(name)
+                    else:
+                        _skip_reasons["no_destr_context"] += 1
                     continue
 
                 # Pattern 2: Single-line object destructuring
@@ -809,12 +817,21 @@ def fix_unused_vars(entries: list[dict], *, dry_run: bool = False) -> list[dict]
                 if re.match(r"\s*(?:const|let|var)\s*\{", stripped):
                     destr_text = _collect_full_statement(lines, line_idx)
                     if _REST_ELEMENT_RE.search(destr_text):
+                        _skip_reasons["rest_element"] += 1
                         continue  # Skip — rest element present
                     inline_removals[line_idx].add(name)
                     removed_names.append(name)
                     continue
 
-                # Skip everything else (standalone vars, function params, etc.)
+                # Classify why we're skipping
+                if re.match(r"\s*(?:const|let|var)\s*\[", stripped):
+                    _skip_reasons["array_destructuring"] += 1
+                elif re.search(r"(?:function|=>)\s*\(", stripped) or re.match(r"\s*\(", stripped):
+                    _skip_reasons["function_param"] += 1
+                elif re.match(r"\s*(?:const|let|var)\s+\w+\s*=", stripped):
+                    _skip_reasons["standalone_var"] += 1
+                else:
+                    _skip_reasons["other"] += 1
 
             # Apply inline removals (single-line destructuring edits)
             for line_idx, names_to_remove in inline_removals.items():
@@ -851,7 +868,15 @@ def fix_unused_vars(entries: list[dict], *, dry_run: bool = False) -> list[dict]
         except Exception as ex:
             print(c(f"  Skip {rel(filepath)}: {ex}", "yellow"), file=sys.stderr)
 
+    # Attach skip reasons to the result list for the CLI to display
+    results = _ResultsWithSkipReasons(results)
+    results.skip_reasons = dict(_skip_reasons)
     return results
+
+
+class _ResultsWithSkipReasons(list):
+    """List subclass that carries skip_reasons metadata."""
+    skip_reasons: dict[str, int] = {}
 
 
 def _is_destr_member_line(stripped: str, name: str) -> bool:

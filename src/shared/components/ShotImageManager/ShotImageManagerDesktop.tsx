@@ -17,7 +17,6 @@ import { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog'
 import { MultiImagePreview, SingleImagePreview } from '../ImageDragPreview';
 import BatchDropZone from '../BatchDropZone';
 import MediaLightbox from '../MediaLightbox';
-import type { AdjacentSegmentsData } from '../MediaLightbox/types';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
 import { useState, useEffect, useCallback } from 'react';
@@ -29,6 +28,7 @@ import { getDisplayUrl, cn } from '@/shared/lib/utils';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
+import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
 import type { GenerationRow } from '@/types/shots';
 import type { useSelection } from './hooks/useSelection';
 import type { useDragAndDrop } from './hooks/useDragAndDrop';
@@ -166,77 +166,14 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
 
   // Build adjacent segments data for the current lightbox image
   // This enables navigation to videos that start/end with the current image
-  const adjacentSegmentsData: AdjacentSegmentsData | undefined = useMemo(() => {
-    // Only available when viewing images in batch mode with segment slots
-    if (!segmentSlots || segmentSlots.length === 0 || !props.onPairClick || lightbox.lightboxIndex === null) {
-      return undefined;
-    }
-
-    const currentImage = lightbox.currentImages[lightbox.lightboxIndex];
-    if (!currentImage) return undefined;
-
-    // Use position-based matching instead of ID-based matching
-    // The image's position in the timeline is its index in the images array
-    // lightbox.lightboxIndex is the index into currentImages (which may include external gens)
-    // For batch mode, images are ordered by timeline position
-    const imagePosition = lightbox.lightboxIndex;
-
-    // Build prev segment info (ends with current image)
-    // prev segment is at index (imagePosition - 1)
-    let prev: AdjacentSegmentsData['prev'] = undefined;
-    if (imagePosition > 0 && imagePosition - 1 < segmentSlots.length) {
-      const prevSlot = segmentSlots[imagePosition - 1];
-      if (prevSlot) {
-        // Get start image (previous image in the array)
-        const startImage = lightbox.currentImages[imagePosition - 1];
-        const endImage = currentImage;
-
-        prev = {
-          pairIndex: prevSlot.index,
-          hasVideo: prevSlot.type === 'child' && !!prevSlot.child?.location,
-          startImageUrl: getDisplayUrl(startImage?.thumbUrl || startImage?.imageUrl),
-          endImageUrl: getDisplayUrl(endImage?.thumbUrl || endImage?.imageUrl),
-        };
-      }
-    }
-
-    // Build next segment info (starts with current image)
-    // next segment is at index imagePosition (if it exists)
-    let next: AdjacentSegmentsData['next'] = undefined;
-    if (imagePosition < segmentSlots.length) {
-      const nextSlot = segmentSlots[imagePosition];
-      if (nextSlot) {
-        // Get end image (next image in the array)
-        const endImage = lightbox.currentImages[imagePosition + 1];
-
-        next = {
-          pairIndex: nextSlot.index,
-          hasVideo: nextSlot.type === 'child' && !!nextSlot.child?.location,
-          startImageUrl: getDisplayUrl(currentImage?.thumbUrl || currentImage?.imageUrl),
-          endImageUrl: endImage ? getDisplayUrl(endImage?.thumbUrl || endImage?.imageUrl) : undefined,
-        };
-      }
-    }
-
-    if (!prev && !next) return undefined;
-
-    return {
-      prev,
-      next,
-      onNavigateToSegment: (pairIndex: number) => {
-        if (navigateWithTransition) {
-          navigateWithTransition(() => {
-            lightbox.setLightboxIndex(null);
-            props.onPairClick!(pairIndex);
-          });
-        } else {
-          // Fallback if no transition helper provided
-          lightbox.setLightboxIndex(null);
-          props.onPairClick!(pairIndex);
-        }
-      },
-    };
-  }, [segmentSlots, props.onPairClick, lightbox.lightboxIndex, lightbox.currentImages, lightbox.setLightboxIndex, navigateWithTransition]);
+  const adjacentSegmentsData = useAdjacentSegmentsData({
+    segmentSlots,
+    onPairClick: props.onPairClick,
+    lightboxIndex: lightbox.lightboxIndex,
+    currentImages: lightbox.currentImages,
+    setLightboxIndex: lightbox.setLightboxIndex,
+    navigateWithTransition,
+  });
 
   const gridColsClass = GRID_COLS_CLASSES[props.columns || 4] || 'grid-cols-4';
   const isMobile = useIsMobile();

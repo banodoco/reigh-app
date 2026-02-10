@@ -47,8 +47,42 @@ def cmd_scan(args):
     print(f"  Score: {c(f'{new_score}/100{delta_str}', color)}")
     print()
 
+    # Post-scan analysis
+    warnings = []
+    next_action = None
+
+    # Anomaly detection
+    if diff["reopened"] > 5:
+        warnings.append(f"{diff['reopened']} findings reopened — was a previous fix reverted? Check: git log --oneline -5")
+    if diff["new"] > 10 and diff["auto_resolved"] < 3:
+        warnings.append(f"{diff['new']} new findings with few resolutions — likely cascading from recent fixes. Run fixers again.")
+    if diff["new"] > 0 and diff["auto_resolved"] > diff["new"] * 3:
+        warnings.append(f"Many more resolutions ({diff['auto_resolved']}) than new items ({diff['new']}) — good progress.")
+
+    # Suggested next action based on tier breakdown
+    by_tier = stats.get("by_tier", {})
+    next_action = _suggest_next_action(by_tier)
+
+    if warnings:
+        print(c("  ── Observations ──", "dim"))
+        for w in warnings:
+            print(c(f"  {w}", "yellow"))
+        print()
+
+    if next_action:
+        print(c(f"  Suggested next: {next_action}", "cyan"))
+        print()
+
+    # Reflection prompts
+    print(c("  ── Reflect ──", "dim"))
+    print(c("  1. Any new findings from cascading? (exports removed → vars now unused?)", "dim"))
+    print(c("  2. Did score move as expected? If not, check reopened/new counts above.", "dim"))
+    print(c("  3. Are there quick wins? Check `decruftify status` for tier breakdown.", "dim"))
+    print()
+
     _write_query({"command": "scan", "score": new_score, "prev_score": prev_score,
-                  "diff": diff, "stats": stats})
+                  "diff": diff, "stats": stats,
+                  "warnings": warnings, "next_action": next_action})
 
 
 def cmd_status(args):
@@ -495,10 +529,25 @@ def cmd_fix(args):
         _write_query({"command": "fix", "fixer": fixer_name,
                       "files_fixed": len(results), "items_fixed": total_items,
                       "findings_resolved": len(resolved_ids),
-                      "score": state["score"], "prev_score": prev_score})
+                      "score": state["score"], "prev_score": prev_score,
+                      "skip_reasons": getattr(results, "skip_reasons", {}),
+                      "next_action": "Run `npx tsc --noEmit` to verify, then `decruftify scan` to update state"})
+
+        # Post-fix reflection
+        skip_reasons = getattr(results, "skip_reasons", {})
+        _print_fix_retro(fixer_name, len(entries), total_items, len(resolved_ids), skip_reasons)
     else:
         _write_query({"command": "fix", "fixer": fixer_name, "dry_run": True,
                       "files_would_fix": len(results), "items_would_fix": total_items})
+
+        # Dry-run reflection
+        skipped = len(entries) - total_items
+        if skipped > 0:
+            print(c(f"\n  ── Review ──", "dim"))
+            print(c(f"  {total_items} of {len(entries)} entries would be fixed ({skipped} skipped).", "dim"))
+            print(c(f"  1. Do the sample changes look correct? Any false positives?", "dim"))
+            print(c(f"  2. Are the skipped items truly unfixable, or could the fixer be improved?", "dim"))
+            print(c(f"  3. Ready to run without --dry-run? (git push first!)", "dim"))
 
     print()
 
@@ -640,6 +689,65 @@ def _resolve_fixer_results(state: dict, results: list[dict], detector: str, fixe
                 state["findings"][fid]["note"] = f"auto-fixed by decruftify fix {fixer_name}"
                 resolved_ids.append(fid)
     return resolved_ids
+
+
+def _suggest_next_action(by_tier: dict) -> str | None:
+    """Suggest the highest-value next command based on tier breakdown."""
+    t1 = by_tier.get("1", {})
+    t2 = by_tier.get("2", {})
+    t1_open = t1.get("open", 0)
+    t2_open = t2.get("open", 0)
+
+    if t1_open > 0:
+        return f"`decruftify fix debug-logs --dry-run` or `fix unused-imports --dry-run` ({t1_open} T1 items)"
+    if t2_open > 0:
+        return f"`decruftify fix dead-exports --dry-run` or `fix unused-vars --dry-run` ({t2_open} T2 items)"
+
+    t3_open = by_tier.get("3", {}).get("open", 0)
+    if t3_open > 0:
+        return f"`decruftify next --tier 3` — manual review needed ({t3_open} T3 items)"
+
+    t4_open = by_tier.get("4", {}).get("open", 0)
+    if t4_open > 0:
+        return f"`decruftify next --tier 4` — major refactoring ({t4_open} T4 items)"
+
+    return None
+
+
+_SKIP_REASON_LABELS = {
+    "rest_element": "has ...rest (removing changes rest contents)",
+    "array_destructuring": "array destructuring (positional — can't remove)",
+    "function_param": "function/callback parameter (positional)",
+    "standalone_var": "standalone variable (may have side effects)",
+    "no_destr_context": "destructuring member without context",
+    "out_of_range": "line out of range (stale data?)",
+    "other": "other patterns (needs manual review)",
+}
+
+
+def _print_fix_retro(fixer_name: str, detected: int, fixed: int, resolved: int,
+                     skip_reasons: dict[str, int] | None = None):
+    """Print post-fix reflection prompts with skip reason breakdown."""
+    skipped = detected - fixed
+    print(c("\n  ── Post-fix check ──", "dim"))
+    print(c(f"  Fixed {fixed}/{detected} ({skipped} skipped, {resolved} findings resolved)", "dim"))
+
+    # Skip reason breakdown
+    if skip_reasons and skipped > 0:
+        print(c(f"\n  Skip reasons ({skipped} total):", "dim"))
+        for reason, count in sorted(skip_reasons.items(), key=lambda x: -x[1]):
+            label = _SKIP_REASON_LABELS.get(reason, reason)
+            print(c(f"    {count:4d}  {label}", "dim"))
+        print()
+
+    print(c("  Checklist:", "dim"))
+    print(c("  1. Run `npx tsc --noEmit` — does it still build?", "dim"))
+    print(c("  2. Spot-check a few changed files — do the edits look correct?", "dim"))
+    if skipped > 0 and not skip_reasons:
+        print(c(f"  3. {skipped} items were skipped. Should the fixer handle more patterns?", "dim"))
+    print(c(f"  3. Run `decruftify scan` to update state. Did score improve as expected?", "dim"))
+    print(c(f"  4. Are there cascading effects? (e.g., removing vars may orphan imports)", "dim"))
+    print(c(f"  5. `git diff --stat` — review before committing. Anything surprising?", "dim"))
 
 
 def _cascade_import_cleanup(path: Path, state: dict, prev_score: int, dry_run: bool):

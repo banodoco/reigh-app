@@ -8,7 +8,7 @@
  * Receives only layout-specific and deeply-nested props.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { X, Loader2 } from 'lucide-react';
@@ -26,6 +26,7 @@ import { useImageEditSafe } from '../contexts/ImageEditContext';
 import { useVideoEditSafe } from '../contexts/VideoEditContext';
 import type { GenerationRow } from '@/types/shots';
 import type { TaskDetailsData } from '../types';
+import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
 
 export interface InfoPanelProps {
   /** Layout variant */
@@ -103,10 +104,10 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   } = useLightboxVariantsSafe();
 
   const hasVariants = variants && variants.length >= 1;
-  const [idCopied, setIdCopied] = useState(false);
 
   // Get task ID for copy functionality - use prop as fallback for videos
   const taskId = taskDetailsData?.taskId || taskIdProp;
+  const { copied: idCopied, handleCopy: handleCopyId } = useCopyToClipboard(taskId ?? undefined);
 
   // Responsive styles
   const variantsMaxHeight = isMobile ? 'max-h-[120px]' : 'max-h-[200px]';
@@ -151,18 +152,6 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
         <SegmentedControlItem value="edit">Edit</SegmentedControlItem>
       </SegmentedControl>
     );
-  };
-
-  // Handle ID copy with simple approach that works on all devices
-  // Set state immediately (synchronously) for instant feedback, don't wait for clipboard promise
-  const handleCopyId = () => {
-    if (!taskId) return;
-    setIdCopied(true);
-    setTimeout(() => setIdCopied(false), 2000);
-    // Copy to clipboard async - don't block on it
-    navigator.clipboard.writeText(taskId).catch(() => {
-      // Silently fail - we already showed feedback
-    });
   };
 
   // Render the header - consistent single row layout for both mobile and desktop

@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShotImageManagerProps } from './types';
 import { ShotImageManagerMobile } from './ShotImageManagerMobile';
 import MediaLightbox from '../MediaLightbox';
-import type { AdjacentSegmentsData } from '../MediaLightbox/types';
 import { useTaskDetails } from './hooks/useTaskDetails';
 import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
 import type { GenerationRow } from '@/types/shots';
@@ -95,71 +94,14 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
 
   // Build adjacent segments data for the current lightbox image
   // This enables navigation to videos that start/end with the current image
-  const adjacentSegmentsData: AdjacentSegmentsData | undefined = useMemo(() => {
-    // Only available when viewing images in batch mode with segment slots
-    if (!segmentSlots || segmentSlots.length === 0 || !props.onPairClick || lightbox.lightboxIndex === null) {
-      return undefined;
-    }
-
-    const currentImage = lightbox.currentImages[lightbox.lightboxIndex];
-    if (!currentImage) return undefined;
-
-    // Use position-based matching instead of ID-based matching
-    // The image's position in the timeline is its index in the images array
-    const imagePosition = lightbox.lightboxIndex;
-
-    // Build prev segment info (ends with current image)
-    let prev: AdjacentSegmentsData['prev'] = undefined;
-    if (imagePosition > 0 && imagePosition - 1 < segmentSlots.length) {
-      const prevSlot = segmentSlots[imagePosition - 1];
-      if (prevSlot) {
-        const startImage = lightbox.currentImages[imagePosition - 1];
-        const endImage = currentImage;
-
-        prev = {
-          pairIndex: prevSlot.index,
-          hasVideo: prevSlot.type === 'child' && !!prevSlot.child?.location,
-          startImageUrl: getDisplayUrl(startImage?.thumbUrl || startImage?.imageUrl),
-          endImageUrl: getDisplayUrl(endImage?.thumbUrl || endImage?.imageUrl),
-        };
-      }
-    }
-
-    // Build next segment info (starts with current image)
-    let next: AdjacentSegmentsData['next'] = undefined;
-    if (imagePosition < segmentSlots.length) {
-      const nextSlot = segmentSlots[imagePosition];
-      if (nextSlot) {
-        const endImage = lightbox.currentImages[imagePosition + 1];
-
-        next = {
-          pairIndex: nextSlot.index,
-          hasVideo: nextSlot.type === 'child' && !!nextSlot.child?.location,
-          startImageUrl: getDisplayUrl(currentImage?.thumbUrl || currentImage?.imageUrl),
-          endImageUrl: endImage ? getDisplayUrl(endImage?.thumbUrl || endImage?.imageUrl) : undefined,
-        };
-      }
-    }
-
-    if (!prev && !next) return undefined;
-
-    return {
-      prev,
-      next,
-      onNavigateToSegment: (pairIndex: number) => {
-        if (navigateWithTransition) {
-          navigateWithTransition(() => {
-            lightbox.setLightboxIndex(null);
-            props.onPairClick!(pairIndex);
-          });
-        } else {
-          // Fallback if no transition helper provided
-          lightbox.setLightboxIndex(null);
-          props.onPairClick!(pairIndex);
-        }
-      },
-    };
-  }, [segmentSlots, props.onPairClick, lightbox.lightboxIndex, lightbox.currentImages, lightbox.setLightboxIndex, navigateWithTransition]);
+  const adjacentSegmentsData = useAdjacentSegmentsData({
+    segmentSlots,
+    onPairClick: props.onPairClick,
+    lightboxIndex: lightbox.lightboxIndex,
+    currentImages: lightbox.currentImages,
+    setLightboxIndex: lightbox.setLightboxIndex,
+    navigateWithTransition,
+  });
 
   // Fetch task details for current lightbox image
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id

@@ -5,7 +5,7 @@
  * Provides consistent header, mode selector, scrollable content area, and variants section.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { X, Loader2 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
@@ -14,6 +14,7 @@ import { VariantBadge } from '@/shared/components/VariantBadge';
 import { useLightboxVariantsSafe } from '../contexts/LightboxStateContext';
 import { VariantSelector } from '@/shared/components/VariantSelector';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
 
 interface EditPanelLayoutProps {
   /** Layout variant */
@@ -86,21 +87,11 @@ export const EditPanelLayout: React.FC<EditPanelLayoutProps> = ({
   const hasVariants = variants && variants.length >= 1 && onVariantSelect;
   const padding = isMobile ? 'p-3' : 'p-6';
   const spacing = isMobile ? 'space-y-2' : 'space-y-4';
-  const [idCopied, setIdCopied] = useState(false);
+  const { copied: idCopied, handleCopy: handleCopyId } = useCopyToClipboard(taskId ?? undefined);
   const variantsSectionRef = useRef<HTMLDivElement>(null);
 
   // Get variant state from context (avoids prop drilling)
   const { pendingTaskCount, unviewedVariantCount, onMarkAllViewed, onLoadVariantImages, currentSegmentImages } = useLightboxVariantsSafe();
-
-  // Handle ID copy with simple approach that works on all devices
-  const handleCopyId = () => {
-    if (!taskId) return;
-    setIdCopied(true);
-    setTimeout(() => setIdCopied(false), 2000);
-    navigator.clipboard.writeText(taskId).catch(() => {
-      // Silently fail - we already showed feedback
-    });
-  };
 
   return (
     <div className="h-full flex flex-col">
