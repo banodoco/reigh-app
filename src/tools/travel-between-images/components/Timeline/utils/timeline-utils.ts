@@ -1,4 +1,4 @@
-import { quantizeGap, isValidFrameCount } from "./time-utils";
+import { quantizeGap } from "./time-utils";
 
 // The trailing endpoint key — lives in the positions map but is not a real image
 export const TRAILING_ENDPOINT_KEY = '__trailing_endpoint';

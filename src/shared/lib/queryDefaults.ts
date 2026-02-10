@@ -14,7 +14,6 @@
 
 import { UseQueryOptions } from '@tanstack/react-query';
 import { isErrorWithCode, isErrorWithStatus, SUPABASE_ERROR } from '@/shared/lib/errorUtils';
-import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 
 /**
  * For queries backed by Supabase realtime subscriptions.

@@ -12,8 +12,6 @@ import { toast } from '@/shared/hooks/use-toast';
 import {
   AppError,
   categorizeError,
-  isAppError,
-  isAuthError,
   isNetworkError,
   SilentError
 } from './errors';

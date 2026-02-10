@@ -19,7 +19,6 @@ import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
 import { BatchImageGenerationTaskParams } from "@/shared/lib/tasks/imageGeneration";
 import { ASPECT_RATIO_TO_RESOLUTION } from "@/shared/lib/aspectRatios";
 import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
-import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
 import { useSubmitButtonState } from '@/shared/hooks/useSubmitButtonState';
 import { useHydratedReferences } from '@/shared/hooks/useHydratedReferences';
 

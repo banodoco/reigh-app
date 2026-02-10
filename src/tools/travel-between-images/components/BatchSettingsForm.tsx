@@ -12,8 +12,6 @@ import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { Project } from '@/types/project';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
-import { useProject } from '@/shared/contexts/ProjectContext';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '../settings';
 import { framesToSeconds, quantizeFrameCount } from './Timeline/utils/time-utils';
 

@@ -16,12 +16,7 @@ import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 
 import { BatchModeContent, JoinModeContent } from './generation';
-import {
-  useShotCore,
-  useShotImages,
-  useGenerationMode,
-  useJoinState,
-} from '../ShotSettingsContext';
+import { useShotImages, useGenerationMode, useJoinState } from '../ShotSettingsContext';
 import { useFrameSettings } from '@/tools/travel-between-images/providers';
 
 export interface GenerationSectionProps {

@@ -3,7 +3,6 @@ import { ShotImageManagerProps } from './types';
 import { ShotImageManagerMobile } from './ShotImageManagerMobile';
 import MediaLightbox from '../MediaLightbox';
 import { useTaskDetails } from './hooks/useTaskDetails';
-import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';

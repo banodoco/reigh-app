@@ -33,7 +33,6 @@ import { useShotImages } from '@/shared/hooks/useShotImages';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { findClosestAspectRatio } from '@/shared/lib/aspectRatios';
 import { DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
-import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID, FEATURED_PRESET_IDS } from './MotionControl';
 import { handleError } from '@/shared/lib/errorHandler';

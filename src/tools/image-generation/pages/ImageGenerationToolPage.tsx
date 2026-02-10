@@ -3,12 +3,11 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { ImageGenerationForm } from "../components/ImageGenerationForm";
 import { ImageGenerationFormHandles } from "../components/ImageGenerationForm/types";
 import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from "@/shared/lib/tasks/imageGeneration";
-import { MediaGallery, DisplayableMetadata } from "@/shared/components/MediaGallery";
+import { MediaGallery } from "@/shared/components/MediaGallery";
 import { useContainerDimensions } from "@/shared/components/MediaGallery/hooks";
 import { getLayoutForAspectRatio } from "@/shared/components/MediaGallery/utils";
 import SettingsModal from "@/shared/components/SettingsModal";
 import { toast } from "@/shared/components/ui/sonner";
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { Button } from "@/shared/components/ui/button";
 import { useAddImageToShot, useAddImageToShotWithoutPosition, usePositionExistingGenerationInShot } from "@/shared/hooks/useShots";
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
@@ -16,7 +15,7 @@ import { useShots } from '@/shared/contexts/ShotsContext';
 import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useProject } from "@/shared/contexts/ProjectContext";
 import { useProjectGenerations } from "@/shared/hooks/useProjectGenerations";
-import { useDeleteGeneration, useUpdateGenerationLocation, useCreateGeneration } from "@/shared/hooks/useGenerationMutations";
+import { useDeleteGeneration } from "@/shared/hooks/useGenerationMutations";
 // Settings inheritance is handled by useShotCreation
 
 import { useApiKeys } from '@/shared/hooks/useApiKeys';

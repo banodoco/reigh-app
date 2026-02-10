@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-import { getTimelineDimensions } from '../utils/timeline-utils';
 
 interface CoordinateSystemProps {
   positions: Map<string, number>;

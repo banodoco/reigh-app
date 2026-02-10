@@ -4,7 +4,6 @@ import React, {
   useContext,
   ReactNode,
   useEffect,
-  useRef,
   useMemo
 } from 'react';
 import { supabase } from '@/integrations/supabase/client';

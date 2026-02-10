@@ -16,7 +16,6 @@ import {
   useState,
   useCallback,
   useRef,
-  useTransition,
   useEffect
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,7 +25,6 @@ import { supabase } from '@/integrations/supabase/client';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { quantizePositions, TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
-import { DEFAULT_FRAME_SPACING } from '@/shared/utils/timelinePositionCalculator';
 
 // ============================================================================
 // TYPES

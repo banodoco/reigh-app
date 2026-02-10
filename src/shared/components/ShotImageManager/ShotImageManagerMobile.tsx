@@ -14,8 +14,6 @@ import {
 } from 'lucide-react';
 import { handleError } from '@/shared/lib/errorHandler';
 import { cn } from '@/shared/lib/utils';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
 import { ShotBatchItemMobile } from './ShotBatchItemMobile';

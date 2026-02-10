@@ -2,7 +2,6 @@ import React from 'react';
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Shot } from "@/types/shots";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { supabase } from '@/integrations/supabase/client';

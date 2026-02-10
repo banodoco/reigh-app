@@ -11,7 +11,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GenerationRow } from '@/types/shots';
 import { Button } from '@/shared/components/ui/button';
 import { Trash2, Copy, Check } from 'lucide-react';
-import { cn, getDisplayUrl } from '@/shared/lib/utils';
+import { cn } from '@/shared/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useBatchImageLoading } from '@/shared/hooks/useBatchImageLoading';
 import { getImageAspectRatioStyle } from '@/shared/lib/imageAspectRatio';

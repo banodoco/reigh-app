@@ -1,4 +1,4 @@
-import { useQuery, useMutation, QueryClient } from '@tanstack/react-query';
+import { useMutation, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/types/shots';
 import { Task } from '@/types/tasks';
