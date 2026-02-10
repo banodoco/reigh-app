@@ -239,9 +239,6 @@ export function InlineEditVideoView({
   const handleUpdateSelectionSettings = useCallback((id: string, updates: Partial<Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>>) => {
     setSelections(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   }, []);
-  
-  // Get the first selection for backward compatibility
-  const portionEnd = selections[0]?.end ?? 0;
 
   // Settings hook
   const editSettings = useEditVideoSettings(selectedProjectId);

@@ -48,9 +48,6 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
   const [showFullNegativePrompt, setShowFullNegativePrompt] = useState(false);
   const [paramsCopied, setParamsCopied] = useState(false);
 
-  // Get task type info from database to check content_type
-  const { data: taskTypeInfo } = useTaskType(task?.taskType || null);
-
   // Fetch public LoRAs for proper name display
   const { data: availableLoras } = usePublicLoras();
 

@@ -50,7 +50,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   onShowSecondaryTick,
   optimisticUnpositionedIds,
   optimisticPositionedIds,
-  optimisticDeletedIds,
   onOptimisticUnpositioned,
   onOptimisticPositioned,
   addingToShotImageId,

@@ -66,8 +66,6 @@ async function getUserWithTimeout(timeoutMs = 15000) {
 
     // Fast path: use local session (no network) to avoid auth network call in background
     // Single-flight the getSession call - it's slow and multiple components call it simultaneously
-    const sessionStart = Date.now();
-    
     if (!inflightGetSession) {
       inflightGetSession = supabase.auth.getSession().finally(() => {
         inflightGetSession = null;
@@ -122,10 +120,8 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
     }
 
     const promise = (async () => {
-      const fetchStart = Date.now();
-      
       // [GenerationModeDebug] Log which tool is making the query
-      
+
       // Mobile optimization: Cache user info to avoid repeated auth calls
       // Add timeout to prevent hanging on mobile connections (aligned with Supabase global timeout)
       // Use generous timeout for mobile networks
@@ -141,7 +137,6 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: ToolSettingsContex
         throw new Error('Request was cancelled');
       }
 
-      const dbQueryStart = Date.now();
       // Mobile optimization: Use more efficient queries with targeted JSON extraction
       // NOTE: We fetch the entire settings JSON to avoid SQL path issues with tool IDs containing hyphens.
       const [userResult, projectResult, shotResult] = await Promise.all([

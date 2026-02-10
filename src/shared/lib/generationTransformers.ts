@@ -374,7 +374,7 @@ export function transformGeneration(
  * @param options - Optional customization
  * @returns Transformed generation with timeline context
  */
-export function transformShotGeneration(
+function transformShotGeneration(
   shotGen: RawShotGeneration,
   options: TransformOptions = {}
 ): GeneratedImageWithMetadata & { timeline_frame: number | null } {
@@ -464,7 +464,7 @@ export function transformForTimeline(
  * Transform for useUnifiedGenerations (VideoOutputsGallery)
  * Returns format with taskId for task tracking
  */
-export function transformForUnifiedGenerations(
+function transformForUnifiedGenerations(
   shotGen: RawShotGeneration,
   includeTaskData: boolean = false
 ): GeneratedImageWithMetadata {

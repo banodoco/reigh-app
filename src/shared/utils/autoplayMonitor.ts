@@ -6,7 +6,6 @@
  */
 
 let monitoringActive = false;
-let monitorInterval: NodeJS.Timeout | null = null;
 
 interface VideoState {
   element: HTMLVideoElement;
@@ -100,8 +99,8 @@ const startAutoplayMonitoring = () => {
   
   monitoringActive = true;
   previousVideoStates = captureVideoStates();
-  
-  monitorInterval = setInterval(() => {
+
+  setInterval(() => {
     const currentStates = captureVideoStates();
     
     if (compareVideoStates(currentStates, previousVideoStates)) {

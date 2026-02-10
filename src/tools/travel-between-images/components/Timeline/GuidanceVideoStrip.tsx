@@ -246,7 +246,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
   }, [enableTapToSelect]);
 
-  const handleEndpointTouchEnd = useCallback((endpoint: 'left' | 'right', e: React.TouchEvent) => {
+  const handleEndpointTouchEnd = useCallback((_endpoint: 'left' | 'right', e: React.TouchEvent) => {
     if (!enableTapToSelect || !touchStartPosRef.current) return;
 
     const touch = e.changedTouches[0];
@@ -258,7 +258,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
 
     e.preventDefault();
     e.stopPropagation();
-    setSelectedEndpoint(prev => prev === endpoint ? null : endpoint);
+    setSelectedEndpoint(prev => prev === _endpoint ? null : _endpoint);
   }, [enableTapToSelect]);
 
   // Handle tap on strip area to place the selected endpoint

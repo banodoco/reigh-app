@@ -50,12 +50,6 @@ interface PerformanceMetrics {
   adjustedDelayMultiplier: number;
 }
 
-const performanceMetrics: PerformanceMetrics = {
-  avgLoadTime: 0,
-  loadTimes: [],
-  adjustedDelayMultiplier: 1.0
-};
-
 
 /**
  * Adaptive batch configuration based on device capabilities

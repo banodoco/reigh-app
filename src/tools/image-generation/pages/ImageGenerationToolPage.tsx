@@ -68,7 +68,6 @@ const EMPTY_PAGE_PREFS: ImageGenPagePrefs = {};
 const ImageGenerationToolPage: React.FC = React.memo(() => {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImageWithMetadata[]>([]);
   const [isDeleting] = useState<string | null>(null);
-  const [isUpscalingImageId, setIsUpscalingImageId] = useState<string | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   // Enable generations loading immediately to leverage React Query cache on revisits
   // Removing delayed load gate prevents transient loading state on revisit
@@ -360,52 +359,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     deleteGenerationMutation?.mutate(id);
   }, [deleteGenerationMutation]);
 
-  const handleUpscaleImage = async (imageId: string, imageUrl: string, currentMetadata?: DisplayableMetadata) => {
-    setIsUpscalingImageId(imageId);
-    const toastId = `upscale-${imageId}`;
-    toast.info("Sending request to DEBUG upscale function...", { id: toastId });
-
-    try {
-      const functionData = await invokeWithTimeout<{ upscaledImageUrl?: string; message?: string }>('hello-debug', {
-        body: { imageUrl },
-        timeoutMs: 15000,
-      });
-
-      console.log("Debug function response data:", functionData);
-
-      if (!functionData || !functionData.upscaledImageUrl) {
-        console.error("Debug Edge function returned unexpected data:", functionData);
-        if (functionData && functionData.message && functionData.message.includes("imageUrl is missing")) {
-          throw new Error("Debug function reports: imageUrl is missing in payload.");
-        }
-        throw new Error("Debug upscale completed but did not return a valid image URL or expected message.");
-      }
-
-      const upscaledImageUrl = functionData.upscaledImageUrl;
-      
-      const newMetadata: DisplayableMetadata = {
-        ...(currentMetadata || {}),
-        upscaled: true,
-        original_image_url: imageUrl, 
-      };
-
-      const upscaledImage: GeneratedImageWithMetadata = {
-        id: `upscaled-${Date.now()}`,
-        url: upscaledImageUrl,
-        prompt: currentMetadata?.prompt || "Upscaled image",
-        metadata: newMetadata,
-      };
-
-      setGeneratedImages(prev => [upscaledImage, ...prev]);
-    } catch (error) {
-      handleError(error, { context: 'ImageGenerationToolPage.handleUpscaleImage', toastTitle: `Failed to upscale image: ${error instanceof Error ? error.message : 'Unknown error'}` });
-    } finally {
-      setIsUpscalingImageId(null);
-    }
-  };
-
   const handleNewGenerate = async (taskParams: BatchImageGenerationTaskParams): Promise<string[]> => {
-    const generateStartTime = Date.now();
 
     if (!selectedProjectId) {
       toast.error("No project selected. Please select a project before generating images.");

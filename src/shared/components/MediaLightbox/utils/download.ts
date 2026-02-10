@@ -78,7 +78,6 @@ const sanitizeFilename = (str: string, maxLength: number = 50): string => {
  * @param prompt - Optional prompt text to use in filename for better readability
  */
 export const downloadMedia = async (url: string, mediaId: string, isVideo: boolean, contentType?: string, prompt?: string): Promise<void> => {
-  const downloadStartTime = Date.now();
   const fileExt = getFileExtension(url, isVideo, contentType);
 
   // Generate a user-friendly filename:

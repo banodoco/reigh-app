@@ -356,6 +356,7 @@ export const PromptGenerationControls: React.FC<PromptGenerationControlsProps> =
                 const currentValue = textarea.value;
 
                 // Insert new line with bullet point
+                const beforeCursor = currentValue.slice(0, cursorPos);
                 const afterCursor = currentValue.slice(cursorPos);
                 const newValue = beforeCursor + '\n• ' + afterCursor;
                 

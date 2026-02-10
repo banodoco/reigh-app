@@ -331,7 +331,6 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
   React.useLayoutEffect(() => {
     setImageLoadError(false);
 
-    const isShowingThumbnail = thumbUrl && thumbUrl !== effectiveImageUrl;
     let newFullImageLoaded = false;
 
     if (!thumbUrl || thumbUrl === effectiveImageUrl) {

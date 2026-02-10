@@ -28,13 +28,6 @@ const CHARACTER_ANIMATE_TYPES = new Set([
   'animate_character',
 ]);
 
-// All video-related task types (for determining UI to show)
-const VIDEO_TASK_TYPES = new Set([
-  ...JOIN_CLIPS_TYPES,
-  ...TRAVEL_TYPES,
-  ...CHARACTER_ANIMATE_TYPES,
-]);
-
 /**
  * Check if a task type is a join clips type
  * Includes: join_clips_orchestrator, join_clips_segment, join_clips, clip_join

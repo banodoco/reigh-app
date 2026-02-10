@@ -114,8 +114,6 @@ const useAllShotGenerations = (
     // This was causing cross-shot data leakage - when navigating to a new shot,
     // the previous shot's images would briefly appear as "placeholder" data
     queryFn: async ({ signal }) => {
-      const startTime = Date.now();
-
       // Query shot_generations with embedded generations data + primary variant
       // NOTE: Must specify FK explicitly to avoid ambiguous relationship error (PGRST201)
       // since there are two FKs between shot_generations and generations

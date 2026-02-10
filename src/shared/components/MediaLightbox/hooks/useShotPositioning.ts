@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { GenerationRow, Shot } from '@/types/shots';
 import { getGenerationId, getMediaUrl, getThumbnailUrl } from '@/shared/lib/mediaTypeHelpers';
@@ -128,9 +128,6 @@ export const useShotPositioning = ({
   }, [selectedShotId, media, optimisticPositionedIds, positionedInSelectedShot]);
 
   // [ShotNavDebug] Log computed positioned state
-  useEffect(() => {
-  }, [isAlreadyPositionedInSelectedShot, media?.id, selectedShotId, optimisticPositionedIds, positionedInSelectedShot]);
-
   const handleAddToShot = async () => {
     if (!onAddToShot || !selectedShotId) return;
     
@@ -207,9 +204,6 @@ export const useShotPositioning = ({
   }, [selectedShotId, media, optimisticUnpositionedIds, associatedWithoutPositionInSelectedShot]);
 
   // [ShotNavDebug] Log computed unpositioned state
-  useEffect(() => {
-  }, [isAlreadyAssociatedWithoutPosition, media?.id, selectedShotId, optimisticUnpositionedIds, associatedWithoutPositionInSelectedShot]);
-
   const handleAddToShotWithoutPosition = async () => {
     if (!onAddToShotWithoutPosition || !selectedShotId) return;
 

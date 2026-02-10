@@ -74,7 +74,7 @@ class MobilePerformanceMonitor {
     this.renderCounts.set(componentName, count + 1);
   }
 
-  private getMetrics(): PerformanceMetrics {
+  private _getMetrics(): PerformanceMetrics {
     // Count active timers and intervals
     // @ts-ignore - These are available in browser
     const activeTimers = window.setInterval.length || 0;

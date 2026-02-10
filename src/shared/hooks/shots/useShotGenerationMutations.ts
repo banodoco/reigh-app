@@ -600,7 +600,7 @@ export const useUpdateShotImageOrder = () => {
       return { previousFastGens, shotId };
     },
 
-    onError: (err: Error, variables, context) => {
+    onError: (_err: Error, _variables, context) => {
       if (context?.previousFastGens && context.shotId) {
         rollbackShotGenerationsCache(queryClient, context.shotId, context.previousFastGens);
       }

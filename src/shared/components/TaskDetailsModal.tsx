@@ -110,9 +110,9 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
         setTaskId(result.taskId);
         // The task data will be fetched by the useGetTask hook automatically
 
-      } catch (_error: unknown) {
+      } catch (error: unknown) {
         if (cancelled) return;
-        console.error(`[TaskDetailsModal] Error fetching task details:`, _error);
+        console.error(`[TaskDetailsModal] Error fetching task details:`, error);
         setTaskId(null);
       }
     };

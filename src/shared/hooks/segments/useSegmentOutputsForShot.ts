@@ -322,17 +322,6 @@ export function useSegmentOutputsForShot(
 
       // [TrailingDebug] Also check if there are ANY videos with matching pair_shot_generation_id
       // This helps diagnose if videos exist but under a different parent
-      if (trailingShotGenId) {
-        const { data: videosWithPairId } = await supabase
-          .from('generations')
-          .select('id, parent_generation_id, pair_shot_generation_id, location, params')
-          .eq('pair_shot_generation_id', trailingShotGenId);
-
-        if (videosWithPairId && videosWithPairId.length > 0) {
-
-        }
-      }
-
       const { data, error } = await supabase
         .from('generations')
         .select('*')

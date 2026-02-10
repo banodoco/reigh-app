@@ -50,7 +50,6 @@ interface WanderingGroup {
 export const ConstellationCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const starsRef = useRef<Star[]>([]);
-  const shootingStarsRef = useRef<ShootingStar[]>([]);
   const wanderingGroupsRef = useRef<WanderingGroup[]>([]);
   const wanderingFadeInRef = useRef({ startTime: 0, opacity: 0 }); // For delayed fade-in
   const animationFrameRef = useRef<number>();

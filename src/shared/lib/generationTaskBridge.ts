@@ -87,7 +87,7 @@ async function getTaskIdsForGenerations(generationIds: string[]): Promise<Map<st
  * Get generation for a task by output location
  * Includes shot associations for proper UI state
  */
-async function getGenerationForTask(_taskId: string, outputLocation: string, projectId: string): Promise<GenerationRow | null> {
+async function getGenerationForTask(outputLocation: string, projectId: string): Promise<GenerationRow | null> {
   if (!outputLocation) return null;
 
   const { data, error } = await supabase

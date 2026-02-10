@@ -179,7 +179,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   const queryClient = useQueryClient();
 
   // Get current task count for baseline tracking
-  const { data: taskStatusCounts } = useTaskStatusCounts(selectedProjectId);
 
   // Derive project aspect ratio and resolution for GenerationSettingsSection
   const { projectAspectRatio, projectResolution } = useMemo(() => {
@@ -486,7 +485,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
     effectivePromptMode,
     currentBeforePromptText,
     currentAfterPromptText,
-    isShotSettingsReady,
     actionablePromptsCount,
     lastKnownPromptCount,
     setPrompts,
@@ -580,7 +578,6 @@ export const ImageGenerationForm = forwardRef<ImageGenerationFormHandles, ImageG
   const effectiveSubjectDescription = currentSubjectDescription.trim() || 'this character';
   const currentInThisScene = inThisScene;
   const currentInThisSceneStrength = inThisSceneStrength;
-  const currentReferenceMode = referenceMode;
   const currentStyleBoostTerms = styleBoostTerms;
 
   // ============================================================================

@@ -177,8 +177,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   const effectiveTasksPaneOpen = tasksPaneOpen ?? tasksPaneOpenContext;
   const effectiveTasksPaneWidth = tasksPaneWidth ?? tasksPaneWidthContext;
 
-  // Count cancellable tasks
-  const { data: statusCounts } = useTaskStatusCounts(selectedProjectId);
 
   // Refs
   const contentRef = useRef<HTMLDivElement>(null);

@@ -75,7 +75,7 @@ export const mapDbTaskToTask = (row: TaskDbRow): Task => ({
 });
 
 // Hook to update task status
-const _useUpdateTaskStatus = () => {
+function _useUpdateTaskStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -100,7 +100,7 @@ const _useUpdateTaskStatus = () => {
       handleError(error, { context: 'useUpdateTaskStatus', toastTitle: 'Failed to update task status' });
     },
   });
-};
+}
 
 // Hook to get a single task by ID
 // Uses IMMUTABLE_PRESET since task data rarely changes after creation
@@ -429,7 +429,7 @@ async function cancelTask(taskId: string): Promise<void> {
 }
 
 // Hook to cancel a task using Supabase
-export const useCancelTask = (projectId: string | null) => {
+export const useCancelTask = (_projectId: string | null) => {
   const queryClient = useQueryClient();
 
   return useMutation({

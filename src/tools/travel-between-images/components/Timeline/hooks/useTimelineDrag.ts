@@ -316,7 +316,7 @@ export const useTimelineDrag = ({
     pushModRef.current = push;
   }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.hasMovedPastThreshold, onDragStart]);
 
-  const handleMouseUp = useCallback((e: MouseEvent, containerRef: React.RefObject<HTMLDivElement>) => {
+  const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!dragState.isDragging || !dragState.activeId) return;
 
     // Below threshold = click, not drag

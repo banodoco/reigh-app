@@ -43,14 +43,13 @@ export interface VideoSegmentEditorProps {
 }
 
 export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteSegment }: VideoSegmentEditorProps) {
-  const { getVideoUrl, updateSegment, markVideoAsInvalid } = useTrainingData();
+  const { getVideoUrl, markVideoAsInvalid } = useTrainingData();
   const playback = useVideoPlayback();
 
   const [segmentStartTime, setSegmentStartTime] = useState<number | null>(null);
   const [segmentEndTime, setSegmentEndTime] = useState<number | null>(null);
   const [description, setDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [editingSegment, setEditingSegment] = useState<string | null>(null);
   const [startFrameImage, setStartFrameImage] = useState<string | null>(null);
   const [endFrameImage, setEndFrameImage] = useState<string | null>(null);
 
@@ -165,13 +164,6 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
     } else {
       toast.error('No marks to remove');
     }
-  };
-
-  const handleEditSegment = (segment: TrainingDataSegment) => {
-    setEditingSegment(segment.id);
-    setSegmentStartTime(segment.startTime / 1000);
-    setSegmentEndTime(segment.endTime / 1000);
-    setDescription(segment.description || '');
   };
 
   // Keyboard shortcuts

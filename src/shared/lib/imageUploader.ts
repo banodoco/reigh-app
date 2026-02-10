@@ -216,7 +216,6 @@ export const uploadImageToStorage = async (
 
     } catch (uploadError: unknown) {
       lastError = uploadError;
-      const uploadDuration = Date.now() - uploadStartTime;
       const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError);
 
       // Don't retry for certain permanent errors or user cancellation

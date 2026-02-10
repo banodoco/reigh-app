@@ -60,7 +60,6 @@ const TrailingEndpoint: React.FC<TrailingEndpointProps> = ({
   fullRange,
   currentDragFrame,
   gapToImage,
-  maxAllowedGap,
   readOnly = false,
   onDurationClick,
   compact = false,

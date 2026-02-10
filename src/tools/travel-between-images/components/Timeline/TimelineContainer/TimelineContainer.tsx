@@ -77,7 +77,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   hasNoImages = false,
   maxFrameLimit = 81,
   selectedOutputId,
-  onSelectedOutputChange,
   onSegmentFrameCountChange,
   segmentSlots: parentSegmentSlots,
   isSegmentsLoading,

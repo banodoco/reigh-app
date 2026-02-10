@@ -69,14 +69,6 @@ function normalizeMotionAmount(value: number | undefined): number {
   return value <= 1 ? value * 100 : value;
 }
 
-/**
- * Convert motion amount from UI scale (0-100) to backend scale (0-1).
- * Only use this at task submission time.
- */
-function motionAmountToBackend(value: number): number {
-  return value / 100;
-}
-
 // =============================================================================
 // SHOT SETTINGS MIGRATION
 // =============================================================================

@@ -40,7 +40,7 @@ export async function resolveProjectResolution(
 
   try {
     // Fetch project aspect ratio from database
-    const { data: project, error: projectError } = await supabase
+    const { data: project } = await supabase
       .from("projects")
       .select("aspect_ratio")
       .eq("id", projectId)

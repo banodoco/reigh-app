@@ -11,15 +11,4 @@ interface CoordinateSystemData {
   fullRange: number;
 }
 
-function useCoordinateSystem({ positions }: CoordinateSystemProps) {
-
-  // Calculate dimensions from positions
-  const coordinateSystem = useMemo(() => {
-    const { fullMin, fullMax, fullRange } = getTimelineDimensions(positions);
-    return { fullMin, fullMax, fullRange };
-  }, [positions]);
-
-  return coordinateSystem;
-}
-
 export type { CoordinateSystemData };

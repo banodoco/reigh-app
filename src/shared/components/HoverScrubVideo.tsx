@@ -389,9 +389,9 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
         onTouchEnd={(e) => {
           onTouchEnd?.(e);
         }}
-        onTouchStart={(e) => {
+        onTouchStart={(_e) => {
         }}
-        onTouchMove={(e) => {
+        onTouchMove={(_e) => {
         }}
         onClick={() => {
 

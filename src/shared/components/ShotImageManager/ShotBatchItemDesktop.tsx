@@ -138,11 +138,6 @@ const ShotBatchItemDesktopComponent: React.FC<ShotBatchItemDesktopProps> = ({
     }
   };
 
-  // Add cache-busting parameter to ensure updated images are displayed
-  const imageUrl = image.thumbUrl || image.imageUrl;
-  // Use forceRefresh for flipped images to ensure immediate display update
-  const isFlippedImage = imageUrl && imageUrl.includes('flipped_');
-
   const finalClassName = cn(
     "group relative border rounded-lg overflow-hidden cursor-pointer bg-card hover:ring-2 hover:ring-primary/50 transition-colors",
     isSelected && "ring-4 ring-orange-500 ring-offset-2 ring-offset-background bg-orange-500/15 border-orange-500",

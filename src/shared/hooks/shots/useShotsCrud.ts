@@ -338,7 +338,7 @@ export const useReorderShots = () => {
       return { previousShots, projectId };
     },
 
-    onError: (error: Error, variables, context) => {
+    onError: (error: Error, _variables, context) => {
       if (context?.previousShots && context.projectId) {
         rollbackShotsCaches(queryClient, context.projectId, context.previousShots);
       }

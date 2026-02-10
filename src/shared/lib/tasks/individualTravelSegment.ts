@@ -158,19 +158,6 @@ function buildIndividualTravelSegmentParams(
   // Also check params.structure_videos (passed directly from buildTaskParams)
   const structureGuidance = orig.structure_guidance || orchDetails.structure_guidance;
 
-  // Check for structure videos - look at multiple sources:
-  // 1. params.structure_videos - passed directly from UI (new flow via buildTaskParams)
-  // 2. structureGuidance.videos - unified format
-  // 3. orig/orchDetails.structure_videos - legacy from originalParams
-  const hasStructureVideos = !!(
-    (params.structure_videos as unknown[] | undefined)?.length > 0 ||
-    (structureGuidance?.videos as unknown[] | undefined)?.length > 0 ||
-    orchDetails.structure_videos?.length > 0 ||
-    orig.structure_videos?.length > 0 ||
-    orchDetails.structure_video_path ||
-    orig.structure_video_path
-  );
-
   // VACE model is no longer supported - always use I2V
   // Structure video type is hardcoded to uni3c, which uses I2V
   const useVaceModel = false;
