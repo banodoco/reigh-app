@@ -1,10 +1,8 @@
 /**
- * StrokeOverlay - Konva-based stroke overlay for inpainting/annotation.
+ * Konva-based stroke overlay for inpainting/annotation.
  *
- * Structure:
- *  1. getClampedPos()        — shared pointer position helper
- *  2. useStrokeStateMachine() — all drawing/drag/selection state + pointer handlers
- *  3. StrokeOverlay           — rendering + ref (exportMask, actions)
+ * useDrawing()    — drawing, drag, and selection state + pointer handlers
+ * StrokeOverlay   — rendering + ref (exportMask, actions)
  */
 
 import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react';
@@ -15,13 +13,8 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { handleError } from '@/shared/lib/errorHandler';
 import { isPointOnShape, getClickedCornerIndex, getRectangleClickType, getRectangleCorners } from '../hooks/inpainting/shapeHelpers';
 
-// Re-export canonical type for convenience
 export type { BrushStroke } from '../hooks/inpainting/types';
 import type { BrushStroke } from '../hooks/inpainting/types';
-
-// ============================================================================
-// Types
-// ============================================================================
 
 interface StrokeOverlayProps {
   imageWidth: number;
@@ -42,6 +35,7 @@ interface StrokeOverlayProps {
 }
 
 export interface StrokeOverlayHandle {
+  /** Renders all strokes as white-on-black mask at image resolution. */
   exportMask: (options?: { pixelRatio?: number }) => string | null;
   getSelectedShapeId: () => string | null;
   undo: () => void;
@@ -50,66 +44,54 @@ export interface StrokeOverlayHandle {
   toggleFreeForm: () => void;
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
+type DragMode = 'move' | 'resize';
 
-/** Get clamped pointer position from a Konva pointer event, in stage coordinates. */
+/** Clamped pointer position from a Konva event, in stage coordinates. */
 function getClampedPos(
   e: KonvaEventObject<PointerEvent>,
-  displayWidth: number,
-  displayHeight: number,
+  w: number,
+  h: number,
 ): { x: number; y: number } | null {
   const stage = e.target.getStage();
   if (!stage) return null;
 
-  const clampX = (v: number) => Math.max(0, Math.min(displayWidth, v));
-  const clampY = (v: number) => Math.max(0, Math.min(displayHeight, v));
+  const clamp = (v: number, max: number) => Math.max(0, Math.min(max, v));
 
   const p = stage.getPointerPosition();
-  if (p) return { x: clampX(p.x), y: clampY(p.y) };
+  if (p) return { x: clamp(p.x, w), y: clamp(p.y, h) };
 
   const container = stage.container();
   if (!container) return null;
   const rect = container.getBoundingClientRect();
-  return { x: clampX(e.evt.clientX - rect.left), y: clampY(e.evt.clientY - rect.top) };
+  return { x: clamp(e.evt.clientX - rect.left, w), y: clamp(e.evt.clientY - rect.top, h) };
 }
 
-// ============================================================================
-// useStrokeStateMachine — drawing, drag, and selection state + pointer handlers
-// ============================================================================
 
-type DragMode = 'move' | 'resize';
-
-function useStrokeStateMachine({
+function useDrawing({
   displayWidth, displayHeight, imageWidth, imageHeight,
   strokes, isEraseMode, brushSize, annotationMode,
   isInpaintMode, isAnnotateMode, editMode,
   onStrokeComplete, onStrokesChange, onSelectionChange, onTextModeHint,
 }: StrokeOverlayProps) {
 
-  // --- Drawing state ---
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<Array<{ x: number; y: number }>>([]);
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
 
-  // Refs for synchronous access — React state updates are async,
-  // so useCallback closures can see stale values during rapid pointer events.
+  // Refs mirror state for synchronous reads inside pointer handlers,
+  // where React's async state updates would give stale values.
   const isDrawingRef = useRef(false);
   const currentStrokeRef = useRef<Array<{ x: number; y: number }>>([]);
 
-  // --- Drag state ---
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const [dragMode, setDragMode] = useState<DragMode>('resize');
   const [draggingCornerIndex, setDraggingCornerIndex] = useState<number | null>(null);
   const draggedShapeRef = useRef<BrushStroke | null>(null);
 
-  // --- Click/hint tracking ---
   const lastClickTimeRef = useRef(0);
   const lastClickPosRef = useRef<{ x: number; y: number } | null>(null);
 
-  // --- Coordinate transforms ---
   const scaleX = imageWidth > 0 ? displayWidth / imageWidth : 1;
   const scaleY = imageHeight > 0 ? displayHeight / imageHeight : 1;
 
@@ -123,13 +105,11 @@ function useStrokeStateMachine({
     [scaleX, scaleY],
   );
 
-  // --- Selection helper ---
   const updateSelection = useCallback((id: string | null) => {
     setSelectedShapeId(id);
     onSelectionChange(id);
   }, [onSelectionChange]);
 
-  // --- Drag lifecycle ---
   const startDrag = useCallback((
     shape: BrushStroke, mode: DragMode, pointerX: number, pointerY: number, corner?: number,
   ) => {
@@ -147,9 +127,8 @@ function useStrokeStateMachine({
     draggedShapeRef.current = null;
   }, []);
 
-  // --- Shape hit-testing (annotate mode) ---
-  // Returns true if the click was handled by a shape interaction.
-  const tryShapeInteraction = useCallback((x: number, y: number): boolean => {
+  // Hit-test shapes in annotate mode. Returns true if a shape handled the click.
+  const hitTestShapes = useCallback((x: number, y: number): boolean => {
     for (let i = strokes.length - 1; i >= 0; i--) {
       const stroke = strokes[i];
       if (stroke.shapeType !== 'rectangle' || !isPointOnShape(x, y, stroke)) continue;
@@ -166,13 +145,12 @@ function useStrokeStateMachine({
       lastClickTimeRef.current = now;
       lastClickPosRef.current = { x, y };
 
-      // Free-form: drag existing independent corner
       if (stroke.isFreeForm && cornerIdx !== null) {
         startDrag(stroke, 'resize', x, y, cornerIdx);
         return true;
       }
 
-      // Double-click corner: convert to free-form, then drag that corner
+      // Double-click corner converts to free-form
       if (isDoubleClick && cornerIdx !== null && !stroke.isFreeForm) {
         const corners = getRectangleCorners(stroke);
         const freeForm: BrushStroke = { ...stroke, points: corners, isFreeForm: true };
@@ -181,22 +159,18 @@ function useStrokeStateMachine({
         return true;
       }
 
-      // Edge click: move; corner click: resize; middle: keep selected
       const clickType = getRectangleClickType(x, y, stroke);
       if (clickType === 'edge') { startDrag(stroke, 'move', x, y); return true; }
       if (clickType === 'corner' && !stroke.isFreeForm) { startDrag(stroke, 'resize', x, y); return true; }
-      return true; // middle — just keep selected
+      return true; // middle — just selected, no drag
     }
     return false;
   }, [strokes, onStrokesChange, updateSelection, startDrag]);
-
-  // --- Pointer handlers ---
 
   const handlePointerDown = useCallback((e: KonvaEventObject<PointerEvent>) => {
     const pos = getClampedPos(e, displayWidth, displayHeight);
     if (!pos) return;
 
-    // Capture pointer for edge-of-canvas drawing
     const stage = e.target.getStage();
     if (stage?.content && e.evt.pointerId !== undefined) {
       try { stage.content.setPointerCapture(e.evt.pointerId); } catch { /* ok */ }
@@ -211,19 +185,17 @@ function useStrokeStateMachine({
 
     const { x, y } = toImage(pos.x, pos.y);
 
-    // In annotate+rectangle mode, try interacting with existing shapes first
     if (isAnnotateMode && annotationMode === 'rectangle') {
-      if (tryShapeInteraction(x, y)) return;
+      if (hitTestShapes(x, y)) return;
       if (selectedShapeId) updateSelection(null);
     }
 
-    // Start new stroke
     isDrawingRef.current = true;
     setIsDrawing(true);
     currentStrokeRef.current = [{ x, y }];
     setCurrentStroke([{ x, y }]);
   }, [displayWidth, displayHeight, isInpaintMode, isAnnotateMode, annotationMode,
-      selectedShapeId, editMode, onTextModeHint, toImage, tryShapeInteraction, updateSelection]);
+      selectedShapeId, editMode, onTextModeHint, toImage, hitTestShapes, updateSelection]);
 
   const handlePointerMove = useCallback((e: KonvaEventObject<PointerEvent>) => {
     if (!isInpaintMode && !isAnnotateMode) return;
@@ -233,23 +205,19 @@ function useStrokeStateMachine({
     if (!pos) return;
     const { x, y } = toImage(pos.x, pos.y);
 
-    // --- Drag in progress ---
     if (isDragging && draggedShapeRef.current) {
       const shape = draggedShapeRef.current;
       let updated: BrushStroke | null = null;
 
       if (draggingCornerIndex !== null && shape.isFreeForm && shape.points.length === 4) {
-        // Free-form corner drag
         const pts = [...shape.points];
         pts[draggingCornerIndex] = { x, y };
         updated = { ...shape, points: pts, isFreeForm: true };
       } else if (dragMode === 'move' && dragOffset) {
-        // Move whole shape
         const dx = (x - dragOffset.x) - shape.points[0].x;
         const dy = (y - dragOffset.y) - shape.points[0].y;
         updated = { ...shape, points: shape.points.map(p => ({ x: p.x + dx, y: p.y + dy })), isFreeForm: shape.isFreeForm };
       } else if (dragMode === 'resize' && !shape.isFreeForm) {
-        // Resize: move first corner, keep second fixed
         updated = { ...shape, points: [{ x, y }, shape.points[1]] };
       }
 
@@ -260,7 +228,6 @@ function useStrokeStateMachine({
       return;
     }
 
-    // --- Continue drawing ---
     if (!isDrawingRef.current) return;
     const next = [...currentStrokeRef.current, { x, y }];
     currentStrokeRef.current = next;
@@ -269,7 +236,6 @@ function useStrokeStateMachine({
       draggingCornerIndex, strokes, displayWidth, displayHeight, onStrokesChange, toImage]);
 
   const handlePointerUp = useCallback((e: KonvaEventObject<PointerEvent>) => {
-    // Release pointer capture
     const stage = e.target.getStage();
     if (stage?.content && e.evt.pointerId !== undefined) {
       try { stage.content.releasePointerCapture(e.evt.pointerId); } catch { /* ok */ }
@@ -287,7 +253,6 @@ function useStrokeStateMachine({
     if (pts.length > 1) {
       const shapeType = isAnnotateMode && annotationMode ? annotationMode : 'line';
 
-      // Require minimum drag distance for rectangles
       if (shapeType === 'rectangle') {
         if (Math.hypot(pts[pts.length - 1].x - pts[0].x, pts[pts.length - 1].y - pts[0].y) < 10) {
           currentStrokeRef.current = [];
@@ -313,7 +278,8 @@ function useStrokeStateMachine({
   }, [isInpaintMode, isAnnotateMode, isEraseMode, brushSize, annotationMode,
       isDragging, editMode, endDrag, onStrokeComplete, updateSelection]);
 
-  // --- Global pointer release safety net ---
+  // Safety net: if pointer is released outside the stage (or the event is lost),
+  // clean up drawing/drag state so we don't get stuck.
   useEffect(() => {
     if (!isDrawing && !isDragging) return;
 
@@ -335,7 +301,7 @@ function useStrokeStateMachine({
     };
   }, [isDrawing, isDragging, endDrag]);
 
-  // --- Keyboard: Delete/Backspace ---
+  // Delete/Backspace deletes the selected shape in annotate mode
   useEffect(() => {
     if (!isInpaintMode || !isAnnotateMode) return;
 
@@ -361,9 +327,6 @@ function useStrokeStateMachine({
   };
 }
 
-// ============================================================================
-// Component
-// ============================================================================
 
 export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>((props, ref) => {
   const {
@@ -378,9 +341,8 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
     handlePointerDown, handlePointerMove, handlePointerUp,
     currentStroke, selectedShapeId, updateSelection,
     scaleX, toStage,
-  } = useStrokeStateMachine(props);
+  } = useDrawing(props);
 
-  // --- Ref: actions + mask export ---
   useImperativeHandle(ref, () => ({
     exportMask: (options?: { pixelRatio?: number }) => {
       const pixelRatio = options?.pixelRatio ?? 1.5;
@@ -469,8 +431,6 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
       onStrokesChange(strokes.map(s => s.id === selectedShapeId ? updated : s));
     },
   }), [strokes, imageWidth, imageHeight, selectedShapeId, onStrokesChange, updateSelection]);
-
-  // --- Rendering ---
 
   const renderStroke = (stroke: BrushStroke) => {
     const isSelected = stroke.id === selectedShapeId;
