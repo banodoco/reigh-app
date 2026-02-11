@@ -6,8 +6,8 @@ import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
-from .graph import detect_cycles, get_coupling_score, finalize_graph
+from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
+from ...detectors.graph import detect_cycles, get_coupling_score, finalize_graph
 
 
 def build_dep_graph(path: Path) -> dict[str, dict]:

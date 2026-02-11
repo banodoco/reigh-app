@@ -18,7 +18,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-from ..utils import c, find_ts_files, get_area, print_table, rel
+from ...utils import c, find_ts_files, get_area, print_table, rel
 
 # ── Pattern families ────────────────────────────────────────────
 #

@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel, resolve_path
+from ...utils import PROJECT_ROOT, c, print_table, rel, resolve_path
 
 
 TS6133_RE = re.compile(r"^(.+)\((\d+),(\d+)\): error TS6133: '(\S+)' is declared but its value is never read\.")

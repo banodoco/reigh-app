@@ -7,10 +7,11 @@ from pathlib import Path
 from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
-def detect_large_files(path: Path, threshold: int = 500) -> list[dict]:
-    """Find .ts/.tsx files exceeding a line count threshold."""
+def detect_large_files(path: Path, file_finder=None, threshold: int = 500) -> list[dict]:
+    """Find files exceeding a line count threshold."""
+    finder = file_finder or find_ts_files
     entries = []
-    for filepath in find_ts_files(path):
+    for filepath in finder(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             lines = p.read_text().splitlines()

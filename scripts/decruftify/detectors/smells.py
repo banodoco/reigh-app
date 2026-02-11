@@ -88,11 +88,18 @@ SMELL_CHECKS = [
 ]
 
 
-def detect_smells(path: Path) -> list[dict]:
-    """Detect code smell patterns across the codebase."""
-    smell_counts: dict[str, list[dict]] = {s["id"]: [] for s in SMELL_CHECKS}
+def detect_smells(path: Path, rules=None, file_finder=None) -> list[dict]:
+    """Detect code smell patterns across the codebase.
 
-    for filepath in find_ts_files(path):
+    Args:
+        rules: list of smell check dicts. If None, uses SMELL_CHECKS (TS defaults).
+        file_finder: callable(path) -> list[str]. If None, uses find_ts_files.
+    """
+    checks = rules or SMELL_CHECKS
+    finder = file_finder or find_ts_files
+    smell_counts: dict[str, list[dict]] = {s["id"]: [] for s in checks}
+
+    for filepath in finder(path):
         if "node_modules" in filepath or ".d.ts" in filepath:
             continue
         try:
@@ -103,7 +110,7 @@ def detect_smells(path: Path) -> list[dict]:
             continue
 
         # Regex-based smells
-        for check in SMELL_CHECKS:
+        for check in checks:
             if check["pattern"] is None:
                 continue
             for i, line in enumerate(lines):
@@ -132,7 +139,7 @@ def detect_smells(path: Path) -> list[dict]:
     # Build summary entries sorted by severity then count
     severity_order = {"high": 0, "medium": 1, "low": 2}
     entries = []
-    for check in SMELL_CHECKS:
+    for check in checks:
         matches = smell_counts[check["id"]]
         if matches:
             entries.append({

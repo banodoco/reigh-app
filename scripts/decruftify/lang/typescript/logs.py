@@ -12,7 +12,7 @@ import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel
+from ...utils import PROJECT_ROOT, c, print_table, rel
 
 
 TAG_EXTRACT_RE = re.compile(r"\[([^\]]+)\]")

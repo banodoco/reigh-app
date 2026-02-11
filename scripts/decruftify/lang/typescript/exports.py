@@ -9,7 +9,7 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
+from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
 
 
 EXPORT_DECL_RE = re.compile(

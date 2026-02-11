@@ -89,7 +89,7 @@ def _build_tree(files: list[dict], dep_graph: dict, findings_by_file: dict) -> d
 def generate_visualization(path: Path, state: dict | None = None,
                            output: Path | None = None) -> str:
     """Generate an HTML treemap visualization."""
-    from .detectors.deps import build_dep_graph
+    from .lang.typescript.deps import build_dep_graph
 
     # Collect data
     files = _collect_file_data(path)
@@ -230,7 +230,7 @@ def generate_tree_text(path: Path, state: dict | None = None, *,
         sort_by: 'loc', 'findings', or 'coupling'.
         detail: Show finding summaries under each file.
     """
-    from .detectors.deps import build_dep_graph
+    from .lang.typescript.deps import build_dep_graph
 
     files = _collect_file_data(path)
     dep_graph = build_dep_graph(path)

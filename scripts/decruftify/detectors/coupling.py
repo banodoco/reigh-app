@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from ..utils import c, print_table, rel, SRC_PATH
-from .deps import build_dep_graph
+from ..lang.typescript.deps import build_dep_graph
 
 
 def detect_coupling_violations(path: Path, graph: dict) -> list[dict]:

@@ -48,6 +48,7 @@ def _load_all():
     """Import all language modules to trigger registration."""
     import importlib
     lang_dir = Path(__file__).parent
+    # Discover .py modules (e.g. lang/rust.py)
     for f in sorted(lang_dir.glob("*.py")):
         if f.name in ("__init__.py", "base.py"):
             continue
@@ -56,3 +57,10 @@ def _load_all():
             importlib.import_module(f".{module_name}", __package__)
         except ImportError:
             pass
+    # Discover packages (e.g. lang/typescript/)
+    for d in sorted(lang_dir.iterdir()):
+        if d.is_dir() and (d / "__init__.py").exists() and not d.name.startswith("_"):
+            try:
+                importlib.import_module(f".{d.name}", __package__)
+            except ImportError:
+                pass

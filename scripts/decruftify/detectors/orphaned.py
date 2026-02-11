@@ -30,7 +30,7 @@ ENTRY_PATTERNS = [
 BARREL_NAMES = {"index.ts", "index.tsx"}
 
 
-def _build_dynamic_import_targets(path: Path) -> set[str]:
+def _build_dynamic_import_targets(path: Path, extensions: list[str]) -> set[str]:
     """Find files referenced by dynamic imports (import('...')) and side-effect imports.
 
     The dep graph only tracks `from '...'` imports. This catches:
@@ -39,10 +39,11 @@ def _build_dynamic_import_targets(path: Path) -> set[str]:
     - import '...'   (side-effect, no `from`)
     """
     targets: set[str] = set()
+    include_args = [arg for ext in extensions for arg in (f"--include=*{ext}",)]
 
     # Dynamic imports: import('...')
     result = subprocess.run(
-        ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E",
+        ["grep", "-rn", *include_args, "-E",
          r"import\s*\(\s*['\"]", str(path)],
         capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
@@ -54,7 +55,7 @@ def _build_dynamic_import_targets(path: Path) -> set[str]:
 
     # Side-effect imports: import '...' (no from)
     result2 = subprocess.run(
-        ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E",
+        ["grep", "-rn", *include_args, "-E",
          r"^import\s+['\"]", str(path)],
         capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
@@ -97,6 +98,7 @@ def _is_dynamically_imported(filepath: str, dynamic_targets: set[str]) -> bool:
 def detect_orphaned_files(
     path: Path,
     graph: dict,
+    extensions: list[str] | None = None,
     extra_entry_patterns: list[str] | None = None,
     extra_barrel_names: set[str] | None = None,
 ) -> list[dict]:
@@ -107,6 +109,7 @@ def detect_orphaned_files(
     imports which the dep graph doesn't track.
 
     Args:
+        extensions: File extensions to search for dynamic imports (e.g. [".ts", ".tsx"]).
         extra_entry_patterns: Additional entry-point patterns from language config
             (substring-matched against relative file paths).
         extra_barrel_names: Additional barrel file names from language config.
@@ -120,7 +123,8 @@ def detect_orphaned_files(
         all_barrel_names = BARREL_NAMES | extra_barrel_names
 
     # Build set of dynamically-imported module specifiers
-    dynamic_targets = _build_dynamic_import_targets(path)
+    exts = extensions or [".ts", ".tsx"]
+    dynamic_targets = _build_dynamic_import_targets(path, exts)
 
     entries = []
     for filepath, entry in graph.items():
@@ -165,7 +169,7 @@ def detect_orphaned_files(
 
 def cmd_orphaned(args):
     """Show files with zero importers (potential dead code)."""
-    from .deps import build_dep_graph
+    from ..lang.typescript.deps import build_dep_graph
 
     graph = build_dep_graph(Path(args.path))
     entries = detect_orphaned_files(Path(args.path), graph)

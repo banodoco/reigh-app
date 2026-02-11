@@ -5,7 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
+from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
 
 
 def detect_deprecated(path: Path) -> list[dict]:

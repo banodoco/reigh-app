@@ -4,11 +4,15 @@ import json
 from pathlib import Path
 
 from ..utils import c, print_table, rel
-from .deps import build_dep_graph
 
 
-def detect_single_use_abstractions(path: Path, graph: dict) -> list[dict]:
+def detect_single_use_abstractions(
+    path: Path,
+    graph: dict,
+    barrel_names: set[str] | None = None,
+) -> list[dict]:
     """Find exported symbols imported by exactly 1 file — candidates for inlining."""
+    skip_names = barrel_names or {"index.ts", "index.tsx", "types.ts"}
     entries = []
     for filepath, entry in graph.items():
         if entry["importer_count"] != 1:
@@ -19,7 +23,7 @@ def detect_single_use_abstractions(path: Path, graph: dict) -> list[dict]:
             if not p.exists():
                 continue
             basename = p.name
-            if basename in ("index.ts", "index.tsx", "types.ts"):
+            if basename in skip_names:
                 continue
             loc = len(p.read_text().splitlines())
             if loc < 20 or loc > 300:
@@ -36,6 +40,7 @@ def detect_single_use_abstractions(path: Path, graph: dict) -> list[dict]:
 
 
 def cmd_single_use(args):
+    from ..lang.typescript.deps import build_dep_graph
     graph = build_dep_graph(Path(args.path))
     entries = detect_single_use_abstractions(Path(args.path), graph)
     if args.json:

@@ -4,7 +4,7 @@ import json
 import re
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
+from ...utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
 def detect_prop_interface_bloat(path: Path) -> list[dict]:

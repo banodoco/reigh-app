@@ -1,4 +1,4 @@
-"""Complexity signal detection: imports, useEffects, prop destructuring, etc."""
+"""Complexity signal detection: configurable per-language complexity signals."""
 
 import json
 import re
@@ -7,68 +7,91 @@ from pathlib import Path
 from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
-def detect_complexity(path: Path) -> list[dict]:
-    """Detect files with complexity signals: many imports, prop drilling, mixed concerns."""
+def detect_complexity(path: Path, signals=None, file_finder=None,
+                      threshold: int = 15, min_loc: int = 50) -> list[dict]:
+    """Detect files with complexity signals.
+
+    Args:
+        path: Directory to scan.
+        signals: list of ComplexitySignal objects. If None, uses legacy TS signals.
+        file_finder: callable(path) -> list[str]. If None, uses find_ts_files.
+        threshold: minimum score to flag a file.
+        min_loc: minimum LOC to consider.
+    """
+    finder = file_finder or find_ts_files
+    sigs = signals or _ts_signals()
+
     entries = []
-    for filepath in find_ts_files(path):
+    for filepath in finder(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()
             lines = content.splitlines()
             loc = len(lines)
-            if loc < 50:  # skip tiny files
+            if loc < min_loc:
                 continue
 
-            signals = []
+            file_signals = []
             score = 0
 
-            # 1. Import count (>15 imports = complexity signal)
-            import_count = len(re.findall(r"^import\s", content, re.MULTILINE))
-            if import_count > 15:
-                signals.append(f"{import_count} imports")
-                score += min(import_count - 15, 20)
+            for sig in sigs:
+                if sig.compute:
+                    result = sig.compute(content, lines)
+                    if result:
+                        count, label = result
+                        file_signals.append(label)
+                        excess = max(0, count - sig.threshold) if sig.threshold else count
+                        score += excess * sig.weight
+                elif sig.pattern:
+                    count = len(re.findall(sig.pattern, content, re.MULTILINE))
+                    if count > sig.threshold:
+                        file_signals.append(f"{count} {sig.name}")
+                        score += (count - sig.threshold) * sig.weight
 
-            # 2. Prop drilling: destructured props with >8 items
-            long_destructures = re.findall(r"\{\s*(\w+(?:\s*,\s*\w+){8,})\s*\}", content)
-            if long_destructures:
-                max_props = max(len(d.split(",")) for d in long_destructures)
-                signals.append(f"destructure w/{max_props} props")
-                score += max_props - 8
-
-            # 3. useEffect count (>3 = often mixed concerns)
-            effect_count = len(re.findall(r"useEffect\s*\(", content))
-            if effect_count > 3:
-                signals.append(f"{effect_count} useEffects")
-                score += (effect_count - 3) * 3
-
-            # 4. Inline type definitions (types defined in component files, not in types.ts)
-            if not filepath.endswith("types.ts"):
-                inline_types = len(re.findall(r"^(?:export\s+)?(?:type|interface)\s+\w+", content, re.MULTILINE))
-                if inline_types > 3:
-                    signals.append(f"{inline_types} inline types")
-                    score += inline_types - 3
-
-            # 5. TODO/FIXME/HACK comments
-            todo_count = len(re.findall(r"//\s*(?:TODO|FIXME|HACK|XXX)", content, re.IGNORECASE))
-            if todo_count > 0:
-                signals.append(f"{todo_count} TODOs")
-                score += todo_count * 2
-
-            # 6. Nested ternaries (hard to read)
-            # Exclude optional chaining (?.) and nullish coalescing (??)
-            nested_ternary = len(re.findall(r"[^?]\?[^?.:\n][^:\n]*[^?]\?[^?.]", content))
-            if nested_ternary > 2:
-                signals.append(f"{nested_ternary} nested ternaries")
-                score += nested_ternary * 3
-
-            if signals and score >= 15:
+            if file_signals and score >= threshold:
                 entries.append({
                     "file": filepath, "loc": loc, "score": score,
-                    "signals": signals,
+                    "signals": file_signals,
                 })
         except (OSError, UnicodeDecodeError):
             continue
     return sorted(entries, key=lambda e: -e["score"])
+
+
+# ── Legacy TS signals (used when no signals provided) ────
+
+
+def _ts_signals():
+    """Build default TypeScript complexity signals."""
+    from .base import ComplexitySignal
+    return [
+        ComplexitySignal("imports", r"^import\s", weight=1, threshold=15),
+        ComplexitySignal("destructured props", None, weight=1, threshold=8,
+                         compute=_compute_ts_destructure_props),
+        ComplexitySignal("useEffects", r"useEffect\s*\(", weight=3, threshold=3),
+        ComplexitySignal("inline types", None, weight=1, threshold=3,
+                         compute=_compute_ts_inline_types),
+        ComplexitySignal("TODOs", r"//\s*(?:TODO|FIXME|HACK|XXX)", weight=2, threshold=0),
+        ComplexitySignal("nested ternaries", r"[^?]\?[^?.:\n][^:\n]*[^?]\?[^?.]",
+                         weight=3, threshold=2),
+    ]
+
+
+def _compute_ts_destructure_props(content, lines):
+    long_destructures = re.findall(r"\{\s*(\w+(?:\s*,\s*\w+){8,})\s*\}", content)
+    if not long_destructures:
+        return None
+    max_props = max(len(d.split(",")) for d in long_destructures)
+    return max_props, f"destructure w/{max_props} props"
+
+
+def _compute_ts_inline_types(content, lines):
+    # Only applies to non-types.ts files; caller should filter, but we'll be lenient
+    inline_types = len(re.findall(
+        r"^(?:export\s+)?(?:type|interface)\s+\w+", content, re.MULTILINE))
+    if inline_types > 3:
+        return inline_types, f"{inline_types} inline types"
+    return None
 
 
 def cmd_complexity(args):

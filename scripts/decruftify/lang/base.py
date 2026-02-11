@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from ..state import make_finding
-from ..utils import rel
+from ..utils import PROJECT_ROOT, rel, resolve_path
 
 
 @dataclass
@@ -83,6 +83,13 @@ class LangConfig:
     # Unused detection tool command (for post-fix checklist)
     typecheck_cmd: str = ""
 
+    # File finder: (path) -> list[str]
+    find_files: Callable | None = None
+
+    # Structural analysis thresholds
+    large_threshold: int = 500
+    complexity_threshold: int = 15
+
 
 # ── Shared phase helpers ──────────────────────────────────
 
@@ -131,4 +138,180 @@ def make_dupe_findings(entries: list[dict], stderr_fn) -> list[dict]:
     suppressed = sum(1 for e in entries
                      if e["fn_a"]["loc"] < 8 and e["fn_b"]["loc"] < 8)
     stderr_fn(f"         {len(entries)} pairs, {suppressed} suppressed (<8 LOC)")
+    return results
+
+
+# ── Structural signal helpers ────────────────────────────
+
+
+def add_structural_signal(structural: dict, file: str, signal: str, detail: dict):
+    """Add a complexity signal to the per-file structural dict.
+
+    Accumulates signals per file so they can be merged into tiered findings.
+    """
+    f = resolve_path(file)
+    structural.setdefault(f, {"signals": [], "detail": {}})
+    structural[f]["signals"].append(signal)
+    structural[f]["detail"].update(detail)
+
+
+def merge_structural_signals(structural: dict, stderr_fn) -> list[dict]:
+    """Convert per-file structural signals into tiered findings.
+
+    3+ signals -> T4/high (needs decomposition).
+    1-2 signals -> T3/medium.
+    """
+    results = []
+    for filepath, data in structural.items():
+        if "loc" not in data["detail"]:
+            try:
+                p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+                data["detail"]["loc"] = len(p.read_text().splitlines())
+            except (OSError, UnicodeDecodeError):
+                data["detail"]["loc"] = 0
+
+        signal_count = len(data["signals"])
+        tier = 4 if signal_count >= 3 else 3
+        confidence = "high" if signal_count >= 3 else "medium"
+        summary = "Needs decomposition: " + " / ".join(data["signals"])
+        results.append(make_finding(
+            "structural", filepath, "",
+            tier=tier, confidence=confidence,
+            summary=summary,
+            detail=data["detail"],
+        ))
+    stderr_fn(f"         -> {len(results)} structural findings")
+    return results
+
+
+# ── Coupling sub-finding helpers ─────────────────────────
+
+
+def make_single_use_findings(
+    entries: list[dict],
+    get_area,
+    *,
+    loc_range: tuple[int, int] = (50, 200),
+    suppress_colocated: bool = True,
+    stderr_fn,
+) -> list[dict]:
+    """Filter and normalize single-use entries into findings.
+
+    Suppresses entries within the LOC range (they're appropriately-sized abstractions)
+    and optionally entries co-located with their sole importer.
+    """
+    results = []
+    colocated_suppressed = 0
+    for e in entries:
+        lo, hi = loc_range
+        if lo <= e["loc"] <= hi:
+            continue
+        if suppress_colocated and get_area:
+            src_area = get_area(rel(e["file"]))
+            imp_area = get_area(e["sole_importer"])
+            if src_area == imp_area:
+                colocated_suppressed += 1
+                continue
+        results.append(make_finding(
+            "single_use", e["file"], "",
+            tier=3, confidence="medium",
+            summary=f"Single-use ({e['loc']} LOC): only imported by {e['sole_importer']}",
+            detail={"loc": e["loc"], "sole_importer": e["sole_importer"]},
+        ))
+    suppressed = len(entries) - len(results)
+    coloc_note = f", {colocated_suppressed} co-located" if colocated_suppressed else ""
+    stderr_fn(f"         single-use: {len(entries)} found, {suppressed} suppressed "
+              f"({lo}-{hi} LOC{coloc_note})")
+    return results
+
+
+def make_cycle_findings(cycles: list[dict], stderr_fn) -> list[dict]:
+    """Normalize import cycles into findings."""
+    results = []
+    for cy in cycles:
+        cycle_files = [rel(f) for f in cy["files"]]
+        name = "::".join(cycle_files[:4])
+        if len(cycle_files) > 4:
+            name += f"::+{len(cycle_files) - 4}"
+        tier = 3 if cy["length"] <= 3 else 4
+        results.append(make_finding(
+            "cycles", cy["files"][0], name,
+            tier=tier, confidence="high",
+            summary=f"Import cycle ({cy['length']} files): "
+                    + " -> ".join(cycle_files[:5])
+                    + (f" -> +{len(cycle_files) - 5}" if len(cycle_files) > 5 else ""),
+            detail={"files": cycle_files, "length": cy["length"]},
+        ))
+    if cycles:
+        stderr_fn(f"         cycles: {len(cycles)} import cycles")
+    return results
+
+
+def make_orphaned_findings(entries: list[dict], stderr_fn) -> list[dict]:
+    """Normalize orphaned file entries into findings."""
+    results = []
+    for e in entries:
+        results.append(make_finding(
+            "orphaned", e["file"], "",
+            tier=3, confidence="medium",
+            summary=f"Orphaned file ({e['loc']} LOC): zero importers, not an entry point",
+            detail={"loc": e["loc"]},
+        ))
+    if entries:
+        stderr_fn(f"         orphaned: {len(entries)} files with zero importers")
+    return results
+
+
+# ── Smell finding helpers ────────────────────────────────
+
+
+SMELL_TIER_MAP = {"high": 2, "medium": 3, "low": 3}
+
+
+def make_smell_findings(entries: list[dict], stderr_fn) -> list[dict]:
+    """Group smell entries by file and assign tiers from severity.
+
+    Input: list of smell dicts from detect_smells, each with id/label/severity/matches.
+    Output: findings grouped per (file, smell_id).
+    """
+    from collections import defaultdict
+    results = []
+    for e in entries:
+        by_file: dict[str, list] = defaultdict(list)
+        for m in e["matches"]:
+            by_file[m["file"]].append(m)
+        for file, matches in by_file.items():
+            conf = "medium" if e["severity"] != "low" else "low"
+            tier = SMELL_TIER_MAP.get(e["severity"], 3)
+            results.append(make_finding(
+                "smells", file, e["id"],
+                tier=tier, confidence=conf,
+                summary=f"{len(matches)}x {e['label']}",
+                detail={"smell_id": e["id"], "severity": e["severity"],
+                        "count": len(matches),
+                        "lines": [m["line"] for m in matches[:10]]},
+            ))
+    stderr_fn(f"         -> {len(results)} smell findings")
+    return results
+
+
+def make_passthrough_findings(
+    entries: list[dict],
+    name_key: str,
+    total_key: str,
+    stderr_fn,
+) -> list[dict]:
+    """Normalize passthrough detection results into findings."""
+    results = []
+    for e in entries:
+        label = e[name_key]
+        results.append(make_finding(
+            "props", e["file"], f"passthrough::{label}",
+            tier=e["tier"], confidence=e["confidence"],
+            summary=f"Passthrough: {label} "
+                    f"({e['passthrough']}/{e[total_key]} forwarded, {e['ratio']:.0%})",
+            detail={k: v for k, v in e.items() if k != "file"},
+        ))
+    if entries:
+        stderr_fn(f"         passthrough: {len(entries)} findings")
     return results

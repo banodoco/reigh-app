@@ -58,7 +58,9 @@ def _is_third_party_convention(filename: str, convention: str, dirname: str) -> 
     return False
 
 
-def detect_naming_inconsistencies(path: Path) -> list[dict]:
+def detect_naming_inconsistencies(path: Path, file_finder=None,
+                                   skip_names: set[str] | None = None,
+                                   skip_dirs: set[str] | None = None) -> list[dict]:
     """Find directories where minority naming convention is significant.
 
     Thresholds:
@@ -66,7 +68,10 @@ def detect_naming_inconsistencies(path: Path) -> list[dict]:
     - Minority must be >= 15% of total files (proportional)
     - Skips known third-party directories and convention patterns
     """
-    files = find_ts_files(path)
+    finder = file_finder or find_ts_files
+    all_skip_names = skip_names or SKIP_NAMES
+    all_skip_dirs = skip_dirs or SKIP_DIRS
+    files = finder(path)
 
     # Group files by directory and classify
     dir_files: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
@@ -77,9 +82,9 @@ def detect_naming_inconsistencies(path: Path) -> list[dict]:
         rdir = rel(dirname)
         filename = p.name
 
-        if filename in SKIP_NAMES:
+        if filename in all_skip_names:
             continue
-        if rdir in SKIP_DIRS:
+        if rdir in all_skip_dirs:
             continue
 
         convention = _classify_convention(filename)
