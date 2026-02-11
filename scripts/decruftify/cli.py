@@ -8,8 +8,6 @@ from pathlib import Path
 from .utils import DEFAULT_PATH, PROJECT_ROOT
 
 
-# ── Shared helpers (imported by commands/) ─────────────────
-
 QUERY_FILE = Path(".decruftify/query.json")
 
 
@@ -43,8 +41,6 @@ def _resolve_lang(args):
     from .lang import get_lang
     return get_lang(lang_name)
 
-
-# ── CLI parser ──────────────────────────────────────────────
 
 DETECTOR_NAMES = [
     "logs", "unused", "exports", "deprecated", "large", "complexity",
@@ -86,12 +82,12 @@ def create_parser() -> argparse.ArgumentParser:
         epilog=USAGE_EXAMPLES,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    # Global --lang flag
+    # Global flags
     parser.add_argument("--lang", type=str, default=None,
                         help="Language to scan (typescript, python). Auto-detected if omitted.")
+    parser.add_argument("--exclude", action="append", default=None, metavar="PATTERN",
+                        help="Path substring to exclude (repeatable: --exclude foo --exclude bar)")
     sub = parser.add_subparsers(dest="command", required=True)
-
-    # ── Core workflow ────────────────────────────────────────
 
     p_scan = sub.add_parser("scan", help="Run all detectors, update state, show diff")
     p_scan.add_argument("--path", type=str, default=None)
@@ -152,14 +148,10 @@ def create_parser() -> argparse.ArgumentParser:
     p_plan.add_argument("--state", type=str, default=None)
     p_plan.add_argument("--output", type=str, metavar="FILE", help="Write to file instead of stdout")
 
-    # ── Visualization ────────────────────────────────────────
-
     p_viz = sub.add_parser("viz", help="Generate interactive HTML treemap")
     p_viz.add_argument("--path", type=str, default=None)
     p_viz.add_argument("--output", type=str, default=None)
     p_viz.add_argument("--state", type=str, default=None)
-
-    # ── Raw detector access ──────────────────────────────────
 
     p_detect = sub.add_parser("detect",
         help="Run a single detector directly (bypass state)",
@@ -178,7 +170,16 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-# ── Main ─────────────────────────────────────────────────────
+def _apply_persisted_exclusions(args, state: dict):
+    """Merge CLI --exclude with persisted config.exclude, set on utils global."""
+    from .utils import set_exclusions
+
+    cli_exclusions = getattr(args, "exclude", None) or []
+    persisted = state.get("config", {}).get("exclude", [])
+    combined = list(cli_exclusions) + [e for e in persisted if e not in cli_exclusions]
+    if combined:
+        set_exclusions(combined)
+
 
 def main():
     parser = create_parser()
@@ -191,6 +192,14 @@ def main():
             args.path = str(PROJECT_ROOT / lang.default_src)
         else:
             args.path = str(DEFAULT_PATH)
+
+    # Load state once and apply exclusions before any command runs
+    sp = _state_path(args)
+    from .state import load_state
+    state = load_state(sp)
+    _apply_persisted_exclusions(args, state)
+    args._preloaded_state = state
+    args._state_path = sp
 
     # Lazy-load command handlers from commands/
     from .commands.scan import cmd_scan

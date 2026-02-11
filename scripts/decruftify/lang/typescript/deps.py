@@ -1,12 +1,11 @@
-"""Dependency graph + coupling analysis (fan-in/fan-out)."""
+"""Dependency graph + coupling analysis (fan-in/fan-out) + dynamic imports."""
 
 import json
 import re
-import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
+from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path, run_grep
 from ...detectors.graph import detect_cycles, get_coupling_score, finalize_graph
 
 
@@ -16,16 +15,15 @@ def build_dep_graph(path: Path) -> dict[str, dict]:
     Returns {resolved_path: {"imports": set[str], "importers": set[str], "import_count": int, "importer_count": int}}
     """
     # Single grep pass for all import/from lines
-    result = subprocess.run(
+    stdout = run_grep(
         ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E",
          r"from\s+['\"]", str(path)],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
 
     graph: dict[str, dict] = defaultdict(lambda: {"imports": set(), "importers": set()})
     module_re = re.compile(r"""from\s+['"]([^'"]+)['"]""")
 
-    for line in result.stdout.splitlines():
+    for line in stdout.splitlines():
         parts = line.split(":", 2)
         if len(parts) < 3:
             continue
@@ -139,3 +137,36 @@ def cmd_cycles(args):
         if len(files) > 8:
             print(f"    ... +{len(files) - 8} more")
         print()
+
+
+def build_dynamic_import_targets(path: Path, extensions: list[str]) -> set[str]:
+    """Find files referenced by dynamic imports (import('...')) and side-effect imports."""
+    targets: set[str] = set()
+    include_args = [arg for ext in extensions for arg in (f"--include=*{ext}",)]
+
+    stdout = run_grep(
+        ["grep", "-rn", *include_args, "-E",
+         r"import\s*\(\s*['\"]", str(path)],
+    )
+    module_re = re.compile(r"""import\s*\(\s*['"]([^'"]+)['"]""")
+    for line in stdout.splitlines():
+        m = module_re.search(line)
+        if m:
+            targets.add(m.group(1))
+
+    stdout2 = run_grep(
+        ["grep", "-rn", *include_args, "-E",
+         r"^import\s+['\"]", str(path)],
+    )
+    side_re = re.compile(r"""import\s+['"]([^'"]+)['"]""")
+    for line in stdout2.splitlines():
+        m = side_re.search(line)
+        if m:
+            targets.add(m.group(1))
+
+    return targets
+
+
+def ts_alias_resolver(target: str) -> str:
+    """Resolve TS/Vite @/ alias to src/."""
+    return target.replace("@/", "src/") if target.startswith("@/") else target

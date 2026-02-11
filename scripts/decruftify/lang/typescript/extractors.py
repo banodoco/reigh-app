@@ -5,10 +5,8 @@ import re
 from pathlib import Path
 
 from ...detectors.base import ClassInfo, FunctionInfo
+from ...detectors.passthrough import _classify_params, classify_passthrough_tier
 from ...utils import PROJECT_ROOT, find_tsx_files
-
-
-# ── Function extraction (for duplicate detection) ────────
 
 
 def extract_ts_functions(filepath: str) -> list[FunctionInfo]:
@@ -100,9 +98,6 @@ def normalize_ts_body(body: str) -> str:
     return "\n".join(normalized)
 
 
-# ── Component extraction (for god component detection) ────
-
-
 def extract_ts_components(path: Path) -> list[ClassInfo]:
     """Extract React component metrics (hook counts) from TSX files.
 
@@ -142,9 +137,6 @@ def extract_ts_components(path: Path) -> list[ClassInfo]:
         except (OSError, UnicodeDecodeError):
             continue
     return results
-
-
-# ── Prop extraction (for passthrough detection) ───────────
 
 
 _COMPONENT_PATTERNS = [
@@ -195,3 +187,55 @@ def tsx_passthrough_pattern(name: str) -> str:
     """Match JSX same-name attribute: propName={propName}."""
     escaped = re.escape(name)
     return rf"\b{escaped}\s*=\s*\{{\s*{escaped}\s*\}}"
+
+
+def detect_passthrough_components(path: Path) -> list[dict]:
+    """Detect React components where most props are same-name forwarded to children."""
+    entries = []
+
+    for filepath in find_tsx_files(path):
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+            content = p.read_text()
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        for pattern in _COMPONENT_PATTERNS:
+            for m in pattern.finditer(content):
+                name = m.group(1)
+                destructured = m.group(2)
+                props = extract_props(destructured)
+
+                if len(props) < 4:
+                    continue
+
+                body_start = m.end()
+                body = content[body_start:]
+
+                pt, direct = _classify_params(props, body, tsx_passthrough_pattern)
+
+                if len(pt) < 4:
+                    continue
+
+                ratio = len(pt) / len(props)
+                classification = classify_passthrough_tier(len(pt), ratio)
+                if classification is None:
+                    continue
+                tier, confidence = classification
+
+                line = content[:m.start()].count("\n") + 1
+                entries.append({
+                    "file": filepath,
+                    "component": name,
+                    "total_props": len(props),
+                    "passthrough": len(pt),
+                    "direct": len(direct),
+                    "ratio": round(ratio, 2),
+                    "line": line,
+                    "tier": tier,
+                    "confidence": confidence,
+                    "passthrough_props": sorted(pt),
+                    "direct_props": sorted(direct),
+                })
+
+    return sorted(entries, key=lambda e: (-e["passthrough"], -e["ratio"]))

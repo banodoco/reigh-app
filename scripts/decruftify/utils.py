@@ -1,15 +1,34 @@
-"""Shared utilities: paths, colors, output formatting."""
+"""Shared utilities: paths, colors, output formatting, file discovery."""
 
 import os
 import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_PATH = PROJECT_ROOT / "src"
 SRC_PATH = PROJECT_ROOT / "src"
 
-# ── ANSI colors ──────────────────────────────────────────────
+# Module-level exclusion patterns set by CLI --exclude and/or persisted config.
+# Used by run_grep() and merged into find_source_files() calls.
+_extra_exclusions: list[str] = []
+
+
+def set_exclusions(patterns: list[str]):
+    """Set global exclusion patterns (called once from CLI at startup)."""
+    _extra_exclusions.clear()
+    _extra_exclusions.extend(patterns)
+
+
+def run_grep(cmd: list[str]) -> str:
+    """Run a grep command, filtering results by active exclusions."""
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=PROJECT_ROOT)
+    if not _extra_exclusions or not result.stdout:
+        return result.stdout
+    lines = result.stdout.splitlines()
+    filtered = [l for l in lines if not any(ex in l for ex in _extra_exclusions)]
+    return "\n".join(filtered) + ("\n" if filtered else "")
 
 COLORS = {
     "reset": "\033[0m",
@@ -48,6 +67,31 @@ def print_table(headers: list[str], rows: list[list[str]], widths: list[int] | N
         print("  ".join(str(v).ljust(w) for v, w in zip(row, widths)))
 
 
+def display_entries(args, entries, *, label, empty_msg, columns, widths, row_fn,
+                    json_payload=None, overflow=True):
+    """Standard JSON/empty/table display for detect commands.
+
+    Handles the three-branch pattern shared by most cmd wrappers:
+    1. --json → dump payload  2. empty → green message  3. table → header + rows + overflow.
+    Returns True if entries were displayed, False if empty.
+    """
+    import json as _json
+    if getattr(args, "json", False):
+        payload = json_payload or {"count": len(entries), "entries": entries}
+        print(_json.dumps(payload, indent=2))
+        return True
+    if not entries:
+        print(c(empty_msg, "green"))
+        return False
+    print(c(f"\n{label}: {len(entries)}\n", "bold"))
+    top = getattr(args, "top", 20)
+    rows = [row_fn(e) for e in entries[:top]]
+    print_table(columns, rows, widths)
+    if overflow and len(entries) > top:
+        print(f"\n  ... and {len(entries) - top} more")
+    return True
+
+
 def rel(path: str) -> str:
     try:
         return str(Path(path).relative_to(PROJECT_ROOT))
@@ -63,24 +107,11 @@ def resolve_path(filepath: str) -> str:
     return str((PROJECT_ROOT / filepath).resolve())
 
 
-def grep(pattern: str, path: str | Path, *extra_args: str,
-         extensions: list[str] | None = None) -> str:
-    """Run grep and return stdout. Common wrapper to avoid repetition."""
-    if extensions is None:
-        extensions = [".ts", ".tsx"]
-    include_args = [f"--include=*{ext}" for ext in extensions]
-    result = subprocess.run(
-        ["grep", "-rn", *include_args, "-E", pattern, str(path), *extra_args],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
-    return result.stdout
-
-
-def find_source_files(path: str | Path, extensions: list[str],
-                      exclusions: list[str] | None = None) -> list[str]:
-    """Find all files with given extensions under a path, excluding patterns."""
-    args = ["find", str(path)]
-    # Build -name conditions joined with -o
+@lru_cache(maxsize=16)
+def _find_source_files_cached(path: str, extensions: tuple[str, ...],
+                               exclusions: tuple[str, ...] | None = None) -> tuple[str, ...]:
+    """Cached file discovery — returns tuple for hashability."""
+    args = ["find", path]
     name_parts: list[str] = []
     for ext in extensions:
         if name_parts:
@@ -96,7 +127,15 @@ def find_source_files(path: str | Path, extensions: list[str],
 
     if exclusions:
         files = [f for f in files if not any(ex in f for ex in exclusions)]
-    return files
+    return tuple(files)
+
+
+def find_source_files(path: str | Path, extensions: list[str],
+                      exclusions: list[str] | None = None) -> list[str]:
+    """Find all files with given extensions under a path, excluding patterns."""
+    all_exclusions = list(exclusions or []) + list(_extra_exclusions)
+    return list(_find_source_files_cached(
+        str(path), tuple(extensions), tuple(all_exclusions) if all_exclusions else None))
 
 
 def find_ts_files(path: str | Path) -> list[str]:
@@ -109,20 +148,9 @@ def find_tsx_files(path: str | Path) -> list[str]:
     return find_source_files(path, [".tsx"])
 
 
-def read_file(filepath: str) -> str:
-    """Read a file, resolving relative paths against PROJECT_ROOT."""
-    p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
-    return p.read_text()
-
-
-def parse_grep_lines(output: str) -> list[tuple[str, int, str]]:
-    """Parse grep -rn output into (filepath, lineno, content) tuples."""
-    results = []
-    for line in output.splitlines():
-        parts = line.split(":", 2)
-        if len(parts) >= 3:
-            results.append((parts[0], int(parts[1]), parts[2]))
-    return results
+def find_py_files(path: str | Path) -> list[str]:
+    """Find all .py files under a path, excluding common non-source dirs."""
+    return find_source_files(path, [".py"], ["__pycache__", ".venv", "node_modules"])
 
 
 def get_area(filepath: str) -> str:

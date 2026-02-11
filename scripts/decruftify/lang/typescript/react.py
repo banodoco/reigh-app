@@ -6,6 +6,8 @@ from pathlib import Path
 
 from ...utils import PROJECT_ROOT, c, find_tsx_files, print_table, rel
 
+MAX_EFFECT_BODY = 1000  # max characters to scan for brace-matching a useEffect callback
+
 
 def detect_state_sync(path: Path) -> list[dict]:
     """Find useEffect blocks whose only statements are setState calls.
@@ -44,7 +46,7 @@ def detect_state_sync(path: Path) -> list[dict]:
             in_str = None
             prev_ch = ""
             body_end = None
-            for ci in range(brace_start, min(brace_start + 1000, len(content))):
+            for ci in range(brace_start, min(brace_start + MAX_EFFECT_BODY, len(content))):
                 ch = content[ci]
                 if in_str:
                     if ch == in_str and prev_ch != "\\":

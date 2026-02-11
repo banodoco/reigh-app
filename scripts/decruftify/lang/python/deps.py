@@ -1,11 +1,10 @@
 """Python import graph builder — parses import/from statements, resolves to files."""
 
 import re
-import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from ...utils import PROJECT_ROOT, resolve_path
+from ...utils import PROJECT_ROOT, resolve_path, run_grep
 from ...detectors.graph import finalize_graph
 
 
@@ -24,10 +23,9 @@ def build_dep_graph(path: Path) -> dict:
     Returns {resolved_path: {"imports": set, "importers": set, "import_count", "importer_count"}}
     """
     # Single grep pass for all import lines
-    result = subprocess.run(
+    stdout = run_grep(
         ["grep", "-rn", "--include=*.py", "-E",
          r"^\s*(import |from )", str(path)],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
 
     graph: dict[str, dict] = defaultdict(lambda: {
@@ -37,7 +35,7 @@ def build_dep_graph(path: Path) -> dict:
     from_re = re.compile(r"^from\s+(\.+\w*(?:\.\w+)*)\s+import\s+(.+)")
     import_re = re.compile(r"^import\s+(\w+(?:\.\w+)*)")
 
-    for line in result.stdout.splitlines():
+    for line in stdout.splitlines():
         parts = line.split(":", 2)
         if len(parts) < 3:
             continue

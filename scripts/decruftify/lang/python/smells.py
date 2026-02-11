@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from ...utils import PROJECT_ROOT, find_source_files
+from ...utils import PROJECT_ROOT, find_py_files
 
 
 SMELL_CHECKS = [
@@ -81,8 +81,11 @@ SMELL_CHECKS = [
 def _match_is_in_string(line: str, match_start: int) -> bool:
     """Check if a regex match position falls inside a string literal.
 
-    Walks the line from the start, tracking whether we're inside a string.
-    Returns True if match_start is inside quotes (single, double, or triple).
+    Algorithm: linear scan from position 0, maintaining an `in_string` state
+    that tracks the current quote delimiter (None, ', ", ''', or \"\"\"). Handles
+    raw/byte/f-string prefixes (r/b/f before quote), backslash escapes, and
+    triple-quote open/close. Comments (#) are treated as "in string" since
+    matches there aren't real code. Returns the state when reaching match_start.
     """
     i = 0
     in_string = None  # None or the quote character/sequence
@@ -136,7 +139,7 @@ def detect_smells(path: Path) -> list[dict]:
     """Detect Python code smell patterns."""
     smell_counts: dict[str, list[dict]] = {s["id"]: [] for s in SMELL_CHECKS}
 
-    for filepath in find_source_files(path, [".py"], ["__pycache__", ".venv", "node_modules"]):
+    for filepath in find_py_files(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()

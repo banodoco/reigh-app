@@ -9,7 +9,7 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 
-from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
+from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path, run_grep
 
 
 EXPORT_DECL_RE = re.compile(
@@ -30,20 +30,20 @@ def _build_reference_index(search_path: Path, names: set[str]) -> dict[str, set[
         f.write("\n".join(sorted(names)))
         patterns_file = f.name
     try:
-        result = subprocess.run(
+        stdout = run_grep(
             ["grep", "-rlFw", "--include=*.ts", "--include=*.tsx",
              "-f", patterns_file, str(search_path)],
-            capture_output=True, text=True, cwd=PROJECT_ROOT,
         )
         # -Fw gives us files that match ANY pattern. We need per-name file lists.
         # So we do a second pass: for each matching file, grep for which names it contains.
-        matching_files = [f for f in result.stdout.strip().splitlines() if f]
+        matching_files = [f for f in stdout.strip().splitlines() if f]
         if not matching_files:
             return {}
 
         name_to_files: dict[str, set[str]] = defaultdict(set)
-        # For each matching file, find which of our names it references
-        # Batch: grep -oFw from the patterns file against each file
+        # For each matching file, find which of our names it references.
+        # Per-file grep: uses subprocess directly (not run_grep) because the
+        # directory-level grep above already filtered by exclusions.
         for filepath in matching_files:
             res = subprocess.run(
                 ["grep", "-oFw", "-f", patterns_file, filepath],
@@ -60,14 +60,13 @@ def _build_reference_index(search_path: Path, names: set[str]) -> dict[str, set[
 
 def detect_dead_exports(path: Path) -> list[dict]:
     # Phase 1: Find all export declarations in the scoped path
-    result = subprocess.run(
+    stdout = run_grep(
         ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E",
          r"^export\s+(declare\s+)?(const|let|function|class|type|interface|enum)\s+\w+",
          str(path)],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
     exports = []
-    for line in result.stdout.splitlines():
+    for line in stdout.splitlines():
         parts = line.split(":", 2)
         if len(parts) < 3:
             continue

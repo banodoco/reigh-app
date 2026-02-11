@@ -93,8 +93,6 @@ def _recompute_stats(state: dict):
     state["strict_score"] = round((fixed_weight / total_weight) * 100, 1) if total_weight > 0 else 100
 
 
-# ── Ignore list ──────────────────────────────────────────────
-
 def is_ignored(finding_id: str, file: str, ignore_patterns: list[str]) -> bool:
     """Check if a finding should be ignored.
 
@@ -135,8 +133,6 @@ def add_ignore(state: dict, pattern: str) -> int:
     return len(to_remove)
 
 
-# ── Finding construction ─────────────────────────────────────
-
 def make_finding(detector: str, file: str, name: str, *,
                  tier: int, confidence: str, summary: str,
                  detail: dict | None = None) -> dict:
@@ -160,7 +156,59 @@ def make_finding(detector: str, file: str, name: str, *,
     }
 
 
-# ── Merge (scan diffing) ────────────────────────────────────
+def _find_suspect_detectors(
+    existing: dict, current_by_detector: dict[str, int], force_resolve: bool,
+) -> set[str]:
+    """Identify detectors that previously had findings but now returned zero.
+
+    These are likely transient failures — their findings should not be auto-resolved.
+    """
+    if force_resolve:
+        return set()
+    suspect = set()
+    prev_by_detector: dict[str, int] = {}
+    for f in existing.values():
+        if f["status"] == "open":
+            det = f.get("detector", "unknown")
+            prev_by_detector[det] = prev_by_detector.get(det, 0) + 1
+    for det, prev_count in prev_by_detector.items():
+        if prev_count >= 5 and current_by_detector.get(det, 0) == 0:
+            suspect.add(det)
+    return suspect
+
+
+def _auto_resolve_disappeared(
+    existing: dict, current_ids: set[str], suspect_detectors: set[str],
+    now: str, *, lang: str | None, scan_path: str | None,
+) -> tuple[int, int, int]:
+    """Auto-resolve findings that disappeared from the scan.
+
+    Wontfix findings that disappear are upgraded to auto_resolved so the strict
+    score reflects the actual fix. Returns (auto_resolved, skipped_lang, skipped_path).
+    """
+    auto_resolved = 0
+    skipped_lang = 0
+    skipped_path = 0
+    for fid, old in existing.items():
+        if fid not in current_ids and old["status"] in ("open", "wontfix"):
+            if lang and old.get("lang") and old["lang"] != lang:
+                skipped_lang += 1
+                continue
+            if scan_path and not old["file"].startswith(scan_path.rstrip("/") + "/") and old["file"] != scan_path:
+                skipped_path += 1
+                continue
+            if old.get("detector", "unknown") in suspect_detectors:
+                continue
+            prev_status = old["status"]
+            old["status"] = "auto_resolved"
+            old["resolved_at"] = now
+            if prev_status == "wontfix":
+                old["note"] = "Fixed despite wontfix — disappeared from scan (was wontfix)"
+            else:
+                old["note"] = "Disappeared from scan — likely fixed"
+            auto_resolved += 1
+    return auto_resolved, skipped_lang, skipped_path
+
 
 def merge_scan(state: dict, current_findings: list[dict], *,
                lang: str | None = None, scan_path: str | None = None,
@@ -220,49 +268,12 @@ def merge_scan(state: dict, current_findings: list[dict], *,
             existing[fid] = f
             new_count += 1
 
-    # Build set of previous open counts per detector
-    prev_by_detector: dict[str, int] = {}
-    for f in existing.values():
-        if f["status"] == "open":
-            det = f.get("detector", "unknown")
-            prev_by_detector[det] = prev_by_detector.get(det, 0) + 1
+    suspect_detectors = _find_suspect_detectors(
+        existing, current_by_detector, force_resolve)
 
-    # Detectors that previously had findings but now returned zero are likely
-    # experiencing a transient failure — skip auto-resolving their findings.
-    # Use --force-resolve to bypass this when you know the detector legitimately cleared.
-    suspect_detectors = set()
-    if not force_resolve:
-        for det, prev_count in prev_by_detector.items():
-            if prev_count >= 5 and current_by_detector.get(det, 0) == 0:
-                suspect_detectors.add(det)
-
-    # Disappeared findings → auto-resolve if open or wontfix (unless detector is suspect)
-    # Wontfix findings that disappear were fixed despite being marked "won't fix" —
-    # upgrade them so the strict score reflects the actual fix.
-    auto_resolved = 0
-    skipped_lang = 0
-    skipped_path = 0
-    for fid, old in existing.items():
-        if fid not in current_ids and old["status"] in ("open", "wontfix"):
-            # Don't auto-resolve findings from a different language
-            if lang and old.get("lang") and old["lang"] != lang:
-                skipped_lang += 1
-                continue
-            # Don't auto-resolve findings outside the scan path
-            if scan_path and not old["file"].startswith(scan_path.rstrip("/") + "/") and old["file"] != scan_path:
-                skipped_path += 1
-                continue
-            det = old.get("detector", "unknown")
-            if det in suspect_detectors:
-                continue  # skip — detector likely failed, not a real fix
-            prev_status = old["status"]
-            old["status"] = "auto_resolved"
-            old["resolved_at"] = now
-            if prev_status == "wontfix":
-                old["note"] = f"Fixed despite wontfix — disappeared from scan (was wontfix)"
-            else:
-                old["note"] = "Disappeared from scan — likely fixed"
-            auto_resolved += 1
+    auto_resolved, skipped_lang, skipped_path = _auto_resolve_disappeared(
+        existing, current_ids, suspect_detectors, now,
+        lang=lang, scan_path=scan_path)
 
     _recompute_stats(state)
 
@@ -281,8 +292,6 @@ def merge_scan(state: dict, current_findings: list[dict], *,
         "skipped_out_of_scope": skipped_path,
     }
 
-
-# ── Pattern matching ──────────────────────────────────────────
 
 def match_findings(state: dict, pattern: str, status_filter: str = "open") -> list[dict]:
     """Return findings matching *pattern* with the given status.
@@ -315,8 +324,6 @@ def match_findings(state: dict, pattern: str, status_filter: str = "open") -> li
             matches.append(f)
     return matches
 
-
-# ── Resolve ──────────────────────────────────────────────────
 
 def resolve_findings(state: dict, pattern: str, status: str,
                      note: str | None = None) -> list[str]:

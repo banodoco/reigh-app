@@ -1,13 +1,15 @@
-"""Code smell detection: patterns that indicate problems beyond simple cruft."""
+"""TypeScript/React code smell detection.
 
-import json
+Defines TS-specific smell rules and multi-line smell helpers (brace-tracked).
+"""
+
 import re
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
+from ...utils import PROJECT_ROOT, find_ts_files
 
 
-SMELL_CHECKS = [
+TS_SMELL_CHECKS = [
     {
         "id": "empty_catch",
         "label": "Empty catch blocks",
@@ -47,8 +49,7 @@ SMELL_CHECKS = [
     {
         "id": "async_no_await",
         "label": "Async functions without await",
-        # Detected separately — needs multi-line analysis
-        "pattern": None,
+        "pattern": None,  # multi-line analysis
         "severity": "medium",
     },
     {
@@ -60,46 +61,36 @@ SMELL_CHECKS = [
     {
         "id": "console_error_no_throw",
         "label": "console.error without throw/return",
-        # Detected separately
-        "pattern": None,
+        "pattern": None,  # multi-line analysis
         "severity": "medium",
     },
     {
         "id": "empty_if_chain",
         "label": "Empty if/else chains",
-        # Detected separately — multi-line analysis
-        "pattern": None,
+        "pattern": None,  # multi-line analysis
         "severity": "high",
     },
     {
         "id": "dead_useeffect",
         "label": "useEffect with empty body",
-        # Detected separately — multi-line analysis
-        "pattern": None,
+        "pattern": None,  # multi-line analysis
         "severity": "high",
     },
     {
         "id": "swallowed_error",
         "label": "Catch blocks that only log (swallowed errors)",
-        # Detected separately — multi-line analysis
-        "pattern": None,
-        "severity": "medium",  # needs judgment: many are intentional (observer pattern, localStorage)
+        "pattern": None,  # multi-line analysis
+        "severity": "medium",
     },
 ]
 
 
-def detect_smells(path: Path, rules=None, file_finder=None) -> list[dict]:
-    """Detect code smell patterns across the codebase.
-
-    Args:
-        rules: list of smell check dicts. If None, uses SMELL_CHECKS (TS defaults).
-        file_finder: callable(path) -> list[str]. If None, uses find_ts_files.
-    """
-    checks = rules or SMELL_CHECKS
-    finder = file_finder or find_ts_files
+def detect_smells(path: Path) -> list[dict]:
+    """Detect TypeScript/React code smell patterns across the codebase."""
+    checks = TS_SMELL_CHECKS
     smell_counts: dict[str, list[dict]] = {s["id"]: [] for s in checks}
 
-    for filepath in finder(path):
+    for filepath in find_ts_files(path):
         if "node_modules" in filepath or ".d.ts" in filepath:
             continue
         try:
@@ -121,19 +112,11 @@ def detect_smells(path: Path, rules=None, file_finder=None) -> list[dict]:
                         "content": line.strip()[:100],
                     })
 
-        # Async without await detection
+        # Multi-line smell helpers (brace-tracked)
         _detect_async_no_await(filepath, content, lines, smell_counts)
-
-        # Console.error without throw/return
         _detect_error_no_throw(filepath, lines, smell_counts)
-
-        # Empty if/else chains (fixer artifact)
         _detect_empty_if_chains(filepath, lines, smell_counts)
-
-        # useEffect with empty body (fixer artifact)
         _detect_dead_useeffects(filepath, lines, smell_counts)
-
-        # Catch blocks that only log (swallowed errors)
         _detect_swallowed_errors(filepath, content, lines, smell_counts)
 
     # Build summary entries sorted by severity then count
@@ -148,23 +131,29 @@ def detect_smells(path: Path, rules=None, file_finder=None) -> list[dict]:
                 "severity": check["severity"],
                 "count": len(matches),
                 "files": len(set(m["file"] for m in matches)),
-                "matches": matches[:50],  # Cap for JSON output
+                "matches": matches[:50],
             })
     entries.sort(key=lambda e: (severity_order.get(e["severity"], 9), -e["count"]))
     return entries
 
 
+# ── Multi-line smell helpers (brace-tracked) ──────────────
+
+
 def _detect_async_no_await(filepath: str, content: str, lines: list[str],
                            smell_counts: dict[str, list[dict]]):
-    """Find async functions that don't use await."""
-    # Simple heuristic: find `async function` or `async (` and check the body
+    """Find async functions that don't use await.
+
+    Algorithm: for each async declaration, track brace depth to find the function
+    body extent (up to 200 lines). Scan each line for 'await' within those braces.
+    If the opening brace closes (depth returns to 0) without seeing await, flag it.
+    """
     async_re = re.compile(r"(?:async\s+function\s+(\w+)|(\w+)\s*=\s*async)")
     for i, line in enumerate(lines):
         m = async_re.search(line)
         if not m:
             continue
         name = m.group(1) or m.group(2)
-        # Scan the function body for `await`
         brace_depth = 0
         found_open = False
         has_await = False
@@ -194,7 +183,6 @@ def _detect_error_no_throw(filepath: str, lines: list[str],
     """Find console.error calls not followed by throw or return."""
     for i, line in enumerate(lines):
         if "console.error" in line:
-            # Check next 3 lines for throw/return
             following = "\n".join(lines[i+1:i+4])
             if not re.search(r"\b(?:throw|return)\b", following):
                 smell_counts["console_error_no_throw"].append({
@@ -210,18 +198,14 @@ def _detect_empty_if_chains(filepath: str, lines: list[str],
     i = 0
     while i < len(lines):
         stripped = lines[i].strip()
-        # Look for if (...) { on one line or if (...) { } on one line
         if not re.match(r"(?:else\s+)?if\s*\(", stripped):
             i += 1
             continue
 
-        # Check single-line: if (...) { }
+        # Single-line: if (...) { }
         if re.match(r"(?:else\s+)?if\s*\([^)]*\)\s*\{\s*\}\s*$", stripped):
-            # Single-line empty if — check if followed by else
             chain_start = i
-            chain_all_empty = True
             j = i + 1
-            # Walk through any else-if / else continuations
             while j < len(lines):
                 next_stripped = lines[j].strip()
                 if re.match(r"else\s+if\s*\([^)]*\)\s*\{\s*\}\s*$", next_stripped):
@@ -231,12 +215,11 @@ def _detect_empty_if_chains(filepath: str, lines: list[str],
                     j += 1
                     continue
                 break
-            if j > i + 1 or chain_all_empty:
-                smell_counts["empty_if_chain"].append({
-                    "file": filepath,
-                    "line": chain_start + 1,
-                    "content": stripped[:100],
-                })
+            smell_counts["empty_if_chain"].append({
+                "file": filepath,
+                "line": chain_start + 1,
+                "content": stripped[:100],
+            })
             i = j
             continue
 
@@ -247,31 +230,27 @@ def _detect_empty_if_chains(filepath: str, lines: list[str],
             j = i
             while j < len(lines):
                 cur = lines[j].strip()
-                # Expect an if or else-if opening
                 if j == chain_start:
                     if not re.match(r"(?:else\s+)?if\s*\([^)]*\)\s*\{\s*$", cur):
                         chain_all_empty = False
                         break
                 elif re.match(r"\}\s*else\s+if\s*\([^)]*\)\s*\{\s*$", cur):
-                    pass  # } else if (...) { — continue checking
+                    pass
                 elif re.match(r"\}\s*else\s*\{\s*$", cur):
-                    pass  # } else { — continue checking
+                    pass
                 elif cur == "}":
-                    # Could be end of an empty block — peek ahead for else
                     k = j + 1
                     while k < len(lines) and lines[k].strip() == "":
                         k += 1
                     if k < len(lines) and re.match(r"else\s", lines[k].strip()):
                         j = k
                         continue
-                    # End of chain
                     j += 1
                     break
                 elif cur == "":
                     j += 1
                     continue
                 else:
-                    # Non-empty content inside a block — chain is not all-empty
                     chain_all_empty = False
                     break
                 j += 1
@@ -290,13 +269,19 @@ def _detect_empty_if_chains(filepath: str, lines: list[str],
 
 def _detect_dead_useeffects(filepath: str, lines: list[str],
                             smell_counts: dict[str, list[dict]]):
-    """Find useEffect calls with empty or whitespace/comment-only bodies."""
+    """Find useEffect calls with empty or whitespace/comment-only bodies.
+
+    Algorithm: two-pass brace/paren tracking with string-escape awareness.
+    Pass 1: track paren depth to find the full useEffect(...) extent.
+    Pass 2: within that extent, find the arrow body ({...} after =>) using
+    brace depth, skipping characters inside string literals (', ", `).
+    Then strip comments from the body and check if anything remains.
+    """
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not re.match(r"(?:React\.)?useEffect\s*\(\s*\(\s*\)\s*=>\s*\{", stripped):
             continue
 
-        # Find the extent of the useEffect call by tracking parens
         paren_depth = 0
         brace_depth = 0
         end = None
@@ -329,8 +314,6 @@ def _detect_dead_useeffects(filepath: str, lines: list[str],
         if end is None:
             continue
 
-        # Extract the callback body (between first { after => and matching })
-        # Use \n join since splitlines() strips newlines — needed for // comment stripping
         text = "\n".join(lines[i:end + 1])
         arrow_pos = text.find("=>")
         if arrow_pos == -1:
@@ -339,7 +322,6 @@ def _detect_dead_useeffects(filepath: str, lines: list[str],
         if brace_pos == -1:
             continue
 
-        # Find matching closing brace
         depth = 0
         body_end = None
         in_str = None
@@ -366,9 +348,8 @@ def _detect_dead_useeffects(filepath: str, lines: list[str],
             continue
 
         body = text[brace_pos + 1:body_end]
-        # Check if body is empty or only whitespace/comments
-        body_stripped = re.sub(r"//[^\n]*", "", body)  # strip line comments
-        body_stripped = re.sub(r"/\*.*?\*/", "", body_stripped, flags=re.DOTALL)  # strip block comments
+        body_stripped = re.sub(r"//[^\n]*", "", body)
+        body_stripped = re.sub(r"/\*.*?\*/", "", body_stripped, flags=re.DOTALL)
         if body_stripped.strip() == "":
             smell_counts["dead_useeffect"].append({
                 "file": filepath,
@@ -381,13 +362,14 @@ def _detect_swallowed_errors(filepath: str, content: str, lines: list[str],
                               smell_counts: dict[str, list[dict]]):
     """Find catch blocks whose only content is console.error/warn/log (swallowed errors).
 
-    These are functionally equivalent to empty catch blocks — the error is logged
-    but never propagated, returned, or surfaced to the user.
+    Algorithm: regex-find each `catch(...) {`, then track brace depth with
+    string-escape awareness to extract the catch body (up to 500 chars).
+    Strip comments, split into statements, and check if every statement
+    is a console.error/warn/log call.
     """
     catch_re = re.compile(r"catch\s*\([^)]*\)\s*\{")
     for m in catch_re.finditer(content):
-        # Find the matching closing brace
-        brace_start = m.end() - 1  # the {
+        brace_start = m.end() - 1
         depth = 0
         in_str = None
         prev_ch = ""
@@ -414,16 +396,13 @@ def _detect_swallowed_errors(filepath: str, content: str, lines: list[str],
             continue
 
         body = content[brace_start + 1:body_end]
-        # Strip comments
         body_clean = re.sub(r"//[^\n]*", "", body)
         body_clean = re.sub(r"/\*.*?\*/", "", body_clean, flags=re.DOTALL)
         body_clean = body_clean.strip()
 
         if not body_clean:
-            continue  # empty catch — already caught by empty_catch detector
+            continue  # empty catch — caught by empty_catch detector
 
-        # Check if every statement is a console.log/warn/error call
-        # Split on semicolons and newlines, strip whitespace
         statements = [s.strip().rstrip(";") for s in re.split(r"[;\n]", body_clean) if s.strip()]
         if not statements:
             continue
@@ -439,35 +418,3 @@ def _detect_swallowed_errors(filepath: str, content: str, lines: list[str],
                 "line": line_no,
                 "content": lines[line_no - 1].strip()[:100] if line_no <= len(lines) else "",
             })
-
-
-def cmd_smells(args):
-    entries = detect_smells(Path(args.path))
-    if args.json:
-        print(json.dumps({"entries": entries}, indent=2))
-        return
-
-    if not entries:
-        print(c("No code smells detected.", "green"))
-        return
-
-    total = sum(e["count"] for e in entries)
-    print(c(f"\nCode smells: {total} instances across {len(entries)} patterns\n", "bold"))
-
-    rows = []
-    for e in entries[:args.top]:
-        sev_color = {"high": "red", "medium": "yellow", "low": "dim"}.get(e["severity"], "dim")
-        rows.append([
-            c(e["severity"].upper(), sev_color),
-            e["label"],
-            str(e["count"]),
-            str(e["files"]),
-        ])
-    print_table(["Sev", "Pattern", "Count", "Files"], rows, [8, 40, 6, 6])
-
-    # Show top instances for high-severity smells
-    high = [e for e in entries if e["severity"] == "high"]
-    for e in high:
-        print(c(f"\n  {e['label']} ({e['count']} instances):", "red"))
-        for m in e["matches"][:10]:
-            print(f"    {rel(m['file'])}:{m['line']}  {m['content'][:60]}")

@@ -9,23 +9,17 @@ Generates an interactive treemap where:
 """
 
 import json
-import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from .utils import PROJECT_ROOT, c, rel
+from .utils import PROJECT_ROOT, c, find_source_files, rel
 
 
 def _collect_file_data(path: Path) -> list[dict]:
     """Collect LOC for all TS/TSX files."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.ts", "-o", "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
+    source_files = find_source_files(path, [".ts", ".tsx"])
     files = []
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath or "node_modules" in filepath:
-            continue
+    for filepath in source_files:
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()

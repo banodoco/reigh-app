@@ -8,11 +8,10 @@ Catches:
 
 import json
 import re
-import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from ...utils import PROJECT_ROOT, c, print_table, rel
+from ...utils import PROJECT_ROOT, c, print_table, rel, run_grep
 
 
 TAG_EXTRACT_RE = re.compile(r"\[([^\]]+)\]")
@@ -21,24 +20,22 @@ TAG_EXTRACT_RE = re.compile(r"\[([^\]]+)\]")
 def detect_logs(path: Path) -> list[dict]:
     # Pattern 1: Direct and emoji-prefixed tags — console.log('[Tag]' or console.log('emoji [Tag]'
     # The .{0,4} allows up to 4 chars of emoji/whitespace before the bracket
-    result1 = subprocess.run(
+    stdout1 = run_grep(
         ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E",
          r"console\.(log|warn|info|debug)\s*\(\s*['\"`].{0,4}\[", str(path)],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
 
     # Pattern 2: Template-literal tag via variable containing TAG/DEBUG/LOG in its name
     # (catches indirect tags like REORDER_DEBUG_TAG)
-    result2 = subprocess.run(
+    stdout2 = run_grep(
         ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-Ei",
          r"console\.(log|warn|info|debug)\s*\(\s*`\$\{\w*(TAG|DEBUG|LOG)\w*\}", str(path)],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
 
     seen: set[tuple[str, str]] = set()  # (filepath, lineno) dedup
     entries = []
 
-    for output in [result1.stdout, result2.stdout]:
+    for output in [stdout1, stdout2]:
         for line in output.splitlines():
             parts = line.split(":", 2)
             if len(parts) < 3:

@@ -1,18 +1,14 @@
 """Duplicate / near-duplicate function detection via body hashing + difflib similarity."""
 
 import difflib
-import json
-from pathlib import Path
-
-from ..utils import c, find_ts_files, print_table, rel
 
 
 def detect_duplicates(functions, threshold: float = 0.8) -> list[dict]:
     """Find duplicate/near-duplicate functions.
 
     Args:
-        functions: list of objects with .file, .name, .line, .loc, .normalized, .body_hash attrs
-                   (e.g. FunctionInfo from detectors.base, or compatible dicts).
+        functions: list of FunctionInfo objects with .file, .name, .line, .loc,
+                   .normalized, .body_hash attrs.
         threshold: similarity threshold for near-duplicates.
     """
     if not functions:
@@ -72,57 +68,3 @@ def detect_duplicates(functions, threshold: float = 0.8) -> list[dict]:
                 })
 
     return sorted(entries, key=lambda e: -e["similarity"])
-
-
-def cmd_dupes(args):
-    threshold = getattr(args, "threshold", 0.8)
-
-    # Use language-specific extractor if available
-    from ..cli import _resolve_lang
-    lang = _resolve_lang(args)
-    if lang and lang.extract_functions:
-        functions = lang.extract_functions(Path(args.path))
-    else:
-        # Default: TS extraction
-        from ..lang.typescript.extractors import extract_ts_functions
-        functions = []
-        for filepath in find_ts_files(Path(args.path)):
-            if "node_modules" in filepath or ".d.ts" in filepath:
-                continue
-            functions.extend(extract_ts_functions(filepath))
-
-    entries = detect_duplicates(functions, threshold)
-    if args.json:
-        print(json.dumps({"count": len(entries), "threshold": threshold, "entries": entries}, indent=2))
-        return
-
-    if not entries:
-        print(c("No duplicate functions found.", "green"))
-        return
-
-    exact = [e for e in entries if e["kind"] == "exact"]
-    near = [e for e in entries if e["kind"] == "near-duplicate"]
-
-    if exact:
-        print(c(f"\nExact duplicates: {len(exact)} pairs\n", "bold"))
-        rows = []
-        for e in exact[:args.top]:
-            a, b = e["fn_a"], e["fn_b"]
-            rows.append([
-                f"{a['name']} ({rel(a['file'])}:{a['line']})",
-                f"{b['name']} ({rel(b['file'])}:{b['line']})",
-                str(a["loc"]),
-            ])
-        print_table(["Function A", "Function B", "LOC"], rows, [50, 50, 5])
-
-    if near:
-        print(c(f"\nNear-duplicates (>={threshold:.0%} similar): {len(near)} pairs\n", "bold"))
-        rows = []
-        for e in near[:args.top]:
-            a, b = e["fn_a"], e["fn_b"]
-            rows.append([
-                f"{a['name']} ({rel(a['file'])}:{a['line']})",
-                f"{b['name']} ({rel(b['file'])}:{b['line']})",
-                f"{e['similarity']:.0%}",
-            ])
-        print_table(["Function A", "Function B", "Sim"], rows, [50, 50, 5])

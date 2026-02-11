@@ -13,8 +13,6 @@ from pathlib import Path
 
 from .utils import c
 
-# ── Tier labels ──────────────────────────────────────────────
-
 TIER_LABELS = {
     1: "Auto-fixable (imports, logs, dead deprecated)",
     2: "Quick fixes (unused vars, dead exports, exact dupes, orphaned files, cross-tool imports)",
@@ -24,8 +22,6 @@ TIER_LABELS = {
 
 CONFIDENCE_ORDER = {"high": 0, "medium": 1, "low": 2}
 
-
-# ── Finding generation ───────────────────────────────────────
 
 def generate_findings(path: Path, *, include_slow: bool = True, lang=None) -> list[dict]:
     """Run all detectors and convert results to normalized findings.
@@ -63,8 +59,6 @@ def _generate_findings_from_lang(path: Path, lang, *, include_slow: bool = True)
     stderr(f"\n  Total: {len(findings)} findings")
     return findings
 
-
-# ── Plan generation ──────────────────────────────────────────
 
 def generate_plan_md(state: dict) -> str:
     """Generate a prioritized markdown plan from state."""
@@ -150,8 +144,6 @@ def generate_plan_md(state: dict) -> str:
 
     return "\n".join(lines)
 
-
-# ── Next item selection ──────────────────────────────────────
 
 def get_next_item(state: dict, tier: int | None = None) -> dict | None:
     """Get the highest-priority open finding."""

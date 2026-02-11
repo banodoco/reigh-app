@@ -84,14 +84,11 @@ class LangConfig:
     typecheck_cmd: str = ""
 
     # File finder: (path) -> list[str]
-    find_files: Callable | None = None
+    file_finder: Callable | None = None
 
     # Structural analysis thresholds
     large_threshold: int = 500
     complexity_threshold: int = 15
-
-
-# ── Shared phase helpers ──────────────────────────────────
 
 
 def make_unused_findings(entries: list[dict], stderr_fn) -> list[dict]:
@@ -141,9 +138,6 @@ def make_dupe_findings(entries: list[dict], stderr_fn) -> list[dict]:
     return results
 
 
-# ── Structural signal helpers ────────────────────────────
-
-
 def add_structural_signal(structural: dict, file: str, signal: str, detail: dict):
     """Add a complexity signal to the per-file structural dict.
 
@@ -184,9 +178,6 @@ def merge_structural_signals(structural: dict, stderr_fn) -> list[dict]:
     return results
 
 
-# ── Coupling sub-finding helpers ─────────────────────────
-
-
 def make_single_use_findings(
     entries: list[dict],
     get_area,
@@ -202,8 +193,8 @@ def make_single_use_findings(
     """
     results = []
     colocated_suppressed = 0
+    lo, hi = loc_range
     for e in entries:
-        lo, hi = loc_range
         if lo <= e["loc"] <= hi:
             continue
         if suppress_colocated and get_area:
@@ -225,10 +216,10 @@ def make_single_use_findings(
     return results
 
 
-def make_cycle_findings(cycles: list[dict], stderr_fn) -> list[dict]:
+def make_cycle_findings(entries: list[dict], stderr_fn) -> list[dict]:
     """Normalize import cycles into findings."""
     results = []
-    for cy in cycles:
+    for cy in entries:
         cycle_files = [rel(f) for f in cy["files"]]
         name = "::".join(cycle_files[:4])
         if len(cycle_files) > 4:
@@ -242,8 +233,8 @@ def make_cycle_findings(cycles: list[dict], stderr_fn) -> list[dict]:
                     + (f" -> +{len(cycle_files) - 5}" if len(cycle_files) > 5 else ""),
             detail={"files": cycle_files, "length": cy["length"]},
         ))
-    if cycles:
-        stderr_fn(f"         cycles: {len(cycles)} import cycles")
+    if entries:
+        stderr_fn(f"         cycles: {len(entries)} import cycles")
     return results
 
 
@@ -260,9 +251,6 @@ def make_orphaned_findings(entries: list[dict], stderr_fn) -> list[dict]:
     if entries:
         stderr_fn(f"         orphaned: {len(entries)} files with zero importers")
     return results
-
-
-# ── Smell finding helpers ────────────────────────────────
 
 
 SMELL_TIER_MAP = {"high": 2, "medium": 3, "low": 3}
@@ -293,6 +281,14 @@ def make_smell_findings(entries: list[dict], stderr_fn) -> list[dict]:
             ))
     stderr_fn(f"         -> {len(results)} smell findings")
     return results
+
+
+def phase_dupes(path: Path, lang: LangConfig) -> list[dict]:
+    """Shared phase runner: detect duplicate functions via lang.extract_functions."""
+    from ..detectors.dupes import detect_duplicates
+    from ..utils import log
+    functions = lang.extract_functions(path)
+    return make_dupe_findings(detect_duplicates(functions), log)
 
 
 def make_passthrough_findings(

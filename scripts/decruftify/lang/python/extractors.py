@@ -5,10 +5,8 @@ import re
 from pathlib import Path
 
 from ...detectors.base import ClassInfo, FunctionInfo
-from ...utils import PROJECT_ROOT, find_source_files
-
-
-# ── Function extraction (for duplicate detection) ────────
+from ...detectors.passthrough import _classify_params, classify_passthrough_tier
+from ...utils import PROJECT_ROOT, find_py_files
 
 
 def extract_py_functions(filepath: str) -> list[FunctionInfo]:
@@ -145,16 +143,13 @@ def normalize_py_body(body: str) -> str:
     return "\n".join(normalized)
 
 
-# ── Class extraction (for god class detection) ────────────
-
-
 def extract_py_classes(path: Path) -> list[ClassInfo]:
     """Extract Python classes with method/attribute/base-class metrics.
 
     Scans all .py files under path. Only includes classes >=50 LOC.
     """
     results = []
-    for filepath in find_source_files(path, [".py"], ["__pycache__", ".venv", "node_modules"]):
+    for filepath in find_py_files(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()
@@ -289,9 +284,6 @@ def _extract_init_attributes(lines: list[str], class_start: int,
     return sorted(attrs)
 
 
-# ── Param extraction (for passthrough detection) ──────────
-
-
 def extract_py_params(param_str: str) -> list[str]:
     """Extract parameter names from a Python function signature.
 
@@ -317,72 +309,72 @@ def py_passthrough_pattern(name: str) -> str:
     return rf"\b{escaped}\s*=\s*{escaped}\b"
 
 
-# ── Complexity helpers ────────────────────────────────────
+_PY_FUNC_PATTERN = re.compile(
+    r"^def\s+(\w+)\s*\(([^)]*)\)\s*(?:->.*?)?:",
+    re.MULTILINE | re.DOTALL,
+)
 
 
-def compute_max_params(content: str, lines: list[str]) -> tuple[int, str] | None:
-    """Find the function with the most parameters. Returns (count, label) or None."""
-    param_re = re.compile(r"def\s+\w+\s*\(([^)]*)\)", re.DOTALL)
-    max_params = 0
-    for m in param_re.finditer(content):
-        params = [p.strip() for p in m.group(1).split(",") if p.strip()]
-        real_params = [p for p in params
-                       if p not in ("self", "cls") and not p.startswith("*")]
-        if len(real_params) > max_params:
-            max_params = len(real_params)
-    if max_params > 7:
-        return max_params, f"function with {max_params} params"
-    return None
+def detect_passthrough_functions(path: Path) -> list[dict]:
+    """Detect Python functions where most params are same-name forwarded."""
+    entries = []
 
-
-def compute_nesting_depth(content: str, lines: list[str]) -> tuple[int, str] | None:
-    """Find maximum nesting depth by indentation. Returns (depth, label) or None."""
-    max_indent = 0
-    for line in lines:
-        stripped = line.lstrip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        indent = len(line) - len(stripped)
-        level = indent // 4
-        if level > max_indent:
-            max_indent = level
-    if max_indent > 4:
-        return max_indent, f"nesting depth {max_indent}"
-    return None
-
-
-def compute_long_functions(content: str, lines: list[str]) -> tuple[int, str] | None:
-    """Find functions >80 LOC. Returns (longest_loc, label) or None."""
-    results = []
-    fn_re = re.compile(r"^(\s*)def\s+(\w+)")
-
-    i = 0
-    while i < len(lines):
-        m = fn_re.match(lines[i])
-        if not m:
-            i += 1
+    for filepath in find_py_files(path):
+        try:
+            p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
+            content = p.read_text()
+        except (OSError, UnicodeDecodeError):
             continue
 
-        fn_indent = len(m.group(1))
-        fn_name = m.group(2)
-        fn_start = i
+        for m in _PY_FUNC_PATTERN.finditer(content):
+            name = m.group(1)
+            param_str = m.group(2)
+            params = extract_py_params(param_str)
 
-        j = i + 1
-        while j < len(lines):
-            if lines[j].strip() == "":
-                j += 1
+            if len(params) < 4:
                 continue
-            line_indent = len(lines[j]) - len(lines[j].lstrip())
-            if line_indent <= fn_indent and lines[j].strip():
+
+            body_start = m.end()
+            rest = content[body_start:]
+            body_end = len(rest)
+            for bm in re.finditer(r"\n(?=[^\s\n#])", rest):
+                body_end = bm.start()
                 break
-            j += 1
+            body = rest[:body_end]
 
-        fn_loc = j - fn_start
-        if fn_loc > 80:
-            results.append((fn_name, fn_loc))
-        i = j
+            has_kwargs_spread = bool(re.search(r"\*\*kwargs\b", body))
 
-    if results:
-        longest = max(results, key=lambda x: x[1])
-        return longest[1], f"long function ({longest[0]}: {longest[1]} LOC)"
-    return None
+            pt, direct = _classify_params(
+                params, body, py_passthrough_pattern,
+                occurrences_per_match=2,
+            )
+
+            if len(pt) < 4 and not has_kwargs_spread:
+                continue
+
+            ratio = len(pt) / len(params)
+            classification = classify_passthrough_tier(
+                len(pt), ratio, has_spread=has_kwargs_spread)
+            if classification is None:
+                continue
+            tier, confidence = classification
+
+            line = content[:m.start()].count("\n") + 1
+            entries.append({
+                "file": filepath,
+                "function": name,
+                "total_params": len(params),
+                "passthrough": len(pt),
+                "direct": len(direct),
+                "ratio": round(ratio, 2),
+                "line": line,
+                "tier": tier,
+                "confidence": confidence,
+                "passthrough_params": sorted(pt),
+                "direct_params": sorted(direct),
+                "has_kwargs_spread": has_kwargs_spread,
+            })
+
+    return sorted(entries, key=lambda e: (-e["passthrough"], -e["ratio"]))
+
+

@@ -220,7 +220,7 @@ def _wrap_debug_logs_fix(fix_fn):
 
 def _detect_smell_flat(path: Path, smell_id: str) -> list[dict]:
     """Run smell detector and extract flat match list for a specific smell type."""
-    from ..detectors.smells import detect_smells
+    from ..lang.typescript.smells import detect_smells
     entries = detect_smells(path)
     for e in entries:
         if e["id"] == smell_id:

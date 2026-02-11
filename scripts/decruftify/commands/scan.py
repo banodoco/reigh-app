@@ -11,8 +11,9 @@ def cmd_scan(args):
     from ..state import load_state, save_state, merge_scan
     from ..plan import generate_findings
 
-    sp = _state_path(args)
-    state = load_state(sp)
+    preloaded = getattr(args, '_preloaded_state', None)
+    state = preloaded if preloaded is not None else load_state(_state_path(args))
+    sp = getattr(args, '_state_path', None) or _state_path(args)
     path = Path(args.path)
     include_slow = not getattr(args, "skip_slow", False)
 

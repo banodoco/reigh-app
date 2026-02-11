@@ -2,21 +2,19 @@
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
+from ...utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path, run_grep
 
 
 def detect_deprecated(path: Path) -> list[dict]:
-    result = subprocess.run(
+    stdout = run_grep(
         ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E",
          r"@deprecated", str(path)],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
     entries = []
     seen_symbols = set()  # Deduplicate by file+symbol
-    for line in result.stdout.splitlines():
+    for line in stdout.splitlines():
         parts = line.split(":", 2)
         if len(parts) < 3:
             continue
@@ -111,13 +109,12 @@ def _extract_deprecated_symbol(filepath: str, lineno: int, content: str) -> tupl
 def _count_importers(name: str, declaring_file: str) -> int:
     if not name:
         return -1
-    result = subprocess.run(
+    stdout = run_grep(
         ["grep", "-rl", "--include=*.ts", "--include=*.tsx", "-w", name, str(SRC_PATH)],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
     declaring_resolved = resolve_path(declaring_file)
     count = 0
-    for match_file in result.stdout.strip().splitlines():
+    for match_file in stdout.strip().splitlines():
         if resolve_path(match_file) != declaring_resolved:
             count += 1
     return count
