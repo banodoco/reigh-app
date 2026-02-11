@@ -106,6 +106,9 @@ export interface ShotImagesEditorProps {
 
   // Multi-video array interface
   structureVideos?: StructureVideoConfigWithMetadata[];
+  isStructureVideoLoading?: boolean;
+  /** Project-level cache: whether this shot has structure videos (for skeleton) */
+  cachedHasStructureVideo?: boolean;
   onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
   onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
   onRemoveStructureVideo?: (index: number) => void;

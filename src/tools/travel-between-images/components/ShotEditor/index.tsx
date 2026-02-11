@@ -113,6 +113,7 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
   // Cache & video counts
   // getShotVideoCount, // Currently unused
   getFinalVideoCount,
+  getHasStructureVideo,
   // invalidateVideoCountsCache, // Currently unused
   // Parent refs for floating UI
   headerContainerRef: parentHeaderRef,
@@ -1096,6 +1097,7 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
           selectedOutputId={selectedOutputId}
           onSelectedOutputChange={setSelectedOutputId}
           onDragStateChange={handleDragStateChange}
+          cachedHasStructureVideo={getHasStructureVideo?.(selectedShotId) ?? false}
         />
 
         {/* Generation Settings - Now pulls most data from context */}

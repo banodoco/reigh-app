@@ -60,6 +60,9 @@ interface TimelineSectionProps {
 
   // Drag state callback
   onDragStateChange?: (isDragging: boolean) => void;
+
+  // Project-level cache: whether this shot has structure videos (for skeleton)
+  cachedHasStructureVideo?: boolean;
 }
 
 export const TimelineSection: React.FC<TimelineSectionProps> = ({
@@ -84,6 +87,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   selectedOutputId,
   onSelectedOutputChange,
   onDragStateChange,
+  cachedHasStructureVideo,
 }) => {
   // Get data from context
   const { selectedShot, projectId, effectiveAspectRatio } = useShotCore();
@@ -160,6 +164,8 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           });
         }}
         structureVideos={structureVideo.structureVideos}
+        isStructureVideoLoading={structureVideo.isLoading}
+        cachedHasStructureVideo={cachedHasStructureVideo}
         onAddStructureVideo={structureVideo.addStructureVideo}
         onUpdateStructureVideo={structureVideo.updateStructureVideo}
         onRemoveStructureVideo={structureVideo.removeStructureVideo}

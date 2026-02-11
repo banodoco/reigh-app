@@ -281,17 +281,22 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
   // Determine if currently loading
   const isCurrentlyLoading = isLoading || isParentLoading;
 
-  // Show skeleton when we know there will be a final video (from cache) but don't have it yet
-  // The cache counts only completed videos (with location), so it's reliable for skeleton display
-  // Show skeleton when:
-  // 1. Cache says there's a final video (willHaveFinalVideo)
-  // 2. No video is currently showing (!hasFinalOutput)
-  // 3. Either: still loading data OR data loaded and has generations
-  //    (The parentGenerations.length check handles stale cache after delete - if we finished
-  //    loading and have no generations, the cache count is stale so don't show skeleton)
+  // Show skeleton when we know a final video will be displayed but it's not visible yet.
+  // Two signals that a video is coming:
+  // 1. Cache says there's a completed final video (from shot_statistics)
+  // 2. Parent generations are already loaded with a completed video, but no selection yet
+  //    (output selection still initializing from persisted settings)
+  // The parentGenerations.length check in case 1 handles stale cache after delete - if we
+  // finished loading and have no generations, the cache count is stale so don't show skeleton.
   const cachedFinalVideoCount = getFinalVideoCount?.(shotId) ?? null;
   const willHaveFinalVideo = cachedFinalVideoCount !== null && cachedFinalVideoCount > 0;
-  const shouldShowSkeleton = willHaveFinalVideo && !hasFinalOutput && (isCurrentlyLoading || parentGenerations.length > 0);
+  const hasCompletedParent = parentGenerations.some(p => !!p.location);
+  const shouldShowSkeleton = !hasFinalOutput && (
+    // Case 1: Cache confirms a final video exists, waiting for data or selection
+    (willHaveFinalVideo && (isCurrentlyLoading || parentGenerations.length > 0))
+    // Case 2: Parent data loaded with completed video, but selection not initialized yet
+    || (hasCompletedParent && !selectedParentId)
+  );
 
   return (
     <div className="w-full">

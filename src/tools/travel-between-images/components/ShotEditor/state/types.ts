@@ -117,6 +117,7 @@ export interface ShotEditorProps {
   // ============================================================================
   getShotVideoCount?: (shotId: string | null) => number | null;
   getFinalVideoCount?: (shotId: string | null) => number | null;
+  getHasStructureVideo?: (shotId: string | null) => boolean | null;
   invalidateVideoCountsCache?: () => void;
 
   // ============================================================================

@@ -77,7 +77,7 @@ export function ShotEditorView({
   const isCloudGenerationEnabled = generationMethods.inCloud;
 
   // Project caches
-  const { getShotVideoCount, getFinalVideoCount, invalidateOnVideoChanges } = useProjectVideoCountsCache(selectedProjectId);
+  const { getShotVideoCount, getFinalVideoCount, getHasStructureVideo, invalidateOnVideoChanges } = useProjectVideoCountsCache(selectedProjectId);
   const { updateShotMode } = useProjectGenerationModesCache(selectedProjectId);
 
   // Shot settings
@@ -293,6 +293,7 @@ export function ShotEditorView({
                 // Loading and cache
                 getShotVideoCount={getShotVideoCount}
                 getFinalVideoCount={getFinalVideoCount}
+                getHasStructureVideo={getHasStructureVideo}
                 invalidateVideoCountsCache={invalidateOnVideoChanges}
                 // UI coordination
                 onDragStateChange={setIsDraggingInTimeline}

@@ -10,6 +10,7 @@ import {
   useSelectedShotResolution,
   useStableSkeletonVisibility,
 } from '../hooks';
+import { useProjectVideoCountsCache } from '@/shared/hooks/useProjectVideoCountsCache';
 import { ShotListView } from './ShotListView';
 import { ShotEditorView, ShotEditorLoading, ShotEditorNotFound } from './ShotEditorView';
 
@@ -29,6 +30,10 @@ const VideoTravelToolPage: React.FC = () => {
 
   const { selectedProjectId, setSelectedProjectId, projects } = useProject();
   const { currentShotId, setCurrentShotId } = useCurrentShot();
+
+  // Warm the project video counts cache (includes structure video presence)
+  // so it's ready by the time the user clicks into a shot editor
+  useProjectVideoCountsCache(selectedProjectId);
 
   // Get current project's aspect ratio
   const currentProject = projects.find(project => project.id === selectedProjectId);

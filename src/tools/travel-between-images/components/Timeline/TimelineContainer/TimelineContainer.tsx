@@ -85,6 +85,8 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     structureVideoType = 'flow',
     onStructureVideoChange,
     structureVideos,
+    isStructureVideoLoading,
+    cachedHasStructureVideo,
     onAddStructureVideo,
     onUpdateStructureVideo,
     onRemoveStructureVideo,
@@ -568,6 +570,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
             structureVideos && onUpdateStructureVideo && onRemoveStructureVideo ? (
               <GuidanceVideosContainer
                 structureVideos={structureVideos}
+                isLoading={isStructureVideoLoading}
+                cachedHasStructureVideo={cachedHasStructureVideo}
+                shotId={shotId}
                 onUpdateVideo={onUpdateStructureVideo}
                 onRemoveVideo={onRemoveStructureVideo}
                 fullMin={fullMin}

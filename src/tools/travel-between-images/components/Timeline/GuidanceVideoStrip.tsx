@@ -161,8 +161,6 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
   // Extract frames for thumbnail strip
   const {
     frames: displayFrameImages,
-    isExtracting: isExtractingFrames,
-    isReady: isVideoReady,
   } = useVideoFrameExtraction(videoUrl, {
     metadata: effectiveMetadata,
     treatment,
@@ -190,10 +188,17 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
   const stripLeftPercent = (startPixel / containerWidth) * 100;
   const stripWidthPercent = (widthPixel / containerWidth) * 100;
 
-  // Minimum width threshold for showing full frame strip vs collapsed indicator
-  // Below this width (in pixels), we show a simplified view
-  const MIN_WIDTH_FOR_FRAMES = 60;
-  const isCollapsed = widthPixel < MIN_WIDTH_FOR_FRAMES;
+  // Sample one frame per N pixels, evenly distributed from extracted frames
+  const PIXELS_PER_FRAME = 20;
+  const targetFrameCount = Math.max(1, Math.floor(widthPixel / PIXELS_PER_FRAME));
+  const framesToRender = displayFrameImages.length <= targetFrameCount
+    ? displayFrameImages
+    : targetFrameCount === 1
+      ? [displayFrameImages[Math.floor(displayFrameImages.length / 2)]]
+      : Array.from({ length: targetFrameCount }, (_, i) =>
+          displayFrameImages[Math.round(i * (displayFrameImages.length - 1) / (targetFrameCount - 1))]
+        );
+  const isCollapsed = targetFrameCount <= 1;
 
   // Legacy positioning
   const legacyPositionPercent = fullRange > 0 ? ((displayOutputStart - fullMin) / fullRange) * 100 : 0;
@@ -257,10 +262,17 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     outerContainerRef as React.RefObject<HTMLDivElement>
   );
 
+  // Log rendering state for debugging
+  console.log('[StructureVideo] GuidanceVideoStrip render', {
+    framesExtracted: displayFrameImages.length,
+    framesToRender: framesToRender.length,
+    widthPixel: widthPixel.toFixed(1),
+  });
+
   // Handle mouse move for hover preview
+  const mouseMoveCountRef = useRef(0);
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isDragging) return;
-    if (!isVideoReady) return;
     if (!effectiveMetadata) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -275,9 +287,20 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
       displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd,
     );
 
+    // Log first few moves to trace the flow
+    mouseMoveCountRef.current++;
+    if (mouseMoveCountRef.current <= 3) {
+      console.log('[StructureVideo] handleMouseMove', {
+        moveCount: mouseMoveCountRef.current,
+        videoFrame,
+        normalizedPosition: normalizedPosition.toFixed(2),
+        stripWidth,
+      });
+    }
+
     setCurrentVideoFrame(videoFrame);
     hoverPreview.updateHoverPosition(e.clientX, e.clientY - 140, videoFrame);
-  }, [treatment, effectiveMetadata, displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd, hoverPreview.updateHoverPosition, isDragging, isVideoReady]);
+  }, [treatment, effectiveMetadata, displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd, hoverPreview.updateHoverPosition, isDragging]);
 
   // Desktop: click on strip to toggle handles visibility
   const handleStripClick = useCallback((e: React.MouseEvent) => {
@@ -303,7 +326,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
             top: `${hoverPreview.hoverPosition.y}px`,
             transform: 'translateX(-50%)',
             zIndex: 999999,
-            display: (hoverPreview.isHovering || tapPreview.isVisible) && isVideoReady && !isDragging ? 'block' : 'none'
+            display: (hoverPreview.isHovering || tapPreview.isVisible) && hoverPreview.isVideoReady && !isDragging ? 'block' : 'none'
           }}
         >
           <div className="bg-background border-2 border-primary rounded-lg shadow-2xl overflow-hidden">
@@ -435,32 +458,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
           )}
 
           {/* Frame strip */}
-          {isCollapsed && displayFrameImages.length > 0 ? (
-            /* Collapsed view - show single frame stretched to fill narrow width */
-            <div
-              className={`absolute top-5 bottom-1 border-2 rounded overflow-hidden shadow-md ${
-                isDragging === 'move' ? 'border-primary cursor-grabbing' : isStripActive ? 'border-primary cursor-grab' : 'border-primary/40 cursor-pointer'
-              } ${!readOnly && onRangeChange && !isStripActive ? 'hover:border-primary/60' : ''}`}
-              style={{
-                left: useAbsolutePosition ? '2px' : '16px',
-                right: useAbsolutePosition ? '2px' : '16px',
-              }}
-              onClick={handleStripClick}
-              onMouseDown={(e) => {
-                if ((e.target as HTMLElement).closest('button, select, [role="listbox"]')) return;
-                if (!isStripActive) return;
-                handleDragStart('move', e);
-              }}
-              onTouchStart={handleStripTouchStart}
-              onTouchEnd={handleStripTouchEnd}
-            >
-              <img
-                src={displayFrameImages[0]}
-                alt="Structure video preview"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : displayFrameImages.length > 0 ? (
+          {framesToRender.length > 0 ? (
             <div
               className={`absolute top-5 bottom-1 flex border-2 rounded overflow-hidden shadow-md ${
                 isDragging === 'move' ? 'border-primary cursor-grabbing' : isStripActive ? 'border-primary cursor-grab' : 'border-primary/40 cursor-pointer'
@@ -478,22 +476,12 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
               onTouchStart={handleStripTouchStart}
               onTouchEnd={handleStripTouchEnd}
             >
-              {/* Loading overlay */}
-              {isExtractingFrames && !isDragging && videoCoverageRatio > 0.3 && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/20 backdrop-blur-sm z-10">
-                  <span className="text-xs font-medium text-foreground bg-background/90 px-3 py-1.5 rounded-md border shadow-sm">
-                    Loading updated timeline...
-                  </span>
-                </div>
-              )}
-
-              {/* Frame images */}
-              {displayFrameImages.map((frameUrl, index) => (
+              {framesToRender.map((frameUrl, index) => (
                 <img
                   key={index}
                   src={frameUrl}
                   alt={`Frame ${index}`}
-                  className="h-full object-cover flex-1 border-l border-r border-border/20"
+                  className="h-full object-cover flex-1"
                   style={{ minWidth: 0 }}
                 />
               ))}
@@ -516,7 +504,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
               onTouchEnd={handleStripTouchEnd}
             >
               <span className="text-xs text-muted-foreground font-medium">
-                {isVideoReady ? 'Loading frames...' : 'Loading video...'}
+                {displayFrameImages.length > 0 ? 'Loading frames...' : 'Loading video...'}
               </span>
             </div>
           )}

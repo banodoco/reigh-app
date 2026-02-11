@@ -6,21 +6,27 @@ import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travel
 interface GuidanceVideosContainerProps {
   /** Array of structure video configurations */
   structureVideos: StructureVideoConfigWithMetadata[];
+  /** Whether structure video settings are still loading */
+  isLoading?: boolean;
+  /** Project-level cache: whether this shot has structure videos (for skeleton) */
+  cachedHasStructureVideo?: boolean;
+  /** Current shot ID */
+  shotId?: string;
   /** Update a structure video at index */
   onUpdateVideo: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
   /** Remove a structure video at index */
   onRemoveVideo: (index: number) => void;
-  
+
   // Timeline coordinate system (for positioning strips)
   fullMin: number;
   fullMax: number;
   fullRange: number;
   containerWidth: number;
   zoomLevel: number;
-  
+
   // Timeline info
   timelineFrameCount: number;
-  
+
   // Controls
   readOnly?: boolean;
 }
@@ -32,6 +38,8 @@ interface GuidanceVideosContainerProps {
  */
 export const GuidanceVideosContainer: React.FC<GuidanceVideosContainerProps> = ({
   structureVideos,
+  isLoading = false,
+  cachedHasStructureVideo = false,
   onUpdateVideo,
   onRemoveVideo,
   fullMin,
@@ -42,8 +50,19 @@ export const GuidanceVideosContainer: React.FC<GuidanceVideosContainerProps> = (
   timelineFrameCount,
   readOnly = false,
 }) => {
-  // Don't render anything if no videos
-  if (structureVideos.length === 0) {
+  // Show skeleton while loading if the project-level cache says this shot has structure videos.
+  // Prevents layout shift when the strip pops in after settings load.
+  const shouldShowSkeleton = isLoading && structureVideos.length === 0 && cachedHasStructureVideo;
+
+  console.log('[StructureVideo] GuidanceVideosContainer render', {
+    videoCount: structureVideos.length,
+    isLoading,
+    cachedHasStructureVideo,
+    shouldShowSkeleton,
+  });
+
+  // Don't render anything if no videos and no skeleton needed
+  if (structureVideos.length === 0 && !shouldShowSkeleton) {
     return null;
   }
 
@@ -69,55 +88,62 @@ export const GuidanceVideosContainer: React.FC<GuidanceVideosContainerProps> = (
           right: `${(TIMELINE_PADDING_OFFSET / containerWidth) * 100}%`,
         }}
       />
-      {/* All video strips on the same row */}
-      {structureVideos.map((video, index) => {
-        // Get sibling video ranges for collision detection
-        const siblingRanges = structureVideos
-          .filter((_, i) => i !== index)
-          .map(v => ({ start: v.start_frame, end: v.end_frame }));
-        
-        return (
-          <GuidanceVideoStrip
-            key={`${video.path}-${video.start_frame}-${index}`}
-            videoUrl={video.path}
-            videoMetadata={video.metadata ?? null}
-            treatment={video.treatment ?? 'adjust'}
-            onTreatmentChange={(treatment) => {
-              onUpdateVideo(index, { treatment });
-            }}
-            onRemove={() => {
-              onRemoveVideo(index);
-            }}
-            onMetadataExtracted={(metadata) => {
-              onUpdateVideo(index, { metadata });
-            }}
-            fullMin={fullMin}
-            fullMax={fullMax}
-            fullRange={fullRange}
-            containerWidth={containerWidth}
-            zoomLevel={zoomLevel}
-            timelineFrameCount={timelineFrameCount}
-            readOnly={readOnly}
-            // Pass output range for positioning
-            outputStartFrame={video.start_frame}
-            outputEndFrame={video.end_frame}
-            // Pass source range for frame extraction
-            sourceStartFrame={video.source_start_frame}
-            sourceEndFrame={video.source_end_frame}
-            // Callback to update frame ranges
-            onRangeChange={(start_frame, end_frame) => {
-              onUpdateVideo(index, { start_frame, end_frame });
-            }}
-            onSourceRangeChange={(source_start_frame, source_end_frame) => {
-              onUpdateVideo(index, { source_start_frame, source_end_frame });
-            }}
-            // Use absolute positioning within parent
-            useAbsolutePosition
-            // Pass sibling ranges for collision detection
-            siblingRanges={siblingRanges}
-          />
-        );
-      })}
+      {shouldShowSkeleton ? (
+        /* Height-reserving placeholder — the dashed background above is enough visual indicator.
+           We don't render a full-width Skeleton bar because the actual strip may only cover
+           a portion of the timeline, and a full-width bar contracting to a sub-range is jarring. */
+        null
+      ) : (
+        /* All video strips on the same row */
+        structureVideos.map((video, index) => {
+          // Get sibling video ranges for collision detection
+          const siblingRanges = structureVideos
+            .filter((_, i) => i !== index)
+            .map(v => ({ start: v.start_frame, end: v.end_frame }));
+
+          return (
+            <GuidanceVideoStrip
+              key={`${video.path}-${video.start_frame}-${index}`}
+              videoUrl={video.path}
+              videoMetadata={video.metadata ?? null}
+              treatment={video.treatment ?? 'adjust'}
+              onTreatmentChange={(treatment) => {
+                onUpdateVideo(index, { treatment });
+              }}
+              onRemove={() => {
+                onRemoveVideo(index);
+              }}
+              onMetadataExtracted={(metadata) => {
+                onUpdateVideo(index, { metadata });
+              }}
+              fullMin={fullMin}
+              fullMax={fullMax}
+              fullRange={fullRange}
+              containerWidth={containerWidth}
+              zoomLevel={zoomLevel}
+              timelineFrameCount={timelineFrameCount}
+              readOnly={readOnly}
+              // Pass output range for positioning
+              outputStartFrame={video.start_frame}
+              outputEndFrame={video.end_frame}
+              // Pass source range for frame extraction
+              sourceStartFrame={video.source_start_frame}
+              sourceEndFrame={video.source_end_frame}
+              // Callback to update frame ranges
+              onRangeChange={(start_frame, end_frame) => {
+                onUpdateVideo(index, { start_frame, end_frame });
+              }}
+              onSourceRangeChange={(source_start_frame, source_end_frame) => {
+                onUpdateVideo(index, { source_start_frame, source_end_frame });
+              }}
+              // Use absolute positioning within parent
+              useAbsolutePosition
+              // Pass sibling ranges for collision detection
+              siblingRanges={siblingRanges}
+            />
+          );
+        })
+      )}
     </div>
   );
 };

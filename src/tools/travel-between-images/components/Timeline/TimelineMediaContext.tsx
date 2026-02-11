@@ -24,6 +24,8 @@ export interface TimelineMediaContextValue {
   ) => void;
   // Structure video — multi-video array
   structureVideos?: StructureVideoConfigWithMetadata[];
+  isStructureVideoLoading?: boolean;
+  cachedHasStructureVideo?: boolean;
   onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
   onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
   onRemoveStructureVideo?: (index: number) => void;

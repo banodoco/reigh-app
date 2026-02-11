@@ -61,7 +61,7 @@ export function useVideoHoverPreview(
   const lastSeekTimeRef = useRef<number>(0);
   const lastDrawnFrameRef = useRef<number>(-1);
 
-  const [currentFrame, setCurrentFrame] = useState(0);
+  const [currentFrame, setCurrentFrame] = useState(-1);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
@@ -92,12 +92,24 @@ export function useVideoHoverPreview(
   // Draw video frame to canvas
   const drawVideoFrame = useCallback((video: HTMLVideoElement, frame: number): boolean => {
     const canvas = canvasRef.current;
-    if (!canvas) return false;
+    if (!canvas) {
+      console.log('[HoverPreview] drawVideoFrame: no canvas ref');
+      return false;
+    }
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return false;
+    if (!ctx) {
+      console.log('[HoverPreview] drawVideoFrame: no canvas context');
+      return false;
+    }
 
     if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      console.log('[HoverPreview] drawVideoFrame: video not ready', {
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        currentTime: video.currentTime,
+      });
       return false;
     }
 
@@ -113,13 +125,15 @@ export function useVideoHoverPreview(
 
       // Check if draw succeeded
       if (isCanvasBlank(canvas)) {
+        console.log('[HoverPreview] drawVideoFrame: canvas blank after draw', { frame, currentTime: video.currentTime });
         seekingRef.current = false;
         return false;
       }
 
       lastDrawnFrameRef.current = frame;
       return true;
-    } catch {
+    } catch (e) {
+      console.log('[HoverPreview] drawVideoFrame: exception', e);
       seekingRef.current = false;
       return false;
     }
@@ -152,11 +166,12 @@ export function useVideoHoverPreview(
   }, []);
 
   // Seek to frame and draw
+  const seekToFrameCountRef = useRef(0);
   const seekToFrame = useCallback(async (frame: number) => {
     const video = videoRef.current;
-    if (!video) return;
-    if (!enabled) return;
-    if (frameRate <= 0) return;
+    if (!video) { console.log('[HoverPreview] seekToFrame: no video ref'); return; }
+    if (!enabled) { console.log('[HoverPreview] seekToFrame: disabled'); return; }
+    if (frameRate <= 0) { console.log('[HoverPreview] seekToFrame: bad frameRate', frameRate); return; }
 
     const now = Date.now();
     const timeSinceLastSeek = now - lastSeekTimeRef.current;
@@ -182,13 +197,30 @@ export function useVideoHoverPreview(
 
     try {
       const ready = await ensureVideoReady(video);
-      if (!ready) return;
+      if (!ready) {
+        console.log('[HoverPreview] seekToFrame: video not ready after ensure', { readyState: video.readyState });
+        return;
+      }
 
       const timeInSeconds = frame / frameRate;
 
+      seekToFrameCountRef.current++;
+      if (seekToFrameCountRef.current <= 5) {
+        console.log('[HoverPreview] seekToFrame', {
+          count: seekToFrameCountRef.current,
+          frame,
+          timeInSeconds: timeInSeconds.toFixed(3),
+          videoReadyState: video.readyState,
+          videoSrc: video.src ? 'set' : 'empty',
+        });
+      }
+
       // Skip seek if already at this frame
       if (Math.abs(video.currentTime - timeInSeconds) < 0.05) {
-        drawVideoFrame(video, frame);
+        const drawn = drawVideoFrame(video, frame);
+        if (seekToFrameCountRef.current <= 5) {
+          console.log('[HoverPreview] seekToFrame: skipped seek (same frame), drawn:', drawn);
+        }
         return;
       }
 
@@ -197,7 +229,10 @@ export function useVideoHoverPreview(
       await new Promise<void>((resolve) => {
         const handleSeeked = () => {
           video.removeEventListener('seeked', handleSeeked);
-          drawVideoFrame(video, frame);
+          const drawn = drawVideoFrame(video, frame);
+          if (seekToFrameCountRef.current <= 5) {
+            console.log('[HoverPreview] seekToFrame: seeked event, drawn:', drawn);
+          }
           resolve();
         };
 
@@ -205,7 +240,10 @@ export function useVideoHoverPreview(
 
         setTimeout(() => {
           video.removeEventListener('seeked', handleSeeked);
-          drawVideoFrame(video, frame);
+          const drawn = drawVideoFrame(video, frame);
+          if (seekToFrameCountRef.current <= 5) {
+            console.log('[HoverPreview] seekToFrame: timeout fallback, drawn:', drawn);
+          }
           resolve();
         }, 500);
       });
@@ -242,16 +280,20 @@ export function useVideoHoverPreview(
     pendingSeekRef.current = null;
     lastSeekTimeRef.current = 0;
     setIsHovering(false);
-    setCurrentFrame(0);
+    setCurrentFrame(-1);
   }, []);
 
   // Track video ready state
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      console.log('[HoverPreview] readyState effect: no video ref');
+      return;
+    }
 
     const checkReady = () => {
       const ready = video.readyState >= 2;
+      console.log('[HoverPreview] checkReady', { readyState: video.readyState, ready, src: video.src ? 'set' : 'empty' });
       setIsVideoReady(ready);
     };
 
