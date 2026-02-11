@@ -44,6 +44,8 @@ import {
 // Import components
 import { LightboxShell, LightboxProviders } from './components';
 import { LightboxLayout } from './components/layouts';
+import { EditModePanel } from './components/EditModePanel';
+import { InfoPanel } from './components/InfoPanel';
 import { ImageEditProvider, type ImageEditState } from './contexts/ImageEditContext';
 
 // Import utils
@@ -871,76 +873,82 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   // BUILD CONTROLS PANEL PROPS (local — only when panel is shown)
   // ========================================
 
-  const trimVideoRefStub = useRef<HTMLVideoElement>(null);
+  // Shared props for panel content
+  const panelVariant = (layout.shouldShowSidePanel && !isMobile) ? 'desktop' as const : 'mobile' as const;
+  const panelTaskId = adjustedTaskDetailsData?.taskId || (media as unknown as Record<string, unknown>)?.source_task_id as string | null || null;
 
-  const controlsPanelProps = useMemo(() => showPanel ? {
-    // Video stubs (image lightbox doesn't have trim/enhance)
-    isCloudMode,
-    trimState: { startTrim: 0, endTrim: 0, videoDuration: 0 },
-    onStartTrimChange: () => {},
-    onEndTrimChange: () => {},
-    onResetTrim: () => {},
-    trimmedDuration: 0,
-    hasTrimChanges: false,
-    onSaveTrim: () => Promise.resolve(),
-    isSavingTrim: false,
-    trimSaveProgress: 0,
-    trimSaveError: null,
-    trimSaveSuccess: false,
-    videoUrl: '',
-    trimCurrentTime: 0,
-    trimVideoRef: trimVideoRefStub,
-    videoEditing: null,
-    projectId: selectedProjectId,
-    // Image upscale
-    handleUpscale,
-    isUpscaling,
-    upscaleSuccess,
-    // Edit mode
-    sourceGenerationData: sourceGeneration.data,
-    onOpenExternalGeneration,
-    allShots: allShots || [],
-    isCurrentMediaPositioned: shots.isAlreadyPositionedInSelectedShot,
-    onReplaceInShot: () => Promise.resolve(),
-    sourcePrimaryVariant: sourceGeneration.primaryVariant,
-    onMakeMainVariant: makeMainVariant.handle,
-    canMakeMainVariant: makeMainVariant.canMake,
-    handleUnifiedGenerate,
-    handleGenerateAnnotatedEdit,
-    handleGenerateReposition,
-    handleSaveAsVariant,
-    handleGenerateImg2Img,
-    img2imgLoraManager,
-    editLoraManager,
-    availableLoras,
-    advancedSettings,
-    setAdvancedSettings,
-    isLocalGeneration,
-    // Info panel
-    showImageEditTools,
-    taskDetailsData: adjustedTaskDetailsData,
-    derivedItems: lineage.derivedItems,
-    derivedGenerations: lineage.derivedGenerations,
-    paginatedDerived: lineage.paginatedDerived,
-    derivedPage: lineage.derivedPage,
-    derivedTotalPages: lineage.derivedTotalPages,
-    onSetDerivedPage: lineage.setDerivedPage,
-    replaceImages,
-    onReplaceImagesChange: setReplaceImages,
-    onSwitchToPrimary: variants.primaryVariant ? () => variants.setActiveVariantId(variants.primaryVariant.id) : undefined,
-    currentMediaId: media.id,
-    currentShotId: selectedShotId || shotId,
-    taskId: adjustedTaskDetailsData?.taskId || (media as unknown as Record<string, unknown>)?.source_task_id as string | null || null,
-  } : undefined, [
-    showPanel, isCloudMode, selectedProjectId, handleUpscale, isUpscaling, upscaleSuccess,
-    sourceGeneration.data, onOpenExternalGeneration, allShots, shots.isAlreadyPositionedInSelectedShot,
-    sourceGeneration.primaryVariant, makeMainVariant.handle, makeMainVariant.canMake,
-    handleUnifiedGenerate, handleGenerateAnnotatedEdit, handleGenerateReposition, handleSaveAsVariant,
-    handleGenerateImg2Img, img2imgLoraManager, editLoraManager, availableLoras, advancedSettings,
-    setAdvancedSettings, isLocalGeneration, showImageEditTools, adjustedTaskDetailsData,
-    lineage.derivedItems, lineage.derivedGenerations, lineage.paginatedDerived, lineage.derivedPage,
+  // Build panel content directly (eliminates ControlsPanel routing + video stubs)
+  // ImageLightbox only routes between EditModePanel and InfoPanel
+  const controlsPanelContent = useMemo(() => {
+    if (!showPanel) return undefined;
+
+    if (isSpecialEditMode) {
+      return (
+        <EditModePanel
+          variant={panelVariant}
+          sourceGenerationData={sourceGeneration.data}
+          onOpenExternalGeneration={onOpenExternalGeneration}
+          currentShotId={selectedShotId || shotId}
+          allShots={allShots || []}
+          isCurrentMediaPositioned={shots.isAlreadyPositionedInSelectedShot}
+          onReplaceInShot={() => Promise.resolve()}
+          sourcePrimaryVariant={sourceGeneration.primaryVariant}
+          onMakeMainVariant={makeMainVariant.handle}
+          canMakeMainVariant={makeMainVariant.canMake}
+          taskId={panelTaskId}
+          currentMediaId={media.id}
+          handleUnifiedGenerate={handleUnifiedGenerate}
+          handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
+          handleGenerateReposition={handleGenerateReposition}
+          handleSaveAsVariant={handleSaveAsVariant}
+          handleGenerateImg2Img={handleGenerateImg2Img}
+          isCloudMode={isCloudMode}
+          handleUpscale={handleUpscale}
+          isUpscaling={isUpscaling}
+          upscaleSuccess={upscaleSuccess}
+          img2imgLoraManager={img2imgLoraManager}
+          editLoraManager={editLoraManager}
+          availableLoras={availableLoras}
+          advancedSettings={advancedSettings}
+          setAdvancedSettings={setAdvancedSettings}
+          isLocalGeneration={isLocalGeneration}
+        />
+      );
+    }
+
+    return (
+      <InfoPanel
+        variant={panelVariant}
+        showImageEditTools={showImageEditTools}
+        taskDetailsData={adjustedTaskDetailsData}
+        derivedItems={lineage.derivedItems}
+        derivedGenerations={lineage.derivedGenerations}
+        paginatedDerived={lineage.paginatedDerived}
+        derivedPage={lineage.derivedPage}
+        derivedTotalPages={lineage.derivedTotalPages}
+        onSetDerivedPage={lineage.setDerivedPage}
+        onNavigateToGeneration={onOpenExternalGeneration}
+        currentMediaId={media.id}
+        currentShotId={selectedShotId || shotId}
+        replaceImages={replaceImages}
+        onReplaceImagesChange={setReplaceImages}
+        onSwitchToPrimary={variants.primaryVariant ? () => variants.setActiveVariantId(variants.primaryVariant.id) : undefined}
+        taskId={panelTaskId}
+      />
+    );
+  }, [
+    showPanel, isSpecialEditMode, panelVariant, panelTaskId,
+    sourceGeneration.data, onOpenExternalGeneration, selectedShotId, shotId, allShots,
+    shots.isAlreadyPositionedInSelectedShot, sourceGeneration.primaryVariant,
+    makeMainVariant.handle, makeMainVariant.canMake, media.id,
+    handleUnifiedGenerate, handleGenerateAnnotatedEdit, handleGenerateReposition,
+    handleSaveAsVariant, handleGenerateImg2Img, isCloudMode, handleUpscale,
+    isUpscaling, upscaleSuccess, img2imgLoraManager, editLoraManager, availableLoras,
+    advancedSettings, setAdvancedSettings, isLocalGeneration,
+    showImageEditTools, adjustedTaskDetailsData, lineage.derivedItems,
+    lineage.derivedGenerations, lineage.paginatedDerived, lineage.derivedPage,
     lineage.derivedTotalPages, lineage.setDerivedPage, replaceImages, setReplaceImages,
-    variants.primaryVariant, variants.setActiveVariantId, media.id, selectedShotId, shotId,
+    variants.primaryVariant, variants.setActiveVariantId,
   ]);
 
   // ========================================
@@ -1014,7 +1022,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
           accessibilityTitle={accessibilityTitle}
           accessibilityDescription={accessibilityDescription}
         >
-          <LightboxLayout {...layoutProps} controlsPanelProps={controlsPanelProps} />
+          <LightboxLayout {...layoutProps} controlsPanelContent={controlsPanelContent} />
         </LightboxShell>
       </ImageEditProvider>
     </LightboxProviders>

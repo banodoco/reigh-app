@@ -57,6 +57,7 @@ interface ShotLoraState {
 interface ShotImagesState {
   allShotImages: GenerationRow[];
   timelineImages: GenerationRow[];
+  unpositionedImages: GenerationRow[];
   contextImages: GenerationRow[];
   videoOutputs: GenerationRow[];
   /** Timeline images filtered for simple mode (non-continuation frames) */
@@ -198,6 +199,7 @@ export interface ShotSettingsContextValue {
   // Shot data (images on timeline, in gallery, etc.)
   allShotImages: GenerationRow[];
   timelineImages: GenerationRow[];
+  unpositionedImages: GenerationRow[];
   contextImages: GenerationRow[];
   videoOutputs: GenerationRow[];
   simpleFilteredImages: GenerationRow[];
@@ -290,8 +292,8 @@ export function useShotLoras(): ShotLoraState {
  * Access shot images data
  */
 export function useShotImages(): ShotImagesState {
-  const { allShotImages, timelineImages, contextImages, videoOutputs, simpleFilteredImages } = useShotSettingsContext();
-  return { allShotImages, timelineImages, contextImages, videoOutputs, simpleFilteredImages };
+  const { allShotImages, timelineImages, unpositionedImages, contextImages, videoOutputs, simpleFilteredImages } = useShotSettingsContext();
+  return { allShotImages, timelineImages, unpositionedImages, contextImages, videoOutputs, simpleFilteredImages };
 }
 
 /**

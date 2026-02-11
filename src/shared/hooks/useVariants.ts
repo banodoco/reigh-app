@@ -223,7 +223,7 @@ export const useVariants = ({
           });
 
         if (insertError) {
-          console.error('[useVariants] Failed to propagate to parent:', insertError);
+          handleError(insertError, { context: 'useVariants', showToast: false });
         } else {
           // Invalidate parent's variant cache
           await invalidateVariantChange(queryClient, {

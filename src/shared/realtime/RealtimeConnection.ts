@@ -10,6 +10,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { dataFreshnessManager } from './DataFreshnessManager';
+import { handleError } from '@/shared/lib/errorHandler';
 import {
   ConnectionState,
   ConnectionStatusCallback,
@@ -296,7 +297,7 @@ export class RealtimeConnection {
       try {
         callback(event);
       } catch (error) {
-        console.error('[RealtimeConnection] Event callback error:', error);
+        handleError(error, { context: 'RealtimeConnection.eventCallback', showToast: false });
       }
     });
   }
@@ -397,7 +398,7 @@ export class RealtimeConnection {
       try {
         callback(snapshot);
       } catch (error) {
-        console.error('[RealtimeConnection] Status callback error:', error);
+        handleError(error, { context: 'RealtimeConnection.statusCallback', showToast: false });
       }
     });
   }

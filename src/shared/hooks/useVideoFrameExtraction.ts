@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { VideoMetadata } from '@/shared/lib/videoUploader';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UseVideoFrameExtractionOptions {
   /** Video metadata (required for extraction) */
@@ -199,7 +200,7 @@ export function useVideoFrameExtraction(
         }
         setIsExtracting(false);
       } catch (error) {
-        console.error('[useVideoFrameExtraction] Error:', error);
+        handleError(error, { context: 'useVideoFrameExtraction', showToast: false });
         setIsExtracting(false);
       }
     };
@@ -208,8 +209,8 @@ export function useVideoFrameExtraction(
       extractFrames();
     };
 
-    const handleError = (e: Event) => {
-      console.error('[useVideoFrameExtraction] Video load error:', e);
+    const handleVideoError = (_e: Event) => {
+      handleError(new Error('Video load error'), { context: 'useVideoFrameExtraction:videoLoad', showToast: false });
       setIsReady(false);
       setIsExtracting(false);
     };
@@ -218,12 +219,12 @@ export function useVideoFrameExtraction(
       extractFrames();
     } else {
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      video.addEventListener('error', handleError);
+      video.addEventListener('error', handleVideoError);
     }
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('error', handleError);
+      video.removeEventListener('error', handleVideoError);
     };
   }, [videoUrl, metadata, treatment, sourceRange.start, sourceRange.end, outputFrameCount, sourceFrameCount, maxFrames, skip, quality]);
 

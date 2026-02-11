@@ -41,8 +41,9 @@ async function cancelTask(taskId: string): Promise<void> {
 
   // Verify the update actually happened
   if (!updatedTask || updatedTask.status !== 'Cancelled') {
-    console.error('[cancelTask] Update returned but status not Cancelled:', updatedTask);
-    throw new Error('Task cancellation failed - status not updated');
+    const err = new Error('Task cancellation failed - status not updated');
+    handleError(err, { context: 'useCancelTask', showToast: false, logData: { updatedTask } });
+    throw err;
   }
 
   // If it's an orchestrator task, cancel all subtasks
@@ -72,7 +73,7 @@ async function cancelTask(taskId: string): Promise<void> {
           .in('id', subtaskIds);
 
         if (subtaskCancelError) {
-          console.error('Failed to cancel subtasks:', subtaskCancelError);
+          handleError(subtaskCancelError, { context: 'useCancelTask', showToast: false });
         }
       }
     }

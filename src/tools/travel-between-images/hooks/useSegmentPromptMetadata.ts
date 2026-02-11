@@ -14,6 +14,7 @@ import type { Json } from '@/integrations/supabase/types';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { GenerationRow } from '@/types/shots';
 import { readSegmentOverrides, writeSegmentOverrides } from '@/shared/utils/settingsMigration';
+import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 // ============================================================================
@@ -82,12 +83,13 @@ export function useSegmentPromptMetadata({
     // Look up by shot_generation.id
     const shotGen = shotGenerations.find(sg => sg.id === shotGenerationId);
     if (!shotGen?.id) {
-      console.error('[PairPromptFlow] Shot generation not found:', {
+      const err = new Error(`Shot generation not found for shot_generation.id ${shotGenerationId}`);
+      handleError(err, { context: 'useSegmentPromptMetadata', showToast: false, logData: {
         lookingForShotGenId: shotGenerationId.substring(0, 8),
         availableShotGenIds: shotGenerations.map(sg => sg.id?.substring(0, 8)),
         availableGenerationIds: shotGenerations.map(sg => sg.generation_id?.substring(0, 8)),
-      });
-      throw new Error(`Shot generation not found for shot_generation.id ${shotGenerationId}`);
+      }});
+      throw err;
     }
 
     // Use new format for writing
@@ -109,7 +111,7 @@ export function useSegmentPromptMetadata({
       .select();
 
     if (error) {
-      console.error('[PairPromptFlow] Supabase UPDATE FAILED:', error);
+      handleError(error, { context: 'useSegmentPromptMetadata', showToast: false });
       throw error;
     }
 
@@ -137,11 +139,12 @@ export function useSegmentPromptMetadata({
     // Look up by shot_generation.id
     const shotGen = shotGenerations.find(sg => sg.id === shotGenerationId);
     if (!shotGen?.id) {
-      console.error('[PairPromptFlow] Shot generation not found for clear:', {
+      const err = new Error(`Shot generation not found for shot_generation.id ${shotGenerationId}`);
+      handleError(err, { context: 'useSegmentPromptMetadata', showToast: false, logData: {
         lookingForShotGenId: shotGenerationId.substring(0, 8),
         availableShotGenIds: shotGenerations.map(sg => sg.id?.substring(0, 8)),
-      });
-      throw new Error(`Shot generation not found for shot_generation.id ${shotGenerationId}`);
+      }});
+      throw err;
     }
 
     const existingMetadata = shotGen.metadata || {};
@@ -167,7 +170,7 @@ export function useSegmentPromptMetadata({
       .eq('id', shotGen.id);
 
     if (error) {
-      console.error('[PairPromptFlow] Failed to clear enhanced prompt:', error);
+      handleError(error, { context: 'useSegmentPromptMetadata', showToast: false });
       // Revert by refetching
       queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
       throw error;

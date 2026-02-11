@@ -1,5 +1,4 @@
 import React, { useMemo, useEffect, useCallback, useRef } from "react";
-import { Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIsMobile, useIsTablet } from "@/shared/hooks/use-mobile";
@@ -9,16 +8,7 @@ import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTa
 import { useBackgroundThumbnailGenerator } from '@/shared/hooks/useBackgroundThumbnailGenerator';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
-import { Button } from "@/shared/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
 import { cn } from "@/shared/lib/utils";
-import { safeAreaCalc } from "@/shared/lib/safeArea";
 import { handleError } from '@/shared/lib/errorHandler';
 
 // Import hooks
@@ -29,6 +19,7 @@ import {
   useMediaGalleryActions,
   useMobileInteractions,
   useContainerWidth,
+  useLightboxNavigation,
 } from './hooks';
 
 // Import components
@@ -37,6 +28,7 @@ import {
   ShotNotifier,
   MediaGalleryGrid,
   MediaGalleryLightbox,
+  MobileBottomBar,
 } from './components';
 
 // Import utils
@@ -425,9 +417,25 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     }
   }, [simplifiedShotOptions, allShots, navigateToShot]);
 
+  // Lightbox navigation (next/previous/go-to-index with cross-page support)
+  const {
+    handleNextImage,
+    handlePreviousImage,
+    handleSetActiveLightboxIndex,
+    pendingTargetSetTimeRef,
+  } = useLightboxNavigation({
+    activeLightboxMedia: stateHook.state.activeLightboxMedia,
+    filteredImages: filtersHook.filteredImages,
+    isServerPagination: paginationHook.isServerPagination,
+    serverPage,
+    totalPages: paginationHook.totalPages,
+    onServerPageChange,
+    handleOpenLightbox: actionsHook.handleOpenLightbox,
+    setPendingLightboxTarget: stateHook.setPendingLightboxTarget,
+  });
+
   // Track filteredImages changes for debugging cross-page navigation
   const prevFilteredImagesRef = useRef<string>('');
-  const pendingTargetSetTimeRef = useRef<number | null>(null);
 
   // Handle opening lightbox after page navigation
   useEffect(() => {
@@ -460,94 +468,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     window.addEventListener('selectShotForAddition', handleSelectShotForAddition as EventListener);
     return () => window.removeEventListener('selectShotForAddition', handleSelectShotForAddition as EventListener);
   }, [actionsHook.handleShotChange]);
-
-  // Create refs to store current values to avoid stale closures
-  const navigationDataRef = useRef({
-    activeLightboxMedia: stateHook.state.activeLightboxMedia,
-    filteredImages: filtersHook.filteredImages,
-    isServerPagination: paginationHook.isServerPagination,
-    serverPage: serverPage,
-    totalPages: paginationHook.totalPages,
-  });
-
-  // Update refs on each render
-  navigationDataRef.current = {
-    activeLightboxMedia: stateHook.state.activeLightboxMedia,
-    filteredImages: filtersHook.filteredImages,
-    isServerPagination: paginationHook.isServerPagination,
-    serverPage: serverPage,
-    totalPages: paginationHook.totalPages,
-  };
-
-  // Lightbox navigation handlers with stable dependencies
-  const handleNextImage = useCallback(() => {
-    const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage, totalPages } = navigationDataRef.current;
-
-    if (!activeLightboxMedia) return;
-    const currentIndex = filteredImages.findIndex(img => img.id === activeLightboxMedia.id);
-
-    if (isServerPagination) {
-      // For server pagination, handle page boundaries
-      if (currentIndex < filteredImages.length - 1) {
-        // Move to next item on current page
-        actionsHook.handleOpenLightbox(filteredImages[currentIndex + 1]);
-      } else {
-        // At the end of current page, go to next page if available
-        const page = currentServerPage || 1;
-        if (page < totalPages && onServerPageChange) {
-          // Keep lightbox open showing current image, set pending target for new page
-          // When new page data arrives, the pendingLightboxTarget effect will swap in the new image
-          pendingTargetSetTimeRef.current = Date.now();
-          stateHook.setPendingLightboxTarget('first'); // Open first item of next page
-          onServerPageChange(page + 1);
-        }
-      }
-    } else {
-      // For client pagination, use existing logic
-      if (currentIndex < filteredImages.length - 1) {
-        actionsHook.handleOpenLightbox(filteredImages[currentIndex + 1]);
-      }
-    }
-  }, [actionsHook.handleOpenLightbox, stateHook.setActiveLightboxMedia, stateHook.setPendingLightboxTarget, onServerPageChange]);
-
-  const handlePreviousImage = useCallback(() => {
-    const { activeLightboxMedia, filteredImages, isServerPagination, serverPage: currentServerPage } = navigationDataRef.current;
-
-    if (!activeLightboxMedia) return;
-    const currentIndex = filteredImages.findIndex(img => img.id === activeLightboxMedia.id);
-
-    if (isServerPagination) {
-      // For server pagination, handle page boundaries
-      if (currentIndex > 0) {
-        // Move to previous item on current page
-        actionsHook.handleOpenLightbox(filteredImages[currentIndex - 1]);
-      } else {
-        // At the beginning of current page, go to previous page if available
-        const page = currentServerPage || 1;
-        if (page > 1 && onServerPageChange) {
-          // Keep lightbox open showing current image, set pending target for new page
-          // When new page data arrives, the pendingLightboxTarget effect will swap in the new image
-          pendingTargetSetTimeRef.current = Date.now();
-          stateHook.setPendingLightboxTarget('last'); // Open last item of previous page
-          onServerPageChange(page - 1);
-        }
-      }
-    } else {
-      // For client pagination, use existing logic
-      if (currentIndex > 0) {
-        actionsHook.handleOpenLightbox(filteredImages[currentIndex - 1]);
-      }
-    }
-  }, [actionsHook.handleOpenLightbox, stateHook.setActiveLightboxMedia, stateHook.setPendingLightboxTarget, onServerPageChange]);
-
-  // Navigate to a specific image by index (for generation lineage navigation)
-  const handleSetActiveLightboxIndex = useCallback((index: number) => {
-    const { filteredImages } = navigationDataRef.current;
-    
-    if (index >= 0 && index < filteredImages.length) {
-      actionsHook.handleOpenLightbox(filteredImages[index]);
-    }
-  }, [actionsHook.handleOpenLightbox]);
 
   // Wrapper functions to adapt 3-parameter onAddToLastShot to 4-parameter signature expected by MediaGalleryLightbox
   // The lightbox passes (targetShotId, generationId, imageUrl, thumbUrl) but parent provides (generationId, imageUrl, thumbUrl)
@@ -808,89 +728,17 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
 
       {/* Mobile floating bottom bar with pagination and star filter - phones only, not iPad */}
       {isPhoneOnly && !hidePagination && !stateHook.state.activeLightboxMedia && paginationHook.totalPages > 1 && (
-        <div
-          className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t px-4 py-3"
-          style={isPhoneOnly ? { paddingBottom: safeAreaCalc.paddingBottom('12px') } : undefined}
-        >
-          <div className="flex justify-between items-center">
-            {/* Pagination controls */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  const newPage = paginationHook.isServerPagination
-                    ? Math.max(1, (serverPage ?? 1) - 1)
-                    : Math.max(0, paginationHook.page - 1);
-                  paginationHook.handlePageChange(newPage, 'prev', false);
-                }}
-                disabled={paginationHook.loadingButton !== null || (paginationHook.isServerPagination ? serverPage === 1 : paginationHook.page === 0)}
-                className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {paginationHook.loadingButton === 'prev' ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current" />
-                ) : (
-                  <ChevronLeft className="h-4 w-4" />
-                )}
-              </button>
-
-              <div className="flex items-center gap-1">
-                <Select
-                  value={(paginationHook.isServerPagination ? serverPage : paginationHook.page + 1)?.toString()}
-                  onValueChange={(value) => {
-                    const newPage = paginationHook.isServerPagination ? parseInt(value) : parseInt(value) - 1;
-                    const currentPage = paginationHook.isServerPagination ? serverPage ?? 1 : paginationHook.page;
-                    const direction = newPage > currentPage ? 'next' : 'prev';
-                    paginationHook.handlePageChange(newPage, direction, false);
-                  }}
-                  disabled={paginationHook.loadingButton !== null}
-                >
-                  <SelectTrigger variant="retro" size="sm" className="h-6 w-9 text-xs px-1 !justify-center [&>span]:!text-center" hideIcon>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent variant="retro" className="!min-w-0 w-11 text-xs">
-                    {Array.from({ length: paginationHook.totalPages }, (_, i) => (
-                      <SelectItem variant="retro" key={i + 1} value={(i + 1).toString()} className="text-xs !px-0 !justify-center [&>span]:!text-center [&>span]:!w-full">
-                        {i + 1}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-xs text-muted-foreground ml-1">
-                  of {paginationHook.totalPages}
-                </span>
-              </div>
-
-              <button
-                onClick={() => {
-                  const newPage = paginationHook.isServerPagination
-                    ? (serverPage ?? 1) + 1
-                    : Math.min(paginationHook.totalPages - 1, paginationHook.page + 1);
-                  paginationHook.handlePageChange(newPage, 'next', false);
-                }}
-                disabled={paginationHook.loadingButton !== null || (paginationHook.isServerPagination ? (serverPage ?? 1) >= paginationHook.totalPages : paginationHook.page >= paginationHook.totalPages - 1)}
-                className="p-1 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {paginationHook.loadingButton === 'next' ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-
-            {/* Star filter */}
-            {!hideTopFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="p-1 h-8 w-8 text-muted-foreground hover:text-foreground"
-                onClick={() => withPaginationReset(() => filtersHook.setShowStarredOnly(!filtersHook.showStarredOnly))}
-                aria-label={filtersHook.showStarredOnly ? "Show all items" : "Show only starred items"}
-              >
-                <Star className="h-5 w-5" fill={filtersHook.showStarredOnly ? 'currentColor' : 'none'} />
-              </Button>
-            )}
-          </div>
-        </div>
+        <MobileBottomBar
+          isServerPagination={paginationHook.isServerPagination}
+          serverPage={serverPage}
+          page={paginationHook.page}
+          totalPages={paginationHook.totalPages}
+          loadingButton={paginationHook.loadingButton}
+          onPageChange={paginationHook.handlePageChange}
+          hideTopFilters={hideTopFilters}
+          showStarredOnly={filtersHook.showStarredOnly}
+          onToggleStarred={() => withPaginationReset(() => filtersHook.setShowStarredOnly(!filtersHook.showStarredOnly))}
+        />
       )}
     </TooltipProvider>
   );

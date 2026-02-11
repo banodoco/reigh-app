@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { TrainingDataVideo } from './useTrainingData';
+import type { TrainingDataVideo } from './types';
 
 /**
  * Manages signed URL caching for training data videos.

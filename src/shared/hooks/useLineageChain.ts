@@ -10,6 +10,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 interface LineageItem {
@@ -48,7 +49,7 @@ async function fetchLineageChain(variantId: string): Promise<LineageItem[]> {
       .single();
 
     if (error || !data) {
-      console.error('[useLineageChain] Error fetching variant:', error);
+      handleError(error || new Error('Variant not found'), { context: 'useLineageChain', showToast: false });
       break;
     }
 

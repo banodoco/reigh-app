@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/toast';
 import { Project } from '@/types/project'; // Added import
 import { usePrefetchToolSettings } from '@/shared/hooks/usePrefetchToolSettings';
 import { handleError } from '@/shared/lib/errorHandler';
@@ -237,7 +237,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
         try {
           localStorage.setItem('lastSelectedProjectId', serverLastOpenedId);
         } catch (e) {
-          console.error('[ProjectContext:CrossDeviceSync] Failed to save to localStorage:', e);
+          handleError(e, { context: 'ProjectContext.crossDeviceSync', showToast: false });
         }
       }
     }
@@ -258,7 +258,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       try {
         localStorage.setItem('lastSelectedProjectId', projectId);
       } catch (e) {
-        console.error(`[ProjectContext:FastResume] Failed to save to localStorage:`, e);
+        handleError(e, { context: 'ProjectContext.fastResume', showToast: false });
       }
       // Also save to user preferences (slower but persistent across devices)
       updateUserSettings('user', { lastOpenedProjectId: projectId });
@@ -266,7 +266,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       try {
         localStorage.removeItem('lastSelectedProjectId');
       } catch (e) {
-        console.error(`[ProjectContext:FastResume] Failed to remove from localStorage:`, e);
+        handleError(e, { context: 'ProjectContext.fastResume', showToast: false });
       }
       updateUserSettings('user', { lastOpenedProjectId: undefined });
     }
@@ -291,7 +291,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
           .rpc('create_user_record_if_not_exists');
         
         if (userError) {
-          console.error('Failed to create user:', userError);
+          handleError(userError, { context: 'ProjectContext.createUser', showToast: false });
           // Continue anyway, the user might exist due to race condition
         }
       }
@@ -383,7 +383,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
           .rpc('create_user_record_if_not_exists');
         
         if (userError) {
-          console.error('Failed to create user:', userError);
+          handleError(userError, { context: 'ProjectContext.createUser', showToast: false });
           // Continue anyway, the user might exist due to race condition
         }
       }

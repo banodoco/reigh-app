@@ -1,4 +1,5 @@
 import { createTask } from '../taskCreation';
+import { handleError } from '@/shared/lib/errorHandler';
 import type { HiresFixApiParams } from './imageGeneration';
 
 interface CreateAnnotatedImageEditTaskParams {
@@ -111,7 +112,7 @@ export async function createAnnotatedImageEditTask(params: CreateAnnotatedImageE
   if (failed.length > 0) {
     failed.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`[AnnotatedImageEdit] Task ${index + 1} failed:`, result.reason);
+        handleError(result.reason, { context: `AnnotatedImageEdit:task${index + 1}`, showToast: false });
       }
     });
   }

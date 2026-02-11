@@ -23,10 +23,6 @@ import { PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '@/
 import type { ActiveLora } from '@/shared/hooks/useLoraManager';
 import type { StructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages';
 
-// Re-export migration layer for backward compatibility
-export { buildMetadataUpdate, extractSettingsFromParams } from './segmentSettingsMigration';
-export type { PairMetadata } from './segmentSettingsMigration';
-
 // =============================================================================
 // BUILT-IN PRESETS
 // =============================================================================

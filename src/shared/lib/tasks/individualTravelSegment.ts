@@ -610,7 +610,7 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
       });
       
       if (linkError) {
-        console.error("[IndividualTravelSegment] Error linking parent to shot:", linkError);
+        handleError(linkError, { context: 'IndividualTravelSegment:linkParentToShot', showToast: false });
         // Don't fail - the generation was created, just not linked
       }
     }

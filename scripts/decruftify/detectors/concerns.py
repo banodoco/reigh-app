@@ -2,10 +2,9 @@
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel
+from ..utils import PROJECT_ROOT, c, find_tsx_files, print_table, rel
 
 
 def detect_mixed_concerns(path: Path) -> list[dict]:
@@ -14,14 +13,8 @@ def detect_mixed_concerns(path: Path) -> list[dict]:
     Heuristic: a .tsx file that has both JSX returns AND direct API/supabase calls
     or both UI components AND heavy data transformation.
     """
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
     entries = []
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath:
-            continue
+    for filepath in find_tsx_files(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()
@@ -63,7 +56,7 @@ def detect_mixed_concerns(path: Path) -> list[dict]:
                     "concerns": concerns,
                     "concern_count": len(concerns),
                 })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
     return sorted(entries, key=lambda e: -e["concern_count"])
 

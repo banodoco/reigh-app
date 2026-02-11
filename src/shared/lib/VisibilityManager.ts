@@ -29,7 +29,7 @@ interface VisibilityState {
   changeCount: number;
 }
 
-export interface VisibilitySignals extends VisibilityState {
+interface VisibilitySignals extends VisibilityState {
   /** True only during the event cycle when page just became visible */
   justBecameVisible: boolean;
   /** True only during the event cycle when page just became hidden */
@@ -42,7 +42,7 @@ export interface VisibilitySignals extends VisibilityState {
   timeSinceLastHidden: number | null;
 }
 
-export type VisibilityEventType = 'visibilitychange' | 'pageshow' | 'pagehide';
+type VisibilityEventType = 'visibilitychange' | 'pageshow' | 'pagehide';
 
 interface VisibilitySubscription {
   /** Unique identifier for this subscription */

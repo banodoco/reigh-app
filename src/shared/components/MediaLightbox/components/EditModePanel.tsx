@@ -21,7 +21,7 @@ import { RepositionButtons, Img2ImgControls, GenerateButton } from './editModes'
 import { useLightboxCoreSafe, useLightboxVariantsSafe, type LightboxCoreState, type LightboxVariantState } from '../contexts/LightboxStateContext';
 import { useImageEditSafe, type ImageEditState } from '../contexts/ImageEditContext';
 
-export interface EditModePanelProps {
+interface EditModePanelProps {
   /** Layout variant */
   variant: 'desktop' | 'mobile';
   hideInfoEditToggle?: boolean;

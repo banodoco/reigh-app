@@ -7,7 +7,7 @@ import { TaskStatus, Task } from '@/types/tasks';
 import { ScrollArea } from "@/shared/components/ui/scroll-area"
 import { filterVisibleTasks } from '@/shared/lib/taskConfig';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { FilterGroup } from './TasksPane';
+import { FilterGroup } from './constants';
 import { GenerationRow } from '@/types/shots';
 import { cn } from '@/shared/lib/utils';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';

@@ -424,7 +424,7 @@ const BatchDropZone: React.FC<BatchDropZoneProps> = ({
               {/* Top dot */}
               <div className="w-3 h-3 bg-primary rounded-full border-2 border-primary-foreground mb-auto" />
               {/* Middle indicator with icon badge */}
-              <div className="flex items-center gap-1.5 bg-background border-2 border-primary text-foreground text-xs px-2 py-1 rounded-md shadow-[-2px_2px_0_0_rgba(0,0,0,0.1)] font-medium whitespace-nowrap" style={{ zIndex: 10 }}>
+              <div className="flex items-center gap-1.5 bg-background border-2 border-primary text-foreground text-xs px-2 py-1 rounded-md shadow-[-2px_2px_0_0_hsl(var(--foreground)_/_0.1)] font-medium whitespace-nowrap" style={{ zIndex: 10 }}>
                 <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                   {dragType === 'file' ? (
                     <FileUp className="h-3 w-3 text-primary-foreground" />

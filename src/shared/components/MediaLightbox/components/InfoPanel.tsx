@@ -28,7 +28,7 @@ import type { GenerationRow } from '@/types/shots';
 import type { TaskDetailsData } from '../types';
 import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
 
-export interface InfoPanelProps {
+interface InfoPanelProps {
   /** Layout variant */
   variant: 'desktop' | 'mobile';
 

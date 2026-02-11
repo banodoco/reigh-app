@@ -16,7 +16,7 @@ export { LightboxProviders } from './LightboxProviders';
 // ============================================================================
 // Note: The following components are NOT exported from the barrel file:
 // - NavigationButtons, MediaDisplay, TaskDetailsSection, MediaControls,
-//   WorkflowControls, SourceGenerationDisplay, ActiveVariantDisplay,
+//   WorkflowControls, ActiveVariantDisplay,
 //   ShotSelectorControls, WorkflowControlsBar, NavigationArrows,
 //   OpenEditModeButton, TaskDetailsPanelWrapper, VideoEditPanel, InfoPanel,
 //   ControlsPanel, VideoEditModeDisplay, VideoTrimModeDisplay,

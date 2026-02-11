@@ -60,8 +60,8 @@ export const GlobalHeaderDesktop: React.FC<GlobalHeaderDesktopProps> = ({
               className={cn(
                 "flex items-center justify-center w-16 h-16 bg-gradient-to-br from-wes-pink via-wes-lavender to-wes-dusty-blue",
                 "dark:bg-none dark:border-2 rounded-sm",
-                "shadow-[-4px_4px_0_0_rgba(0,0,0,0.15)] dark:shadow-[-4px_4px_0_0_rgba(90,90,80,0.4)]",
-                "group-hover:shadow-[-2px_2px_0_0_rgba(0,0,0,0.15)] dark:group-hover:shadow-[-2px_2px_0_0_rgba(180,160,100,0.4)]",
+                "shadow-[-4px_4px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:shadow-[-4px_4px_0_0_hsl(var(--shadow-header-dark)_/_0.4)]",
+                "group-hover:shadow-[-2px_2px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:group-hover:shadow-[-2px_2px_0_0_hsl(var(--shadow-header-hover)_/_0.4)]",
                 "group-hover:translate-x-[1px] group-hover:translate-y-[1px] transition-all duration-300",
                 "touch-border-gold",
                 isBrandFlash && darkMode ? "!border-wes-vintage-gold" : null
@@ -119,7 +119,7 @@ export const GlobalHeaderDesktop: React.FC<GlobalHeaderDesktopProps> = ({
             variant="ghost"
             size="icon"
             onClick={onOpenProjectSettings}
-            className="h-12 w-12 gradient-icon-coral dark:bg-none dark:border-2 rounded-sm shadow-[-3px_3px_0_0_rgba(0,0,0,0.15)] dark:shadow-[-3px_3px_0_0_rgba(90,90,80,0.4)] hover:shadow-[-1px_1px_0_0_rgba(0,0,0,0.15)] dark:hover:shadow-[-1px_1px_0_0_rgba(180,160,100,0.4)] hover:translate-x-[1px] hover:translate-y-[1px] group disabled:cursor-not-allowed transition-all duration-300"
+            className="h-12 w-12 gradient-icon-coral dark:bg-none dark:border-2 rounded-sm shadow-[-3px_3px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:shadow-[-3px_3px_0_0_hsl(var(--shadow-header-dark)_/_0.4)] hover:shadow-[-1px_1px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:hover:shadow-[-1px_1px_0_0_hsl(var(--shadow-header-hover)_/_0.4)] hover:translate-x-[1px] hover:translate-y-[1px] group disabled:cursor-not-allowed transition-all duration-300"
             disabled={isLoadingProjects || !selectedProject}
             style={getDarkIconStyle(darkIconColors.coral, darkMode)}
           >
@@ -131,7 +131,7 @@ export const GlobalHeaderDesktop: React.FC<GlobalHeaderDesktopProps> = ({
             variant="ghost"
             size="icon"
             onClick={() => onOpenCreateProject(undefined)}
-            className="h-12 w-12 wes-button-pulse gradient-icon-yellow dark:bg-none dark:border-2 rounded-sm shadow-[-3px_3px_0_0_rgba(0,0,0,0.15)] dark:shadow-[-3px_3px_0_0_rgba(90,90,80,0.4)] hover:shadow-[-1px_1px_0_0_rgba(0,0,0,0.15)] dark:hover:shadow-[-1px_1px_0_0_rgba(180,160,100,0.4)] hover:translate-x-[1px] hover:translate-y-[1px] group transition-all duration-300"
+            className="h-12 w-12 wes-button-pulse gradient-icon-yellow dark:bg-none dark:border-2 rounded-sm shadow-[-3px_3px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:shadow-[-3px_3px_0_0_hsl(var(--shadow-header-dark)_/_0.4)] hover:shadow-[-1px_1px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:hover:shadow-[-1px_1px_0_0_hsl(var(--shadow-header-hover)_/_0.4)] hover:translate-x-[1px] hover:translate-y-[1px] group transition-all duration-300"
             style={getDarkIconStyle(darkIconColors.yellow, darkMode)}
           >
             <PlusCircle className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" style={{ color: darkMode ? darkIconColors.yellow : 'white' }} />
@@ -156,7 +156,7 @@ export const GlobalHeaderDesktop: React.FC<GlobalHeaderDesktopProps> = ({
           variant="ghost"
           size="icon"
           onClick={onOpenSettings}
-          className="h-12 w-12 no-sweep wes-button-spin-pulse gradient-icon-blue dark:bg-none dark:border-2 rounded-sm shadow-[-3px_3px_0_0_rgba(0,0,0,0.15)] dark:shadow-[-3px_3px_0_0_rgba(90,90,80,0.4)] hover:shadow-[-1px_1px_0_0_rgba(0,0,0,0.15)] dark:hover:shadow-[-1px_1px_0_0_rgba(180,160,100,0.4)] hover:translate-x-[1px] hover:translate-y-[1px] group relative overflow-hidden transition-all duration-300"
+          className="h-12 w-12 no-sweep wes-button-spin-pulse gradient-icon-blue dark:bg-none dark:border-2 rounded-sm shadow-[-3px_3px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:shadow-[-3px_3px_0_0_hsl(var(--shadow-header-dark)_/_0.4)] hover:shadow-[-1px_1px_0_0_hsl(var(--shadow-header)_/_0.15)] dark:hover:shadow-[-1px_1px_0_0_hsl(var(--shadow-header-hover)_/_0.4)] hover:translate-x-[1px] hover:translate-y-[1px] group relative overflow-hidden transition-all duration-300"
           style={getDarkIconStyle(darkIconColors.blue, darkMode)}
         >
           {/* Animated background pattern */}

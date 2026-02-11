@@ -163,6 +163,7 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
     effectiveAspectRatio,
     allShotImages,
     timelineImages,
+    unpositionedImages,
     videoOutputs,
     contextImages,
     initialParentGenerations,
@@ -921,6 +922,7 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
     // Images
     allShotImages,
     timelineImages,
+    unpositionedImages,
     contextImages,
     videoOutputs,
     simpleFilteredImages,

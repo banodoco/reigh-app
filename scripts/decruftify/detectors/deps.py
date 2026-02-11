@@ -7,6 +7,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from ..utils import PROJECT_ROOT, SRC_PATH, c, print_table, rel, resolve_path
+from .graph import detect_cycles, get_coupling_score, finalize_graph
 
 
 def build_dep_graph(path: Path) -> dict[str, dict]:
@@ -40,10 +41,10 @@ def build_dep_graph(path: Path) -> dict[str, dict]:
         if module_path.startswith("."):
             source_dir = Path(filepath).parent if Path(filepath).is_absolute() else (PROJECT_ROOT / filepath).parent
             target = (source_dir / module_path).resolve()
-            # Try common extensions
+            # Try common extensions (is_file() excludes directories)
             for ext in ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]:
                 candidate = Path(str(target) + ext)
-                if candidate.exists():
+                if candidate.is_file():
                     target_resolved = str(candidate)
                     graph[source_resolved]["imports"].add(target_resolved)
                     graph[target_resolved]["importers"].add(source_resolved)
@@ -54,35 +55,13 @@ def build_dep_graph(path: Path) -> dict[str, dict]:
             target = SRC_PATH / relative
             for ext in ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]:
                 candidate = Path(str(target) + ext)
-                if candidate.exists():
+                if candidate.is_file():
                     target_resolved = str(candidate)
                     graph[source_resolved]["imports"].add(target_resolved)
                     graph[target_resolved]["importers"].add(source_resolved)
                     break
 
-    # Add counts
-    for v in graph.values():
-        v["import_count"] = len(v["imports"])
-        v["importer_count"] = len(v["importers"])
-
-    return dict(graph)
-
-
-def get_coupling_score(filepath: str, graph: dict) -> dict:
-    """Get coupling metrics for a file."""
-    resolved = resolve_path(filepath)
-    entry = graph.get(resolved, {"imports": set(), "importers": set(), "import_count": 0, "importer_count": 0})
-    fan_in = entry["importer_count"]
-    fan_out = entry["import_count"]
-    # Instability metric (Robert C. Martin): I = fan_out / (fan_in + fan_out)
-    instability = fan_out / (fan_in + fan_out) if (fan_in + fan_out) > 0 else 0
-    return {
-        "fan_in": fan_in,
-        "fan_out": fan_out,
-        "instability": round(instability, 2),
-        "importers": [rel(p) for p in sorted(entry["importers"])],
-        "imports": [rel(p) for p in sorted(entry["imports"])],
-    }
+    return finalize_graph(dict(graph))
 
 
 def cmd_deps(args):
@@ -91,7 +70,6 @@ def cmd_deps(args):
 
     if hasattr(args, "file") and args.file:
         # Single file mode
-        resolved = resolve_path(args.file)
         coupling = get_coupling_score(args.file, graph)
         if args.json:
             print(json.dumps({"file": rel(args.file), **coupling}, indent=2))
@@ -134,3 +112,30 @@ def cmd_deps(args):
     for s in scored[:args.top]:
         rows.append([rel(s["file"]), str(s["fan_in"]), str(s["fan_out"]), str(s["total"])])
     print_table(["File", "In", "Out", "Total"], rows, [60, 5, 5, 6])
+
+
+def cmd_cycles(args):
+    """Show import cycles in the codebase."""
+    graph = build_dep_graph(Path(args.path))
+    cycles = detect_cycles(graph)
+
+    if args.json:
+        print(json.dumps({"count": len(cycles), "cycles": [
+            {"length": cy["length"], "files": [rel(f) for f in cy["files"]]}
+            for cy in cycles
+        ]}, indent=2))
+        return
+
+    if not cycles:
+        print(c("\nNo import cycles found.", "green"))
+        return
+
+    print(c(f"\nImport cycles: {len(cycles)}\n", "bold"))
+    for i, cy in enumerate(cycles[:args.top]):
+        files = [rel(f) for f in cy["files"]]
+        print(c(f"  Cycle {i+1} ({cy['length']} files):", "red" if cy["length"] > 3 else "yellow"))
+        for f in files[:8]:
+            print(f"    {f}")
+        if len(files) > 8:
+            print(f"    ... +{len(files) - 8} more")
+        print()

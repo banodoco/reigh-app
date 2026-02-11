@@ -9,6 +9,7 @@
  * This service coordinates preloading and lifecycle events.
  */
 
+import { handleError } from '@/shared/lib/errorHandler';
 import { PreloadQueue } from './queue';
 import { getPreloadConfig } from './config';
 import { preloadImages } from './preloader';
@@ -257,7 +258,7 @@ class PreloadingService {
       try {
         callback(event);
       } catch (err) {
-        console.error('[PreloadingService] Subscriber error:', err);
+        handleError(err, { context: 'PreloadingService.subscriber', showToast: false });
       }
     });
   }

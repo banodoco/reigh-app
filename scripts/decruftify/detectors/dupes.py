@@ -4,10 +4,9 @@ import difflib
 import hashlib
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel
+from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
 def _extract_functions(filepath: str) -> list[dict]:
@@ -15,7 +14,7 @@ def _extract_functions(filepath: str) -> list[dict]:
     p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
     try:
         content = p.read_text()
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         return []
 
     lines = content.splitlines()
@@ -97,14 +96,9 @@ def _normalize_body(body: str) -> str:
 
 def detect_duplicates(path: Path, threshold: float = 0.8) -> list[dict]:
     """Find duplicate/near-duplicate functions across the codebase."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.ts", "-o", "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
-
     all_functions = []
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath or "node_modules" in filepath or ".d.ts" in filepath:
+    for filepath in find_ts_files(path):
+        if "node_modules" in filepath or ".d.ts" in filepath:
             continue
         all_functions.extend(_extract_functions(filepath))
 

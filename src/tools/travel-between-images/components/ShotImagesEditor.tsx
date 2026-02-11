@@ -34,7 +34,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 
 import MediaLightbox from '@/shared/components/MediaLightbox';
 import { SegmentEditorModal } from '@/shared/components/MediaLightbox/components';
-import { SectionHeader } from '@/tools/image-generation/components/ImageGenerationForm/components/SectionHeader';
+import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
 
 import {
   PreviewTogetherDialog,

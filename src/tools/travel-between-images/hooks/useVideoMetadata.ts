@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { VideoMetadata, extractVideoMetadataFromUrl } from '@/shared/lib/videoUploader';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UseVideoMetadataOptions {
   /** Callback when metadata is extracted (e.g., to save to database) */
@@ -46,7 +47,7 @@ export function useVideoMetadata(
           }
         })
         .catch((error) => {
-          console.error('[useVideoMetadata] Failed to extract metadata:', error);
+          handleError(error, { context: 'useVideoMetadata', showToast: false });
         })
         .finally(() => {
           setIsExtracting(false);

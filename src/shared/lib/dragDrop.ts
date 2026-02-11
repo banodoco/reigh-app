@@ -190,7 +190,7 @@ export function createDragPreview(
   preview.style.borderRadius = '8px';
   preview.style.overflow = 'hidden';
   preview.style.border = `2px solid ${borderColor}`;
-  preview.style.boxShadow = '0 4px 6px rgba(0,0,0,0.3)';
+  preview.style.boxShadow = '0 4px 6px hsl(0 0% 0% / 0.3)';
 
   const imgElement = e.currentTarget.querySelector('img');
   if (imgElement) {

@@ -32,14 +32,14 @@ interface PairInfo {
 }
 
 /** Timeline layout dimensions for pixel position calculations */
-export interface SegmentLayoutProps {
+interface SegmentLayoutProps {
   containerWidth: number;
   fullMin: number;
   fullRange: number;
 }
 
 /** Segment data inputs for display slot computation */
-export interface SegmentDataProps {
+interface SegmentDataProps {
   pairInfo: PairInfo[];
   rawSegmentSlots: SegmentSlot[];
   pairDataByIndex?: Map<number, PairData>;

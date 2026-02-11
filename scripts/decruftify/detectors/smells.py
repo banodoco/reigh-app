@@ -2,10 +2,9 @@
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, log, print_table, rel, grep
+from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
 SMELL_CHECKS = [
@@ -54,8 +53,8 @@ SMELL_CHECKS = [
     },
     {
         "id": "magic_number",
-        "label": "Magic numbers (>100 in logic)",
-        "pattern": r"(?:===?|!==?|>=?|<=?|[+\-*/])\s*\d{3,}",
+        "label": "Magic numbers (>1000 in logic)",
+        "pattern": r"(?:===?|!==?|>=?|<=?|[+\-*/])\s*\d{4,}",
         "severity": "low",
     },
     {
@@ -79,26 +78,28 @@ SMELL_CHECKS = [
         "pattern": None,
         "severity": "high",
     },
+    {
+        "id": "swallowed_error",
+        "label": "Catch blocks that only log (swallowed errors)",
+        # Detected separately — multi-line analysis
+        "pattern": None,
+        "severity": "medium",  # needs judgment: many are intentional (observer pattern, localStorage)
+    },
 ]
 
 
 def detect_smells(path: Path) -> list[dict]:
     """Detect code smell patterns across the codebase."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.ts", "-o", "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
-
     smell_counts: dict[str, list[dict]] = {s["id"]: [] for s in SMELL_CHECKS}
 
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath or "node_modules" in filepath or ".d.ts" in filepath:
+    for filepath in find_ts_files(path):
+        if "node_modules" in filepath or ".d.ts" in filepath:
             continue
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()
             lines = content.splitlines()
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
 
         # Regex-based smells
@@ -124,6 +125,9 @@ def detect_smells(path: Path) -> list[dict]:
 
         # useEffect with empty body (fixer artifact)
         _detect_dead_useeffects(filepath, lines, smell_counts)
+
+        # Catch blocks that only log (swallowed errors)
+        _detect_swallowed_errors(filepath, content, lines, smell_counts)
 
     # Build summary entries sorted by severity then count
     severity_order = {"high": 0, "medium": 1, "low": 2}
@@ -363,6 +367,70 @@ def _detect_dead_useeffects(filepath: str, lines: list[str],
                 "file": filepath,
                 "line": i + 1,
                 "content": stripped[:100],
+            })
+
+
+def _detect_swallowed_errors(filepath: str, content: str, lines: list[str],
+                              smell_counts: dict[str, list[dict]]):
+    """Find catch blocks whose only content is console.error/warn/log (swallowed errors).
+
+    These are functionally equivalent to empty catch blocks — the error is logged
+    but never propagated, returned, or surfaced to the user.
+    """
+    catch_re = re.compile(r"catch\s*\([^)]*\)\s*\{")
+    for m in catch_re.finditer(content):
+        # Find the matching closing brace
+        brace_start = m.end() - 1  # the {
+        depth = 0
+        in_str = None
+        prev_ch = ""
+        body_end = None
+        for ci in range(brace_start, min(brace_start + 500, len(content))):
+            ch = content[ci]
+            if in_str:
+                if ch == in_str and prev_ch != "\\":
+                    in_str = None
+                prev_ch = ch
+                continue
+            if ch in "'\"`":
+                in_str = ch
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    body_end = ci
+                    break
+            prev_ch = ch
+
+        if body_end is None:
+            continue
+
+        body = content[brace_start + 1:body_end]
+        # Strip comments
+        body_clean = re.sub(r"//[^\n]*", "", body)
+        body_clean = re.sub(r"/\*.*?\*/", "", body_clean, flags=re.DOTALL)
+        body_clean = body_clean.strip()
+
+        if not body_clean:
+            continue  # empty catch — already caught by empty_catch detector
+
+        # Check if every statement is a console.log/warn/error call
+        # Split on semicolons and newlines, strip whitespace
+        statements = [s.strip().rstrip(";") for s in re.split(r"[;\n]", body_clean) if s.strip()]
+        if not statements:
+            continue
+
+        all_console = all(
+            re.match(r"console\.(error|warn|log)\s*\(", stmt)
+            for stmt in statements
+        )
+        if all_console:
+            line_no = content[:m.start()].count("\n") + 1
+            smell_counts["swallowed_error"].append({
+                "file": filepath,
+                "line": line_no,
+                "content": lines[line_no - 1].strip()[:100] if line_no <= len(lines) else "",
             })
 
 

@@ -1,6 +1,5 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { handleError } from '@/shared/lib/errorHandler'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -47,7 +46,7 @@ export const dataURLtoFile = (dataUrl: string, filename: string, fileType?: stri
     }
     return new File([u8arr], filename, { type: mime });
   } catch (error) {
-    handleError(error, { context: 'Utils', showToast: false });
+    console.error('[Utils] dataURLtoFile failed:', error);
     return null;
   }
 };

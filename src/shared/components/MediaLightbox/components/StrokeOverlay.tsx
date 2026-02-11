@@ -13,8 +13,8 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { handleError } from '@/shared/lib/errorHandler';
 import { isPointOnShape, getClickedCornerIndex, getRectangleClickType, getRectangleCorners } from '../hooks/inpainting/shapeHelpers';
 
-export type { BrushStroke } from '../hooks/inpainting/types';
-import type { BrushStroke } from '../hooks/inpainting/types';
+export type { BrushStroke, StrokeOverlayHandle } from '../hooks/inpainting/types';
+import type { BrushStroke, StrokeOverlayHandle } from '../hooks/inpainting/types';
 
 interface StrokeOverlayProps {
   imageWidth: number;
@@ -32,16 +32,6 @@ interface StrokeOverlayProps {
   onStrokesChange: (strokes: BrushStroke[]) => void;
   onSelectionChange: (shapeId: string | null) => void;
   onTextModeHint?: () => void;
-}
-
-export interface StrokeOverlayHandle {
-  /** Renders all strokes as white-on-black mask at image resolution. */
-  exportMask: (options?: { pixelRatio?: number }) => string | null;
-  getSelectedShapeId: () => string | null;
-  undo: () => void;
-  clear: () => void;
-  deleteSelected: () => void;
-  toggleFreeForm: () => void;
 }
 
 type DragMode = 'move' | 'resize';

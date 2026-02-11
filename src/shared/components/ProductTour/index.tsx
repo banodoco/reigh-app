@@ -336,14 +336,14 @@ export function ProductTour() {
           transition: 'opacity 0.3s ease, transform 0.3s ease',
         },
         overlay: {
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'hsl(0 0% 0% / 0.5)',
           transition: 'opacity 0.3s ease',
         },
       }}
       floaterProps={{
         styles: {
           floater: {
-            filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15))',
+            filter: 'drop-shadow(0 4px 12px hsl(0 0% 0% / 0.15))',
             transition: 'opacity 0.3s ease, transform 0.3s ease',
           },
         },

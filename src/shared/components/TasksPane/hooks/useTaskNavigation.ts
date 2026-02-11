@@ -268,23 +268,12 @@ export function useTaskNavigation({
       e.preventDefault();
       setIsHoveringTaskItem(false);
 
-      // If image belongs to a shot, navigate to the shot and open it in context
-      if (shotId && generationData) {
-        onCloseLightbox?.();
-        const variantId = getTaskVariantId(generationData, imageVariantId);
-        navigateToShot(shotId, {
-          openImageGenerationId: generationData.generation_id || generationData.id,
-          openImageVariantId: variantId,
-        });
-        return;
-      }
-
       if (generationData && onOpenImageLightbox) {
         const initialVariantId = getTaskVariantId(generationData, imageVariantId);
         onOpenImageLightbox(task, generationData, initialVariantId);
       }
     },
-    [task, shotId, generationData, imageVariantId, onOpenImageLightbox, onCloseLightbox, navigateToShot, setIsHoveringTaskItem],
+    [task, generationData, imageVariantId, onOpenImageLightbox, setIsHoveringTaskItem],
   );
 
   // ---------------------------------------------------------------------------

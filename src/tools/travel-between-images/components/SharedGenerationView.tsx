@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { ProjectSelectorModal } from '@/shared/components/ProjectSelectorModal';
 import BatchSettingsForm from './BatchSettingsForm';
 import { MotionControl } from './MotionControl';
-import { SectionHeader } from '@/tools/image-generation/components/ImageGenerationForm/components/SectionHeader';
+import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
 import ShotImagesEditor from './ShotImagesEditor';

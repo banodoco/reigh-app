@@ -205,7 +205,7 @@ export const Visualization: React.FC<{
                                         style={{
                                             left: `${(contextFrames / totalFrames) * 100}%`,
                                             width: `${(gapFrames / 2 / totalFrames) * 100}%`,
-                                            backgroundImage: 'repeating-linear-gradient(45deg, rgba(234, 179, 8, 0.2), rgba(234, 179, 8, 0.2) 3px, rgba(59, 130, 246, 0.15) 3px, rgba(59, 130, 246, 0.15) 6px)'
+                                            backgroundImage: 'repeating-linear-gradient(45deg, hsl(var(--viz-yellow) / 0.2), hsl(var(--viz-yellow) / 0.2) 3px, hsl(var(--viz-blue) / 0.15) 3px, hsl(var(--viz-blue) / 0.15) 6px)'
                                         }}
                                     ></div>
                                 </TooltipTrigger>
@@ -224,7 +224,7 @@ export const Visualization: React.FC<{
                                         style={{
                                             right: `${(contextFrames / totalFrames) * 100}%`,
                                             width: `${(gapFrames / 2 / totalFrames) * 100}%`,
-                                            backgroundImage: 'repeating-linear-gradient(45deg, rgba(234, 179, 8, 0.2), rgba(234, 179, 8, 0.2) 3px, rgba(34, 197, 94, 0.15) 3px, rgba(34, 197, 94, 0.15) 6px)'
+                                            backgroundImage: 'repeating-linear-gradient(45deg, hsl(var(--viz-yellow) / 0.2), hsl(var(--viz-yellow) / 0.2) 3px, hsl(var(--viz-green) / 0.15) 3px, hsl(var(--viz-green) / 0.15) 6px)'
                                         }}
                                     ></div>
                                 </TooltipTrigger>

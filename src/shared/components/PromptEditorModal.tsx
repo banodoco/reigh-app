@@ -119,7 +119,8 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
       generationSettings: [generationControlValues, setGenerationControlValues],
       bulkEditSettings: [bulkEditControlValues, setBulkEditControlValues],
       activeTab: [activeTab, setActiveTab],
-    }
+    },
+    { defaults: { generationSettings: {}, bulkEditSettings: {}, activeTab: 'generate' } }
   );
 
   // Effect to initialize modal state on open

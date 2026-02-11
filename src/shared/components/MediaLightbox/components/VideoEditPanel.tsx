@@ -27,7 +27,7 @@ import type { VideoEnhanceSettings } from '../hooks/useVideoEnhance';
 import { useLightboxCoreSafe, useLightboxVariantsSafe, type LightboxCoreState, type LightboxVariantState } from '../contexts/LightboxStateContext';
 import { useVideoEditSafe, type VideoEditState } from '../contexts/VideoEditContext';
 
-export interface VideoEditPanelProps {
+interface VideoEditPanelProps {
   /** Layout variant */
   variant: 'desktop' | 'mobile';
 

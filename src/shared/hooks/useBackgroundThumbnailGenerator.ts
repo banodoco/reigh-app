@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { GenerationRow } from '@/types/shots';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { generateAndUploadThumbnail } from '@/shared/utils/videoThumbnailGenerator';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface UseBackgroundThumbnailGeneratorOptions {
   videos: GenerationRow[];
@@ -154,11 +155,7 @@ export function useBackgroundThumbnailGenerator({
           }
         );
       } else {
-        console.error('[BackgroundThumbnailGenerator] Failed:', {
-          generationId: generationId.substring(0, 8),
-          error: result.error,
-          timestamp: Date.now()
-        });
+        handleError(new Error(result.error || 'Thumbnail generation failed'), { context: 'useBackgroundThumbnailGenerator', showToast: false, logData: { generationId: generationId.substring(0, 8) } });
 
         // Update status to error
         setStatuses(prev => ({

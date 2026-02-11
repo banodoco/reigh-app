@@ -1,4 +1,5 @@
 import { createTask } from '../taskCreation';
+import { handleError } from '@/shared/lib/errorHandler';
 import type { HiresFixApiParams } from './imageGeneration';
 
 interface CreateImageInpaintTaskParams {
@@ -110,7 +111,7 @@ export async function createImageInpaintTask(params: CreateImageInpaintTaskParam
   if (failed.length > 0) {
     failed.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`[ImageInpaint] Task ${index + 1} failed:`, result.reason);
+        handleError(result.reason, { context: `ImageInpaint:task${index + 1}`, showToast: false });
       }
     });
   }

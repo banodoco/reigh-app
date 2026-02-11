@@ -31,23 +31,21 @@ import type { DerivedItem } from '@/shared/hooks/useDerivedItems';
 import type { SourceVariantData } from './useSourceGeneration';
 import type { ShotOption, QuickCreateSuccess } from '../types';
 import { useVariants } from '@/shared/hooks/useVariants';
-import {
-  useVariantSelection,
-  useVariantPromotion,
-  useLightboxNavigation,
-  useSwipeNavigation,
-  useStarToggle,
-  useReferences,
-  useJoinClips,
-  useGenerationLineage,
-  useShotPositioning,
-  useShotCreation,
-  useSourceGeneration,
-  useMakeMainVariant,
-  useEffectiveMedia,
-  useLayoutMode,
-  useButtonGroupProps,
-} from './index';
+import { useVariantSelection } from './useVariantSelection';
+import { useVariantPromotion } from './useVariantPromotion';
+import { useLightboxNavigation } from './useLightboxNavigation';
+import { useSwipeNavigation } from './useSwipeNavigation';
+import { useStarToggle } from './useStarToggle';
+import { useReferences } from './useReferences';
+import { useJoinClips } from './useJoinClips';
+import { useGenerationLineage } from './useGenerationLineage';
+import { useShotPositioning } from './useShotPositioning';
+import { useShotCreation } from './useShotCreation';
+import { useSourceGeneration } from './useSourceGeneration';
+import { useMakeMainVariant } from './useMakeMainVariant';
+import { useEffectiveMedia } from './useEffectiveMedia';
+import { useLayoutMode } from './useLayoutMode';
+import { useButtonGroupProps } from './useButtonGroupProps';
 
 // ============================================================================
 // Props Sub-Interfaces (grouped by concern)
@@ -305,7 +303,7 @@ export function useSharedLightboxState(props: UseSharedLightboxStateProps): UseS
     isCloudMode,
     showDownload,
     isDownloading,
-    setIsDownloading,
+    // setIsDownloading intentionally not destructured — unused in this hook
     onDelete,
     isDeleting,
     isUpscaling,

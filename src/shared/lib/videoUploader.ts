@@ -89,8 +89,8 @@ export const extractVideoMetadataFromUrl = async (videoUrl: string): Promise<Vid
       });
     };
     
-    video.onerror = (e) => {
-      console.error('[extractVideoMetadataFromUrl] Error loading video:', e);
+    video.onerror = () => {
+      handleError(new Error('Failed to load video metadata from URL'), { context: 'videoUploader:extractMetadata', showToast: false });
       reject(new Error('Failed to load video metadata from URL'));
     };
     

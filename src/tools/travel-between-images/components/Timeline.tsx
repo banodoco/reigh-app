@@ -10,7 +10,7 @@ import { handleError } from "@/shared/lib/errorHandler";
 import { TOOL_IDS } from "@/shared/lib/toolConstants";
 import MediaLightbox from "@/shared/components/MediaLightbox";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
-import { Image, Upload } from "lucide-react";
+import { TimelineEmptyState } from "./TimelineEmptyState";
 import { transformForTimeline, type RawShotGeneration } from "@/shared/lib/generationTransformers";
 import { isVideoGeneration } from "@/shared/lib/typeGuards";
 import { useTaskFromUnifiedCache } from "@/shared/hooks/useTaskPrefetch";
@@ -32,7 +32,6 @@ import { useDerivedNavigation } from "../hooks/useDerivedNavigation";
 import { usePendingImageOpen } from "@/shared/hooks/usePendingImageOpen";
 
 import TimelineContainer from "./Timeline/TimelineContainer";
-import { ImageUploadActions } from "@/shared/components/ImageUploadActions";
 import { useEmptyStateDrop } from "./Timeline/hooks/useEmptyStateDrop";
 
 // Main Timeline component props
@@ -490,65 +489,18 @@ const Timeline: React.FC<TimelineProps> = ({
     <div className="w-full overflow-x-hidden relative" data-tour="timeline">
       {/* Blur and overlay when no images */}
       {hasNoImages && (
-        <>
-          {/* Full-size drop zone overlay */}
-          {(onFileDrop || onGenerationDrop) && (
-            <div 
-              className={`absolute inset-0 z-20 flex items-center justify-center transition-all duration-200 ${
-                isDragOver 
-                  ? 'bg-primary/10 border-2 border-dashed border-primary' 
-                  : 'bg-background/50 backdrop-blur-[0.5px]'
-              }`}
-              onDragEnter={handleEmptyStateDragEnter}
-              onDragOver={handleEmptyStateDragOver}
-              onDragLeave={handleEmptyStateDragLeave}
-              onDrop={handleEmptyStateDrop}
-            >
-              <div className={`p-6 rounded-lg transition-all duration-200 ${
-                isDragOver 
-                  ? 'bg-primary/5 scale-105' 
-                  : 'bg-background/80'
-              }`}>
-                <div className="flex flex-col items-center gap-3 text-center">
-                  {isDragOver ? (
-                    <>
-                      <Upload className="h-12 w-12 text-primary animate-bounce" />
-                      <div>
-                        <h3 className="font-medium mb-2 text-primary">Drop {dragType === 'generation' ? 'image' : 'files'} here</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Release to add to timeline
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <Image className="h-10 w-10 text-muted-foreground" />
-                      <div>
-                        <h3 className="font-medium mb-2">No images on timeline</h3>
-                      </div>
-                      
-                      {onImageUpload && (
-                        <ImageUploadActions
-                          onImageUpload={onImageUpload}
-                          isUploadingImage={isUploadingImage}
-                          shotId={shotId}
-                          inputId="timeline-empty-image-upload"
-                          buttonSize="default"
-                        />
-                      )}
-                      
-                      {/* Subtle drag and drop hint */}
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
-                        <Upload className="h-3 w-3" />
-                        <span>or drag and drop</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </>
+        <TimelineEmptyState
+          isDragOver={isDragOver}
+          dragType={dragType}
+          shotId={shotId}
+          onImageUpload={onImageUpload}
+          isUploadingImage={isUploadingImage}
+          onDragEnter={handleEmptyStateDragEnter}
+          onDragOver={handleEmptyStateDragOver}
+          onDragLeave={handleEmptyStateDragLeave}
+          onDrop={handleEmptyStateDrop}
+          hasDropHandler={!!(onFileDrop || onGenerationDrop)}
+        />
       )}
       
       {/* Timeline Container - includes both controls and timeline */}

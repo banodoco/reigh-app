@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import { handleError } from '@/shared/lib/errorHandler';
 
 interface ToggleStarParams {
   variantId: string;
@@ -30,7 +31,7 @@ export function useToggleVariantStar() {
         .eq('id', variantId);
 
       if (error) {
-        console.error('[useToggleVariantStar] Error:', error);
+        handleError(error, { context: 'useToggleVariantStar', showToast: false });
         throw error;
       }
 
@@ -60,7 +61,7 @@ export function useToggleVariantStar() {
       if (context?.previousVariants) {
         queryClient.setQueryData(context.queryKey, context.previousVariants);
       }
-      console.error('[useToggleVariantStar] Failed to toggle star');
+      handleError(new Error('Failed to toggle star'), { context: 'useToggleVariantStar', showToast: false });
     },
     onSettled: (_data, _error, { generationId }) => {
       // Refetch to ensure consistency

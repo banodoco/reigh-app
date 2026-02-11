@@ -257,6 +257,21 @@ const PhaseGlobalSettings: React.FC<PhaseGlobalSettingsProps> = ({
 // PerPhaseCard
 // =============================================================================
 
+/** Immutably update a single field on a lora within a phase's lora list. */
+function updateLoraField(
+  phaseConfig: PhaseConfig,
+  phaseIdx: number,
+  loraIdx: number,
+  field: string,
+  value: string,
+): PhaseSettings[] {
+  return phaseConfig.phases.map((p, pIdx) =>
+    pIdx === phaseIdx
+      ? { ...p, loras: p.loras.map((l, lIdx) => lIdx === loraIdx ? { ...l, [field]: value } : l) }
+      : p
+  );
+}
+
 interface PerPhaseCardProps {
   phaseConfig: PhaseConfig;
   onPhaseConfigChange: (config: PhaseConfig) => void;
@@ -420,21 +435,9 @@ const PerPhaseCard: React.FC<PerPhaseCardProps> = ({
                     value={isFocused ? lora.url : getDisplayNameFromUrl(lora.url, availableLoras)}
                     className={`pr-8 ${loraValidation && !loraValidation.isValid ? 'border-yellow-500 focus-visible:ring-yellow-500' : ''}`}
                     onChange={(e) => {
-                      const newPhases = phaseConfig.phases.map((p, pIdx) =>
-                        pIdx === phaseIdx
-                          ? {
-                              ...p,
-                              loras: p.loras.map((l, lIdx) =>
-                                lIdx === loraIdx
-                                  ? { ...l, url: e.target.value }
-                                  : l
-                              )
-                            }
-                          : p
-                      );
                       onPhaseConfigChange({
                         ...phaseConfig,
-                        phases: newPhases
+                        phases: updateLoraField(phaseConfig, phaseIdx, loraIdx, 'url', e.target.value),
                       });
                     }}
                     onFocus={() => onFocusLoraInput(inputId)}
@@ -473,21 +476,9 @@ const PerPhaseCard: React.FC<PerPhaseCardProps> = ({
                   max={2}
                   step={0.1}
                   onChange={(val) => {
-                    const newPhases = phaseConfig.phases.map((p, pIdx) =>
-                      pIdx === phaseIdx
-                        ? {
-                            ...p,
-                            loras: p.loras.map((l, lIdx) =>
-                              lIdx === loraIdx
-                                ? { ...l, multiplier: String(val) }
-                                : l
-                            )
-                          }
-                        : p
-                    );
                     onPhaseConfigChange({
                       ...phaseConfig,
-                      phases: newPhases
+                      phases: updateLoraField(phaseConfig, phaseIdx, loraIdx, 'multiplier', String(val)),
                     });
                   }}
                   className="w-20 flex-shrink-0"

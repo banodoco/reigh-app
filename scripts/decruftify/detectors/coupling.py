@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from ..utils import c, get_area, print_table, rel, SRC_PATH
+from ..utils import c, print_table, rel, SRC_PATH
 from .deps import build_dep_graph
 
 
@@ -73,7 +73,7 @@ def detect_boundary_candidates(path: Path, graph: dict) -> list[dict]:
         if len(tool_areas) == 1 and not has_non_tool_importer:
             try:
                 loc = len(Path(filepath).read_text().splitlines())
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 loc = 0
             entries.append({
                 "file": filepath,
@@ -83,6 +83,38 @@ def detect_boundary_candidates(path: Path, graph: dict) -> list[dict]:
             })
 
     return sorted(entries, key=lambda e: -e["loc"])
+
+
+def detect_cross_tool_imports(path: Path, graph: dict) -> list[dict]:
+    """Find tools/A files that import from tools/B (cross-tool coupling).
+
+    Tools should only share code through shared/ — direct tool→tool imports
+    create hidden coupling.
+    """
+    entries = []
+    tools_prefix = f"{SRC_PATH}/tools/"
+
+    for filepath, entry in graph.items():
+        if not filepath.startswith(tools_prefix):
+            continue
+        # Skip root-level tools/ files (registry/barrel) — they're inherently cross-tool
+        remainder = filepath[len(tools_prefix):]
+        if "/" not in remainder:
+            continue
+        source_tool = remainder.split("/")[0]
+        for target in entry["imports"]:
+            if not target.startswith(tools_prefix):
+                continue
+            target_tool = target[len(tools_prefix):].split("/")[0]
+            if source_tool != target_tool:
+                entries.append({
+                    "file": filepath,
+                    "target": rel(target),
+                    "source_tool": source_tool,
+                    "target_tool": target_tool,
+                    "direction": "tools→tools",
+                })
+    return sorted(entries, key=lambda e: (e["source_tool"], e["file"]))
 
 
 def cmd_coupling(args):
@@ -112,6 +144,18 @@ def cmd_coupling(args):
         print_table(["Shared File", "Imports From", "Tool"], rows, [50, 50, 20])
     else:
         print(c("\nNo coupling violations (shared → tools).", "green"))
+
+    # Cross-tool imports
+    cross_tool = detect_cross_tool_imports(Path(args.path), graph)
+    print()
+    if cross_tool:
+        print(c(f"Cross-tool imports (tools → tools): {len(cross_tool)}\n", "bold"))
+        rows = []
+        for e in cross_tool[:args.top]:
+            rows.append([rel(e["file"]), e["target"], f"{e['source_tool']}→{e['target_tool']}"])
+        print_table(["Source File", "Imports From", "Direction"], rows, [50, 50, 20])
+    else:
+        print(c("No cross-tool imports.", "green"))
 
     # Boundary candidates
     print()

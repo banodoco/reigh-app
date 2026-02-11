@@ -57,7 +57,7 @@ export const GlassSidePane: React.FC<GlassSidePaneProps> = ({
     >
       <div 
         ref={setRefs} 
-        className="px-4 sm:px-8 pb-4 sm:pb-8 flex-1 overflow-y-auto overflow-x-visible min-h-0 relative z-20 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/30 [scrollbar-width:thin] [scrollbar-color:rgb(255_255_255_/_0.2)_transparent]"
+        className="px-4 sm:px-8 pb-4 sm:pb-8 flex-1 overflow-y-auto overflow-x-visible min-h-0 relative z-20 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/30 [scrollbar-width:thin] [scrollbar-color:hsl(var(--foreground)_/_0.2)_transparent]"
         style={{
           maskImage: scrollFade.showFade 
             ? 'linear-gradient(to bottom, black calc(100% - 3rem), transparent 100%)' 

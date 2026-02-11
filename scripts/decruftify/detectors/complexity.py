@@ -2,22 +2,15 @@
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel
+from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
 def detect_complexity(path: Path) -> list[dict]:
     """Detect files with complexity signals: many imports, prop drilling, mixed concerns."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.ts", "-o", "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
     entries = []
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath:
-            continue
+    for filepath in find_ts_files(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()
@@ -68,12 +61,12 @@ def detect_complexity(path: Path) -> list[dict]:
                 signals.append(f"{nested_ternary} nested ternaries")
                 score += nested_ternary * 3
 
-            if signals and score >= 5:
+            if signals and score >= 15:
                 entries.append({
                     "file": filepath, "loc": loc, "score": score,
                     "signals": signals,
                 })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
     return sorted(entries, key=lambda e: -e["score"])
 

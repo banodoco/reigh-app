@@ -77,6 +77,7 @@ export interface UseShotSettingsValueProps {
   // Images
   allShotImages: GenerationRow[];
   timelineImages: GenerationRow[];
+  unpositionedImages: GenerationRow[];
   contextImages: GenerationRow[];
   videoOutputs: GenerationRow[];
   simpleFilteredImages: GenerationRow[];
@@ -137,6 +138,7 @@ export function useShotSettingsValue({
   // Images
   allShotImages,
   timelineImages,
+  unpositionedImages,
   contextImages,
   videoOutputs,
   simpleFilteredImages,
@@ -284,6 +286,7 @@ export function useShotSettingsValue({
       // Images
       allShotImages,
       timelineImages,
+      unpositionedImages,
       contextImages,
       videoOutputs,
       simpleFilteredImages,
@@ -320,6 +323,7 @@ export function useShotSettingsValue({
       availableLoras,
       allShotImages,
       timelineImages,
+      unpositionedImages,
       contextImages,
       videoOutputs,
       simpleFilteredImages,

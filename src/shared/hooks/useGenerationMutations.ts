@@ -21,7 +21,6 @@ import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import type { GenerationRow } from '@/types/shots';
-import type { GenerationsPaginatedResponse } from './useProjectGenerations';
 
 // ===== Helper Functions (internal) =====
 
@@ -225,7 +224,7 @@ export function useToggleGenerationStar() {
           previousGenerationsQueries.set(queryKey, data);
           const updated = {
             ...data,
-            items: (data as GenerationsPaginatedResponse).items.map((g) => (g.id === id ? { ...g, starred } : g)),
+            items: (data as { items: GenerationRow[] }).items.map((g) => (g.id === id ? { ...g, starred } : g)),
           };
           queryClient.setQueryData(queryKey, updated);
         }

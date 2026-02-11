@@ -15,7 +15,7 @@ import type { LightboxLayoutProps } from '../components/layouts/types';
 // ============================================================================
 
 /** Panel visibility and tasks pane state */
-export interface WorkflowPanelProps {
+interface WorkflowPanelProps {
   showPanel: boolean;
   shouldShowSidePanel: boolean;
   effectiveTasksPaneOpen: boolean;
@@ -23,7 +23,7 @@ export interface WorkflowPanelProps {
 }
 
 /** Shot workflow: selection, adding, ticks, optimistic updates */
-export interface ShotWorkflowProps {
+interface ShotWorkflowProps {
   allShots: Array<{ id: string; name: string }>;
   selectedShotId?: string;
   onShotChange?: (shotId: string) => void;
@@ -41,7 +41,7 @@ export interface ShotWorkflowProps {
 }
 
 /** Action callbacks and handlers for delete, apply, navigate, variants */
-export interface WorkflowActionProps {
+interface WorkflowActionProps {
   onDelete?: (id: string) => void;
   onApplySettings?: (metadata: Record<string, unknown>) => void;
   handleApplySettings: () => void;

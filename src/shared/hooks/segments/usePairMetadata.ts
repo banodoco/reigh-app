@@ -8,7 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import type { PairMetadata } from '@/shared/components/segmentSettingsUtils';
+import type { PairMetadata } from '@/shared/components/segmentSettingsMigration';
 
 interface UsePairMetadataReturn {
   data: PairMetadata | null | undefined;

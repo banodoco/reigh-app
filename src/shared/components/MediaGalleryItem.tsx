@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { Eye, Share2, Copy, Loader2, Check } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -8,12 +8,11 @@ import {
   TooltipTrigger
 } from "@/shared/components/ui/tooltip";
 import { DraggableImage } from "@/shared/components/DraggableImage";
-import { getDisplayUrl } from "@/shared/lib/utils";
 import { TimeStamp } from "@/shared/components/TimeStamp";
 import type { Shot } from "@/types/shots";
 import type { MediaGalleryItemProps } from "./MediaGalleryItem/types";
 import { ActionButtons, InfoTooltip, VideoContent, ImageContent, ShotActions } from "./MediaGalleryItem/components";
-import { useShotActions, useImageLoading, useMediaGalleryItemState } from "./MediaGalleryItem/hooks";
+import { useShotActions, useImageLoading, useMediaGalleryItemState, useStableMediaUrls, useShotPositionChecks } from "./MediaGalleryItem/hooks";
 import { setGenerationDragData, createDragPreview } from '@/shared/lib/dragDrop';
 import { cn } from "@/shared/lib/utils";
 import CreateShotModal from "@/shared/components/CreateShotModal";
@@ -23,8 +22,6 @@ import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
 import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
 import { parseRatio } from "@/shared/lib/aspectRatios";
-import { useProgressiveImage } from "@/shared/hooks/useProgressiveImage";
-import { isProgressiveLoadingEnabled } from "@/shared/settings/progressiveLoading";
 import { useTaskFromUnifiedCache, usePrefetchTaskData } from "@/shared/hooks/useTaskPrefetch";
 import { useTaskType } from "@/shared/hooks/useTaskType";
 import { useGetTask } from "@/shared/hooks/useTasks";
@@ -172,46 +169,17 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     onLoadingStart: () => setAddingToShotImageId(image.id),
     onLoadingEnd: () => setAddingToShotImageId(null),
   });
-  // Progressive loading for thumbnail → full image transition
-  // DISABLE progressive loading for videos - we want to show thumbnails, not load the full video file
-  const progressiveEnabled = isProgressiveLoadingEnabled() && !image.isVideo;
-  const { src: progressiveSrc, isThumbShowing, isFullLoaded, ref: progressiveRef } = useProgressiveImage(
-    progressiveEnabled ? image.thumbUrl : null,
-    image.url,
-    {
-      priority: isPriority,
-      lazy: !isPriority,
-      enabled: progressiveEnabled, // Don't tie to shouldLoad - let the hook complete its transition
-      crossfadeMs: 180
-    }
-  );
-  
-  // Fallback to legacy behavior if progressive loading is disabled
-  const displayUrl = useMemo(() => {
-    // For videos, ALWAYS use the thumbnail, never the video file
-    if (image.isVideo) {
-      return getDisplayUrl(image.thumbUrl || image.url);
-    }
-
-    // For images, use progressive loading if enabled
-    if (progressiveEnabled && progressiveSrc) {
-      return progressiveSrc;
-    }
-
-    return getDisplayUrl(image.thumbUrl || image.url);
-  }, [progressiveEnabled, progressiveSrc, image.thumbUrl, image.url, image.isVideo]);
-  // Track stable display URL to avoid browser reloads when only tokens change
-  // Uses urlIdentity (computed at data layer) for stable comparison
-  const displayUrlIdentity = image.urlIdentity || image.url || '';
-  const [stableDisplayUrl, setStableDisplayUrl] = useState<string>(displayUrl);
-  const [lastDisplayUrlIdentity, setLastDisplayUrlIdentity] = useState<string>(displayUrlIdentity);
-  useEffect(() => {
-    // Only update stableDisplayUrl if the underlying file changed (not just token refresh)
-    if (displayUrlIdentity !== lastDisplayUrlIdentity) {
-      setStableDisplayUrl(displayUrl);
-      setLastDisplayUrlIdentity(displayUrlIdentity);
-    }
-  }, [displayUrl, displayUrlIdentity, lastDisplayUrlIdentity]);
+  // Stable media URLs (handles progressive loading + token-rotation stability)
+  const {
+    isVideoContent,
+    displayUrl,
+    stableDisplayUrl,
+    stableVideoUrl,
+    progressiveEnabled,
+    isThumbShowing,
+    isFullLoaded,
+    progressiveRef,
+  } = useStableMediaUrls({ image, isPriority });
 
   // Image loading state management (error handling, retry logic, loading state)
   const {
@@ -260,119 +228,26 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   const isCurrentDeleting = isDeleting;
   const imageKey = image.id || `image-${actualDisplayUrl}-${index}`;
 
-  // Content type: whether this item represents a video generation at all
-  const isVideoContent = useMemo(() => {
-    if (typeof image.isVideo === 'boolean') return image.isVideo;
-    const url = image.url || '';
-    const lower = url.toLowerCase();
-    return lower.endsWith('.webm') || lower.endsWith('.mp4') || lower.endsWith('.mov');
-  }, [image.isVideo, image.url]);
-
-  const videoUrl = useMemo(() => (isVideoContent ? (image.url || null) : null), [isVideoContent, image.url]);
-
-  // Track stable video URL to avoid browser reloads when only tokens change
-  // Uses urlIdentity (computed at data layer) for stable comparison
-  const videoUrlIdentity = image.urlIdentity || '';
-  const [stableVideoUrl, setStableVideoUrl] = useState<string | null>(videoUrl);
-  const [lastVideoUrlIdentity, setLastVideoUrlIdentity] = useState<string>(videoUrlIdentity);
-  useEffect(() => {
-    if (!videoUrl) {
-      setStableVideoUrl(null);
-      setLastVideoUrlIdentity('');
-      return;
-    }
-
-    // Only update stableVideoUrl if the underlying file changed (not just token refresh)
-    if (videoUrlIdentity !== lastVideoUrlIdentity) {
-      setStableVideoUrl(videoUrl);
-      setLastVideoUrlIdentity(videoUrlIdentity);
-    }
-  }, [videoUrl, videoUrlIdentity, lastVideoUrlIdentity]);
 
   // Placeholder check
   const isPlaceholder = !image.id && actualDisplayUrl === "/placeholder.svg";
   const currentTargetShotName = selectedShotIdLocal ? simplifiedShotOptions.find(s => s.id === selectedShotIdLocal)?.name : undefined;
   
-  // Check if image is already positioned in the selected shot (DB + optimistic)
-  const isAlreadyPositionedInSelectedShot = useMemo(() => {
-    if (!selectedShotIdLocal || !image.id) return false;
-    
-    // Check optimistic state first - uses composite key format: imageId:shotId
-    const optimisticKey = `${image.id}:${selectedShotIdLocal}`;
-    if (optimisticPositionedIds?.has(optimisticKey)) return true;
-    
-    // Optimized: Check single shot first (most common case)
-    if (image.shot_id === selectedShotIdLocal) {
-      return image.position !== null && image.position !== undefined;
-    }
-    
-    // Check multiple shot associations only if needed
-    if (image.all_shot_associations) {
-      const matchingAssociation = image.all_shot_associations.find(
-        assoc => assoc.shot_id === selectedShotIdLocal
-      );
-      return matchingAssociation && 
-             matchingAssociation.position !== null && 
-             matchingAssociation.position !== undefined;
-    }
-    
-    return false;
-  }, [selectedShotIdLocal, image.id, image.shot_id, image.position, image.all_shot_associations, optimisticPositionedIds]);
-
-  // Check if image is already associated with the selected shot WITHOUT position (DB + optimistic)
-  const isAlreadyAssociatedWithoutPosition = useMemo(() => {
-    if (!selectedShotIdLocal || !image.id) return false;
-    
-    // Check optimistic state first - uses composite key format: imageId:shotId
-    const optimisticKey = `${image.id}:${selectedShotIdLocal}`;
-    if (optimisticUnpositionedIds?.has(optimisticKey)) return true;
-    
-    // Optimized: Check single shot first (most common case)
-    if (image.shot_id === selectedShotIdLocal) {
-      return image.position === null || image.position === undefined;
-    }
-    
-    // Check multiple shot associations only if needed
-    if (image.all_shot_associations) {
-      const matchingAssociation = image.all_shot_associations.find(
-        assoc => assoc.shot_id === selectedShotIdLocal
-      );
-      return matchingAssociation && 
-             (matchingAssociation.position === null || matchingAssociation.position === undefined);
-    }
-    
-    return false;
-  }, [selectedShotIdLocal, image.id, image.shot_id, image.position, image.all_shot_associations, optimisticUnpositionedIds]);
-
-  // Check if we're currently viewing the selected shot specifically
-  // Only hide "add without position" button when actively filtering to view the current shot's items
-  const isCurrentlyViewingSelectedShot = useMemo(() => {
-    // Must have both IDs and they must match
-    if (!currentViewingShotId || !selectedShotIdLocal) {
-      return false;
-    }
-    
-    // Only hide when viewing items specifically filtered to the current shot
-    return currentViewingShotId === selectedShotIdLocal;
-  }, [currentViewingShotId, selectedShotIdLocal]);
-
-  // 🎯 PERFORMANCE: Memoize "Add without position" button visibility to prevent 840 checks per 2 minutes
-  // This calculation was running on every render, causing massive overhead
-  // Memoize "Add without position" button visibility to prevent 840 checks per 2 minutes
-  const shouldShowAddWithoutPositionButton = useMemo(() => {
-    return onAddToLastShotWithoutPosition &&
-      !isAlreadyPositionedInSelectedShot &&
-      showTickForImageId !== image.id &&
-      addingToShotImageId !== image.id &&
-      !isCurrentlyViewingSelectedShot;
-  }, [
-    onAddToLastShotWithoutPosition,
+  // Shot position state (positioned, associated-without-position, viewing selected shot)
+  const {
     isAlreadyPositionedInSelectedShot,
+    isAlreadyAssociatedWithoutPosition,
+    shouldShowAddWithoutPositionButton,
+  } = useShotPositionChecks({
+    image,
+    selectedShotIdLocal,
+    currentViewingShotId,
+    optimisticPositionedIds,
+    optimisticUnpositionedIds,
+    onAddToLastShotWithoutPosition,
     showTickForImageId,
-    image.id,
     addingToShotImageId,
-    isCurrentlyViewingSelectedShot
-  ]);
+  });
   
   let aspectRatioPadding = '100%';
   const minHeight = '120px'; // Minimum height for very small images

@@ -1,4 +1,4 @@
-import { createTask, validateRequiredFields, TaskValidationError } from '../taskCreation';
+import { createTask, validateRequiredFields, TaskValidationError, processBatchResults } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';
 
@@ -237,31 +237,7 @@ export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2I
       taskParams.map(taskParam => createZImageTurboI2ITask(taskParam))
     );
 
-    // 4. Process results
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
-
-    // 5. If all failed, throw the first error
-    if (successful === 0) {
-      const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
-      throw new Error(`All batch tasks failed: ${firstError.reason}`);
-    }
-
-    // 6. Log failures but continue
-    if (failed > 0) {
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          console.error(`[createBatchZImageTurboI2ITasks] Task ${index + 1} failed:`, result.reason);
-        }
-      });
-    }
-
-    // 7. Return successful results
-    const successfulResults = results
-      .filter((r): r is PromiseFulfilledResult<TaskCreationResult> => r.status === 'fulfilled')
-      .map(r => r.value);
-
-    return successfulResults;
+    return processBatchResults(results, 'createBatchZImageTurboI2ITasks');
 
   } catch (error) {
     handleError(error, { context: 'BatchZImageTurboI2I', showToast: false });

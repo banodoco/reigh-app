@@ -21,7 +21,7 @@ import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '@/shared/types/steerableMotion';
 import BatchSettingsForm from './BatchSettingsForm';
 import { MotionControl } from './MotionControl';
-import { SectionHeader } from '@/tools/image-generation/components/ImageGenerationForm/components/SectionHeader';
+import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
 import {
   generateVideo,
   buildBasicModePhaseConfig,

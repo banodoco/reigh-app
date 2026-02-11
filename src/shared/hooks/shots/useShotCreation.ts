@@ -221,7 +221,7 @@ export const useHandleExternalImageDrop = () => {
           aspectRatioSource = shotRatioStr ? 'shot' : 'project';
         }
       } catch (err) {
-        console.warn('Error fetching aspect ratio settings:', err);
+        handleError(err, { context: 'useShotCreation:aspectRatio', showToast: false });
       }
 
       // Crop images if enabled
@@ -249,7 +249,7 @@ export const useHandleExternalImageDrop = () => {
 
           processedFiles = await Promise.all(cropPromises);
         } catch (e) {
-          console.error('Error during batch cropping:', e);
+          handleError(e, { context: 'useShotCreation:batchCrop', showToast: false });
           processedFiles = imageFiles;
         }
       }
@@ -400,12 +400,6 @@ export const useHandleExternalImageDrop = () => {
 
             generationIds.push(newGeneration.id as string);
           } catch (fileError) {
-            console.error('[TimelineUploadDebug] CAUGHT ERROR processing file:', {
-              fileName: imageFile?.name,
-              message: (fileError as Error)?.message,
-              stack: (fileError as Error)?.stack,
-              fileError,
-            });
             handleError(fileError, { context: 'useShotCreation', toastTitle: `Failed to process file ${imageFile.name}` });
           }
         }
@@ -416,11 +410,6 @@ export const useHandleExternalImageDrop = () => {
           return null;
         }
       } catch (error) {
-        console.error('[TimelineUploadDebug] CAUGHT ERROR in useHandleExternalImageDrop:', {
-          message: (error as Error)?.message,
-          stack: (error as Error)?.stack,
-          error,
-        });
         handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to process dropped image(s)' });
         return null;
       }

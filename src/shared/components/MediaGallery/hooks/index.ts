@@ -5,3 +5,4 @@ export { useMediaGalleryPagination } from './useMediaGalleryPagination';
 export { useMediaGalleryActions } from './useMediaGalleryActions';
 export { useMobileInteractions } from './useMobileInteractions';
 export { useContainerWidth, useContainerDimensions } from './useContainerWidth';
+export { useLightboxNavigation } from './useLightboxNavigation';

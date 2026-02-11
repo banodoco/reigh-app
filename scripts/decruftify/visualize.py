@@ -13,7 +13,7 @@ import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from .utils import PROJECT_ROOT, SRC_PATH, c, rel, resolve_path
+from .utils import PROJECT_ROOT, c, rel
 
 
 def _collect_file_data(path: Path) -> list[dict]:
@@ -35,7 +35,7 @@ def _collect_file_data(path: Path) -> list[dict]:
                 "abs_path": str(p.resolve()),
                 "loc": loc,
             })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
     return files
 
@@ -135,7 +135,7 @@ def cmd_viz(args):
     state_path = getattr(args, "state", None)
     try:
         state = load_state(Path(state_path) if state_path else None)
-    except Exception:
+    except (OSError, json.JSONDecodeError):
         pass
 
     output = Path(getattr(args, "output", None) or ".decruftify/treemap.html")
@@ -272,7 +272,7 @@ def cmd_tree(args):
     state = None
     try:
         state = load_state(Path(args.state) if getattr(args, "state", None) else None)
-    except Exception:
+    except (OSError, json.JSONDecodeError):
         pass
 
     max_depth = getattr(args, "depth", 2)

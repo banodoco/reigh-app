@@ -47,10 +47,7 @@ export function useDemoteOrphanedVariants() {
         .rpc('demote_orphaned_video_variants', { p_shot_id: shotId });
 
       if (error) {
-        console.error('[DemoteOrphaned] ❌ RPC error:', {
-          error,
-          shotId: shotId.substring(0, 8),
-        });
+        handleError(error, { context: 'useDemoteOrphanedVariants', showToast: false, logData: { shotId: shotId.substring(0, 8) } });
         return 0;
       }
 

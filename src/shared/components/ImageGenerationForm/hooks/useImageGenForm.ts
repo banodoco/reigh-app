@@ -21,13 +21,11 @@ import { useSubmitButtonState } from '@/shared/hooks/useSubmitButtonState';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
-import {
-  useGenerationSource,
-  usePromptManagement,
-  useReferenceManagement,
-  useFormSubmission,
-  useLoraHandlers,
-} from './index';
+import { useGenerationSource } from './useGenerationSource';
+import { usePromptManagement } from './usePromptManagement';
+import { useReferenceManagement } from './useReferenceManagement';
+import { useFormSubmission } from './useFormSubmission';
+import { useLoraHandlers } from './useLoraHandlers';
 import { useProjectImageSettings } from './useProjectImageSettings';
 
 import { useFormUIState } from '../state';

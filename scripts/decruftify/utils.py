@@ -63,22 +63,50 @@ def resolve_path(filepath: str) -> str:
     return str((PROJECT_ROOT / filepath).resolve())
 
 
-def grep(pattern: str, path: str | Path, *extra_args: str) -> str:
+def grep(pattern: str, path: str | Path, *extra_args: str,
+         extensions: list[str] | None = None) -> str:
     """Run grep and return stdout. Common wrapper to avoid repetition."""
+    if extensions is None:
+        extensions = [".ts", ".tsx"]
+    include_args = [f"--include=*{ext}" for ext in extensions]
     result = subprocess.run(
-        ["grep", "-rn", "--include=*.ts", "--include=*.tsx", "-E", pattern, str(path), *extra_args],
+        ["grep", "-rn", *include_args, "-E", pattern, str(path), *extra_args],
         capture_output=True, text=True, cwd=PROJECT_ROOT,
     )
     return result.stdout
 
 
+def find_source_files(path: str | Path, extensions: list[str],
+                      exclusions: list[str] | None = None) -> list[str]:
+    """Find all files with given extensions under a path, excluding patterns."""
+    args = ["find", str(path)]
+    # Build -name conditions joined with -o
+    name_parts: list[str] = []
+    for ext in extensions:
+        if name_parts:
+            name_parts.append("-o")
+        name_parts.extend(["-name", f"*{ext}"])
+    if len(extensions) > 1:
+        args += ["(", *name_parts, ")"]
+    else:
+        args += name_parts
+
+    result = subprocess.run(args, capture_output=True, text=True, cwd=PROJECT_ROOT)
+    files = [f for f in result.stdout.strip().splitlines() if f]
+
+    if exclusions:
+        files = [f for f in files if not any(ex in f for ex in exclusions)]
+    return files
+
+
 def find_ts_files(path: str | Path) -> list[str]:
     """Find all .ts and .tsx files under a path."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.ts", "-o", "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
-    return [f for f in result.stdout.strip().splitlines() if f]
+    return find_source_files(path, [".ts", ".tsx"])
+
+
+def find_tsx_files(path: str | Path) -> list[str]:
+    """Find all .tsx files under a path."""
+    return find_source_files(path, [".tsx"])
 
 
 def read_file(filepath: str) -> str:

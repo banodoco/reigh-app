@@ -103,7 +103,7 @@ def _extract_deprecated_symbol(filepath: str, lineno: int, content: str) -> tupl
             if m:
                 return m.group(1), "property"
 
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         pass
     return None, "unknown"
 

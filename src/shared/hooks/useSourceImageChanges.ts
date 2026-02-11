@@ -18,6 +18,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 import { extractSegmentImages } from '@/shared/lib/galleryUtils';
 
 // How long to show the warning after a source change (in milliseconds)
@@ -166,7 +167,7 @@ export function useSourceImageChanges(
           .in('id', variantIds);
 
         if (variantError) {
-          console.error('[SourceChange] ❌ Variant query error:', variantError);
+          handleError(variantError, { context: 'useSourceImageChanges', showToast: false });
         } else {
           (variantData || []).forEach(v => {
             variantLocations[v.id] = { location: v.location, created_at: v.created_at };

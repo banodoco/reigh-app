@@ -39,40 +39,9 @@ interface TrainingDataSegmentDB {
   updated_at: string | null;
 }
 
-// Client types (camelCase)
-export interface TrainingDataBatch {
-  id: string;
-  userId: string;
-  name: string;
-  description: string | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string | null;
-}
-
-export interface TrainingDataVideo {
-  id: string;
-  originalFilename: string;
-  storageLocation: string;
-  duration: number | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string | null;
-  userId: string;
-  batchId: string;
-}
-
-export interface TrainingDataSegment {
-  id: string;
-  trainingDataId: string;
-  startTime: number;
-  endTime: number;
-  segmentLocation: string | null;
-  description: string | null;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string | null;
-}
+// Client types (camelCase) — canonical definitions in ./types.ts
+export type { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from './types';
+import type { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from './types';
 
 // Transform functions
 const transformBatch = (batch: TrainingDataBatchDB): TrainingDataBatch => ({

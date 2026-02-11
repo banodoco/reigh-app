@@ -17,6 +17,7 @@ import {
   useShotImageHandlers,
   useShotManagement,
 } from '../ShotSettingsContext';
+import { usePanes } from '@/shared/contexts/PanesContext';
 
 interface TimelineSectionProps {
   // Ref
@@ -87,11 +88,12 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   // Get data from context
   const { selectedShot, projectId, effectiveAspectRatio } = useShotCore();
   const { state } = useShotUI();
-  const { allShotImages, contextImages } = useShotImages();
+  const { allShotImages, unpositionedImages, contextImages } = useShotImages();
   const structureVideo = useShotStructureVideo();
   const audio = useShotAudio();
   const imageHandlers = useShotImageHandlers();
   const shotManagement = useShotManagement();
+  const { isGenerationsPaneLocked } = usePanes();
 
   return (
     <div ref={timelineSectionRef} className="flex flex-col w-full gap-4">
@@ -128,7 +130,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           />
         }
         // Unpositioned images from context
-        unpositionedGenerationsCount={0} // TODO: Get from context if needed
+        unpositionedGenerationsCount={isGenerationsPaneLocked ? 0 : unpositionedImages.length}
         onOpenUnpositionedPane={shotManagement.openUnpositionedGenerationsPane}
         // UI state from context
         fileInputKey={state.fileInputKey}

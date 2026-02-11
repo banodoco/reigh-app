@@ -53,7 +53,7 @@ def detect_unused(path: Path, category: str = "all") -> list[dict]:
             full = Path(resolve_path(filepath))
             if not str(full).startswith(str(path.resolve())):
                 continue
-        except Exception:
+        except (OSError, ValueError):
             continue
         cat = _categorize_unused(filepath, lineno)
         if category != "all" and cat != category:
@@ -84,7 +84,7 @@ def _categorize_unused(filepath: str, lineno: int) -> str:
                 # Stop at blank lines or non-import-continuation lines
                 if not prev or (not prev.startswith("{") and not prev.startswith(",") and "," not in prev):
                     break
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         pass
     return "vars"
 

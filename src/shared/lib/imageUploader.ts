@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/config/env";
 import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from "./storagePaths";
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Helper function to wait for a specified amount of time
@@ -236,7 +237,7 @@ export const uploadImageToStorage = async (
   }
 
   // If we get here, all retries failed
-  console.error(`[ImageUpload] All ${maxRetries} upload attempts failed for ${file.name}`);
+  handleError(lastError, { context: `ImageUpload:allRetriesFailed:${file.name}`, showToast: false });
 
   // Provide more specific error messages based on the error type
   const lastErrorMsg = lastError instanceof Error ? lastError.message : String(lastError);

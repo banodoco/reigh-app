@@ -267,10 +267,45 @@ export function validateRequiredFields(params: Record<string, unknown>, required
  */
 export function safeParseJson<T>(jsonStr: string | undefined, fallback: T): T {
   if (!jsonStr) return fallback;
-  
+
   try {
     return JSON.parse(jsonStr) as T;
   } catch {
     return fallback;
   }
+}
+
+/**
+ * Processes batch Promise.allSettled results with standard error handling.
+ *
+ * - Throws if every task failed (surfaces the first error).
+ * - Logs individual failures when some succeed.
+ * - Returns the fulfilled TaskCreationResult values.
+ *
+ * @param results - The settled promise array from Promise.allSettled
+ * @param context - Label used in error/log messages (e.g. "BatchImageGeneration")
+ */
+export function processBatchResults(
+  results: PromiseSettledResult<TaskCreationResult>[],
+  context: string,
+): TaskCreationResult[] {
+  const successful = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.filter(r => r.status === 'rejected').length;
+
+  if (successful === 0) {
+    const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+    throw new Error(`All batch tasks failed: ${firstError.reason}`);
+  }
+
+  if (failed > 0) {
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        handleError(result.reason, { context: `${context}:task${index + 1}`, showToast: false });
+      }
+    });
+  }
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<TaskCreationResult> => r.status === 'fulfilled')
+    .map(r => r.value);
 }

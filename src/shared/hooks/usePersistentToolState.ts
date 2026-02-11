@@ -39,6 +39,12 @@ interface UsePersistentToolStateOptions {
    * Useful when the relevant entity (e.g. project) has not been selected yet.
    */
   enabled?: boolean;
+  /**
+   * Explicit defaults for fields that aren't in the tools manifest.
+   * Use this for non-tool callers (e.g. PromptEditorModal) to avoid
+   * the "no default value" warning and ensure correct reset behavior.
+   */
+  defaults?: Record<string, unknown>;
 }
 
 interface UsePersistentToolStateResult {
@@ -88,7 +94,7 @@ export function usePersistentToolState<T extends Record<string, unknown>>(
   stateMapping: StateMapping<T>,
   options: UsePersistentToolStateOptions = {}
 ): UsePersistentToolStateResult {
-  const { debounceMs = 500, scope = 'project', enabled = true } = options;
+  const { debounceMs = 500, scope = 'project', enabled = true, defaults: explicitDefaults } = options;
   
   // Fast-path: if persistence is disabled, provide a noop implementation so the UI can render immediately.
   if (!enabled) {
@@ -144,7 +150,7 @@ export function usePersistentToolState<T extends Record<string, unknown>>(
       const effectiveSettings: Partial<T> = (settings as Partial<T>) || {};
       
       // Get defaults for this tool to reset undefined values
-      const toolDefaults = toolsManifest.find(t => t.id === toolId)?.defaults || {};
+      const toolDefaults = explicitDefaults || toolsManifest.find(t => t.id === toolId)?.defaults || {};
       
       hasHydratedRef.current = true;
       userHasInteractedRef.current = false;

@@ -25,6 +25,8 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { LightboxProviders } from './components';
 import { LightboxLayout } from './components/layouts';
 import { SegmentSlotFormView } from './components/SegmentSlotFormView';
+import { VideoEditPanel } from './components/VideoEditPanel';
+import { InfoPanel } from './components/InfoPanel';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 
 // Import hooks
@@ -734,78 +736,80 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
   // BUILD CONTROLS PANEL PROPS (local — only when panel is shown)
   // ========================================
 
-  const controlsPanelProps = useMemo(() => showPanel ? {
-    // Video edit
-    isCloudMode,
-    regenerateFormProps,
-    trimState,
-    onStartTrimChange: setStartTrim,
-    onEndTrimChange: setEndTrim,
-    onResetTrim: resetTrim,
-    trimmedDuration,
-    hasTrimChanges,
-    onSaveTrim: saveTrimmedVideo,
-    isSavingTrim,
-    trimSaveProgress,
-    trimSaveError,
-    trimSaveSuccess,
-    videoUrl: effectiveMedia.videoUrl,
-    trimCurrentTime,
-    trimVideoRef,
-    videoEditing,
-    projectId: selectedProjectId,
-    enhanceSettings: videoEnhance.settings,
-    onUpdateEnhanceSetting: videoEnhance.updateSetting,
-    onEnhanceGenerate: videoEnhance.handleGenerate,
-    isEnhancing: videoEnhance.isGenerating,
-    enhanceSuccess: videoEnhance.generateSuccess,
-    canEnhance: videoEnhance.canSubmit,
-    // Edit mode stubs (video doesn't use EditModePanel)
-    sourceGenerationData: sourceGeneration.data,
-    onOpenExternalGeneration,
-    allShots: allShots || [],
-    isCurrentMediaPositioned: shots.isAlreadyPositionedInSelectedShot,
-    onReplaceInShot: handleReplaceInShot,
-    sourcePrimaryVariant: sourceGeneration.primaryVariant,
-    onMakeMainVariant: makeMainVariant.handle,
-    canMakeMainVariant: makeMainVariant.canMake,
-    handleUnifiedGenerate: () => Promise.resolve(),
-    handleGenerateAnnotatedEdit: () => Promise.resolve(),
-    handleGenerateReposition: () => Promise.resolve(),
-    handleSaveAsVariant: () => Promise.resolve(),
-    handleGenerateImg2Img: () => Promise.resolve(),
-    img2imgLoraManager: {},
-    availableLoras: [],
-    editLoraManager: {},
-    advancedSettings: {},
-    setAdvancedSettings: () => {},
-    isLocalGeneration: false,
-    // Info panel
-    showImageEditTools: false,
-    taskDetailsData: adjustedTaskDetailsData,
-    derivedItems: lineage.derivedItems,
-    derivedGenerations: lineage.derivedGenerations,
-    paginatedDerived: lineage.paginatedDerived,
-    derivedPage: lineage.derivedPage,
-    derivedTotalPages: lineage.derivedTotalPages,
-    onSetDerivedPage: lineage.setDerivedPage,
-    replaceImages,
-    onReplaceImagesChange: setReplaceImages,
-    onSwitchToPrimary: variants.primaryVariant ? () => variants.setActiveVariantId(variants.primaryVariant.id) : undefined,
-    currentMediaId: media?.id || '',
-    currentShotId: selectedShotId || shotId,
-    taskId: adjustedTaskDetailsData?.taskId || (media as unknown as Record<string, unknown>)?.source_task_id as string | null || null,
-  } : undefined, [
-    showPanel, isCloudMode, regenerateFormProps, trimState, setStartTrim, setEndTrim, resetTrim,
-    trimmedDuration, hasTrimChanges, saveTrimmedVideo, isSavingTrim, trimSaveProgress, trimSaveError,
-    trimSaveSuccess, effectiveMedia.videoUrl, trimCurrentTime, trimVideoRef, videoEditing, selectedProjectId,
-    videoEnhance.settings, videoEnhance.updateSetting, videoEnhance.handleGenerate,
-    videoEnhance.isGenerating, videoEnhance.generateSuccess, videoEnhance.canSubmit,
-    sourceGeneration.data, onOpenExternalGeneration, allShots, shots.isAlreadyPositionedInSelectedShot,
-    handleReplaceInShot, sourceGeneration.primaryVariant, makeMainVariant.handle, makeMainVariant.canMake,
-    adjustedTaskDetailsData, lineage.derivedItems, lineage.derivedGenerations, lineage.paginatedDerived,
-    lineage.derivedPage, lineage.derivedTotalPages, lineage.setDerivedPage, replaceImages, setReplaceImages,
-    variants.primaryVariant, variants.setActiveVariantId, media?.id, selectedShotId, shotId,
+  // Shared props for panel content
+  const panelVariant = (shouldShowSidePanelWithTrim && !isMobile) ? 'desktop' as const : 'mobile' as const;
+  const panelTaskId = adjustedTaskDetailsData?.taskId || (media as unknown as Record<string, unknown>)?.source_task_id as string | null || null;
+
+  // Build panel content directly (eliminates ControlsPanel routing + 88-prop interface)
+  // VideoLightbox only routes between VideoEditPanel and InfoPanel
+  const controlsPanelContent = useMemo(() => {
+    if (!showPanel) return undefined;
+
+    if (isInVideoEditMode && videoEditSubMode) {
+      return (
+        <VideoEditPanel
+          variant={panelVariant}
+          isCloudMode={isCloudMode}
+          trimState={trimState}
+          onStartTrimChange={setStartTrim}
+          onEndTrimChange={setEndTrim}
+          onResetTrim={resetTrim}
+          trimmedDuration={trimmedDuration}
+          hasTrimChanges={hasTrimChanges}
+          onSaveTrim={saveTrimmedVideo}
+          isSavingTrim={isSavingTrim}
+          trimSaveProgress={trimSaveProgress}
+          trimSaveError={trimSaveError}
+          trimSaveSuccess={trimSaveSuccess}
+          videoUrl={effectiveMedia.videoUrl}
+          trimCurrentTime={trimCurrentTime}
+          trimVideoRef={trimVideoRef}
+          videoEditing={videoEditing}
+          projectId={selectedProjectId}
+          regenerateFormProps={regenerateFormProps}
+          enhanceSettings={videoEnhance.settings}
+          onUpdateEnhanceSetting={videoEnhance.updateSetting}
+          onEnhanceGenerate={videoEnhance.handleGenerate}
+          isEnhancing={videoEnhance.isGenerating}
+          enhanceSuccess={videoEnhance.generateSuccess}
+          canEnhance={videoEnhance.canSubmit}
+          taskId={panelTaskId}
+        />
+      );
+    }
+
+    return (
+      <InfoPanel
+        variant={panelVariant}
+        showImageEditTools={false}
+        taskDetailsData={adjustedTaskDetailsData}
+        derivedItems={lineage.derivedItems}
+        derivedGenerations={lineage.derivedGenerations}
+        paginatedDerived={lineage.paginatedDerived}
+        derivedPage={lineage.derivedPage}
+        derivedTotalPages={lineage.derivedTotalPages}
+        onSetDerivedPage={lineage.setDerivedPage}
+        onNavigateToGeneration={onOpenExternalGeneration}
+        currentMediaId={media?.id || ''}
+        currentShotId={selectedShotId || shotId}
+        replaceImages={replaceImages}
+        onReplaceImagesChange={setReplaceImages}
+        onSwitchToPrimary={variants.primaryVariant ? () => variants.setActiveVariantId(variants.primaryVariant.id) : undefined}
+        taskId={panelTaskId}
+      />
+    );
+  }, [
+    showPanel, isInVideoEditMode, videoEditSubMode, panelVariant, isCloudMode,
+    trimState, setStartTrim, setEndTrim, resetTrim, trimmedDuration, hasTrimChanges,
+    saveTrimmedVideo, isSavingTrim, trimSaveProgress, trimSaveError, trimSaveSuccess,
+    effectiveMedia.videoUrl, trimCurrentTime, trimVideoRef, videoEditing, selectedProjectId,
+    regenerateFormProps, videoEnhance.settings, videoEnhance.updateSetting,
+    videoEnhance.handleGenerate, videoEnhance.isGenerating, videoEnhance.generateSuccess,
+    videoEnhance.canSubmit, panelTaskId, adjustedTaskDetailsData, lineage.derivedItems,
+    lineage.derivedGenerations, lineage.paginatedDerived, lineage.derivedPage,
+    lineage.derivedTotalPages, lineage.setDerivedPage, onOpenExternalGeneration,
+    media?.id, selectedShotId, shotId, replaceImages, setReplaceImages,
+    variants.primaryVariant, variants.setActiveVariantId,
   ]);
 
   // ========================================
@@ -890,7 +894,7 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
               readOnly={readOnly}
             />
           ) : (
-            <LightboxLayout {...layoutProps} controlsPanelProps={controlsPanelProps} />
+            <LightboxLayout {...layoutProps} controlsPanelContent={controlsPanelContent} />
           )}
         </LightboxShell>
       </VideoEditProvider>

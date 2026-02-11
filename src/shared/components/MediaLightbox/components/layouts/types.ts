@@ -7,7 +7,6 @@
  */
 
 import React from 'react';
-import type { ControlsPanelProps } from '../ControlsPanel';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from '../../types';
 
 /**
@@ -81,8 +80,8 @@ export interface LightboxLayoutProps extends
   // Workflow controls bar (always present)
   workflowBarProps: LayoutWorkflowBarProps;
 
-  // Controls panel props (panel layouts only)
-  controlsPanelProps?: Omit<ControlsPanelProps, 'variant'>;
+  // Controls panel content (panel layouts only — rendered by parent lightbox)
+  controlsPanelContent?: React.ReactNode;
 
   // Workflow controls below media (centered layout only)
   workflowControlsProps?: LayoutWorkflowControlsProps;
@@ -94,5 +93,3 @@ export interface LightboxLayoutProps extends
   segmentSlotMode?: SegmentSlotModeData;
 }
 
-// Re-export ControlsPanelProps for convenience
-export type { ControlsPanelProps } from '../ControlsPanel';

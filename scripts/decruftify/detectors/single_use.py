@@ -30,7 +30,7 @@ def detect_single_use_abstractions(path: Path, graph: dict) -> list[dict]:
                 "sole_importer": rel(importer),
                 "reason": f"Only imported by {rel(importer)} — consider inlining",
             })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
     return sorted(entries, key=lambda e: -e["loc"])
 

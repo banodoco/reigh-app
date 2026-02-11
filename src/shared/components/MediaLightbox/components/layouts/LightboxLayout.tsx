@@ -42,7 +42,6 @@ import {
   BottomLeftControls,
   BottomRightControls,
 } from '../ButtonGroups';
-import { ControlsPanel } from '../ControlsPanel';
 import { MediaDisplayWithCanvas } from '../MediaDisplayWithCanvas';
 import { VideoEditModeDisplay } from '../VideoEditModeDisplay';
 import { VideoTrimModeDisplay } from '../VideoTrimModeDisplay';
@@ -96,7 +95,7 @@ export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
     // Composed prop objects
     buttonGroupProps,
     workflowBarProps,
-    controlsPanelProps,
+    controlsPanelContent,
 
     // Workflow controls (below media, centered only)
     workflowControlsProps,
@@ -396,10 +395,7 @@ export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
           )}
           style={isDesktopPanel ? { width: '40%' } : { height: '50%' }}
         >
-          <ControlsPanel
-            variant={isDesktopPanel ? 'desktop' : 'mobile'}
-            {...controlsPanelProps!}
-          />
+          {controlsPanelContent}
         </div>
       </div>
     );

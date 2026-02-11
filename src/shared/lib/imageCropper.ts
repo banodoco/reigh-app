@@ -1,3 +1,5 @@
+import { handleError } from '@/shared/lib/errorHandler';
+
 interface ProjectCropResult {
   croppedFile: File;
   croppedImageUrl: string;
@@ -28,15 +30,12 @@ export const cropImageToProjectAspectRatio = async (
   const looksLikeImageByName = typeof inputFile.name === 'string' && /\.(heic|heif|jpg|jpeg|png|webp|gif|bmp|tif|tiff)$/i.test(inputFile.name);
 
   if (!hasImageMime && !looksLikeImageByName) {
-    console.error("[TimelineUploadDebug] Invalid file type. Only images are allowed.", {
-      fileName: inputFile?.name,
-      fileType: inputFile?.type,
-    });
+    handleError(new Error(`Invalid file type: ${inputFile?.name} (${inputFile?.type})`), { context: 'imageCropper:invalidFileType', showToast: false });
     return null;
   }
 
   if (isNaN(targetAspectRatio) || targetAspectRatio <= 0) {
-    console.error("Invalid target aspect ratio.");
+    handleError(new Error(`Invalid target aspect ratio: ${targetAspectRatio}`), { context: 'imageCropper:invalidAspectRatio', showToast: false });
     return null;
   }
 

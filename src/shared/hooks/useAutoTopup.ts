@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
@@ -121,8 +122,8 @@ export function useAutoTopup() {
       queryClient.invalidateQueries({ queryKey: queryKeys.credits.all }); // Refresh credits info
       // Removed toast notification for smoother UX
     },
-    onError: (error, variables) => {
-      console.error('[AutoTopup:Hook] Save failed:', error, variables);
+    onError: (error, _variables) => {
+      handleError(error, { context: 'useAutoTopup', showToast: false });
       // Only log errors, don't show toast for save failures
     },
   });
@@ -136,7 +137,7 @@ export function useAutoTopup() {
       // Removed toast notification for smoother UX
     },
     onError: (error) => {
-      console.error('[AutoTopup:Hook] Disable failed:', error);
+      handleError(error, { context: 'useAutoTopup', showToast: false });
       // Only log errors, don't show toast for disable failures
     },
   });

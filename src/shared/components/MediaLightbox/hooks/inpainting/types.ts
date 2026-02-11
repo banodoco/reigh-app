@@ -1,8 +1,19 @@
 import type { GenerationRow } from '@/types/shots';
-import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
 
 // Import canonical types from single source of truth
 import type { EditAdvancedSettings, QwenEditModel } from '../editSettingsTypes';
+
+// StrokeOverlayHandle lives here to avoid a circular import
+// (StrokeOverlay → shapeHelpers → types → StrokeOverlay).
+export interface StrokeOverlayHandle {
+  /** Renders all strokes as white-on-black mask at image resolution. */
+  exportMask: (options?: { pixelRatio?: number }) => string | null;
+  getSelectedShapeId: () => string | null;
+  undo: () => void;
+  clear: () => void;
+  deleteSelected: () => void;
+  toggleFreeForm: () => void;
+}
 
 // Re-export for backwards compatibility
 export type { EditAdvancedSettings, QwenEditModel };

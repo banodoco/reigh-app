@@ -13,6 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { calculateDerivedCounts } from '@/shared/lib/generationTransformers';
 import { useSmartPollingConfig } from './useSmartPolling';
@@ -91,10 +92,10 @@ async function fetchDerivedItems(
   ]);
 
   if (generationsResult.error) {
-    console.error('[DerivedItems] Error fetching child generations:', generationsResult.error);
+    handleError(generationsResult.error, { context: 'useDerivedItems', showToast: false });
   }
   if (variantsResult.error) {
-    console.error('[DerivedItems] Error fetching edit variants:', variantsResult.error);
+    handleError(variantsResult.error, { context: 'useDerivedItems', showToast: false });
   }
 
   const childGenerations = generationsResult.data || [];

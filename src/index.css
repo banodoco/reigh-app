@@ -208,6 +208,18 @@
     --icon-warning: 40 60% 80%;             /* Vintage Gold */
     --icon-danger: 0 70% 60%;               /* Red */
 
+    /* Retro offset-shadow palette (header + retro buttons) */
+    --shadow-retro: 180 13% 48%;            /* Teal #6a8a8a — light-mode retro */
+    --shadow-retro-deep: 180 20% 10%;       /* Near-black teal — dark-mode retro */
+    --shadow-header: 0 0% 0%;              /* Pure black — light-mode header icons */
+    --shadow-header-dark: 60 6% 33%;       /* Dark olive — dark-mode header icons */
+    --shadow-header-hover: 45 33% 55%;     /* Muted gold — dark-mode header hover */
+
+    /* Visualization stripe colors (join-clips transition preview) */
+    --viz-yellow: 48 96% 47%;              /* Tailwind yellow-500 — generated frames */
+    --viz-blue: 217 91% 60%;              /* Tailwind blue-500 — clip A frames */
+    --viz-green: 142 71% 45%;             /* Tailwind green-500 — clip B frames */
+
     --radius: 0.75rem;
   }
 

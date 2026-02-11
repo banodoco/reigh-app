@@ -163,7 +163,7 @@ export function useShareGeneration(
         .maybeSingle();
 
       if (existingError && !isNotFoundError(existingError)) {
-        console.error('[Share] Failed to check existing share:', existingError);
+        handleError(existingError, { context: 'useShareGeneration', showToast: false });
         toast({
           title: "Share failed",
           description: "Please try again",
@@ -204,7 +204,7 @@ export function useShareGeneration(
         .single();
 
       if (generationResult.error) {
-        console.error('[Share] Failed to fetch generation:', generationResult.error);
+        handleError(generationResult.error, { context: 'useShareGeneration', showToast: false });
         toast({
           title: "Share failed",
           description: "Failed to load generation data",
@@ -346,7 +346,7 @@ export function useShareGeneration(
 
         // Other error
         if (insertError) {
-          console.error('[Share] Failed to create share:', insertError);
+          handleError(insertError, { context: 'useShareGeneration', showToast: false });
           toast({
             title: "Share failed",
             description: insertError.message || "Please try again",

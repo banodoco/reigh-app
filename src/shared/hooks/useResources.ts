@@ -105,7 +105,7 @@ export const useListPublicResources = (type: ResourceType) => {
                     .range(page * pageSize, (page + 1) * pageSize - 1);
                 
                 if (error) {
-                    console.error('[PublicResources] Query error:', { type, error, timestamp: Date.now() });
+                    handleError(error, { context: 'useListPublicResources', showToast: false, logData: { type } });
                     throw error;
                 }
                 
@@ -236,8 +236,9 @@ export const useUpdateResource = () => {
 
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                console.error('[useUpdateResource] User not authenticated');
-                throw new Error('Not authenticated');
+                const err = new Error('Not authenticated');
+                handleError(err, { context: 'useUpdateResource', showToast: false });
+                throw err;
             }
 
             // First, let's check if the resource exists at all (without user_id filter)
@@ -256,18 +257,18 @@ export const useUpdateResource = () => {
                 .maybeSingle();
             
             if (checkError) {
-                console.error('[useUpdateResource] Error checking resource:', checkError);
+                handleError(checkError, { context: 'useUpdateResource', showToast: false });
                 throw new Error(`Failed to verify resource: ${checkError.message}`);
             }
             
             if (!existingResource) {
-                console.error('[useUpdateResource] Resource not found or access denied:', { 
-                    id, 
+                handleError(new Error('Resource not found or access denied'), { context: 'useUpdateResource', showToast: false, logData: {
+                    id,
                     userId: user.id,
                     resourceExists: !!resourceCheck,
                     resourceOwner: resourceCheck?.user_id
-                });
-                
+                }});
+
                 // Provide a more specific error message
                 if (resourceCheck && resourceCheck.user_id !== user.id) {
                     throw new Error('This resource belongs to another user');
@@ -288,18 +289,16 @@ export const useUpdateResource = () => {
                 .maybeSingle();
             
             if (error) {
-                console.error('[useUpdateResource] Update error:', {
-                    error,
+                handleError(error, { context: 'useUpdateResource', showToast: false, logData: {
                     code: error.code,
-                    message: error.message,
                     details: error.details,
                     hint: error.hint
-                });
+                }});
                 throw error;
             }
             
             if (!data) {
-                console.error('[useUpdateResource] Update succeeded but no data returned');
+                handleError(new Error('Update succeeded but no data returned'), { context: 'useUpdateResource', showToast: false });
                 // If update succeeded but no data returned, fetch it separately
                 const { data: fetchedData, error: fetchError } = await supabase
                     .from('resources')
@@ -308,7 +307,7 @@ export const useUpdateResource = () => {
                     .maybeSingle();
                 
                 if (fetchError || !fetchedData) {
-                    console.error('[useUpdateResource] Failed to fetch updated resource:', fetchError);
+                    handleError(fetchError || new Error('No data returned'), { context: 'useUpdateResource', showToast: false });
                     throw new Error('Update may have succeeded but failed to fetch updated resource');
                 }
                 

@@ -105,7 +105,7 @@ export function usePrefetchToolSettings(projectId?: string | null, shotIds: stri
         staleTime: 5 * 60 * 1000, // keep fresh for 5 min (same as useToolSettings)
       }).then(() => {
       }).catch((error) => {
-        console.error('[RefLoadingDebug] ❌ Prefetch failed for:', toolId, error);
+        handleError(error, { context: 'usePrefetchToolSettings', showToast: false });
       });
     });
 

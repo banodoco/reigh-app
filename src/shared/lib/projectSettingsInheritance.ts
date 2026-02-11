@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Filters project-level settings for inheritance into a new project.
@@ -108,7 +109,7 @@ export async function buildShotSettingsForNewProject(
       };
     }
   } catch (e) {
-    console.error('[projectSettingsInheritance] Failed to read localStorage:', e);
+    handleError(e, { context: 'projectSettingsInheritance.localStorage', showToast: false });
   }
 
   // 2. Fallback: fetch the latest shot from the DB

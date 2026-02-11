@@ -98,7 +98,7 @@ def _build_census(path: Path) -> dict[str, dict[str, set[str]]]:
             rpath = rel(filepath)
             area = get_area(rpath)
             content = Path(filepath).read_text()
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
 
         for family_name, patterns in compiled.items():

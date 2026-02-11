@@ -5,6 +5,7 @@ import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // Hook to get status counts for indicators
 export const useTaskStatusCounts = (projectId: string | null) => {
@@ -66,24 +67,12 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       if (processingResult.status === 'fulfilled') {
         const { count, error } = processingResult.value;
         if (error) {
-          console.error('[PollingBreakageIssue] useTaskStatusCounts query error (processing):', {
-            projectId,
-            error,
-            errorMessage: error.message,
-            errorCode: error.code,
-            errorDetails: error.details,
-            errorHint: error.hint,
-            timestamp: Date.now()
-          });
+          handleError(error, { context: 'useTaskStatusCounts.processing', showToast: false, logData: { projectId } });
         } else {
           processingCount = count || 0;
         }
       } else {
-        console.error('[PollingBreakageIssue] Processing query promise rejected:', {
-          projectId,
-          reason: processingResult.reason,
-          timestamp: Date.now()
-        });
+        handleError(processingResult.reason instanceof Error ? processingResult.reason : new Error(String(processingResult.reason)), { context: 'useTaskStatusCounts.processing', showToast: false, logData: { projectId } });
       }
 
       // Handle success count result
@@ -91,24 +80,12 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       if (successResult.status === 'fulfilled') {
         const { count, error } = successResult.value;
         if (error) {
-          console.error('[PollingBreakageIssue] useTaskStatusCounts query error (success):', {
-            projectId,
-            error,
-            errorMessage: error.message,
-            errorCode: error.code,
-            errorDetails: error.details,
-            errorHint: error.hint,
-            timestamp: Date.now()
-          });
+          handleError(error, { context: 'useTaskStatusCounts.success', showToast: false, logData: { projectId } });
         } else {
           successCount = count || 0;
         }
       } else {
-        console.error('[PollingBreakageIssue] Success query promise rejected:', {
-          projectId,
-          reason: successResult.reason,
-          timestamp: Date.now()
-        });
+        handleError(successResult.reason instanceof Error ? successResult.reason : new Error(String(successResult.reason)), { context: 'useTaskStatusCounts.success', showToast: false, logData: { projectId } });
       }
 
       // Handle failure count result
@@ -116,24 +93,12 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       if (failureResult.status === 'fulfilled') {
         const { count, error } = failureResult.value;
         if (error) {
-          console.error('[PollingBreakageIssue] useTaskStatusCounts query error (failure):', {
-            projectId,
-            error,
-            errorMessage: error.message,
-            errorCode: error.code,
-            errorDetails: error.details,
-            errorHint: error.hint,
-            timestamp: Date.now()
-          });
+          handleError(error, { context: 'useTaskStatusCounts.failure', showToast: false, logData: { projectId } });
         } else {
           failureCount = count || 0;
         }
       } else {
-        console.error('[PollingBreakageIssue] Failure query promise rejected:', {
-          projectId,
-          reason: failureResult.reason,
-          timestamp: Date.now()
-        });
+        handleError(failureResult.reason instanceof Error ? failureResult.reason : new Error(String(failureResult.reason)), { context: 'useTaskStatusCounts.failure', showToast: false, logData: { projectId } });
       }
 
       const result = {

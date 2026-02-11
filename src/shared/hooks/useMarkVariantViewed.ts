@@ -15,6 +15,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandler';
 import { DerivedCountsResult } from '@/shared/lib/generationTransformers';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
@@ -90,7 +91,7 @@ export function useMarkVariantViewed() {
       // Badge data will sync naturally when staleTime (30s) expires.
     },
     onError: (error) => {
-      console.error('[useMarkVariantViewed] Failed:', error);
+      handleError(error, { context: 'useMarkVariantViewed', showToast: false });
     },
   });
 
@@ -144,7 +145,7 @@ export function useMarkVariantViewed() {
       queryClient.invalidateQueries({ queryKey: queryKeys.shots.positionsAll });
     },
     onError: (error) => {
-      console.error('[useMarkVariantViewed] Bulk failed:', error);
+      handleError(error, { context: 'useMarkVariantViewed', showToast: false });
     },
   });
 

@@ -26,7 +26,7 @@ import type { ReferenceImage, HydratedReferenceImage, ProjectImageSettings } fro
  * Build full StyleReferenceMetadata from a HydratedReferenceImage.
  * Centralises the mapping so new metadata fields only need updating in one place.
  */
-export function buildResourceMetadata(
+function buildResourceMetadata(
   ref: HydratedReferenceImage,
   overrides: Partial<StyleReferenceMetadata> = {},
 ): StyleReferenceMetadata {

@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandler';
 import {
   findGeneration,
   calculateDistributedFrames,
@@ -78,11 +79,7 @@ export function useTimelineFrameUpdates({
 
     // If still not found, this is a data consistency error
     if (!shotGen?.id) {
-      console.error('[TimelinePositionUtils] Generation not found in provided data:', {
-        lookingFor: generationId.substring(0, 8),
-        availableGenIds: shotGenerations.map(sg => sg.generation_id?.substring(0, 8)),
-        availableShotGenIds: shotGenerations.map(sg => sg.id?.substring(0, 8)),
-      });
+      handleError(new Error(`Shot generation not found for generation ${generationId} - this indicates a data flow issue`), { context: 'TimelineFrameUpdates:updateTimelineFrame', showToast: false });
       throw new Error(`Shot generation not found for generation ${generationId} - this indicates a data flow issue`);
     }
 

@@ -2,22 +2,15 @@
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel
+from ..utils import PROJECT_ROOT, c, find_tsx_files, print_table, rel
 
 
 def detect_god_components(path: Path) -> list[dict]:
     """Find components that do too many things: multiple contexts, many effects, mixed concerns."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
     entries = []
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath:
-            continue
+    for filepath in find_tsx_files(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()
@@ -54,7 +47,7 @@ def detect_god_components(path: Path) -> list[dict]:
                     "hook_total": hook_total,
                     "reasons": reasons,
                 })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
     return sorted(entries, key=lambda e: -e["hook_total"])
 

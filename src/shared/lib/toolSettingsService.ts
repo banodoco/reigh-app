@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toolsManifest } from '@/tools';
 import { deepMerge } from '@/shared/lib/deepEqual';
 import { isCancellationError, isAbortError, getErrorMessage } from '@/shared/lib/errorUtils';
+import { handleError } from '@/shared/lib/errorHandler';
 
 // ============================================================================
 // Module-level state
@@ -244,14 +245,14 @@ export async function fetchToolSettingsSupabase(
       }
 
       if (errorMsg.includes('Failed to fetch')) {
-        console.error('[ToolSettingsAuth] Network issue fetching settings', { error: errorMsg, ...contextInfo });
+        handleError(error, { context: 'fetchToolSettingsSupabase.network', showToast: false, logData: contextInfo });
         throw new Error('Network connection issue. Please check your internet connection.');
       }
 
-      console.error('[fetchToolSettingsSupabase] Error:', error, contextInfo);
+      handleError(error, { context: 'fetchToolSettingsSupabase', showToast: false, logData: contextInfo });
     } catch (e) {
       // If context gathering fails, still rethrow the original error
-      console.error('[fetchToolSettingsSupabase] Error (context unavailable):', error);
+      handleError(error, { context: 'fetchToolSettingsSupabase', showToast: false });
     }
     throw error;
   }

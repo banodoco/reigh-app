@@ -2,22 +2,15 @@
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel
+from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
 def detect_large_files(path: Path, threshold: int = 500) -> list[dict]:
     """Find .ts/.tsx files exceeding a line count threshold."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.ts", "-o", "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
     entries = []
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath:
-            continue
+    for filepath in find_ts_files(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             lines = p.read_text().splitlines()
@@ -32,7 +25,7 @@ def detect_large_files(path: Path, threshold: int = 500) -> list[dict]:
                     "file": filepath, "loc": loc,
                     "imports": import_count, "exports": export_count, "functions": fn_count,
                 })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
     return sorted(entries, key=lambda e: -e["loc"])
 

@@ -59,13 +59,7 @@ export function useShotGenerationMetadata({
           .maybeSingle();
 
         if (error) {
-          console.error('[MagicEditPromptPersist] ❌ DB LOAD ERROR:', {
-            shotGenerationId: shotGenerationId.substring(0, 8),
-            error: error.message,
-            code: error.code,
-            details: error,
-            timestamp: Date.now()
-          });
+          handleError(error, { context: 'useShotGenerationMetadata.load', showToast: false, logData: { shotGenerationId: shotGenerationId.substring(0, 8) } });
           if (!cancelled) {
             setMetadata({});
             setIsLoading(false);
@@ -110,13 +104,7 @@ export function useShotGenerationMetadata({
         .eq('id', shotGenerationId);
 
       if (error) {
-        console.error('[MagicEditPromptPersist] ❌ DB UPDATE ERROR:', {
-          shotGenerationId: shotGenerationId.substring(0, 8),
-          error: error.message,
-          code: error.code,
-          details: error,
-          timestamp: Date.now()
-        });
+        handleError(error, { context: 'useShotGenerationMetadata.update', showToast: false, logData: { shotGenerationId: shotGenerationId.substring(0, 8) } });
         throw error;
       }
 

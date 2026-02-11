@@ -16,6 +16,8 @@
  * > getProjectDebugHistory()
  */
 
+import { handleError } from '@/shared/lib/errorHandler';
+
 interface DebugLogEntry {
   timestamp: number;
   event: string;
@@ -120,7 +122,7 @@ window.forceProjectRecovery = () => {
       }
     });
   } catch (e) {
-    console.log('Could not clear localStorage:', e);
+    handleError(e, { context: 'mobileProjectDebug.forceRecovery', showToast: false });
   }
   
   // Try to trigger auth refresh

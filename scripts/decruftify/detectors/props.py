@@ -2,25 +2,18 @@
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
-from ..utils import PROJECT_ROOT, c, print_table, rel
+from ..utils import PROJECT_ROOT, c, find_ts_files, print_table, rel
 
 
 def detect_prop_interface_bloat(path: Path) -> list[dict]:
     """Find interfaces/types with >10 properties — signals need for composition or context."""
-    result = subprocess.run(
-        ["find", str(path), "-name", "*.ts", "-o", "-name", "*.tsx"],
-        capture_output=True, text=True, cwd=PROJECT_ROOT,
-    )
     entries = []
     # Match interface blocks
     interface_re = re.compile(r"(?:export\s+)?(?:interface|type)\s+(\w+Props\w*)\s*(?:=\s*)?{", re.MULTILINE)
 
-    for filepath in result.stdout.strip().splitlines():
-        if not filepath:
-            continue
+    for filepath in find_ts_files(path):
         try:
             p = Path(filepath) if Path(filepath).is_absolute() else PROJECT_ROOT / filepath
             content = p.read_text()
@@ -55,7 +48,7 @@ def detect_prop_interface_bloat(path: Path) -> list[dict]:
                         "prop_count": prop_count,
                         "line": content[:m.start()].count("\n") + 1,
                     })
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             continue
     return sorted(entries, key=lambda e: -e["prop_count"])
 

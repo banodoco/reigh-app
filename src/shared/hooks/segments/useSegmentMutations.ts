@@ -15,7 +15,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { buildMetadataUpdate, type SegmentSettings } from '@/shared/components/segmentSettingsUtils';
+import type { SegmentSettings } from '@/shared/components/segmentSettingsUtils';
+import { buildMetadataUpdate } from '@/shared/components/segmentSettingsMigration';
 import type { ShotVideoSettings } from '@/shared/utils/settingsMigration';
 
 interface UseSegmentMutationsOptions {

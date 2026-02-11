@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToolSettings, updateToolSettingsSupabase } from './useToolSettings';
 import { deepEqual } from '@/shared/lib/deepEqual';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandler';
 
 /**
  * Status states for the auto-save settings lifecycle
@@ -250,7 +251,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
 
       onSaveSuccess?.();
     } catch (err) {
-      console.error(`${debugTag} Save failed:`, err);
+      handleError(err, { context: 'useAutoSaveSettings.save', showToast: false });
       setStatus('error');
       setError(err as Error);
       onSaveError?.(err as Error);
@@ -295,7 +296,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
               onFlushRef.current?.(pendingForEntity, pending);
             })
             .catch(err => {
-              console.error(`${debugTag} Cleanup flush failed:`, err);
+              handleError(err, { context: 'useAutoSaveSettings.cleanupFlush', showToast: false });
             });
         } else {
           // React Query mode: call updateToolSettingsSupabase directly
@@ -319,7 +320,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
               }
             })
             .catch(err => {
-              console.error('[useAutoSaveSettings] Cleanup flush failed:', err);
+              handleError(err, { context: 'useAutoSaveSettings.cleanupFlush', showToast: false });
             });
         }
       }
@@ -345,7 +346,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
       if (pending && pendingForEntity) {
         if (isCustomMode) {
           customSaveRef.current!(pendingForEntity, pending).catch(err => {
-            console.error(`${debugTag} Unload flush failed:`, err);
+            handleError(err, { context: 'useAutoSaveSettings.unloadFlush', showToast: false });
           });
         } else {
           // Use 'immediate' mode to bypass debounce - page is closing
@@ -355,7 +356,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
             toolId,
             patch: pending,
           }, undefined, 'immediate').catch(err => {
-            console.error('[useAutoSaveSettings] Unload flush failed:', err);
+            handleError(err, { context: 'useAutoSaveSettings.unloadFlush', showToast: false });
           });
         }
       }
@@ -408,7 +409,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
             pendingEntityIdRef.current = null;
           }
         } catch (err) {
-          console.error(`${debugTag} Debounced save failed:`, err);
+          handleError(err, { context: 'useAutoSaveSettings.debouncedSave', showToast: false });
         }
       }, debounceMs);
       saveTimeoutRef.current = timeoutId;
@@ -459,7 +460,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
             pendingEntityIdRef.current = null;
           }
         } catch (err) {
-          console.error(`${debugTag} Debounced save failed:`, err);
+          handleError(err, { context: 'useAutoSaveSettings.debouncedSave', showToast: false });
         }
       }, debounceMs);
       saveTimeoutRef.current = timeoutId;
@@ -577,7 +578,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
         try {
           await saveImmediateRef.current(toSave);
         } catch (err) {
-          console.error(`${debugTag} Pending save failed:`, err);
+          handleError(err, { context: 'useAutoSaveSettings.pendingSave', showToast: false });
         }
       }, debounceMs);
       return;
@@ -618,7 +619,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
         setError(null);
       })
       .catch(err => {
-        console.error(`${debugTag} Load failed:`, err);
+        handleError(err, { context: 'useAutoSaveSettings.load', showToast: false });
         setStatus('error');
         isLoadingRef.current = false;
         setError(err as Error);
@@ -660,7 +661,7 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
           try {
             await saveImmediateRef.current(toSave);
           } catch (err) {
-            console.error(`${debugTag} Pending save failed:`, err);
+            handleError(err, { context: 'useAutoSaveSettings.pendingSave', showToast: false });
           }
         }, debounceMs);
       }

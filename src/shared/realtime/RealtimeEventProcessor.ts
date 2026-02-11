@@ -8,6 +8,7 @@
  * React layer's job.
  */
 
+import { handleError } from '@/shared/lib/errorHandler';
 import {
   RawDatabaseEvent,
   ProcessedEvent,
@@ -444,7 +445,7 @@ export class RealtimeEventProcessor {
       try {
         callback(event);
       } catch (error) {
-        console.error('[RealtimeEventProcessor] Callback error:', error);
+        handleError(error, { context: 'RealtimeEventProcessor.callback', showToast: false });
       }
     });
   }

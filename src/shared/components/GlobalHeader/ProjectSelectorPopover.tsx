@@ -33,8 +33,8 @@ export const ProjectSelectorPopover: React.FC<ProjectSelectorPopoverProps> = ({
     "bg-background hover:bg-[#6a8a8a]/10 rounded-sm border-2 border-[#6a8a8a]/30 hover:border-[#6a8a8a]/45",
     "dark:border-[#6a7a7a] dark:hover:bg-transparent text-[#5a7a7a] dark:text-[#c8c4bb]",
     "font-heading font-light tracking-wide transition-all duration-200",
-    "shadow-[0_1px_2px_0_rgba(106,138,138,0.06)] hover:shadow-[0_2px_4px_-1px_rgba(106,138,138,0.1)]",
-    "dark:shadow-[-2px_2px_0_0_rgba(20,30,30,0.4)] dark:hover:shadow-[-1px_1px_0_0_rgba(20,30,30,0.4)]",
+    "shadow-sm hover:shadow",
+    "dark:shadow-[-2px_2px_0_0_hsl(var(--shadow-retro-deep)_/_0.4)] dark:hover:shadow-[-1px_1px_0_0_hsl(var(--shadow-retro-deep)_/_0.4)]",
     "dark:hover:translate-x-[-0.5px] dark:hover:translate-y-[0.5px]",
     "focus:outline-none focus:ring-2 focus:ring-[#6a8a8a]/30 focus:ring-offset-0",
     "disabled:cursor-not-allowed disabled:opacity-50",
@@ -42,7 +42,7 @@ export const ProjectSelectorPopover: React.FC<ProjectSelectorPopoverProps> = ({
   );
 
   const popoverContentClassName = cn(
-    "p-0 z-[9999] rounded-sm border-2 border-[#6a8a8a] dark:border-[#6a7a7a] shadow-[-3px_3px_0_0_rgba(106,138,138,0.15)] dark:shadow-[-3px_3px_0_0_rgba(20,30,30,0.4)]",
+    "p-0 z-[9999] rounded-sm border-2 border-[#6a8a8a] dark:border-[#6a7a7a] shadow-[-3px_3px_0_0_hsl(var(--shadow-retro)_/_0.15)] dark:shadow-[-3px_3px_0_0_hsl(var(--shadow-retro-deep)_/_0.4)]",
     isDesktop ? "w-[280px]" : "w-[calc(100vw-2rem)] max-w-[400px]"
   );
 

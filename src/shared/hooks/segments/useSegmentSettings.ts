@@ -30,7 +30,8 @@ import { usePairMetadata } from './usePairMetadata';
 import { useShotVideoSettings } from './useShotVideoSettings';
 import { useSegmentMutations } from './useSegmentMutations';
 import { readSegmentOverrides } from '@/shared/utils/settingsMigration';
-import type { SegmentSettings, PairMetadata, ShotBatchSettings } from '@/shared/components/segmentSettingsUtils';
+import type { SegmentSettings, ShotBatchSettings } from '@/shared/components/segmentSettingsUtils';
+import type { PairMetadata } from '@/shared/components/segmentSettingsMigration';
 import type { ShotVideoSettings } from '@/shared/utils/settingsMigration';
 
 // =============================================================================

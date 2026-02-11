@@ -168,7 +168,7 @@ export function useUserUIState<K extends keyof UISettings>(
         const { data, error } = await loadUserSettingsCached(user.id);
 
         if (error) {
-          console.error('[useUserUIState] Error loading settings:', error);
+          handleError(error, { context: 'useUserUIState.loadSettings', showToast: false });
           setIsLoading(false);
           return;
         }
@@ -214,7 +214,7 @@ export function useUserUIState<K extends keyof UISettings>(
           
           // Save to database in background (don't block loading)
           saveFallbackToDatabase(user.id, data?.settings || {}).catch(error => {
-            console.error(`[useUserUIState] Failed to save fallback for key "${key}":`, error);
+            handleError(error, { context: 'useUserUIState.saveFallback', showToast: false });
           });
         }
         
