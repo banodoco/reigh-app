@@ -28,7 +28,7 @@
 | **Performance** | [performance_system.md](docs/structure_detail/performance_system.md) | Frame budgets, time-slicing, image loading |
 | **Image Loading** | [image_loading_system.md](docs/structure_detail/image_loading_system.md) | Progressive loading, device-adaptive batching |
 | **Frontend Architecture** | [frontend_architecture.md](docs/structure_detail/frontend_architecture.md) | Contexts, hooks, components, state management patterns |
-| **Shared Utilities** | [shared_utilities.md](docs/structure_detail/shared_utilities.md) | ModalContainer, DataContainer, ConfirmDialog, createSafeContext |
+| **Shared Utilities** | [shared_utilities.md](docs/structure_detail/shared_utilities.md) | ModalContainer, ConfirmDialog, shared hooks |
 | **Adding Tools** | [adding_new_tool.md](docs/structure_detail/adding_new_tool.md) | Step-by-step new tool guide |
 | **Design Standards** | [design_motion_guidelines.md](docs/structure_detail/design_motion_guidelines.md) | UI/UX patterns, motion, modals, accessibility |
 | **Debugging** | [debugging.md](docs/structure_detail/debugging.md) | CLI, `system_logs`, frontend logging |
@@ -61,7 +61,7 @@
 | Path | Purpose | Key Files |
 |------|---------|-----------|
 | `/src/app` | App bootstrap & routing | `main.tsx` → `App.tsx` → `routes.tsx` → `Layout.tsx` |
-| `/src/pages` | Top-level pages | `HomePage`, `ShotsPage` |
+| `/src/pages` | Top-level pages | `HomePage`, `ShotsPage`, `ArtPage`, `SharePage`, `NotFoundPage`, payment pages |
 | `/src/tools` | Feature modules | Each tool: `pages/`, `components/`, `hooks/`, `settings.ts` |
 | `/src/shared` | Shared code | `components/ui/` (shadcn), `hooks/`, `contexts/`, `lib/` |
 | `/supabase/functions` | Edge Functions | Task processing, payments, AI integration |
@@ -75,7 +75,7 @@
 ### Tools
 Tools live in `/src/tools/{tool-name}/` following a consistent structure. See [adding_new_tool.md](docs/structure_detail/adding_new_tool.md).
 
-**Active tools:** Image Generation, Video Travel, Animate Characters, Edit Images, Join Clips
+**Active tools:** Image Generation, Video Travel, Animate Characters, Edit Images, Edit Video, Join Clips, Training Data Helper
 
 ### Shots & Generations
 - **Generations** = gallery items (images/videos produced by AI tasks)
@@ -104,9 +104,7 @@ See [realtime_system.md](docs/structure_detail/realtime_system.md).
 | **errors** | `lib/errors.ts` | Typed error classes (`NetworkError`, `AuthError`, `ValidationError`, etc.) |
 | **errorHandler** | `lib/errorHandler.ts` | Centralized `handleError()` with logging + toast |
 | **AppErrorBoundary** | `components/AppErrorBoundary.tsx` | App-level crash recovery UI |
-| **createSafeContext** | `lib/createSafeContext.ts` | Context factory with strict/safe/hasProvider hooks |
 | **ModalContainer** | `components/ModalContainer.tsx` | Unified responsive modal with header/footer/scroll |
-| **DataContainer** | `components/DataContainer.tsx` | Loading/error/empty/data state wrapper |
 | **ConfirmDialog** | `components/ConfirmDialog.tsx` | Promise-based confirmation dialogs with presets |
 | **settingsResolution** | `lib/settingsResolution.ts` | Resolve settings across scopes |
 | **settingsWriteQueue** | `lib/settingsWriteQueue.ts` | Global queue for settings writes (prevents network flooding) |

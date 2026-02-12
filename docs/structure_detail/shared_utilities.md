@@ -6,10 +6,7 @@
 
 | Utility | Description | Source |
 |---------|-------------|--------|
-| `createSafeContext<T>(name)` | Factory for typed contexts: exports `Provider`, `useContext()` (throws), `useContextSafe()` (returns undefined), `useHasProvider()` | `src/shared/lib/createSafeContext.ts` |
-| `createContextWithDefault<T>(name, default)` | Like `createSafeContext` but with a default value -- no provider required. Use for contexts where a sensible default exists | `src/shared/lib/createSafeContext.ts` |
 | `ModalContainer` / `ModalFooterButtons` | Responsive modal wrapping shadcn `Dialog` with header/footer/scroll. Use `ModalFooterButtons` for standard cancel/confirm footers. Props in TS interface | `src/shared/components/ModalContainer.tsx` |
-| `DataContainer<T>` / `SkeletonLines` / `SkeletonGrid` | Render-prop container handling loading/error/empty/data states. Pairs with React Query. Props in TS interface | `src/shared/components/DataContainer.tsx` |
 | `useConfirmDialog` / `ConfirmDialog` | Promise-based confirmation dialog. Hook mode (imperative, `confirm()` returns promise) or standalone (declarative). Props in TS interface | `src/shared/components/ConfirmDialog.tsx` |
 
 ## `confirmPresets`

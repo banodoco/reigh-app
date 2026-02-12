@@ -40,10 +40,6 @@ All keys live in `queryKeys` object. Invalidation goes through hooks in `shared/
 | `ToolPageHeaderContext` | Tool page layout |
 | `LastAffectedShotContext` | Project route layout |
 
-### `createSafeContext` factory
-
-Standard for all new contexts. See [shared_utilities.md](shared_utilities.md) for API details (`useContext`, `useContextSafe`, `useHasProvider`).
-
 ### Provider nesting order matters
 
 See `App.tsx` for the hierarchy. Providers that depend on others must be nested inside them (e.g., `ProjectContext` inside `AuthContext`).
@@ -61,13 +57,13 @@ See `App.tsx` for the hierarchy. Providers that depend on others must be nested 
 | Task creation (validate, transform, insert) | [unified_task_creation.md](unified_task_creation.md) |
 | Image loading (progressive, lazy, preload) | [image_loading_system.md](image_loading_system.md) |
 | Tool module structure | [adding_new_tool.md](../adding_new_tool.md) |
-| Shared utilities (ModalContainer, DataContainer, ConfirmDialog) | [shared_utilities.md](shared_utilities.md) |
+| Shared utilities (ModalContainer, ConfirmDialog) | [shared_utilities.md](shared_utilities.md) |
 
 ---
 
 ## Shared Components Worth Knowing
 
-`ModalContainer`, `DataContainer`, `ConfirmDialog` -- See [shared_utilities.md](shared_utilities.md).
+`ModalContainer`, `ConfirmDialog` -- See [shared_utilities.md](shared_utilities.md).
 
 ---
 
@@ -75,7 +71,7 @@ See `App.tsx` for the hierarchy. Providers that depend on others must be nested 
 
 When building a new feature:
 
-- [ ] **Context needed?** Only if state is used by 3+ unrelated components. Use `createSafeContext`.
+- [ ] **Context needed?** Only if state is used by 3+ unrelated components.
 - [ ] **Hook extraction?** If logic is reused or complex (>20 lines)
 - [ ] **Query keys?** Add to `queryKeys` registry in `shared/lib/queryKeys.ts`
 - [ ] **Invalidation?** Use hooks from `shared/hooks/invalidation/`
