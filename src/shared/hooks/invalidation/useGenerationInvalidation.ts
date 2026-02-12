@@ -67,19 +67,6 @@ export interface VariantInvalidationOptions {
 }
 
 /**
- * Options for generation update invalidation.
- * Use when a generation's data changes (not variant-related).
- */
-export interface GenerationUpdateOptions {
-  /** Debug reason for logging. Required for traceability. */
-  reason: string;
-  /** Generation ID that was updated */
-  generationId: string;
-  /** Optional: project ID for project-scoped invalidation */
-  projectId?: string;
-}
-
-/**
  * Internal helper that performs the actual invalidation.
  * Extracted so it can be used with or without React hooks.
  */
@@ -256,59 +243,3 @@ export async function invalidateVariantChange(
   });
 }
 
-/**
- * Invalidate caches after a generation is updated (non-variant changes).
- *
- * Use this when:
- * - Generation's location/thumbnail is directly updated
- * - Generation's metadata is cleared/changed
- * - Generation is deleted
- *
- * This is lighter-weight than invalidateVariantChange - it doesn't
- * touch shot-generations caches since the generation-shot relationship
- * isn't changing.
- *
- * @param queryClient - React Query client
- * @param options - Invalidation options including generationId and reason
- *
- * @internal Not exported - currently unused. If needed in the future,
- * add export back and update the barrel file.
- */
-function invalidateGenerationUpdate(
-  queryClient: QueryClient,
-  options: GenerationUpdateOptions
-): void {
-  const { generationId, projectId } = options;
-
-  // 1. Invalidate the specific generation
-  queryClient.invalidateQueries({ queryKey: queryKeys.generations.detail(generationId) });
-
-  // 2. Invalidate generation galleries - cover ALL key patterns
-  queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
-
-  // 3. If projectId provided, also invalidate project-scoped queries
-  if (projectId) {
-    // Partial key match for project-scoped unified generations
-    queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(projectId) });
-  }
-
-  // 4. Invalidate derived-generations (for child/variant galleries)
-  queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedGenerationsAll });
-  queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
-
-  // 5. Invalidate segment output queries (for timeline segment strip)
-  // This ensures new segments appear immediately on the timeline
-  queryClient.invalidateQueries({
-    predicate: (query) => query.queryKey[0] === queryKeys.segments.childrenAll[0]
-  });
-  queryClient.invalidateQueries({
-    predicate: (query) => query.queryKey[0] === queryKeys.segments.parentsAll[0]
-  });
-
-  // 6. Invalidate shot final videos (for shot list video previews)
-  queryClient.invalidateQueries({ queryKey: queryKeys.finalVideos.all });
-}
-
-// Keep for potential future use - referenced in docs
-void invalidateGenerationUpdate;

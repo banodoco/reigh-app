@@ -10,6 +10,7 @@ import { PhaseConfig, PhaseLoraConfig } from '@/shared/types/phaseConfig';
 import { handleError } from '@/shared/lib/errorHandler';
 import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { camelToSnakeKeys } from '@/shared/lib/caseConversion';
+import type { PathLoraConfig } from '@/shared/types/lora';
 
 // ============================================================================
 
@@ -37,7 +38,7 @@ interface JoinClipsPerJoinSettings {
   priority?: number;
   resolution?: [number, number];
   fps?: number;
-  loras?: Array<{ path: string; strength: number }>;
+  loras?: PathLoraConfig[];
 }
 
 /**
@@ -84,7 +85,7 @@ export interface JoinClipsTaskParams {
   fps?: number;
   negative_prompt?: string;
   priority?: number;
-  loras?: Array<{ path: string; strength: number }>; // LoRA models to apply (for basic mode)
+  loras?: PathLoraConfig[]; // LoRA models to apply (for basic mode)
   phase_config?: PhaseConfig; // Custom phase config (for advanced mode - overrides loras)
   motion_mode?: 'basic' | 'advanced'; // Motion control mode for UI state restoration
   selected_phase_preset_id?: string | null; // Selected preset ID for UI state restoration
@@ -123,7 +124,7 @@ const TASK_DEFAULTS = camelToSnakeKeys(joinClipsSettings.defaults);
  * @returns PhaseConfig for VACE model
  */
 function buildJoinClipsPhaseConfig(
-  userLoras: Array<{ path: string; strength: number }> = []
+  userLoras: PathLoraConfig[] = []
 ): PhaseConfig {
   // Default LoRA that's always included
   const defaultLora: PhaseLoraConfig = {
@@ -245,7 +246,7 @@ function validateJoinClipsParams(params: JoinClipsTaskParams): JoinClipDescripto
 /**
  * Converts an array of LoRA descriptors into the additional_loras map format.
  */
-function mapLorasToRecord(loras: Array<{ path: string; strength: number }>): Record<string, number> {
+function mapLorasToRecord(loras: PathLoraConfig[]): Record<string, number> {
   return loras.reduce<Record<string, number>>((acc, lora) => {
     if (lora.path) {
       acc[lora.path] = lora.strength;

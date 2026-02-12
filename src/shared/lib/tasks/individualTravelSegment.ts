@@ -9,6 +9,7 @@ import { PhaseConfig, buildBasicModePhaseConfig } from '@/shared/types/phaseConf
 import { handleError } from '@/shared/lib/errorHandler';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import type { PathLoraConfig } from '@/shared/types/lora';
 
 /**
  * Interface for individual travel segment regeneration task parameters
@@ -63,7 +64,7 @@ interface IndividualTravelSegmentParams {
   phase_config?: PhaseConfig;
   motion_mode?: 'basic' | 'presets' | 'advanced';
   selected_phase_preset_id?: string | null;
-  loras?: Array<{ path: string; strength: number }>;
+  loras?: PathLoraConfig[];
 
   // Optional generation name for the variant
   generation_name?: string;

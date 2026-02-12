@@ -276,6 +276,46 @@ export function safeParseJson<T>(jsonStr: string | undefined, fallback: T): T {
 }
 
 /**
+ * Hires fix API parameters for image generation/edit tasks.
+ * Uses snake_case to match API directly.
+ */
+export interface HiresFixApiParams {
+  /** Number of inference steps (used for single-pass or base pass in two-pass mode) */
+  num_inference_steps?: number;
+  hires_scale?: number;
+  hires_steps?: number;
+  hires_denoise?: number;
+  /** Lightning LoRA strength for phase 1 (initial generation) */
+  lightning_lora_strength_phase_1?: number;
+  /** Lightning LoRA strength for phase 2 (hires/refinement pass) */
+  lightning_lora_strength_phase_2?: number;
+  additional_loras?: Record<string, string>;
+}
+
+/**
+ * Builds a flat params record from HiresFixApiParams.
+ * Only includes fields that are defined, so the result can be spread into task params.
+ *
+ * @param hiresFix - The hires fix config (may be undefined)
+ * @returns Flat record of hires-fix params (empty object if input is undefined)
+ */
+export function buildHiresFixParams(hiresFix: HiresFixApiParams | undefined): Record<string, unknown> {
+  if (!hiresFix) return {};
+
+  const params: Record<string, unknown> = {};
+
+  if (hiresFix.num_inference_steps !== undefined) params.num_inference_steps = hiresFix.num_inference_steps;
+  if (hiresFix.hires_scale !== undefined) params.hires_scale = hiresFix.hires_scale;
+  if (hiresFix.hires_steps !== undefined) params.hires_steps = hiresFix.hires_steps;
+  if (hiresFix.hires_denoise !== undefined) params.hires_denoise = hiresFix.hires_denoise;
+  if (hiresFix.lightning_lora_strength_phase_1 !== undefined) params.lightning_lora_strength_phase_1 = hiresFix.lightning_lora_strength_phase_1;
+  if (hiresFix.lightning_lora_strength_phase_2 !== undefined) params.lightning_lora_strength_phase_2 = hiresFix.lightning_lora_strength_phase_2;
+  if (hiresFix.additional_loras && Object.keys(hiresFix.additional_loras).length > 0) params.additional_loras = hiresFix.additional_loras;
+
+  return params;
+}
+
+/**
  * Processes batch Promise.allSettled results with standard error handling.
  *
  * - Throws if every task failed (surfaces the first error).

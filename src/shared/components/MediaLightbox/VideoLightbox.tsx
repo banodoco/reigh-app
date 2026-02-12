@@ -362,11 +362,7 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     isDeleting,
     // Upscale is image-only, but button group needs these
     isUpscaling: false,
-    isPendingUpscale: false,
-    hasUpscaledVersion: false,
-    showingUpscaled: false,
     handleUpscale: () => {},
-    handleToggleUpscaled: () => {},
     handleEnterMagicEditMode: () => {},
     effectiveImageUrl,
     imageDimensions: imageDimensions || { width: 1024, height: 576 },

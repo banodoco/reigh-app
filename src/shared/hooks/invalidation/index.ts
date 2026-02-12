@@ -18,7 +18,6 @@ export {
   type InvalidationScope,
   type InvalidationOptions,
   type VariantInvalidationOptions,
-  type GenerationUpdateOptions,
 } from './useGenerationInvalidation';
 
 // Shot invalidation - types only (no hooks currently used)

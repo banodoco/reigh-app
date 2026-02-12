@@ -37,16 +37,16 @@ export interface TaskContext {
 
 /**
  * Fetch task context with all required fields for the completion flow.
+ * Uses a single query with FK join (tasks.task_type -> task_types.name).
  * Returns null if task not found or on error.
  */
 async function fetchTaskContext(
   supabase: any,
   taskId: string
 ): Promise<TaskContext | null> {
-  // Fetch task first
   const { data: task, error } = await supabase
     .from("tasks")
-    .select(`id, task_type, project_id, params`)
+    .select(`id, task_type, project_id, params, task_types!tasks_task_type_fkey(tool_type, category, content_type, variant_type)`)
     .eq("id", taskId)
     .single();
 
@@ -55,28 +55,17 @@ async function fetchTaskContext(
     return null;
   }
 
-  // Fetch task_types metadata separately (no FK relationship exists)
-  let taskTypeInfo: { tool_type?: string; category?: string; content_type?: string; variant_type?: string | null } = {};
-  if (task.task_type) {
-    const { data: typeData } = await supabase
-      .from("task_types")
-      .select("tool_type, category, content_type, variant_type")
-      .eq("name", task.task_type)
-      .single();
-    if (typeData) {
-      taskTypeInfo = typeData;
-    }
-  }
+  const taskTypeInfo = task.task_types || {};
 
   return {
     id: task.id,
     task_type: task.task_type,
     project_id: task.project_id,
     params: task.params || {},
-    tool_type: taskTypeInfo?.tool_type || 'unknown',
-    category: taskTypeInfo?.category || 'unknown',
-    content_type: taskTypeInfo?.content_type || 'image',
-    variant_type: taskTypeInfo?.variant_type || null,
+    tool_type: taskTypeInfo.tool_type || 'unknown',
+    category: taskTypeInfo.category || 'unknown',
+    content_type: taskTypeInfo.content_type || 'image',
+    variant_type: taskTypeInfo.variant_type || null,
   };
 }
 

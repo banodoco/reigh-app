@@ -1,11 +1,15 @@
 import React from "react";
 import { Images } from "lucide-react";
-import { ReferencePreviewProps } from "./types";
+import { useFormReferencesContext } from "../../ImageGenerationFormContext";
+
+interface ReferencePreviewProps {
+  isLoadingReferenceData: boolean;
+}
 
 export const ReferencePreview: React.FC<ReferencePreviewProps> = ({
-  imageUrl,
   isLoadingReferenceData,
 }) => {
+  const { styleReferenceImageDisplay: imageUrl } = useFormReferencesContext();
   const [imageLoaded, setImageLoaded] = React.useState(false);
 
   // Reset loading state when image URL changes

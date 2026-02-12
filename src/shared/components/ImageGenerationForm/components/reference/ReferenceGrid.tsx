@@ -1,25 +1,33 @@
 import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ReferenceGridProps } from "./types";
+import { useFormCoreContext, useFormReferencesContext } from "../../ImageGenerationFormContext";
 import { ReferenceThumbnail, SkeletonThumbnail } from "./ReferenceThumbnail";
 import { AddReferenceButton } from "./AddReferenceButton";
 
 const REFS_PER_PAGE = 11; // 11 refs per page + 1 for add button = 12 items (3 rows of 4)
 
+interface ReferenceGridProps {
+  onOpenDatasetBrowser: () => void;
+  isLoadingReferenceData?: boolean;
+  referenceCount?: number;
+}
+
 export const ReferenceGrid: React.FC<ReferenceGridProps> = ({
-  references,
-  selectedReferenceId,
-  onSelectReference,
-  onAddReference,
-  onDeleteReference,
-  onToggleVisibility,
   onOpenDatasetBrowser,
-  isGenerating,
-  isUploadingStyleReference,
   isLoadingReferenceData = false,
   referenceCount = 0,
 }) => {
+  const { isGenerating } = useFormCoreContext();
+  const {
+    references,
+    selectedReferenceId,
+    onSelectReference,
+    onStyleUpload: onAddReference,
+    onDeleteReference,
+    onToggleVisibility,
+    isUploadingStyleReference,
+  } = useFormReferencesContext();
   const [currentPage, setCurrentPage] = React.useState(0);
   const isDisabled = isGenerating || isUploadingStyleReference;
 

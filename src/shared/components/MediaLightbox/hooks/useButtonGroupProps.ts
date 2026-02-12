@@ -36,11 +36,7 @@ interface UseButtonGroupPropsParams {
 
   // BottomLeft - Upscale
   isUpscaling: boolean;
-  isPendingUpscale: boolean;
-  hasUpscaledVersion: boolean;
-  showingUpscaled: boolean;
   handleUpscale: () => Promise<void>;
-  handleToggleUpscaled: () => void;
 
   // BottomRight - Star & References
   localStarred: boolean;
@@ -78,11 +74,7 @@ export function useButtonGroupProps({
 
   // BottomLeft - Upscale
   isUpscaling,
-  isPendingUpscale,
-  hasUpscaledVersion,
-  showingUpscaled,
   handleUpscale,
-  handleToggleUpscaled,
 
   // BottomRight
   localStarred,
@@ -130,11 +122,7 @@ export function useButtonGroupProps({
       isCloudMode,
       handleEnterMagicEditMode,
       isUpscaling,
-      isPendingUpscale,
-      hasUpscaledVersion,
-      showingUpscaled,
       handleUpscale,
-      handleToggleUpscaled,
       // Star button (moved from bottomRight)
       localStarred,
       handleToggleStar,
@@ -174,11 +162,7 @@ export function useButtonGroupProps({
     isDeleting,
     onClose,
     isUpscaling,
-    isPendingUpscale,
-    hasUpscaledVersion,
-    showingUpscaled,
     handleUpscale,
-    handleToggleUpscaled,
     localStarred,
     handleToggleStar,
     toggleStarPending,

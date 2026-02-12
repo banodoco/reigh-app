@@ -2,21 +2,18 @@ import {
   createTask,
   resolveProjectResolution,
   validateRequiredFields,
-  TaskValidationError
+  TaskValidationError,
+  buildHiresFixParams,
 } from '../taskCreation';
 import { processBatchResults, type TaskCreationResult } from '../taskCreation';
-import type { HiresFixApiParams } from './imageGeneration';
+import type { HiresFixApiParams } from '../taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';
+import type { ComfyLoraConfig } from '@/shared/types/lora';
 
 /**
  * Parameters for creating a magic edit task
  * Maps to the parameters expected by the image_edit task type
  */
-export interface LoraConfig {
-  url: string;
-  strength: number;
-}
-
 interface MagicEditTaskParams {
   project_id: string;
   prompt: string;
@@ -31,7 +28,7 @@ interface MagicEditTaskParams {
   max_wait_seconds?: number; // Default to 300
   enable_base64_output?: boolean; // Default to false
   tool_type?: string; // Optional: override tool type for generation association
-  loras?: LoraConfig[]; // Optional: array of lora configurations for model enhancement
+  loras?: ComfyLoraConfig[]; // Optional: array of lora configurations for model enhancement
   based_on?: string; // Optional: source generation ID for lineage tracking
   source_variant_id?: string; // Optional: source variant ID when editing from a non-primary variant
   create_as_generation?: boolean; // Optional: if true, create a new generation instead of a variant
@@ -59,7 +56,7 @@ interface BatchMagicEditTaskParams {
   max_wait_seconds?: number;
   enable_base64_output?: boolean;
   tool_type?: string; // Optional: override tool type for generation association
-  loras?: LoraConfig[]; // Optional: array of lora configurations for model enhancement
+  loras?: ComfyLoraConfig[]; // Optional: array of lora configurations for model enhancement
   based_on?: string; // Optional: source generation ID for lineage tracking
   source_variant_id?: string; // Optional: source variant ID when editing from a non-primary variant
   create_as_generation?: boolean; // Optional: if true, create a new generation instead of a variant
@@ -200,31 +197,7 @@ function buildMagicEditTaskParams(
   }
 
   // Add hires fix / inference params if provided
-  if (params.hires_fix) {
-    // Always pass num_inference_steps if provided (for both single-pass and two-pass modes)
-    if (params.hires_fix.num_inference_steps !== undefined) {
-      taskParams.num_inference_steps = params.hires_fix.num_inference_steps;
-    }
-    // Two-pass specific params
-    if (params.hires_fix.hires_scale !== undefined) {
-      taskParams.hires_scale = params.hires_fix.hires_scale;
-    }
-    if (params.hires_fix.hires_steps !== undefined) {
-      taskParams.hires_steps = params.hires_fix.hires_steps;
-    }
-    if (params.hires_fix.hires_denoise !== undefined) {
-      taskParams.hires_denoise = params.hires_fix.hires_denoise;
-    }
-    if (params.hires_fix.lightning_lora_strength_phase_1 !== undefined) {
-      taskParams.lightning_lora_strength_phase_1 = params.hires_fix.lightning_lora_strength_phase_1;
-    }
-    if (params.hires_fix.lightning_lora_strength_phase_2 !== undefined) {
-      taskParams.lightning_lora_strength_phase_2 = params.hires_fix.lightning_lora_strength_phase_2;
-    }
-    if (params.hires_fix.additional_loras && Object.keys(params.hires_fix.additional_loras).length > 0) {
-      taskParams.additional_loras = params.hires_fix.additional_loras;
-    }
-  }
+  Object.assign(taskParams, buildHiresFixParams(params.hires_fix));
 
   return taskParams;
 }
@@ -328,4 +301,3 @@ export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams
 }
 
 // TaskValidationError is used internally - import from taskCreation.ts if needed externally
-export type { LoraConfig };

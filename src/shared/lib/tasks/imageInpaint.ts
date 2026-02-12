@@ -1,6 +1,6 @@
-import { createTask } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandler';
-import type { HiresFixApiParams } from './imageGeneration';
+import { createTask, processBatchResults, buildHiresFixParams } from '../taskCreation';
+import type { TaskCreationResult, HiresFixApiParams } from '../taskCreation';
+import type { ComfyLoraConfig } from '@/shared/types/lora';
 
 interface CreateImageInpaintTaskParams {
   project_id: string;
@@ -11,7 +11,7 @@ interface CreateImageInpaintTaskParams {
   generation_id?: string;
   shot_id?: string;
   tool_type?: string;
-  loras?: Array<{ url: string; strength: number }>;
+  loras?: ComfyLoraConfig[];
   create_as_generation?: boolean; // If true, create a new generation instead of a variant
   source_variant_id?: string; // Track which variant was the source if editing from a variant
   // Advanced hires fix settings
@@ -23,7 +23,7 @@ interface CreateImageInpaintTaskParams {
 /**
  * Creates a single image inpainting task via the unified edge function
  */
-async function createSingleInpaintTask(params: Omit<CreateImageInpaintTaskParams, 'num_generations'>): Promise<string> {
+async function createSingleInpaintTask(params: Omit<CreateImageInpaintTaskParams, 'num_generations'>): Promise<TaskCreationResult> {
   const {
     project_id,
     image_url,
@@ -39,17 +39,6 @@ async function createSingleInpaintTask(params: Omit<CreateImageInpaintTaskParams
     qwen_edit_model,
   } = params;
 
-  // Build hires fix params if provided
-  const hiresFixParams: Record<string, unknown> = {};
-  if (hires_fix) {
-    if (hires_fix.hires_scale !== undefined) hiresFixParams.hires_scale = hires_fix.hires_scale;
-    if (hires_fix.hires_steps !== undefined) hiresFixParams.hires_steps = hires_fix.hires_steps;
-    if (hires_fix.hires_denoise !== undefined) hiresFixParams.hires_denoise = hires_fix.hires_denoise;
-    if (hires_fix.lightning_lora_strength_phase_1 !== undefined) hiresFixParams.lightning_lora_strength_phase_1 = hires_fix.lightning_lora_strength_phase_1;
-    if (hires_fix.lightning_lora_strength_phase_2 !== undefined) hiresFixParams.lightning_lora_strength_phase_2 = hires_fix.lightning_lora_strength_phase_2;
-    if (hires_fix.additional_loras && Object.keys(hires_fix.additional_loras).length > 0) hiresFixParams.additional_loras = hires_fix.additional_loras;
-  }
-
   const taskParams = {
     image_url,
     mask_url,
@@ -62,17 +51,15 @@ async function createSingleInpaintTask(params: Omit<CreateImageInpaintTaskParams
     ...(loras && loras.length > 0 ? { loras } : {}),
     ...(create_as_generation ? { create_as_generation: true } : {}),
     ...(source_variant_id ? { source_variant_id } : {}),
-    ...hiresFixParams,
+    ...buildHiresFixParams(hires_fix),
     ...(qwen_edit_model ? { qwen_edit_model } : {}),
   };
 
-  const result = await createTask({
+  return createTask({
     project_id,
     task_type: 'image_inpaint',
     params: taskParams,
   });
-
-  return result.task_id;
 }
 
 /**
@@ -87,36 +74,15 @@ export async function createImageInpaintTask(params: CreateImageInpaintTaskParam
 
   // For single generation, create one task directly
   if (num_generations === 1) {
-    const taskId = await createSingleInpaintTask(singleTaskParams);
-    return taskId;
+    const result = await createSingleInpaintTask(singleTaskParams);
+    return result.task_id;
   }
 
   // For multiple generations, create tasks in parallel
-
   const results = await Promise.allSettled(
     Array.from({ length: num_generations }, () => createSingleInpaintTask(singleTaskParams))
   );
 
-  // Process results
-  const successful = results.filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled');
-  const failed = results.filter(r => r.status === 'rejected');
-
-  // If all failed, throw the first error
-  if (successful.length === 0) {
-    const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
-    throw new Error(`All inpaint tasks failed: ${firstError.reason}`);
-  }
-
-  // If some failed, log warnings
-  if (failed.length > 0) {
-    failed.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        handleError(result.reason, { context: `ImageInpaint:task${index + 1}`, showToast: false });
-      }
-    });
-  }
-
-  const taskIds = successful.map(r => r.value);
-
-  return taskIds[0]; // Return first task ID for compatibility
+  const successful = processBatchResults(results, 'ImageInpaint');
+  return successful[0].task_id; // Return first task ID for compatibility
 }

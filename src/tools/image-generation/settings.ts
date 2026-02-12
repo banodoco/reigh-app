@@ -35,7 +35,6 @@ export interface HiresFixConfig {
 
 interface ImageGenerationSettings {
   prompts?: PromptEntry[];
-  promptsByShot?: Record<string, PromptEntry[]>; // Prompts organized by shot ID
   imagesPerPrompt?: number;
   selectedLorasByMode?: Record<GenerationMode, ActiveLora[]>;
   selectedLoras?: ActiveLora[]; // Currently selected LoRAs
@@ -46,7 +45,6 @@ interface ImageGenerationSettings {
   afterEachPromptText?: string; // Text to append (defaults empty, not inherited)
   associatedShotId?: string | null; // Last associated shot
   promptMode?: PromptMode;
-  masterPromptByShot?: Record<string, string>; // Master prompt per shot ID
   masterPromptText?: string; // Legacy - kept for migration
   hiresFixConfig?: HiresFixConfig; // Two-pass hires fix settings
 }
@@ -60,7 +58,6 @@ const defaultImageGenerationSettings: ImageGenerationSettings = {
     },
   ],
   // Content fields (don't inherit to new projects) - explicit empty defaults
-  promptsByShot: {},
   // Note: beforeEachPromptText/afterEachPromptText are NOT persisted
   associatedShotId: null,
 
@@ -75,7 +72,6 @@ const defaultImageGenerationSettings: ImageGenerationSettings = {
   softEdgeStrength: 20,
   generationMode: 'wan-local',
   promptMode: 'automated',
-  masterPromptByShot: {},
   masterPromptText: '', // Legacy - kept for migration
   hiresFixConfig: {
     enabled: true,

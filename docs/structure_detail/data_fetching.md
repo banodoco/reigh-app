@@ -102,7 +102,6 @@ Stable callbacks: use refs to prevent recreation storms (avoid `addMutation` in 
 |----------|------------|-------------------|
 | `useInvalidateGenerations()(shotId, opts)` | After shot-scoped changes | `all-shot-generations`, `segment-live-timeline`, `shot-generations-meta`, `unpositioned-count` (scoped by `opts.scope`) |
 | `invalidateVariantChange(qc, opts)` | After variant create/update/set-primary | Variants, detail, badges, all shot-generations (broad), unified, derived, segment children/sources |
-| `invalidateGenerationUpdate(qc, opts)` | After generation data change (not variant) | Detail, unified, derived, segment children/parents |
 | `invalidateAllShotGenerations(qc, reason)` | Global fallback (avoid if possible) | All `all-shot-generations` queries via predicate |
 
 Scopes for `useInvalidateGenerations`: `'all'` | `'images'` | `'metadata'` | `'counts'`.

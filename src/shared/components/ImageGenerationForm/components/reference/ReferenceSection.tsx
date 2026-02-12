@@ -3,52 +3,33 @@ import { Button } from "@/shared/components/ui/button";
 import { Images } from "lucide-react";
 import FileInput from "@/shared/components/FileInput";
 import { DatasetBrowserModal } from "@/shared/components/DatasetBrowserModal";
-import { ReferenceSectionProps } from "./types";
 import { ReferenceGrid } from "./ReferenceGrid";
 import { ReferencePreview } from "./ReferencePreview";
 import { ReferenceModeControls } from "./ReferenceModeControls";
 import { LoraGrid } from "./LoraGrid";
+import { useFormCoreContext, useFormReferencesContext } from "../../ImageGenerationFormContext";
+
+export interface ReferenceSectionProps {
+  onOpenLoraModal: () => void;
+  isLoadingReferenceData?: boolean;
+  referenceCount?: number;
+}
 
 export const ReferenceSection: React.FC<ReferenceSectionProps> = ({
-  // Reference data
-  references,
-  selectedReferenceId,
-  styleReferenceImage,
-  referenceCount,
-  isLoadingReferenceData,
-  // Reference actions
-  onSelectReference,
-  onDeleteReference,
-  onAddReference,
-  onResourceSelect,
-  onToggleVisibility,
-  // Mode and strengths
-  referenceMode,
-  onReferenceModeChange,
-  styleReferenceStrength,
-  subjectStrength,
-  inThisSceneStrength,
-  onStyleStrengthChange,
-  onSubjectStrengthChange,
-  onInThisSceneStrengthChange,
-  // Subject description
-  subjectDescription,
-  onSubjectDescriptionChange,
-  onSubjectDescriptionFocus,
-  onSubjectDescriptionBlur,
-  // Style boost terms
-  styleBoostTerms,
-  onStyleBoostTermsChange,
-  // LoRAs
-  selectedLoras,
   onOpenLoraModal,
-  onRemoveLora,
-  onUpdateLoraStrength,
-  // Disabled state
-  isGenerating,
-  isUploadingStyleReference,
+  isLoadingReferenceData = false,
+  referenceCount = 0,
 }) => {
   const [showDatasetBrowser, setShowDatasetBrowser] = React.useState(false);
+
+  const { isGenerating } = useFormCoreContext();
+  const {
+    references,
+    styleReferenceImageDisplay: styleReferenceImage,
+    isUploadingStyleReference,
+    onStyleUpload: onAddReference,
+    onResourceSelect,
+  } = useFormReferencesContext();
 
   // Determine which UI state to show
   const hasReferences = referenceCount > 0 || references.length > 0;
@@ -61,23 +42,7 @@ export const ReferenceSection: React.FC<ReferenceSectionProps> = ({
         <>
           {/* Mode selector and strength controls */}
           <ReferenceModeControls
-            referenceMode={referenceMode}
-            onReferenceModeChange={onReferenceModeChange}
-            styleReferenceStrength={styleReferenceStrength}
-            subjectStrength={subjectStrength}
-            inThisSceneStrength={inThisSceneStrength}
-            onStyleStrengthChange={onStyleStrengthChange}
-            onSubjectStrengthChange={onSubjectStrengthChange}
-            onInThisSceneStrengthChange={onInThisSceneStrengthChange}
-            subjectDescription={subjectDescription}
-            onSubjectDescriptionChange={onSubjectDescriptionChange}
-            onSubjectDescriptionFocus={onSubjectDescriptionFocus}
-            onSubjectDescriptionBlur={onSubjectDescriptionBlur}
-            styleBoostTerms={styleBoostTerms}
-            onStyleBoostTermsChange={onStyleBoostTermsChange}
             hasSelectedReference={hasSelectedReference}
-            isGenerating={isGenerating}
-            isUploadingStyleReference={isUploadingStyleReference}
           />
 
           {/* Grid + Preview layout */}
@@ -85,15 +50,7 @@ export const ReferenceSection: React.FC<ReferenceSectionProps> = ({
             {/* Left: Thumbnail grid */}
             <div className="flex-[2]">
               <ReferenceGrid
-                references={references}
-                selectedReferenceId={selectedReferenceId}
-                onSelectReference={onSelectReference}
-                onAddReference={onAddReference}
-                onDeleteReference={onDeleteReference}
-                onToggleVisibility={onToggleVisibility}
                 onOpenDatasetBrowser={() => setShowDatasetBrowser(true)}
-                isGenerating={isGenerating}
-                isUploadingStyleReference={isUploadingStyleReference}
                 isLoadingReferenceData={isLoadingReferenceData}
                 referenceCount={referenceCount}
               />
@@ -102,7 +59,6 @@ export const ReferenceSection: React.FC<ReferenceSectionProps> = ({
             {/* Right: Large preview (desktop only) */}
             <div className="flex-1 hidden md:block">
               <ReferencePreview
-                imageUrl={styleReferenceImage}
                 isLoadingReferenceData={isLoadingReferenceData}
               />
             </div>
@@ -134,12 +90,7 @@ export const ReferenceSection: React.FC<ReferenceSectionProps> = ({
 
       {/* LoRA Grid */}
       <LoraGrid
-        selectedLoras={selectedLoras}
         onOpenLoraModal={onOpenLoraModal}
-        onRemoveLora={onRemoveLora}
-        onUpdateLoraStrength={onUpdateLoraStrength}
-        isGenerating={isGenerating}
-        isUploadingStyleReference={isUploadingStyleReference}
       />
 
       {/* Dataset Browser Modal */}

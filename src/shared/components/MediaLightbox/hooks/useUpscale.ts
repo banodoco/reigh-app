@@ -22,14 +22,7 @@ interface UseUpscaleReturn {
   /** Update the active variant info so handleUpscale uses the correct image.
    *  Call this after variant data becomes available (e.g. from useSharedLightboxState). */
   setActiveVariant: (location: string | null | undefined, id: string | null | undefined) => void;
-  // Kept for backwards compatibility with other components
-  showingUpscaled: boolean;
-  handleToggleUpscaled: () => void;
   effectiveImageUrl: string;
-  sourceUrlForTasks: string;
-  isPendingUpscale: boolean;
-  hasUpscaledVersion: boolean;
-  upscaledUrl: string | null;
 }
 
 /**
@@ -121,13 +114,6 @@ export const useUpscale = ({
     upscaleSuccess,
     handleUpscale,
     setActiveVariant,
-    // Backwards compatibility - these features removed but APIs kept
-    showingUpscaled: false,
-    handleToggleUpscaled: () => {},
     effectiveImageUrl: mediaUrl,
-    sourceUrlForTasks: mediaUrl,
-    isPendingUpscale: false,
-    hasUpscaledVersion: false,
-    upscaledUrl: null,
   };
 };

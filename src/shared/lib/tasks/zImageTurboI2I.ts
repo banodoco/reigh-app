@@ -1,14 +1,10 @@
 import { createTask, validateRequiredFields, TaskValidationError, processBatchResults } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';
+import type { FalLoraConfig } from '@/shared/types/lora';
 
-/**
- * LoRA configuration for Z Image Turbo I2I
- */
-export interface ZImageLoraConfig {
-  path: string;
-  scale?: number; // Default 1.0
-}
+/** @deprecated Use FalLoraConfig from '@/shared/types/lora' instead */
+export type ZImageLoraConfig = FalLoraConfig;
 
 /**
  * Parameters for creating a Z Image Turbo I2I task
@@ -22,7 +18,7 @@ interface ZImageTurboI2ITaskParams {
   enable_prompt_expansion?: boolean; // Enable AI prompt expansion (default false)
   seed?: number;               // Random seed (optional)
   num_images?: number;         // Number of outputs (default 1, max 4)
-  loras?: ZImageLoraConfig[];  // LoRAs (triggers /lora endpoint if provided)
+  loras?: FalLoraConfig[];  // LoRAs (triggers /lora endpoint if provided)
   shot_id?: string;            // Associate with shot
   based_on?: string;           // Source generation ID for lineage
   source_variant_id?: string;  // Source variant ID
@@ -40,7 +36,7 @@ interface BatchZImageTurboI2ITaskParams {
   strength?: number;
   enable_prompt_expansion?: boolean;
   numImages: number;           // How many variations to generate (creates multiple tasks)
-  loras?: ZImageLoraConfig[];
+  loras?: FalLoraConfig[];
   shot_id?: string;
   based_on?: string;
   source_variant_id?: string;

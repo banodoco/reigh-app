@@ -4,27 +4,33 @@ import { Label } from "@/shared/components/ui/label";
 import { SliderWithValue } from "@/shared/components/ui/slider-with-value";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { ReferenceMode } from "../../types";
-import { ReferenceModeControlsProps } from "./types";
+import { useFormCoreContext, useFormReferencesContext } from "../../ImageGenerationFormContext";
+
+interface ReferenceModeControlsProps {
+  hasSelectedReference: boolean;
+}
 
 export const ReferenceModeControls: React.FC<ReferenceModeControlsProps> = ({
-  referenceMode,
-  onReferenceModeChange,
-  styleReferenceStrength,
-  subjectStrength,
-  inThisSceneStrength,
-  onStyleStrengthChange,
-  onSubjectStrengthChange,
-  onInThisSceneStrengthChange,
-  subjectDescription,
-  onSubjectDescriptionChange,
-  onSubjectDescriptionFocus,
-  onSubjectDescriptionBlur,
-  styleBoostTerms,
-  onStyleBoostTermsChange,
   hasSelectedReference,
-  isGenerating,
-  isUploadingStyleReference,
 }) => {
+  const { isGenerating } = useFormCoreContext();
+  const {
+    referenceMode,
+    onReferenceModeChange,
+    styleReferenceStrength,
+    subjectStrength,
+    inThisSceneStrength,
+    onStyleStrengthChange,
+    onSubjectStrengthChange,
+    onInThisSceneStrengthChange,
+    subjectDescription,
+    onSubjectDescriptionChange,
+    onSubjectDescriptionFocus,
+    onSubjectDescriptionBlur,
+    styleBoostTerms,
+    onStyleBoostTermsChange,
+    isUploadingStyleReference,
+  } = useFormReferencesContext();
   const isDisabled = isGenerating || isUploadingStyleReference;
   const isSliderDisabled = isDisabled || !hasSelectedReference;
 

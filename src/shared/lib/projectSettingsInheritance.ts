@@ -19,7 +19,6 @@ function filterSettingsForInheritance(
       const filteredToolSettings = { ...toolSettings } as Record<string, unknown>;
 
       // Remove prompt-related keys
-      delete filteredToolSettings.promptsByShot;
       delete filteredToolSettings.prompt;
       delete filteredToolSettings.prompts;
       delete filteredToolSettings.beforeEachPromptText;

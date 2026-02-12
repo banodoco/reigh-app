@@ -212,14 +212,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   const upscaleHook = useUpscale({ media, selectedProjectId, isVideo: false, shotId });
   const {
     effectiveImageUrl,
-    sourceUrlForTasks,
     isUpscaling,
     upscaleSuccess,
-    showingUpscaled,
-    isPendingUpscale,
-    hasUpscaledVersion,
     handleUpscale,
-    handleToggleUpscaled,
     setActiveVariant: setUpscaleActiveVariant,
   } = upscaleHook;
 
@@ -325,11 +320,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     onDelete,
     isDeleting,
     isUpscaling,
-    isPendingUpscale,
-    hasUpscaledVersion,
-    showingUpscaled,
     handleUpscale,
-    handleToggleUpscaled,
     handleEnterMagicEditMode: () => {}, // Will be replaced after hook
     effectiveImageUrl,
     imageDimensions: imageDimensions || { width: 1024, height: 1024 },
@@ -483,7 +474,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     inpaintNumGenerations,
     setInpaintNumGenerations,
     editModeLoRAs: effectiveEditModeLoRAs,
-    sourceUrlForTasks,
+    sourceUrlForTasks: effectiveImageUrl,
     imageDimensions,
     toolTypeOverride,
     isInSceneBoostEnabled: false,
@@ -567,7 +558,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     media,
     selectedProjectId,
     isVideo: false,
-    sourceUrlForTasks,
+    sourceUrlForTasks: effectiveImageUrl,
     toolTypeOverride,
     createAsGeneration,
     availableLoras,

@@ -12,7 +12,7 @@ import { handleError } from '@/shared/lib/errorHandler';
  * state from previous projects from persisting when switching projects.
  * 
  * BEST PRACTICE: All persisted fields should have explicit defaults in settings.ts,
- * even if those defaults are empty (e.g., promptsByShot: {}, batchVideoPrompt: '').
+ * even if those defaults are empty (e.g., prompts: [], batchVideoPrompt: '').
  * This makes the "contract" of what gets persisted clear and self-documenting.
  * 
  * @param value - The current state value to infer an empty value from

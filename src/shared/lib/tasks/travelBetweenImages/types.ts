@@ -1,4 +1,5 @@
 import { PhaseConfig } from '@/shared/types/phaseConfig';
+import type { PathLoraConfig } from '@/shared/types/lora';
 
 // ============================================================================
 // Video Generation API Param Interfaces (Single Source of Truth)
@@ -307,7 +308,7 @@ export interface TravelBetweenImagesTaskParams extends
   main_output_dir_for_run?: string;
   openai_api_key?: string;
   /** Legacy LoRA format - prefer phase_config.phases[].loras */
-  loras?: Array<{ path: string; strength: number }>;
+  loras?: PathLoraConfig[];
   show_input_images?: boolean;
   generation_mode?: 'batch' | 'timeline';
   dimension_source?: 'project' | 'firstImage' | 'custom';
@@ -335,7 +336,7 @@ export interface TravelBetweenImagesTaskParams extends
   pair_phase_configs?: (PhaseConfig | null)[];
 
   /** Per-pair LoRA overrides (null = use shot default) */
-  pair_loras?: (Array<{ path: string; strength: number }> | null)[];
+  pair_loras?: (PathLoraConfig[] | null)[];
 
   /** Per-pair motion settings overrides (null = use shot default) */
   pair_motion_settings?: (Record<string, unknown> | null)[];
@@ -426,7 +427,7 @@ export interface StitchConfig {
   /** Selected phase preset ID for UI state restoration */
   selected_phase_preset_id?: string | null;
   /** LoRAs for join generation */
-  loras?: Array<{ path: string; strength: number }>;
+  loras?: PathLoraConfig[];
 
   // === Optional settings with defaults ===
   /** Task priority (default 0) */

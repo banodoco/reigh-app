@@ -64,8 +64,8 @@ const VideoResourceItem: React.FC<VideoResourceItemProps> = ({
       <div className="aspect-square relative">
         {/* Skeleton loader - shown until thumbnail loads */}
         {!isLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 animate-pulse z-10">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 dark:via-gray-600/20 to-transparent animate-shimmer transform -skew-x-12" />
+          <div className="absolute inset-0 bg-gradient-to-br from-muted via-muted/50 to-muted animate-pulse z-10">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-background/20 to-transparent animate-shimmer transform -skew-x-12" />
           </div>
         )}
 
@@ -109,8 +109,8 @@ const VideoResourceItem: React.FC<VideoResourceItemProps> = ({
                     }}
                     className={`rounded-full p-1 transition-colors focus:outline-none ${
                       isPublic
-                        ? "bg-green-500 text-white hover:bg-green-600"
-                        : "bg-gray-400 text-white hover:bg-gray-500"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/80"
+                        : "bg-muted-foreground/60 text-background hover:bg-muted-foreground/80"
                     }`}
                   >
                     {isPublic ? (
@@ -121,8 +121,8 @@ const VideoResourceItem: React.FC<VideoResourceItemProps> = ({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
-                  {isPublic 
-                    ? "Public - visible to others. Click to make private." 
+                  {isPublic
+                    ? "Public - visible to others. Click to make private."
                     : "Private - only you can see this. Click to make public."}
                 </TooltipContent>
               </Tooltip>
@@ -172,8 +172,8 @@ const ImageResourceItem: React.FC<ImageResourceItemProps> = ({
       <div className="aspect-square relative">
         {/* Skeleton loader - shown until thumbnail loads */}
         {!isLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 animate-pulse">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 dark:via-gray-600/20 to-transparent animate-shimmer transform -skew-x-12" />
+          <div className="absolute inset-0 bg-gradient-to-br from-muted via-muted/50 to-muted animate-pulse">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-background/20 to-transparent animate-shimmer transform -skew-x-12" />
           </div>
         )}
 
@@ -212,8 +212,8 @@ const ImageResourceItem: React.FC<ImageResourceItemProps> = ({
                       }}
                       className={`rounded-full p-1 transition-colors focus:outline-none ${
                         isPublic
-                          ? "bg-green-500 text-white hover:bg-green-600"
-                          : "bg-gray-400 text-white hover:bg-gray-500"
+                          ? "bg-primary text-primary-foreground hover:bg-primary/80"
+                          : "bg-muted-foreground/60 text-background hover:bg-muted-foreground/80"
                       }`}
                     >
                       {isPublic ? (
@@ -523,8 +523,8 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
                   key={`skeleton-${index}`}
                   className="relative rounded-lg overflow-hidden border-2 border-transparent"
                 >
-                  <div className="aspect-square bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 animate-pulse relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 dark:via-gray-600/20 to-transparent animate-shimmer transform -skew-x-12" />
+                  <div className="aspect-square bg-gradient-to-br from-muted via-muted/50 to-muted animate-pulse relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-background/20 to-transparent animate-shimmer transform -skew-x-12" />
                   </div>
                 </div>
               ))}
@@ -606,7 +606,7 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
               className="absolute top-0 left-0 right-0 h-16 pointer-events-none z-10"
               style={{ transform: 'translateY(-64px)' }}
             >
-              <div className="h-full bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 dark:to-transparent" />
+              <div className="h-full bg-gradient-to-t from-card via-card/95 to-transparent" />
             </div>
           )}
 

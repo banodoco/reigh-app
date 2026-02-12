@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useRef } from "react";
 import { createPortal } from "react-dom";
 import CreateShotModal from "@/shared/components/CreateShotModal";
 import { BatchImageGenerationTaskParams } from "@/shared/lib/tasks/imageGeneration";
@@ -57,6 +57,10 @@ export const ImageGenerationForm: React.FC<ImageGenerationFormProps> = ({
 }) => {
   const form = useImageGenForm({ onGenerate, openaiApiKey, onShotChange, initialShotId });
 
+  // Remember per-mode imagesPerPrompt so switching modes restores the user's previous value
+  const automatedImagesPerPromptRef = useRef(8);
+  const managedImagesPerPromptRef = useRef(1);
+
   return (
     <ImageGenerationFormProvider value={form.contextValue}>
       <form id="image-generation-form" onSubmit={form.handleSubmit} className="space-y-6">
@@ -67,12 +71,19 @@ export const ImageGenerationForm: React.FC<ImageGenerationFormProps> = ({
             <PromptsSection
               onPromptModeChange={(mode) => {
                 form.markAsInteracted();
+                // Save current imagesPerPrompt to the outgoing mode's slot
+                const outgoingMode = form.effectivePromptMode;
+                if (outgoingMode === 'automated') {
+                  automatedImagesPerPromptRef.current = form.imagesPerPrompt;
+                } else if (outgoingMode === 'managed') {
+                  managedImagesPerPromptRef.current = form.imagesPerPrompt;
+                }
                 form.setEffectivePromptMode(mode);
-                // Auto-set imagesPerPrompt based on mode
+                // Restore imagesPerPrompt from the incoming mode's slot
                 if (mode === 'automated') {
-                  form.setImagesPerPrompt(8);
+                  form.setImagesPerPrompt(automatedImagesPerPromptRef.current);
                 } else if (mode === 'managed') {
-                  form.setImagesPerPrompt(1);
+                  form.setImagesPerPrompt(managedImagesPerPromptRef.current);
                 }
               }}
             />

@@ -75,10 +75,6 @@ export interface PersistedFormSettings {
   /** Master prompt when no shot is selected (project-level fallback) */
   masterPrompt?: string;
 
-  // DEPRECATED: Legacy shot-specific storage (replaced by ImageGenShotSettings)
-  // Kept for migration - will be removed after all users migrate
-  promptsByShot?: Record<string, PromptEntry[]>;
-  masterPromptByShot?: Record<string, string>;
 }
 
 /**

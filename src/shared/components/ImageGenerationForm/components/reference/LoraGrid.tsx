@@ -5,15 +5,21 @@ import { SliderWithValue } from "@/shared/components/ui/slider-with-value";
 import { Images, Plus, X } from "lucide-react";
 import HoverScrubVideo from "@/shared/components/HoverScrubVideo";
 import { getDisplayNameFromUrl } from "@/shared/lib/loraUtils";
-import { LoraGridProps } from "./types";
+import { useFormCoreContext, useFormLorasContext } from "../../ImageGenerationFormContext";
+
+interface LoraGridProps {
+  onOpenLoraModal: () => void;
+}
 
 export const LoraGrid: React.FC<LoraGridProps> = ({
-  selectedLoras,
   onOpenLoraModal,
-  onRemoveLora,
-  onUpdateLoraStrength,
-  isGenerating,
 }) => {
+  const { isGenerating } = useFormCoreContext();
+  const {
+    selectedLoras,
+    handleRemoveLora: onRemoveLora,
+    handleLoraStrengthChange: onUpdateLoraStrength,
+  } = useFormLorasContext();
   return (
     <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
       <div className="flex items-center justify-between">

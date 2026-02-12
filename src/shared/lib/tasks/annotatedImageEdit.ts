@@ -1,6 +1,7 @@
-import { createTask } from '../taskCreation';
+import { createTask, buildHiresFixParams } from '../taskCreation';
+import type { HiresFixApiParams } from '../taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';
-import type { HiresFixApiParams } from './imageGeneration';
+import type { ComfyLoraConfig } from '@/shared/types/lora';
 
 interface CreateAnnotatedImageEditTaskParams {
   project_id: string;
@@ -11,7 +12,7 @@ interface CreateAnnotatedImageEditTaskParams {
   generation_id?: string;
   shot_id?: string;
   tool_type?: string;
-  loras?: Array<{ url: string; strength: number }>;
+  loras?: ComfyLoraConfig[];
   create_as_generation?: boolean; // If true, create a new generation instead of a variant
   source_variant_id?: string; // Track which variant was the source if editing from a variant
   // Advanced hires fix settings
@@ -39,17 +40,6 @@ async function createSingleAnnotatedEditTask(params: Omit<CreateAnnotatedImageEd
     qwen_edit_model,
   } = params;
 
-  // Build hires fix params if provided
-  const hiresFixParams: Record<string, unknown> = {};
-  if (hires_fix) {
-    if (hires_fix.hires_scale !== undefined) hiresFixParams.hires_scale = hires_fix.hires_scale;
-    if (hires_fix.hires_steps !== undefined) hiresFixParams.hires_steps = hires_fix.hires_steps;
-    if (hires_fix.hires_denoise !== undefined) hiresFixParams.hires_denoise = hires_fix.hires_denoise;
-    if (hires_fix.lightning_lora_strength_phase_1 !== undefined) hiresFixParams.lightning_lora_strength_phase_1 = hires_fix.lightning_lora_strength_phase_1;
-    if (hires_fix.lightning_lora_strength_phase_2 !== undefined) hiresFixParams.lightning_lora_strength_phase_2 = hires_fix.lightning_lora_strength_phase_2;
-    if (hires_fix.additional_loras && Object.keys(hires_fix.additional_loras).length > 0) hiresFixParams.additional_loras = hires_fix.additional_loras;
-  }
-
   const taskParams = {
     image_url,
     mask_url,
@@ -62,7 +52,7 @@ async function createSingleAnnotatedEditTask(params: Omit<CreateAnnotatedImageEd
     ...(loras && loras.length > 0 ? { loras } : {}),
     ...(create_as_generation ? { create_as_generation: true } : {}),
     ...(source_variant_id ? { source_variant_id } : {}),
-    ...hiresFixParams,
+    ...buildHiresFixParams(hires_fix),
     ...(qwen_edit_model ? { qwen_edit_model } : {}),
   };
 

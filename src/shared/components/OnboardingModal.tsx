@@ -16,18 +16,18 @@ interface OnboardingModalProps {
   onClose: () => void;
 }
 
-// Color sequence for step icons
+// Color sequence for step icons — uses semantic tokens for theme consistency
 const getStepColors = (stepIndex: number) => {
   const colors = [
-    { bg: 'bg-purple-100 dark:bg-purple-900/20', icon: 'text-purple-600 dark:text-purple-400' }, // Step 1
-    { bg: 'bg-blue-100 dark:bg-blue-900/20', icon: 'text-blue-600 dark:text-blue-400' },       // Step 2
-    { bg: 'bg-green-100 dark:bg-green-900/20', icon: 'text-green-600 dark:text-green-400' },   // Step 3
-    { bg: 'bg-orange-100 dark:bg-orange-900/20', icon: 'text-orange-600 dark:text-orange-400' }, // Step 4
-    { bg: 'bg-yellow-100 dark:bg-yellow-900/20', icon: 'text-yellow-600 dark:text-yellow-400' }, // Step 5
-    { bg: 'bg-pink-100 dark:bg-pink-900/20', icon: 'text-pink-600 dark:text-pink-400' },       // Step 6
-    { bg: 'bg-indigo-100 dark:bg-indigo-900/20', icon: 'text-indigo-600 dark:text-indigo-400' } // Step 7
+    { bg: 'bg-accent', icon: 'text-primary' },             // Step 1
+    { bg: 'bg-secondary', icon: 'text-secondary-foreground' }, // Step 2
+    { bg: 'bg-muted', icon: 'text-foreground' },            // Step 3
+    { bg: 'bg-accent', icon: 'text-primary' },              // Step 4
+    { bg: 'bg-secondary', icon: 'text-secondary-foreground' }, // Step 5
+    { bg: 'bg-muted', icon: 'text-foreground' },            // Step 6
+    { bg: 'bg-accent', icon: 'text-primary' },              // Step 7
   ];
-  
+
   return colors[(stepIndex - 1) % colors.length];
 };
 
@@ -136,21 +136,21 @@ const GenerationMethodStep: React.FC<{ onNext: () => void }> = ({ onNext }) => {
         <div className="space-y-6">
           {/* Skeleton for description text */}
           <div className="text-center">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto w-80"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto w-48 mt-1"></div>
+            <div className="h-4 bg-muted rounded animate-pulse mx-auto w-80"></div>
+            <div className="h-4 bg-muted rounded animate-pulse mx-auto w-48 mt-1"></div>
           </div>
 
           {/* Skeleton for toggle switch - matches actual design */}
           <div className="flex justify-center px-4">
-            <div className="relative inline-flex items-center bg-gray-200 dark:bg-gray-800 rounded-full p-1 shadow-inner min-w-fit">
+            <div className="relative inline-flex items-center bg-muted rounded-full p-1 shadow-inner min-w-fit">
               <div className="flex">
                 {/* In the cloud button skeleton */}
-                <div className="px-4 py-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse">
-                  <div className="h-4 w-24 bg-gray-400 dark:bg-gray-500 rounded"></div>
+                <div className="px-4 py-2 rounded-full bg-border animate-pulse">
+                  <div className="h-4 w-24 bg-muted-foreground/30 rounded"></div>
                 </div>
                 {/* On my computer button skeleton */}
                 <div className="px-4 py-2 rounded-full">
-                  <div className="h-4 w-28 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+                  <div className="h-4 w-28 bg-border rounded animate-pulse"></div>
                 </div>
               </div>
             </div>
@@ -158,15 +158,15 @@ const GenerationMethodStep: React.FC<{ onNext: () => void }> = ({ onNext }) => {
 
           {/* Skeleton for additional info section */}
           <div className="text-center space-y-3">
-            <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse">
-              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded mx-auto w-64"></div>
+            <div className="p-4 bg-muted rounded-lg animate-pulse">
+              <div className="h-4 bg-border rounded mx-auto w-64"></div>
             </div>
           </div>
         </div>
-        
+
         {/* Skeleton for continue button */}
         <div className="flex justify-center pt-5 pb-2">
-          <div className="w-full sm:w-auto h-10 bg-gray-300 dark:bg-gray-600 rounded animate-pulse px-8"></div>
+          <div className="w-full sm:w-auto h-10 bg-border rounded animate-pulse px-8"></div>
         </div>
       </>
     );
@@ -240,18 +240,18 @@ const GenerationMethodStep: React.FC<{ onNext: () => void }> = ({ onNext }) => {
         {/* Additional info below toggle */}
         <div className="text-center space-y-3">
           {inCloudChecked && !onComputerChecked && (
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-sm text-blue-800 dark:text-blue-200 font-light">
+            <div className="p-4 bg-secondary/50 rounded-lg">
+              <p className="text-sm text-secondary-foreground font-light">
                 ☁️ Easy setup, pay-per-use, works on any device
               </p>
             </div>
           )}
-          
+
           {onComputerChecked && !inCloudChecked && (
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <p className="text-sm text-green-800 dark:text-green-200 font-light flex items-center justify-center gap-2">
+            <div className="p-4 bg-accent rounded-lg">
+              <p className="text-sm text-accent-foreground font-light flex items-center justify-center gap-2">
                 <span>💻 Free to use, requires setup, need a good GPU</span>
-                <span className="bg-green-500 text-white text-xs font-light px-2 py-1 rounded-full">Free</span>
+                <span className="bg-primary text-primary-foreground text-xs font-light px-2 py-1 rounded-full">Free</span>
               </p>
             </div>
           )}
@@ -393,7 +393,7 @@ const PrivacyDefaultsStep: React.FC<{ onNext: () => void }> = ({ onNext }) => {
         {/* Side by side toggles */}
         <div className="grid grid-cols-2 gap-3">
           {/* Resources Toggle */}
-          <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-2">
+          <div className="p-3 bg-muted/50 rounded-lg space-y-2">
             <span className="font-medium text-sm">Resources</span>
             <p className="text-xs text-muted-foreground leading-snug">
               This will allow others to use them. You can update this for individual resources.
@@ -406,7 +406,7 @@ const PrivacyDefaultsStep: React.FC<{ onNext: () => void }> = ({ onNext }) => {
           </div>
 
           {/* Generations Toggle */}
-          <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg space-y-2">
+          <div className="p-3 bg-muted/50 rounded-lg space-y-2">
             <span className="font-medium text-sm">Generations</span>
             <p className="text-xs text-muted-foreground leading-snug">
               This will allow others to view your generations, and train LoRAs on them.
@@ -582,7 +582,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               className="absolute top-0 left-0 right-0 h-16 pointer-events-none z-10"
               style={{ transform: 'translateY(-64px)' }}
             >
-              <div className="h-full bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 dark:to-transparent" />
+              <div className="h-full bg-gradient-to-t from-card via-card/95 to-transparent" />
             </div>
           )}
 

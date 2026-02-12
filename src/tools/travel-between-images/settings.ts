@@ -37,9 +37,9 @@ export interface VideoTravelSettings {
   negativePrompt?: string;  // Negative prompt (was steerableMotionSettings.negative_prompt)
   batchVideoFrames: number;
   batchVideoSteps: number;
-  dimensionSource?: 'project' | 'firstImage' | 'custom'; // DEPRECATED - now using aspect ratios only
-  customWidth?: number; // DEPRECATED - now using aspect ratios only
-  customHeight?: number; // DEPRECATED - now using aspect ratios only
+  dimensionSource?: 'project' | 'firstImage' | 'custom'; // Legacy — used by travel tool, may be replaced with aspect-ratio-only in future
+  customWidth?: number; // Legacy — used by travel tool, may be replaced with aspect-ratio-only in future
+  customHeight?: number; // Legacy — used by travel tool, may be replaced with aspect-ratio-only in future
   steerableMotionSettings: SteerableMotionSettings;  // Still used for seed, debug, model_name
   enhancePrompt: boolean;
   generationMode: 'batch' | 'by-pair' | 'timeline';

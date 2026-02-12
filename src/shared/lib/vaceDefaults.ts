@@ -28,6 +28,7 @@
 
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { BuiltinPreset } from '@/shared/components/MotionPresetSelector';
+import type { PathLoraConfig } from '@/shared/types/lora';
 
 // =============================================================================
 // DEFAULT PHASE CONFIG FOR VACE MODE
@@ -136,7 +137,7 @@ export const VACE_GENERATION_DEFAULTS = {
  * User LoRAs are added to every phase at their specified strength.
  */
 export function buildPhaseConfigWithLoras(
-  userLoras: Array<{ path: string; strength: number }> = [],
+  userLoras: PathLoraConfig[] = [],
   baseConfig: PhaseConfig = DEFAULT_VACE_PHASE_CONFIG
 ): PhaseConfig {
   if (userLoras.length === 0) {

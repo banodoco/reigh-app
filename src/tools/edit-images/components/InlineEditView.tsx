@@ -76,13 +76,8 @@ function useInlineEditState(
   const upscaleHook = useUpscale({ media, selectedProjectId, isVideo });
   const {
     effectiveImageUrl,
-    sourceUrlForTasks,
     isUpscaling,
-    showingUpscaled,
-    isPendingUpscale,
-    hasUpscaledVersion,
     handleUpscale,
-    handleToggleUpscaled,
   } = upscaleHook;
 
   // Image dimensions state (needed by inpainting hook)
@@ -203,7 +198,7 @@ function useInlineEditState(
     inpaintNumGenerations,
     setInpaintNumGenerations,
     editModeLoRAs,
-    sourceUrlForTasks,
+    sourceUrlForTasks: effectiveImageUrl,
     imageDimensions,
     isInSceneBoostEnabled,
     setIsInSceneBoostEnabled,
@@ -262,7 +257,7 @@ function useInlineEditState(
     media,
     selectedProjectId,
     isVideo,
-    sourceUrlForTasks,
+    sourceUrlForTasks: effectiveImageUrl,
     toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
     createAsGeneration,
     availableLoras,
@@ -567,11 +562,7 @@ function useInlineEditState(
 
     // Upscale
     isUpscaling,
-    isPendingUpscale,
-    hasUpscaledVersion,
-    showingUpscaled,
     handleUpscale,
-    handleToggleUpscaled,
 
     // Inpainting canvas state
     isInpaintMode,
@@ -805,11 +796,7 @@ function InlineEditCanvas({ variant, state, media, onClose }: InlineEditCanvasPr
         isCloudMode={state.isCloudMode}
         handleEnterMagicEditMode={state.handleEnterMagicEditMode}
         isUpscaling={state.isUpscaling}
-        isPendingUpscale={state.isPendingUpscale}
-        hasUpscaledVersion={state.hasUpscaledVersion}
-        showingUpscaled={state.showingUpscaled}
         handleUpscale={state.handleUpscale}
-        handleToggleUpscaled={state.handleToggleUpscaled}
       />
 
       <BottomRightControls

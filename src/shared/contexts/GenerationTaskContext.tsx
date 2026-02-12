@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { GenerationRow } from '@/types/shots';
 import type { Task } from '@/types/tasks';
@@ -85,38 +85,4 @@ function useGenerationTaskContext() {
   return context;
 }
 
-/**
- * Hook that automatically preloads task data for a list of generations
- *
- * @internal Currently unused - kept for potential future use
- */
-function useGenerationTaskPreloader(generations: GenerationRow[], enabled = true) {
-  const { preloadTaskMappings } = useGenerationTaskContext();
-
-  useEffect(() => {
-    if (!enabled || generations.length === 0) return;
-
-    const generationIds = generations.map(g => g.id);
-    preloadTaskMappings(generationIds);
-  }, [generations, preloadTaskMappings, enabled]);
-}
-
-// Keep for potential future use
-void useGenerationTaskPreloader;
-
-/**
- * Hook that provides enhanced generations with task data from cache
- *
- * @internal Currently unused - kept for potential future use
- */
-function useEnhancedGenerations(generations: GenerationRow[]) {
-  const { enhanceWithTaskData } = useGenerationTaskContext();
-
-  return React.useMemo(() => {
-    return enhanceWithTaskData(generations);
-  }, [generations, enhanceWithTaskData]);
-}
-
-// Keep for potential future use
-void useEnhancedGenerations;
 

@@ -3,17 +3,15 @@ import { Label } from "@/shared/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/segmented-control";
 import { SectionHeader } from "./SectionHeader";
-import { ReferenceSection, LoraGrid } from "./reference";
+import { ReferenceSection } from "./reference";
+import { LoraGrid } from "./reference/LoraGrid";
 import {
   GenerationSource,
   TextToImageModel,
   TEXT_TO_IMAGE_MODELS,
 } from "../types";
-import { ActiveLora } from "@/shared/components/ActiveLoRAsDisplay";
 import {
   useFormCoreContext,
-  useFormReferencesContext,
-  useFormLorasContext,
 } from "../ImageGenerationFormContext";
 
 interface ModelSectionProps {
@@ -31,22 +29,16 @@ interface ModelSectionProps {
 
 // Just-text mode content
 const JustTextSection: React.FC<{
-  isGenerating: boolean;
   selectedTextModel: TextToImageModel;
   onTextModelChange: (model: TextToImageModel) => void;
-  selectedLoras: ActiveLora[];
   onOpenLoraModal: () => void;
-  onRemoveLora: (loraId: string) => void;
-  onUpdateLoraStrength: (loraId: string, strength: number) => void;
 }> = ({
-  isGenerating,
   selectedTextModel,
   onTextModelChange,
-  selectedLoras,
   onOpenLoraModal,
-  onRemoveLora,
-  onUpdateLoraStrength,
 }) => {
+  const { isGenerating } = useFormCoreContext();
+
   return (
     <div className="space-y-4">
       {/* Model Selector */}
@@ -75,12 +67,7 @@ const JustTextSection: React.FC<{
 
       {/* LoRA Grid */}
       <LoraGrid
-        selectedLoras={selectedLoras}
         onOpenLoraModal={onOpenLoraModal}
-        onRemoveLora={onRemoveLora}
-        onUpdateLoraStrength={onUpdateLoraStrength}
-        isGenerating={isGenerating}
-        isUploadingStyleReference={false}
       />
     </div>
   );
@@ -96,39 +83,6 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
   isLoadingReferenceData = false,
   referenceCount = 0,
 }) => {
-  // Pull from context
-  const { isGenerating } = useFormCoreContext();
-  const {
-    references,
-    selectedReferenceId,
-    referenceMode,
-    styleReferenceStrength,
-    subjectStrength,
-    subjectDescription,
-    inThisSceneStrength,
-    styleBoostTerms,
-    isUploadingStyleReference,
-    styleReferenceImageDisplay: styleReferenceImage,
-    onSelectReference,
-    onDeleteReference,
-    onStyleUpload: onAddReference,
-    onStyleStrengthChange,
-    onSubjectStrengthChange,
-    onSubjectDescriptionChange,
-    onSubjectDescriptionFocus,
-    onSubjectDescriptionBlur,
-    onInThisSceneStrengthChange,
-    onReferenceModeChange,
-    onStyleBoostTermsChange,
-    onToggleVisibility,
-    onResourceSelect,
-  } = useFormReferencesContext();
-  const {
-    selectedLoras,
-    handleRemoveLora: onRemoveLora,
-    handleLoraStrengthChange: onUpdateLoraStrength,
-  } = useFormLorasContext();
-
   return (
     <div className="flex-1 space-y-4">
       {/* Header with generation source toggle */}
@@ -149,48 +103,17 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
       {/* Content based on generation source */}
       {generationSource === "by-reference" ? (
         <ReferenceSection
-          references={references}
-          selectedReferenceId={selectedReferenceId}
-          styleReferenceImage={styleReferenceImage}
+          onOpenLoraModal={onOpenLoraModal!}
           referenceCount={referenceCount}
           isLoadingReferenceData={isLoadingReferenceData}
-          onSelectReference={onSelectReference}
-          onDeleteReference={onDeleteReference}
-          onAddReference={onAddReference}
-          onResourceSelect={onResourceSelect}
-          onToggleVisibility={onToggleVisibility}
-          referenceMode={referenceMode}
-          onReferenceModeChange={onReferenceModeChange}
-          styleReferenceStrength={styleReferenceStrength}
-          subjectStrength={subjectStrength}
-          inThisSceneStrength={inThisSceneStrength}
-          onStyleStrengthChange={onStyleStrengthChange}
-          onSubjectStrengthChange={onSubjectStrengthChange}
-          onInThisSceneStrengthChange={onInThisSceneStrengthChange}
-          subjectDescription={subjectDescription}
-          onSubjectDescriptionChange={onSubjectDescriptionChange}
-          onSubjectDescriptionFocus={onSubjectDescriptionFocus}
-          onSubjectDescriptionBlur={onSubjectDescriptionBlur}
-          styleBoostTerms={styleBoostTerms}
-          onStyleBoostTermsChange={onStyleBoostTermsChange}
-          selectedLoras={selectedLoras}
-          onOpenLoraModal={onOpenLoraModal!}
-          onRemoveLora={onRemoveLora}
-          onUpdateLoraStrength={onUpdateLoraStrength}
-          isGenerating={isGenerating}
-          isUploadingStyleReference={isUploadingStyleReference}
         />
       ) : (
         // Just-text mode
         onTextModelChange && onOpenLoraModal && (
           <JustTextSection
-            isGenerating={isGenerating}
             selectedTextModel={selectedTextModel}
             onTextModelChange={onTextModelChange}
-            selectedLoras={selectedLoras}
             onOpenLoraModal={onOpenLoraModal}
-            onRemoveLora={onRemoveLora}
-            onUpdateLoraStrength={onUpdateLoraStrength}
           />
         )
       )}

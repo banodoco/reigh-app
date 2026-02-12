@@ -3,11 +3,13 @@ import {
   generateTaskId,
   resolveProjectResolution,
   validateRequiredFields,
-  TaskValidationError
+  TaskValidationError,
+  type HiresFixApiParams,
 } from '../taskCreation';
 import { processBatchResults, type TaskCreationResult } from '../taskCreation';
 import { ASPECT_RATIO_TO_RESOLUTION } from '../aspectRatios';
 import { handleError } from '@/shared/lib/errorHandler';
+import type { PathLoraConfig } from '@/shared/types/lora';
 
 // ============================================================================
 // API Parameter Types (single source of truth)
@@ -30,22 +32,8 @@ export interface ReferenceApiParams {
   reference_mode: ReferenceMode;
 }
 
-/**
- * Hires fix API parameters for image generation tasks.
- * Uses snake_case to match API directly.
- */
-export interface HiresFixApiParams {
-  /** Number of inference steps (used for single-pass or base pass in two-pass mode) */
-  num_inference_steps?: number;
-  hires_scale?: number;
-  hires_steps?: number;
-  hires_denoise?: number;
-  /** Lightning LoRA strength for phase 1 (initial generation) */
-  lightning_lora_strength_phase_1?: number;
-  /** Lightning LoRA strength for phase 2 (hires/refinement pass) */
-  lightning_lora_strength_phase_2?: number;
-  additional_loras?: Record<string, string>;
-}
+// HiresFixApiParams is now defined in taskCreation.ts — re-export for backward compatibility
+export type { HiresFixApiParams } from '../taskCreation';
 
 /**
  * Filter reference settings based on the selected reference mode.
@@ -120,7 +108,7 @@ interface ImageGenerationTaskParams extends Partial<ReferenceApiParams>, Partial
   resolution?: string;
   model_name?: string;
   seed?: number;
-  loras?: Array<{ path: string; strength: number }>;
+  loras?: PathLoraConfig[];
   shot_id?: string;
   subject_reference_image?: string; // Can differ from style_reference_image
   steps?: number;
@@ -138,7 +126,7 @@ export interface BatchImageGenerationTaskParams extends Partial<ReferenceApiPara
     shortPrompt?: string;
   }>;
   imagesPerPrompt: number;
-  loras?: Array<{ path: string; strength: number }>;
+  loras?: PathLoraConfig[];
   shot_id?: string;
   resolution?: string;
   /** User-configurable resolution scale multiplier (1.0-2.5x). If not provided, defaults to 1.5. */

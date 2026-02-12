@@ -110,11 +110,7 @@ interface SharedLightboxButtonGroupProps {
   onDelete?: (id: string) => void;
   isDeleting?: string | null;
   isUpscaling: boolean;
-  isPendingUpscale: boolean;
-  hasUpscaledVersion: boolean;
-  showingUpscaled: boolean;
   handleUpscale: () => void;
-  handleToggleUpscaled: () => void;
   handleEnterMagicEditMode: () => void;
 }
 
@@ -307,11 +303,7 @@ export function useSharedLightboxState(props: UseSharedLightboxStateProps): UseS
     onDelete,
     isDeleting,
     isUpscaling,
-    isPendingUpscale,
-    hasUpscaledVersion,
-    showingUpscaled,
     handleUpscale,
-    handleToggleUpscaled,
     handleEnterMagicEditMode,
     // Effective media
     effectiveImageUrl,
@@ -578,11 +570,7 @@ export function useSharedLightboxState(props: UseSharedLightboxStateProps): UseS
     isDeleting,
     onClose,
     isUpscaling,
-    isPendingUpscale,
-    hasUpscaledVersion,
-    showingUpscaled,
     handleUpscale,
-    handleToggleUpscaled,
     localStarred,
     handleToggleStar,
     toggleStarPending: toggleStarMutation.isPending,
