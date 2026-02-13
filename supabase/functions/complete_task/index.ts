@@ -5,6 +5,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { authenticateRequest, verifyTaskOwnership, getTaskUserId } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // Import from refactored modules
 import { parseCompleteTaskRequest, validateStoragePathSecurity } from './request.ts';
@@ -176,6 +177,22 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
 
   const isServiceRole = auth.isServiceRole;
   const callerId = auth.userId;
+
+  // 4b) Rate limit non-service-role callers (workers use service-role and are not rate limited)
+  if (!isServiceRole && callerId) {
+    const rateLimitResult = await checkRateLimit(
+      supabaseAdmin,
+      'complete-task',
+      callerId,
+      RATE_LIMITS.userAction,
+      '[COMPLETE-TASK]'
+    );
+    if (!rateLimitResult.allowed) {
+      logger.warn("Rate limit exceeded", { user_id: callerId });
+      await logger.flush();
+      return rateLimitResponse(rateLimitResult, RATE_LIMITS.userAction);
+    }
+  }
 
   try {
     // 5) Verify task ownership if user token

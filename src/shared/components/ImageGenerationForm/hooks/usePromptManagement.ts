@@ -49,6 +49,8 @@ interface UsePromptManagementProps {
 
   // Prompt ID generation
   generatePromptId: () => string;
+  // Ref for prompt ID counter (shared with generatePromptId, used for dedup)
+  promptIdCounter?: React.MutableRefObject<number>;
 }
 
 interface UsePromptManagementReturn {
@@ -99,6 +101,7 @@ export function usePromptManagement(props: UsePromptManagementProps): UsePromptM
     ready,
     markAsInteracted,
     generatePromptId,
+    promptIdCounter,
   } = props;
 
   // ============================================================================
@@ -388,6 +391,47 @@ export function usePromptManagement(props: UsePromptManagementProps): UsePromptM
 
     setPrompts(sanitizedPrompts);
   }, [markAsInteracted, generatePromptId, setPrompts]);
+
+  // ============================================================================
+  // Prompt ID dedup
+  // ============================================================================
+  // Ensure the `promptIdCounter` is always ahead of any existing numeric IDs.
+  // This prevents duplicate IDs which caused multiple prompts to update together.
+  useEffect(() => {
+    if (!promptIdCounter) return;
+
+    let nextId = prompts.reduce((max, p) => {
+      const match = /^prompt-(\d+)$/.exec(p.id || "");
+      if (match) {
+        const num = parseInt(match[1], 10) + 1;
+        return num > max ? num : max;
+      }
+      return max;
+    }, 1);
+
+    // Resolve any duplicate IDs on the fly by assigning new ones.
+    const seen = new Set<string>();
+    let hadDuplicates = false;
+    const dedupedPrompts = prompts.map(prompt => {
+      if (!seen.has(prompt.id)) {
+        seen.add(prompt.id);
+        return prompt;
+      }
+      hadDuplicates = true;
+      // Duplicate found - give it a fresh ID.
+      const newId = `prompt-${nextId++}`;
+      seen.add(newId);
+      return { ...prompt, id: newId };
+    });
+
+    if (hadDuplicates) {
+      setPrompts(dedupedPrompts);
+    }
+
+    if (nextId > promptIdCounter.current) {
+      promptIdCounter.current = nextId;
+    }
+  }, [prompts, setPrompts, promptIdCounter]);
 
   // ============================================================================
   // Return

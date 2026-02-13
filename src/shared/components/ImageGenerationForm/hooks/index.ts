@@ -30,5 +30,14 @@ export { useLoraHandlers } from './useLoraHandlers';
 // Project-level settings + reference loading
 export { useProjectImageSettings } from './useProjectImageSettings';
 
+// Hires fix config state with legacy migration
+export { useHiresFixConfig } from './useHiresFixConfig';
+
+// Shot selection, creation, and prompt defaults
+export { useShotManagement } from './useShotManagement';
+
+// Context value builder for form sections
+export { useFormContextBuilder } from './useFormContextBuilder';
+
 // Main form orchestration hook (all non-JSX logic)
 export { useImageGenForm } from './useImageGenForm';

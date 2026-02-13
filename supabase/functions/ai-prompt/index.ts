@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import Groq from "npm:groq-sdk@0.26.0";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -33,36 +34,22 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return jsonResponse({ ok: true });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 
-  // Verify user authentication
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  // Authenticate using shared auth helper (supports JWT + PAT)
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
 
-  if (!supabaseUrl || !serviceKey || !anonKey) {
-    console.error("[ai-prompt] Missing required environment variables");
-    return jsonResponse({ error: "Server configuration error" }, 500);
-  }
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
-  }
-
-  const token = authHeader.slice(7);
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-
-  // Verify the user's JWT token
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) {
-    console.error("[ai-prompt] Invalid authentication token:", authError?.message);
-    return jsonResponse({ error: "Invalid authentication token" }, 401);
+  const auth = await authenticateRequest(req, supabaseAdmin, "[AI-PROMPT]", { allowJwtUserAuth: true });
+  if (!auth.success || !auth.userId) {
+    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
   }
 
   // Rate limit by user ID (this is an expensive AI endpoint)
   const rateLimitResult = await checkRateLimit(
     supabaseAdmin,
     'ai-prompt',
-    user.id,
+    auth.userId,
     RATE_LIMITS.expensive,
     '[AI-PROMPT]'
   );

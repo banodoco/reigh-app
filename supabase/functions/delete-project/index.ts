@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { authenticateRequest } from "../_shared/auth.ts"
 import { SystemLogger } from "../_shared/systemLogger.ts"
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,6 +30,21 @@ serve(async (req) => {
         JSON.stringify({ error: auth.error || 'Unauthorized' }),
         { status: auth.statusCode || 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Rate limit: 10 requests per minute for this destructive operation
+    const deleteProjectLimit = { maxRequests: 10, windowSeconds: 60, identifierType: 'user' as const }
+    const rateLimitResult = await checkRateLimit(
+      supabaseAdmin,
+      'delete-project',
+      auth.userId,
+      deleteProjectLimit,
+      '[DELETE-PROJECT]'
+    )
+    if (!rateLimitResult.allowed) {
+      logger.warn("Rate limit exceeded", { user_id: auth.userId })
+      await logger.flush()
+      return rateLimitResponse(rateLimitResult, deleteProjectLimit)
     }
 
     // Parse request body
