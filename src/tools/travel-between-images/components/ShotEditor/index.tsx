@@ -602,9 +602,7 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
     selectedShot: selectedShot || {} as Shot,
     projectId,
     batchVideoFrames: frameSettings.batchVideoFrames,
-    onShotImagesUpdate,
     orderedShotImages: allShotImages, // Pass all images; hook uses ref for stability
-    skipNextSyncRef,
   });
 
   // REMOVED: Local optimistic list sync - no longer needed with two-phase loading

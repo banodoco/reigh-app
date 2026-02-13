@@ -130,6 +130,15 @@ export function useProjectSelection({
     const nextProjectId = determineProjectIdToSelect(remainingProjects, null, null);
     setSelectedProjectIdState(nextProjectId);
 
+    // Also update localStorage for fast resume (avoid stale deleted ID on refresh)
+    try {
+      if (nextProjectId) {
+        localStorage.setItem('lastSelectedProjectId', nextProjectId);
+      } else {
+        localStorage.removeItem('lastSelectedProjectId');
+      }
+    } catch { /* localStorage unavailable */ }
+
     if (nextProjectId) {
       updateUserSettings('user', { lastOpenedProjectId: nextProjectId });
     } else {

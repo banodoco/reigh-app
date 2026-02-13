@@ -19,9 +19,7 @@ interface UseGenerationActionsProps {
   selectedShot: Shot;
   projectId: string;
   batchVideoFrames: number;
-  onShotImagesUpdate: () => void;
   orderedShotImages: GenerationRow[];
-  skipNextSyncRef: React.MutableRefObject<boolean>;
 }
 
 /**

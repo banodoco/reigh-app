@@ -297,11 +297,11 @@ export function useProjectCRUD({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setProjects(prevProjects => {
-        const updated = prevProjects.filter(p => p.id !== projectId);
-        onProjectDeleted(updated);
-        return updated;
-      });
+      // Filter outside updater so we can call the side-effect callback separately
+      // (React state updaters must be pure — no side effects)
+      const updated = projects.filter(p => p.id !== projectId);
+      setProjects(updated);
+      onProjectDeleted(updated);
 
       return true;
     } catch (err: unknown) {
@@ -310,7 +310,7 @@ export function useProjectCRUD({
     } finally {
       setIsDeletingProject(false);
     }
-  }, [onProjectDeleted]);
+  }, [onProjectDeleted, projects]);
 
   return {
     projects,

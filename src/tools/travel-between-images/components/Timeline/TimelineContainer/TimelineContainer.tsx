@@ -244,7 +244,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     images,
     imagePositions,
     trailingEndFrame,
-    currentPositions,
     pairInfo,
     pairDataByIndex,
     onPairClick,

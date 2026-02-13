@@ -9,6 +9,7 @@ import {
 } from "@/shared/hooks/useShots";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { supabase } from '@/integrations/supabase/client';
 import {
   cropImagesToShotAspectRatio,
   calculateNextAvailableFrame,

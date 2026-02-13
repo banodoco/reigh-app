@@ -7,7 +7,6 @@ interface UsePairSettingsHandlerProps {
   images: GenerationRow[];
   imagePositions: Map<string, number>;
   trailingEndFrame: number | undefined;
-  currentPositions: Map<string, number>;
   pairInfo: ReturnType<typeof getPairInfo>;
   pairDataByIndex: Map<number, PairData>;
   onPairClick?: (pairIndex: number, pairData: PairData) => void;
@@ -113,7 +112,7 @@ export function usePairSettingsHandler({
     } else if (pairData) {
       onPairClick(pairIndex, pairData);
     }
-  }, [onPairClick, images, trailingEndFrame, currentPositions, pairDataByIndex, pairInfo, imagePositions]);
+  }, [onPairClick, images, trailingEndFrame, pairDataByIndex, pairInfo, imagePositions]);
 
   return { handleOpenPairSettings };
 }
