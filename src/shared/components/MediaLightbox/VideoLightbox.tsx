@@ -14,7 +14,7 @@
  * ImageLightbox or VideoLightbox based on media type.
  */
 
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import type { GenerationRow, Shot } from '@/types/shots';
 import type { SegmentSlotModeData, AdjacentSegmentsData, ShotOption, TaskDetailsData } from './types';
 
@@ -41,11 +41,12 @@ import {
   useLightboxWorkflowProps,
   useReplaceInShot,
   useLightboxVariantBadges,
+  useVideoEditContextValue,
 } from './hooks';
 
 // Import components
 import { LightboxShell } from './components';
-import { VideoEditProvider, type VideoEditState } from './contexts/VideoEditContext';
+import { VideoEditProvider } from './contexts/VideoEditContext';
 
 // Import utils
 import { extractDimensionsFromMedia, handleLightboxDownload } from './utils';
@@ -439,16 +440,15 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
   });
 
   const {
+    // Used in controlsPanelContent
     trimVideoRef,
     trimState,
     trimCurrentTime,
-    setTrimCurrentTime,
     trimmedDuration,
     hasTrimChanges,
     setStartTrim,
     setEndTrim,
     resetTrim,
-    setVideoDuration,
     isSavingTrim,
     trimSaveProgress,
     trimSaveError,
@@ -456,12 +456,9 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     saveTrimmedVideo,
     videoEditing,
     videoEnhance,
+    // Used in usePanelModeRestore
     handleEnterVideoEditMode,
-    handleExitVideoEditMode,
-    handleEnterVideoTrimMode,
-    handleEnterVideoReplaceMode,
-    handleEnterVideoRegenerateMode,
-    handleEnterVideoEnhanceMode,
+    // Used in layout decisions + controlsPanelContent
     isInVideoEditMode,
     isVideoTrimModeActive,
     isVideoEditModeActive,
@@ -484,37 +481,18 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
   });
 
   // ========================================
-  // LOAD VARIANT SETTINGS FOR VIDEO
+  // VIDEO EDIT CONTEXT VALUE
   // ========================================
 
-  useEffect(() => {
-    if (!variantParamsToLoad || isFormOnlyMode) return;
-
-    const taskType = variantParamsToLoad.task_type || variantParamsToLoad.created_from;
-
-    if (taskType === 'video_enhance') {
-      handleEnterVideoEnhanceMode();
-      setEnhanceSettings({
-        enableInterpolation: variantParamsToLoad.enable_interpolation ?? false,
-        enableUpscale: variantParamsToLoad.enable_upscale ?? true,
-        numFrames: variantParamsToLoad.num_frames ?? 1,
-        upscaleFactor: variantParamsToLoad.upscale_factor ?? 2,
-        colorFix: variantParamsToLoad.color_fix ?? true,
-        outputQuality: variantParamsToLoad.output_quality ?? 'high',
-      });
-      setVariantParamsToLoad(null);
-    } else {
-      // Travel segment variant - switch to regenerate mode
-      handleEnterVideoRegenerateMode();
-    }
-  }, [
-    variantParamsToLoad,
+  const videoEditValue = useVideoEditContextValue({
+    videoEditSubMode,
+    setVideoEditSubMode,
+    videoMode,
     isFormOnlyMode,
-    handleEnterVideoEnhanceMode,
-    handleEnterVideoRegenerateMode,
-    setEnhanceSettings,
+    variantParamsToLoad,
     setVariantParamsToLoad,
-  ]);
+    setEnhanceSettings,
+  });
 
   // ========================================
   // PENDING TASKS & VARIANT BADGES
@@ -598,80 +576,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     handleSlotNavPrev,
     swipeNavigation: navigation.swipeNavigation,
   });
-
-  // Build VideoEditContext value
-  const videoEditValue = useMemo<VideoEditState>(() => ({
-    // Mode state
-    isInVideoEditMode,
-    videoEditSubMode,
-    isVideoTrimModeActive,
-    isVideoEditModeActive,
-
-    // Mode setters
-    setVideoEditSubMode,
-
-    // Mode entry/exit handlers
-    handleEnterVideoEditMode,
-    handleExitVideoEditMode,
-    handleEnterVideoTrimMode,
-    handleEnterVideoReplaceMode,
-    handleEnterVideoRegenerateMode,
-    handleEnterVideoEnhanceMode,
-
-    // Trim state
-    trimState,
-    setStartTrim,
-    setEndTrim,
-    resetTrim,
-    trimmedDuration,
-    hasTrimChanges,
-
-    // Video duration/playback
-    videoDuration: trimState.videoDuration,
-    setVideoDuration,
-    trimCurrentTime,
-    setTrimCurrentTime,
-
-    // Refs & managers
-    trimVideoRef,
-    videoEditing,
-
-    // Enhance settings
-    enhanceSettings: videoEnhance.settings,
-    updateEnhanceSetting: videoEnhance.updateSetting,
-  }), [
-    // Mode state
-    isInVideoEditMode,
-    videoEditSubMode,
-    isVideoTrimModeActive,
-    isVideoEditModeActive,
-    // Mode setters
-    setVideoEditSubMode,
-    // Mode handlers
-    handleEnterVideoEditMode,
-    handleExitVideoEditMode,
-    handleEnterVideoTrimMode,
-    handleEnterVideoReplaceMode,
-    handleEnterVideoRegenerateMode,
-    handleEnterVideoEnhanceMode,
-    // Trim state
-    trimState,
-    setStartTrim,
-    setEndTrim,
-    resetTrim,
-    trimmedDuration,
-    hasTrimChanges,
-    // Duration/playback
-    setVideoDuration,
-    trimCurrentTime,
-    setTrimCurrentTime,
-    // Refs & managers
-    trimVideoRef,
-    videoEditing,
-    // Enhance
-    videoEnhance.settings,
-    videoEnhance.updateSetting,
-  ]);
 
   // ========================================
   // HANDLERS

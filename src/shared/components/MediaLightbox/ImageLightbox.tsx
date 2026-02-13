@@ -144,6 +144,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     shotId,
     tasksPaneOpen,
     tasksPaneWidth,
+    positionedInSelectedShot,
+    associatedWithoutPositionInSelectedShot,
     initialVariantId,
     adjacentSegments,
   } = props;

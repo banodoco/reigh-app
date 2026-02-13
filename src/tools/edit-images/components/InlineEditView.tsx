@@ -33,7 +33,7 @@ import {
   EditModePanel,
   FloatingToolControls,
 } from '@/shared/components/MediaLightbox/components';
-import type { ImageEditState } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
+import { ImageEditProvider, type ImageEditState } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
 import { DEFAULT_ADVANCED_SETTINGS } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
 import { Button } from '@/shared/components/ui/button';
 import { Square, Trash2, Diamond } from 'lucide-react';
@@ -182,6 +182,10 @@ function useInlineEditState(
     handleToggleFreeForm,
     getDeleteButtonPosition,
     strokeOverlayRef,
+    onStrokeComplete,
+    onStrokesChange,
+    onSelectionChange,
+    onTextModeHint,
   } = inpaintingHook;
 
   const magicEditHook = useMagicEditMode({
@@ -246,6 +250,8 @@ function useInlineEditState(
     handleGenerateReposition,
     handleSaveAsVariant,
     getTransformStyle,
+    isDragging: isRepositionDragging,
+    dragHandlers: repositionDragHandlers,
   } = repositionHook;
 
   // Fetch available LoRAs for img2img mode
@@ -433,6 +439,16 @@ function useInlineEditState(
     setAnnotationMode,
     selectedShapeId,
 
+    // Canvas interaction
+    onStrokeComplete,
+    onStrokesChange,
+    onSelectionChange,
+    onTextModeHint,
+    strokeOverlayRef,
+    getDeleteButtonPosition,
+    handleToggleFreeForm,
+    handleDeleteSelected,
+
     // Undo/Clear
     handleUndo,
     handleClearMask,
@@ -440,6 +456,19 @@ function useInlineEditState(
     // Reposition state
     repositionTransform: repositionHook.transform,
     hasTransformChanges,
+    isRepositionDragging,
+    repositionDragHandlers,
+    getTransformStyle,
+    setScale,
+    setRotation,
+    toggleFlipH,
+    toggleFlipV,
+    resetTransform,
+
+    // Display refs
+    imageContainerRef,
+    isFlippedHorizontally,
+    isSaving,
 
     // Panel UI state
     inpaintPanelPosition,
@@ -507,10 +536,29 @@ function useInlineEditState(
     annotationMode,
     setAnnotationMode,
     selectedShapeId,
+    onStrokeComplete,
+    onStrokesChange,
+    onSelectionChange,
+    onTextModeHint,
+    strokeOverlayRef,
+    getDeleteButtonPosition,
+    handleToggleFreeForm,
+    handleDeleteSelected,
     handleUndo,
     handleClearMask,
     repositionHook.transform,
     hasTransformChanges,
+    isRepositionDragging,
+    repositionDragHandlers,
+    getTransformStyle,
+    setScale,
+    setRotation,
+    toggleFlipH,
+    toggleFlipV,
+    resetTransform,
+    imageContainerRef,
+    isFlippedHorizontally,
+    isSaving,
     inpaintPanelPosition,
     setInpaintPanelPosition,
     inpaintPrompt,
@@ -707,37 +755,16 @@ function InlineEditCanvas({ variant, state, media, onClose }: InlineEditCanvasPr
   const isMobileVariant = variant === 'mobile';
 
   return (
-    <>
+    <ImageEditProvider value={state.imageEditValue}>
       <MediaDisplayWithCanvas
         effectiveImageUrl={state.effectiveImageUrl}
         thumbUrl={media.thumbnail_url || media.thumbUrl}
         isVideo={state.isVideo}
-        isFlippedHorizontally={state.isFlippedHorizontally}
-        isSaving={state.isSaving}
-        isInpaintMode={state.isInpaintMode}
-        editMode={state.editMode}
-        repositionTransformStyle={state.editMode === 'reposition' ? state.getTransformStyle() : undefined}
-        imageContainerRef={state.imageContainerRef}
-        canvasRef={state.canvasRef}
-        maskCanvasRef={state.maskCanvasRef}
         onImageLoad={state.setImageDimensions}
         variant={isMobileVariant ? "mobile-stacked" : "desktop-side-panel"}
         containerClassName={isMobileVariant ? "w-full h-full" : "max-w-full max-h-full"}
         debugContext={isMobileVariant ? "Mobile Inline" : "InlineEdit"}
-        // Konva stroke overlay props
         imageDimensions={state.imageDimensions}
-        brushStrokes={state.brushStrokes}
-        currentStroke={state.currentStroke}
-        isDrawing={state.isDrawing}
-        isEraseMode={state.isEraseMode}
-        brushSize={state.brushSize}
-        annotationMode={state.editMode === 'annotate' ? state.annotationMode : null}
-        selectedShapeId={state.selectedShapeId}
-        onStrokePointerDown={state.handleKonvaPointerDown}
-        onStrokePointerMove={state.handleKonvaPointerMove}
-        onStrokePointerUp={state.handleKonvaPointerUp}
-        onShapeClick={state.handleShapeClick}
-        strokeOverlayRef={state.strokeOverlayRef}
       />
 
       {!isMobileVariant && (
@@ -754,25 +781,6 @@ function InlineEditCanvas({ variant, state, media, onClose }: InlineEditCanvasPr
       {state.isSpecialEditMode && (
         <FloatingToolControls
           variant={isMobileVariant ? "mobile" : "tablet"}
-          editMode={state.editMode}
-          onSetEditMode={state.setEditMode}
-          brushSize={state.brushSize}
-          isEraseMode={state.isEraseMode}
-          onSetBrushSize={state.setBrushSize}
-          onSetIsEraseMode={state.setIsEraseMode}
-          annotationMode={state.annotationMode}
-          onSetAnnotationMode={state.setAnnotationMode}
-          repositionTransform={state.repositionTransform}
-          onRepositionScaleChange={state.setScale}
-          onRepositionRotationChange={state.setRotation}
-          onRepositionFlipH={state.toggleFlipH}
-          onRepositionFlipV={state.toggleFlipV}
-          onRepositionReset={state.resetTransform}
-          brushStrokes={state.brushStrokes}
-          onUndo={state.handleUndo}
-          onClearMask={state.handleClearMask}
-          panelPosition={state.inpaintPanelPosition}
-          onSetPanelPosition={state.setInpaintPanelPosition}
         />
       )}
 
@@ -812,7 +820,7 @@ function InlineEditCanvas({ variant, state, media, onClose }: InlineEditCanvasPr
         addToReferencesSuccess={false}
         handleAddToReferences={() => {}}
       />
-    </>
+    </ImageEditProvider>
   );
 }
 

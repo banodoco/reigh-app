@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
-import { Paintbrush, Pencil, Type, XCircle, Layers, Move, Wand2, Plus, ArrowUp } from 'lucide-react';
+import { XCircle, Layers, Plus } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { GenerationRow } from '@/types/shots';
 import type { SourceVariantData } from '../hooks/useSourceGeneration';
@@ -18,11 +18,9 @@ import { EditPanelLayout } from './EditPanelLayout';
 import { ImageUpscaleForm } from './ImageUpscaleForm';
 import { ModeSelector } from './ModeSelector';
 import { RepositionButtons, Img2ImgControls, GenerateButton } from './editModes';
-import { useLightboxCoreSafe, useLightboxVariantsSafe, type LightboxCoreState, type LightboxVariantState } from '../contexts/LightboxStateContext';
-import { useImageEditCanvasSafe } from '../contexts/ImageEditCanvasContext';
-import { useImageEditFormSafe } from '../contexts/ImageEditFormContext';
-import { useImageEditStatusSafe } from '../contexts/ImageEditStatusContext';
+import type { LightboxCoreState, LightboxVariantState } from '../contexts/LightboxStateContext';
 import type { ImageEditState } from '../contexts/ImageEditContext';
+import { useEditModePanelState } from '../hooks/useEditModePanelState';
 
 interface EditModePanelProps {
   /** Layout variant */
@@ -107,6 +105,8 @@ interface EditModePanelProps {
  * variantsState) override context values when provided. This allows
  * the component to work both within ImageLightbox (using context) and standalone
  * (using props, e.g., in InlineEditView).
+ *
+ * Logic (state resolution, side effects, mode config) lives in useEditModePanelState.
  */
 // Default prompt for reposition mode - shown when user hasn't entered a custom prompt
 const REPOSITION_DEFAULT_PROMPT = 'match existing content';
@@ -141,34 +141,23 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   imageEditState,
   variantsState,
 }) => {
-  const isMobile = variant === 'mobile';
+  // All state resolution, side effects, mode config, and responsive styles
+  const state = useEditModePanelState({
+    variant,
+    currentMediaId,
+    isCloudMode,
+    handleUpscale,
+    coreState,
+    imageEditState,
+    variantsState,
+  });
 
-  // ========================================
-  // STATE: Props-first with context fallback
-  // When state props are provided, use them directly.
-  // Otherwise, read from context (for use within MediaLightbox).
-  // ========================================
-  const contextCore = useLightboxCoreSafe();
-  const contextCanvas = useImageEditCanvasSafe();
-  const contextForm = useImageEditFormSafe();
-  const contextStatus = useImageEditStatusSafe();
-  const contextVariants = useLightboxVariantsSafe();
-
-  // Core state
-  const { onClose } = coreState ?? contextCore;
-
-  // Canvas state (mode, brush, reposition)
   const {
+    isMobile,
+    onClose,
     editMode,
-    setEditMode,
-    setIsInpaintMode,
-    brushStrokes,
     handleExitMagicEditMode,
-    hasTransformChanges,
-  } = imageEditState ?? contextCanvas;
-
-  // Form state (prompts, LoRA, model, settings)
-  const {
+    // Form
     inpaintPrompt,
     setInpaintPrompt,
     inpaintNumGenerations,
@@ -186,10 +175,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     setEnablePromptExpansion,
     qwenEditModel,
     setQwenEditModel,
-  } = imageEditState ?? contextForm;
-
-  // Generation status
-  const {
+    // Status
     isGeneratingReposition,
     repositionGenerateSuccess,
     isSavingAsVariant,
@@ -200,63 +186,34 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     magicEditTasksCreated,
     isGeneratingImg2Img,
     img2imgGenerateSuccess,
-  } = imageEditState ?? contextStatus;
-
-  // Variants state
-  const {
+    // Variants
     variants,
-    activeVariant,
-    handleVariantSelect: onVariantSelect,
-    handleMakePrimary: onMakePrimary,
+    activeVariantId,
+    onVariantSelect,
+    onMakePrimary,
     isLoadingVariants,
-    handlePromoteToGeneration: onPromoteToGeneration,
+    onPromoteToGeneration,
     isPromoting,
-    handleDeleteVariant: onDeleteVariant,
+    onDeleteVariant,
     onLoadVariantSettings,
-  } = variantsState ?? contextVariants;
-
-  const activeVariantId = activeVariant?.id || null;
-
-  // Track previous edit mode to detect changes
-  const prevEditModeRef = useRef<'text' | 'inpaint' | 'annotate'>(editMode);
-
-  // Track if user has interacted with the prompt field (to prevent default from reappearing on clear)
-  const [hasUserEditedPrompt, setHasUserEditedPrompt] = useState(false);
-
-  // Reset the flag when media changes
-  const prevMediaIdRef = useRef(currentMediaId);
-  useEffect(() => {
-    if (currentMediaId !== prevMediaIdRef.current) {
-      setHasUserEditedPrompt(false);
-      prevMediaIdRef.current = currentMediaId;
-    }
-  }, [currentMediaId]);
-
-  // Auto-reset LoRA mode to "none" when switching to inpaint or annotate
-  useEffect(() => {
-    const prevMode = prevEditModeRef.current;
-
-    // If switching TO inpaint or annotate mode (from any other mode), reset LoRA to none
-    if (prevMode !== editMode && (editMode === 'inpaint' || editMode === 'annotate')) {
-      setLoraMode('none');
-    }
-
-    prevEditModeRef.current = editMode;
-  }, [editMode, setLoraMode]);
-
-  // Handle clearing LoRA mode
-  const handleClearLora = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setLoraMode('none');
-  };
-
-  // Responsive styles
-  const labelSize = isMobile ? 'text-[10px] uppercase tracking-wide text-muted-foreground' : 'text-sm';
-  const textareaMinHeight = isMobile ? 'min-h-[50px]' : 'min-h-[100px]';
-  const textareaRows = isMobile ? 2 : 4;
-  const textareaPadding = isMobile ? 'px-2 py-1.5' : 'px-3 py-2';
-  const textareaTextSize = isMobile ? 'text-base' : 'text-sm'; // 16px on mobile prevents iOS zoom
-  const generationsSpacing = isMobile ? 'space-y-0.5' : 'space-y-2';
+    // Local state
+    hasUserEditedPrompt,
+    setHasUserEditedPrompt,
+    // Handlers
+    handleClearLora,
+    // Canvas
+    brushStrokes,
+    hasTransformChanges,
+    // Mode selector
+    modeSelectorItems,
+    // Responsive styles
+    labelSize,
+    textareaMinHeight,
+    textareaRows,
+    textareaPadding,
+    textareaTextSize,
+    generationsSpacing,
+  } = state;
 
   // Section label component for mobile
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
@@ -266,47 +223,6 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
       </div>
     ) : null
   );
-
-  // Mode selector items for image editing
-  const modeSelectorItems = [
-    {
-      id: 'text',
-      label: 'Text',
-      icon: <Type />,
-      onClick: () => { setIsInpaintMode(true); setEditMode('text'); },
-    },
-    {
-      id: 'inpaint',
-      label: 'Paint',
-      icon: <Paintbrush />,
-      onClick: () => { setIsInpaintMode(true); setEditMode('inpaint'); },
-    },
-    {
-      id: 'annotate',
-      label: 'Annotate',
-      icon: <Pencil />,
-      onClick: () => { setIsInpaintMode(true); setEditMode('annotate'); },
-    },
-    {
-      id: 'reposition',
-      label: 'Move',
-      icon: <Move />,
-      onClick: () => { setIsInpaintMode(true); setEditMode('reposition'); },
-    },
-    {
-      id: 'img2img',
-      label: 'Img2Img',
-      icon: <Wand2 />,
-      onClick: () => { setIsInpaintMode(true); setEditMode('img2img'); },
-    },
-    // Enhance mode (upscale) - only shown when cloud mode is enabled
-    ...(isCloudMode && handleUpscale ? [{
-      id: 'upscale',
-      label: 'Enhance',
-      icon: <ArrowUp />,
-      onClick: () => { setIsInpaintMode(false); setEditMode('upscale'); },
-    }] : []),
-  ];
 
   const modeSelector = (
     <ModeSelector
