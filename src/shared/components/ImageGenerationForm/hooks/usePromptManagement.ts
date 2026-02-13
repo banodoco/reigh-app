@@ -50,7 +50,7 @@ interface UsePromptManagementProps {
   // Prompt ID generation
   generatePromptId: () => string;
   // Ref for prompt ID counter (shared with generatePromptId, used for dedup)
-  promptIdCounter?: React.MutableRefObject<number>;
+  promptIdCounter: React.MutableRefObject<number>;
 }
 
 interface UsePromptManagementReturn {
@@ -398,8 +398,6 @@ export function usePromptManagement(props: UsePromptManagementProps): UsePromptM
   // Ensure the `promptIdCounter` is always ahead of any existing numeric IDs.
   // This prevents duplicate IDs which caused multiple prompts to update together.
   useEffect(() => {
-    if (!promptIdCounter) return;
-
     let nextId = prompts.reduce((max, p) => {
       const match = /^prompt-(\d+)$/.exec(p.id || "");
       if (match) {
