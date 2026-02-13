@@ -412,7 +412,7 @@ serve(async (req) => {
   const callerId = auth.userId;
 
   try {
-    // SAFETY CHECK: Prevent overwriting Complete tasks with terminal statuses
+    // Fetch current task status to validate transition
     const { data: currentTask, error: currentTaskError } = await supabaseAdmin
       .from("tasks")
       .select("status")
@@ -425,42 +425,41 @@ serve(async (req) => {
       return new Response(`Failed to check current task status: ${currentTaskError.message}`, { status: 500 });
     }
 
-    // Don't overwrite Complete tasks with terminal statuses
-    if (currentTask?.status === "Complete" && (status === "Failed" || status === "Cancelled")) {
-      logger.warn("Refusing to update completed task to a terminal status", { 
-        task_id, 
-        current_status: currentTask.status 
-      });
-      await logger.flush();
-      return new Response(JSON.stringify({
-        success: false,
-        task_id: task_id,
-        current_status: currentTask.status,
-        requested_status: status,
-        message: "Cannot update a completed task to Failed/Cancelled"
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
+    // --- Status transition validation ---
+    // Valid transitions:
+    //   Queued      → In Progress, Failed, Cancelled
+    //   In Progress → Complete, Failed, Cancelled, Queued (requeue via clear_worker)
+    //   Complete    → (terminal — no transitions allowed)
+    //   Failed      → (terminal — retries create NEW tasks)
+    //   Cancelled   → (terminal — no transitions allowed)
+    const validTransitions: Record<string, string[]> = {
+      "Queued":      ["In Progress", "Failed", "Cancelled"],
+      "In Progress": ["Complete", "Failed", "Cancelled", "Queued"],
+      "Complete":    [],
+      "Failed":      [],
+      "Cancelled":   [],
+    };
 
-    // Don't overwrite Cancelled tasks - once cancelled, status should not change
-    // This prevents workers from "uncancelling" tasks by continuing to update status
-    if (currentTask?.status === "Cancelled") {
-      logger.warn("Refusing to update cancelled task", { 
-        task_id, 
-        current_status: currentTask.status,
-        requested_status: status
+    const currentStatus = currentTask?.status as string;
+    const allowedNextStatuses = validTransitions[currentStatus];
+
+    if (allowedNextStatuses && !allowedNextStatuses.includes(status)) {
+      logger.warn("Invalid status transition", {
+        task_id,
+        current_status: currentStatus,
+        requested_status: status,
+        allowed_transitions: allowedNextStatuses
       });
       await logger.flush();
       return new Response(JSON.stringify({
         success: false,
         task_id: task_id,
-        current_status: currentTask.status,
+        current_status: currentStatus,
         requested_status: status,
-        message: "Cannot update cancelled task"
+        allowed_transitions: allowedNextStatuses,
+        message: `Invalid status transition: ${currentStatus} → ${status}`
       }), {
-        status: 400,
+        status: 409,
         headers: { "Content-Type": "application/json" }
       });
     }

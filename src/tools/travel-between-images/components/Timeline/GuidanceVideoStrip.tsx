@@ -6,7 +6,7 @@ import { TimelineResizeHandle } from './TimelineResizeHandle';
 import { Button } from '@/shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { X } from 'lucide-react';
-import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
+import { useIsTablet } from '@/shared/hooks/use-mobile';
 import { useTemporaryVisibility } from '../../hooks/useTemporaryVisibility';
 import { useVideoMetadata } from '../../hooks/useVideoMetadata';
 import { useVideoFrameExtraction } from '@/shared/hooks/useVideoFrameExtraction';
@@ -109,7 +109,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
   const [currentVideoFrame, setCurrentVideoFrame] = useState(0);
 
   // Device detection and active state
-  const { isTablet } = useDeviceDetection();
+  const isTablet = useIsTablet();
   const [isStripActive, setIsStripActive] = useState(false);
 
   // Temporary visibility for tap frame preview

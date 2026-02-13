@@ -108,67 +108,41 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [isLoading, paneLocks, isSmallMobile, isTablet]);
 
 
-  // Individual setters for backward compatibility
-  // On tablets, locking one pane unlocks all others (only one lock allowed at a time)
-  const setIsGenerationsPaneLocked = useCallback((isLocked: boolean) => {
-    setLocks(prev => {
-      if (prev.gens === isLocked) return prev;
-      
-      // On mobile/tablets, unlock other panes when locking this one (only one pane can be locked at a time)
-      const newLocks = (isMobile || isTablet) && isLocked
-        ? { shots: false, tasks: false, gens: isLocked }
-        : { ...prev, gens: isLocked };
-      
-      // Save to database (desktop and tablet only, not small phones)
-      if (!isSmallMobile) {
-        savePaneLocks((isMobile || isTablet) && isLocked ? newLocks : { gens: isLocked });
+  // Factory for pane lock setters — each pane follows the same logic:
+  // 1. On mobile/tablet + locking: unlock all OTHER panes (exclusive locking)
+  // 2. On small phone: skip persistence to DB
+  // 3. On desktop: standard toggle
+  const createPaneLockSetter = useCallback(
+    (lockKey: 'gens' | 'shots' | 'tasks') => (isLocked: boolean) => {
+      setLocks(prev => {
+        if (prev[lockKey] === isLocked) return prev;
+
+        // On mobile/tablets, unlock other panes when locking this one (only one pane can be locked at a time)
+        const exclusiveLock = (isMobile || isTablet) && isLocked;
+        const newLocks = exclusiveLock
+          ? { shots: false, tasks: false, gens: false, [lockKey]: isLocked }
+          : { ...prev, [lockKey]: isLocked };
+
+        // Save to database (desktop and tablet only, not small phones)
+        if (!isSmallMobile) {
+          savePaneLocks(exclusiveLock ? newLocks : { [lockKey]: isLocked });
+        }
+
+        return newLocks;
+      });
+
+      // IMPORTANT: Sync isTasksPaneOpen with isTasksPaneLocked
+      // This ensures lightboxes correctly account for locked pane state
+      if (lockKey === 'tasks' && isLocked) {
+        setIsTasksPaneOpenState(true);
       }
-      
-      return newLocks;
-    });
-  }, [savePaneLocks, isSmallMobile, isMobile, isTablet]);
+    },
+    [savePaneLocks, isSmallMobile, isMobile, isTablet]
+  );
 
-  const setIsShotsPaneLocked = useCallback((isLocked: boolean) => {
-    setLocks(prev => {
-      if (prev.shots === isLocked) return prev;
-      
-      // On mobile/tablets, unlock other panes when locking this one (only one pane can be locked at a time)
-      const newLocks = (isMobile || isTablet) && isLocked
-        ? { shots: isLocked, tasks: false, gens: false }
-        : { ...prev, shots: isLocked };
-      
-      // Save to database (desktop and tablet only, not small phones)
-      if (!isSmallMobile) {
-        savePaneLocks((isMobile || isTablet) && isLocked ? newLocks : { shots: isLocked });
-      }
-      
-      return newLocks;
-    });
-  }, [savePaneLocks, isSmallMobile, isMobile, isTablet]);
-
-  const setIsTasksPaneLocked = useCallback((isLocked: boolean) => {
-    setLocks(prev => {
-      if (prev.tasks === isLocked) return prev;
-
-      // On mobile/tablets, unlock other panes when locking this one (only one pane can be locked at a time)
-      const newLocks = (isMobile || isTablet) && isLocked
-        ? { shots: false, tasks: isLocked, gens: false }
-        : { ...prev, tasks: isLocked };
-
-      // Save to database (desktop and tablet only, not small phones)
-      if (!isSmallMobile) {
-        savePaneLocks((isMobile || isTablet) && isLocked ? newLocks : { tasks: isLocked });
-      }
-
-      return newLocks;
-    });
-
-    // IMPORTANT: Sync isTasksPaneOpen with isTasksPaneLocked
-    // This ensures lightboxes correctly account for locked pane state
-    if (isLocked) {
-      setIsTasksPaneOpenState(true);
-    }
-  }, [savePaneLocks, isSmallMobile, isMobile, isTablet]);
+  const setIsGenerationsPaneLocked = useMemo(() => createPaneLockSetter('gens'), [createPaneLockSetter]);
+  const setIsShotsPaneLocked = useMemo(() => createPaneLockSetter('shots'), [createPaneLockSetter]);
+  const setIsTasksPaneLocked = useMemo(() => createPaneLockSetter('tasks'), [createPaneLockSetter]);
 
   // Open state setters
   const setIsGenerationsPaneOpen = useCallback((isOpen: boolean) => {

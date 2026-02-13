@@ -11,8 +11,7 @@ import { ProjectSelectorModal } from '@/shared/components/ProjectSelectorModal';
 import BatchSettingsForm from './BatchSettingsForm';
 import { MotionControl } from './MotionControl';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
+import { useIsMobile, useDeviceInfo } from '@/shared/hooks/use-mobile';
 import ShotImagesEditor from './ShotImagesEditor';
 import { VideoTravelSettings } from '../settings';
 import { GenerationRow } from '@/types/shots';
@@ -58,7 +57,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   const [copied, setCopied] = useState(false);
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const isMobile = useIsMobile();
-  const { mobileColumns } = useDeviceDetection();
+  const { mobileColumns } = useDeviceInfo();
 
   // Data comes directly from RPC - same format as the hooks
   const { generation, images, settings } = shareData;

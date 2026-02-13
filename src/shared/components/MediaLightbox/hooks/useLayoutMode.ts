@@ -1,4 +1,4 @@
-import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
+import { useDeviceInfo } from '@/shared/hooks/use-mobile';
 
 interface UseLayoutModeParams {
   isMobile: boolean;
@@ -29,7 +29,7 @@ export const useLayoutMode = ({
   isMagicEditMode
 }: UseLayoutModeParams): UseLayoutModeReturn => {
   // Use shared device detection hook for all device/orientation detection
-  const { isTabletOrLarger, isPortraitMode: isPortrait, isTouchDevice: isTouchLikeDevice } = useDeviceDetection();
+  const { isTabletOrLarger, isPortraitMode: isPortrait, isTouchDevice: isTouchLikeDevice } = useDeviceInfo();
 
   // Unified special mode check - both inpaint and magic edit use the same layout
   const isUnifiedEditMode = isInpaintMode || isMagicEditMode;

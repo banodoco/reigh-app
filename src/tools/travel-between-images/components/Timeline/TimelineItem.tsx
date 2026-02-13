@@ -9,7 +9,7 @@ import { framesToSeconds } from "./utils/time-utils";
 import { TIMELINE_PADDING_OFFSET } from "./constants";
 import { VariantBadge } from "@/shared/components/VariantBadge";
 import { useMarkVariantViewed } from "@/shared/hooks/useMarkVariantViewed";
-import { useDeviceDetection } from "@/shared/hooks/useDeviceDetection";
+import { useIsTouchDevice } from "@/shared/hooks/use-mobile";
 import { getAspectRatioStyle as getProjectAspectRatioStyle } from "@/shared/components/ShotImageManager/utils/image-utils";
 
 // Props for individual timeline items
@@ -87,7 +87,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   const { markAllViewed } = useMarkVariantViewed();
 
   // Device detection for touch-specific UI
-  const { isTouchDevice } = useDeviceDetection();
+  const isTouchDevice = useIsTouchDevice();
 
   // Callback to mark all variants for this generation as viewed
   const handleMarkAllVariantsViewed = useCallback(() => {

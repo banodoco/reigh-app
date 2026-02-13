@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useCallback } from "react";
 import { useUpdateShotImageOrder, useAddImageToShotWithoutPosition } from "@/shared/hooks/useShots";
 import { useShotCreation } from "@/shared/hooks/useShotCreation";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
-import { useDeviceDetection } from "@/shared/hooks/useDeviceDetection";
+import { useIsMobile, useDeviceInfo } from "@/shared/hooks/use-mobile";
 import { Shot } from '@/types/shots';
 import { FinalVideoSection } from "../FinalVideoSection";
 import { usePanes } from '@/shared/contexts/PanesContext';
@@ -362,7 +361,7 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
   const isMobile = useIsMobile();
 
   // Device detection (extracted to shared hook)
-  const { isPhone, mobileColumns } = useDeviceDetection();
+  const { isPhone, mobileColumns } = useDeviceInfo();
 
   // Adjust columns based on aspect ratio - portrait images are narrower so we can fit more
   const aspectAdjustedColumns = useMemo(() => {

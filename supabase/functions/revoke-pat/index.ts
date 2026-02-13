@@ -1,11 +1,10 @@
 /* eslint-disable */
-// @ts-nocheck
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Helper for standard JSON responses with CORS headers
-function jsonResponse(body: any, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -73,8 +72,9 @@ serve(async (req) => {
     }
 
     return jsonResponse({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in revoke-pat function:', error);
-    return jsonResponse({ error: error.message }, 500);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return jsonResponse({ error: message }, 500);
   }
 }); 

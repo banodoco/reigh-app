@@ -1,12 +1,11 @@
 /* eslint-disable */
-// @ts-nocheck
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // Helper for standard JSON responses with CORS headers
-function jsonResponse(body: any, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -95,8 +94,9 @@ serve(async (req) => {
       token: apiToken,
     });
 
-  } catch (error) {
-    console.error('Error in generate-pat function:', error.message);
-    return jsonResponse({ error: error.message }, 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in generate-pat function:', message);
+    return jsonResponse({ error: message }, 500);
   }
 }); 

@@ -1,12 +1,11 @@
 /* eslint-disable */
-// @ts-nocheck
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { authenticateRequest } from "../_shared/auth.ts";
 
 // Helper for standard JSON responses with CORS headers
-function jsonResponse(body: any, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -47,10 +46,10 @@ serve(async (req) => {
   }
 
   // Parse body
-  let body: any;
+  let body: { projectId?: string; status?: string[] };
   try {
     body = await req.json();
-  } catch (err) {
+  } catch (_err: unknown) {
     return jsonResponse({ error: "Invalid JSON payload" }, 400);
   }
 
@@ -98,8 +97,9 @@ serve(async (req) => {
     }
 
     return jsonResponse(tasks || []);
-  } catch (err: any) {
-    console.error("[TASKS-LIST] Unexpected error:", err?.message);
-    return jsonResponse({ error: "Internal server error", details: err?.message }, 500);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error("[TASKS-LIST] Unexpected error:", message);
+    return jsonResponse({ error: "Internal server error", details: message }, 500);
   }
 }); 

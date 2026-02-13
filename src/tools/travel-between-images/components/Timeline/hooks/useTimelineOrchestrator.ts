@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useDeviceDetection } from '@/shared/hooks/useDeviceDetection';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { getPairInfo, getTimelineDimensions, calculateNewVideoPlacement, TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 import { useZoom } from './useZoom';
@@ -176,7 +175,7 @@ export function useTimelineOrchestrator({
 
   // Device detection
   const isMobile = useIsMobile();
-  const { isTablet } = useDeviceDetection();
+  const isTablet = useIsTablet();
   const enableTapToMove = isTablet && !readOnly;
   const prefetchTaskData = usePrefetchTaskData();
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Loader2, XCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
@@ -6,67 +6,87 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
+/**
+ * State machine for payment verification:
+ *
+ *   loading → polling: immediately on mount, start credit poll + minimum display timer
+ *   polling → verified: after 1.5s minimum display (credits poll continues in background)
+ *   polling → timed_out: after 30s, stop polling and show success anyway
+ *   verified → (done): polling stopped, user navigates away manually
+ *   timed_out → (done): polling stopped, user navigates away manually
+ */
+type PaymentState = 'loading' | 'polling' | 'verified' | 'timed_out';
+
+const MIN_LOADING_DISPLAY_MS = 1500;
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_DURATION_MS = 30000;
+
 const PaymentSuccessPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [verificationStatus, setVerificationStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [state, setState] = useState<PaymentState>('loading');
   const [sessionDetails, setSessionDetails] = useState<{
     amount?: string;
     sessionId?: string;
   } | null>(null);
 
   const sessionId = searchParams.get('session_id');
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    if (!sessionId) {
-      setVerificationStatus('error');
-      return;
+  const refreshCredits = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.credits.balance });
+    queryClient.invalidateQueries({ queryKey: queryKeys.credits.ledger });
+  }, [queryClient]);
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
+  }, []);
 
-    // Set a timeout to automatically redirect if verification takes too long
-    const timeoutId = setTimeout(() => {
-      if (verificationStatus === 'loading') {
-        setVerificationStatus('success');
-      }
-    }, 5000);
-
-    // Invalidate credits queries to trigger a refetch
-    // This will update the user's balance once the webhook processes
-    const refreshCredits = () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.balance });
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.ledger });
-    };
-
-    // Initial refresh
-    refreshCredits();
-
-    // Set up polling to check for credit updates
-    const pollInterval = setInterval(refreshCredits, 2000);
-
-    // Clean up after 30 seconds
-    const cleanupTimeout = setTimeout(() => {
-      clearInterval(pollInterval);
-      clearTimeout(timeoutId);
-      setVerificationStatus('success');
-    }, 30000);
+  // Main state machine effect — runs once on mount (sessionId is from URL, stable)
+  useEffect(() => {
+    if (!sessionId) return;
 
     setSessionDetails({
       sessionId,
       amount: searchParams.get('amount') || undefined,
     });
 
-    // Mark as success after a short delay to show loading state
-    setTimeout(() => {
-      setVerificationStatus('success');
-    }, 1500);
+    // Transition: loading → polling
+    setState('polling');
+
+    // Start credit polling immediately
+    refreshCredits();
+    pollIntervalRef.current = setInterval(refreshCredits, POLL_INTERVAL_MS);
+
+    // After minimum display time, transition polling → verified
+    const displayTimer = setTimeout(() => {
+      setState((prev) => (prev === 'polling' ? 'verified' : prev));
+    }, MIN_LOADING_DISPLAY_MS);
+
+    // Hard timeout: stop polling after 30s, force timed_out if still polling
+    const maxTimer = setTimeout(() => {
+      stopPolling();
+      setState((prev) => (prev === 'polling' ? 'timed_out' : prev));
+    }, MAX_POLL_DURATION_MS);
 
     return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(cleanupTimeout);
-      clearInterval(pollInterval);
+      clearTimeout(displayTimer);
+      clearTimeout(maxTimer);
+      stopPolling();
     };
-  }, [sessionId, queryClient, searchParams, verificationStatus]);
+  }, [sessionId, searchParams, refreshCredits, stopPolling]);
+
+  // Stop polling once verified (no need to keep going after success is shown)
+  // This is separate so it reacts to state changes without re-running the main effect
+  useEffect(() => {
+    if (state === 'verified' || state === 'timed_out') {
+      stopPolling();
+    }
+  }, [state, stopPolling]);
 
   const handleContinue = () => {
     navigate('/tools');
@@ -76,7 +96,8 @@ const PaymentSuccessPage: React.FC = () => {
     navigate('/tools', { state: { openSettings: true, creditsTab: 'history' } });
   };
 
-  if (!sessionId || verificationStatus === 'error') {
+  // No session ID — show error state
+  if (!sessionId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wes-cream via-white to-wes-mint/10">
         <Card className="w-full max-w-md mx-4">
@@ -109,7 +130,8 @@ const PaymentSuccessPage: React.FC = () => {
     );
   }
 
-  if (verificationStatus === 'loading') {
+  // loading / polling — show spinner while we wait for minimum display time
+  if (state === 'loading' || state === 'polling') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wes-cream via-white to-wes-mint/10">
         <Card className="w-full max-w-md mx-4">

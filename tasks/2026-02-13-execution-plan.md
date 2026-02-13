@@ -187,3 +187,17 @@ Each agent gets:
 **Agent F (LoRA types + hires fix):** Good extraction, but **incomplete coverage**. Created `FalLoraConfig` and `ComfyLoraConfig` but left 10+ inline `{ path: string; strength: number }` occurrences in task creation files. **Fixed post-wave:** Added `PathLoraConfig` to `src/shared/types/lora.ts` and migrated all task creation files (`imageGeneration.ts`, `joinClips.ts`, `individualTravelSegment.ts`, `travelBetweenImages/types.ts`) plus `vaceDefaults.ts`. Remaining UI/hook files use extended shapes (`{ path, strength, id, name }`) — left alone as they need a different type.
 
 **Sense check:** No over-engineering detected. All changes reduce code or increase type safety. `tsc --noEmit` passes clean.
+
+### Wave 2 — Evaluation
+
+**Agent I (Device detection consolidation):** Clean. Added `useIsPhone()`, `useIsTouchDevice()`, `useDeviceInfo()`, `isMobileUA()` to `use-mobile.tsx`. Migrated all 6 consumers of `useDeviceDetection` to use new hooks. Deleted `useDeviceDetection.ts`. The composite `useDeviceInfo()` returns a clean object type. No over-engineering — each individual hook is 5-10 lines.
+
+**Agent J (PanesContext lock factory):** Clean. `createPaneLockSetter` factory replaces 3 identical 20-line functions with one ~25-line factory + 3 `useMemo` derivations. Tasks-specific side effect preserved via `lockKey === 'tasks'` guard. External API unchanged. Net -25 lines.
+
+**Agent K (PaymentSuccessPage state machine):** Good refactor. 4 competing timeouts → explicit state machine with `PaymentState` type and named constants. Functional state updates prevent race conditions. The state machine is simple and documented with a comment at top of file. Auto-redirect was removed in favor of explicit "Return to Tool" button — this is an improvement (auto-redirect after payment is jarring). No over-engineering.
+
+**Agent L (@ts-nocheck removal):** Completed 5 of 7 targeted functions (ai-voice-prompt, broadcast-realtime, generate-pat, revoke-pat, tasks-list) before hitting rate limit. Remaining: ai-prompt, stripe-webhook (the two largest/most complex). Changes are minimal — just type annotations and `error: unknown` catches. Deferred items will be addressed in Wave 3 alongside other ai-prompt work.
+
+**Agent M (Task status transition guards):** Clean. Replaced ad-hoc "don't overwrite Complete" and "don't overwrite Cancelled" guards with a proper `validTransitions` lookup table. Returns 409 Conflict with the allowed transitions in the response. `In Progress → Queued` is allowed (requeue via clear_worker). No new files or abstractions.
+
+**Sense check:** No over-engineering. All changes are appropriate in scope. `tsc --noEmit` passes clean.
