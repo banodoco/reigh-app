@@ -24,7 +24,7 @@ import {
   useLightboxVariantsSafe,
   useLightboxNavigationSafe,
 } from '../../contexts/LightboxStateContext';
-import { useImageEditSafe } from '../../contexts/ImageEditContext';
+import { useImageEditCanvasSafe } from '../../contexts/ImageEditCanvasContext';
 import { useVideoEditSafe } from '../../contexts/VideoEditContext';
 
 // Sub-components
@@ -56,7 +56,7 @@ export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
   const mediaState = useLightboxMediaSafe();
   const variantsState = useLightboxVariantsSafe();
   const navigation = useLightboxNavigationSafe();
-  const imageEdit = useImageEditSafe();
+  const imageEdit = useImageEditCanvasSafe();
   const videoEdit = useVideoEditSafe();
 
   const { onClose, readOnly, isMobile, actualGenerationId, selectedProjectId } = core;

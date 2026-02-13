@@ -440,14 +440,15 @@ const JoinClipsPage: React.FC = () => {
                   isDeleting={deleteGenerationMutation.isPending ? deleteGenerationMutation.variables as string : null}
                   currentToolType={TOOL_IDS.JOIN_CLIPS}
                   defaultFilters={{ mediaType: 'video', toolTypeFilter: true, shotFilter: 'all' }}
-                  showShotFilter={false}
                   columnsPerRow={3}
                   itemsPerPage={isMobile ? 20 : 12}
-                  reducedSpacing={true}
-                  hidePagination={videosData.items.length <= (isMobile ? 20 : 12)}
-                  hideBottomPagination={true}
-                  hideMediaTypeFilter={true}
-                  showShare={false}
+                  config={{
+                    reducedSpacing: true,
+                    hidePagination: videosData.items.length <= (isMobile ? 20 : 12),
+                    hideBottomPagination: true,
+                    hideMediaTypeFilter: true,
+                    showShare: false,
+                  }}
                 />
               </div>
             );

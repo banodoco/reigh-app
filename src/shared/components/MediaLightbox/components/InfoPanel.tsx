@@ -22,7 +22,7 @@ import {
   useLightboxMediaSafe,
   useLightboxVariantsSafe,
 } from '../contexts/LightboxStateContext';
-import { useImageEditSafe } from '../contexts/ImageEditContext';
+import { useImageEditCanvasSafe } from '../contexts/ImageEditCanvasContext';
 import { useVideoEditSafe } from '../contexts/VideoEditContext';
 import type { GenerationRow } from '@/types/shots';
 import type { TaskDetailsData } from '../types';
@@ -82,7 +82,7 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   // ========================================
   const { onClose, readOnly } = useLightboxCoreSafe();
   const { isVideo } = useLightboxMediaSafe();
-  const { isInpaintMode, handleEnterInpaintMode, handleExitInpaintMode } = useImageEditSafe();
+  const { isInpaintMode, handleEnterInpaintMode, handleExitInpaintMode } = useImageEditCanvasSafe();
   const { isInVideoEditMode, handleEnterVideoEditMode, handleExitVideoEditMode } = useVideoEditSafe();
   const {
     variants,

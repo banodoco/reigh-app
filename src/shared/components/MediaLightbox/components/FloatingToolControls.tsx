@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/shared/lib/utils';
 import { Type, Paintbrush, Pencil, Move, Wand2 } from 'lucide-react';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
-import { useImageEditSafe } from '../contexts/ImageEditContext';
+import { useImageEditCanvasSafe } from '../contexts/ImageEditCanvasContext';
 import {
   BrushSizeSlider,
   PaintEraseToggle,
@@ -28,7 +28,7 @@ interface FloatingToolControlsProps {
 export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
   variant,
 }) => {
-  // Get edit state from context (includes reposition handlers)
+  // Get canvas/tool state from context (includes reposition handlers)
   const {
     editMode,
     setEditMode,
@@ -49,7 +49,7 @@ export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
     toggleFlipH: onRepositionFlipH,
     toggleFlipV: onRepositionFlipV,
     resetTransform: onRepositionReset,
-  } = useImageEditSafe();
+  } = useImageEditCanvasSafe();
 
   const isTablet = variant === 'tablet';
   const isMobile = useIsMobile();

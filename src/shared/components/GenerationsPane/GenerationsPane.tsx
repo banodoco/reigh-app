@@ -600,19 +600,20 @@ const GenerationsPaneComponent: React.FC = () => {
                     }}
                     offset={(page - 1) * GENERATIONS_PER_PAGE}
                     totalCount={totalCount}
-                    whiteText
                     itemsPerPage={GENERATIONS_PER_PAGE}
-                    reducedSpacing={true}
                     className="space-y-0 pb-8"
-                    hidePagination={true}
-                    hideTopFilters={true}
-                    showShare={false}
+                    config={{
+                      whiteText: true,
+                      reducedSpacing: true,
+                      hidePagination: true,
+                      hideTopFilters: true,
+                      showShare: false,
+                    }}
                     serverPage={page}
                     onServerPageChange={handleServerPageChange}
                     generationFilters={generationFilters}
                     currentViewingShotId={currentShotId || undefined}
                     onCreateShot={handleCreateShot}
-                    isLoading={isLoading}
                 />
                 </div>
             )}

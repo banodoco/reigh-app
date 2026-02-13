@@ -43,9 +43,11 @@ import type {
   MediaGalleryProps,
   ColumnsPerRow,
   GalleryFilterState,
+  GalleryConfig,
 } from './types';
-export type { GalleryFilterState };
-export { DEFAULT_GALLERY_FILTERS } from './types';
+export type { GalleryFilterState, GalleryConfig };
+export { DEFAULT_GALLERY_FILTERS, DEFAULT_GALLERY_CONFIG } from './types';
+import { DEFAULT_GALLERY_CONFIG } from './types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
@@ -80,7 +82,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     currentViewingShotId,
     offset = 0,
     totalCount,
-    whiteText = false,
     columnsPerRow = 'auto',
     itemsPerPage,
     filters,
@@ -88,35 +89,34 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     defaultFilters,
     onServerPageChange,
     serverPage,
-    showShotFilter = false,
-    showSearch = false,
     onToggleStar,
     currentToolTypeName: _currentToolTypeName,
     formAssociatedShotId,
     onSwitchToAssociatedShot,
-    reducedSpacing = false,
     className,
-    hidePagination = false,
-    hideTopFilters = false,
-    hideMediaTypeFilter = false,
     onPrefetchAdjacentPages, // Deprecated - use generationFilters instead
     enableAdjacentPagePreloading = true,
     generationFilters,
     onCreateShot,
     lastShotNameForTooltip: _lastShotNameForTooltip,
     onBackfillRequest,
-    showDelete = true,
-    showDownload = true,
-    showShare = true,
-    showEdit = false,
-    showStar = true,
-    showAddToShot = true,
-    enableSingleClick = false,
     onImageClick,
-    hideBottomPagination = false,
-    videosAsThumbnails = false,
-    hideShotNotifier = false,
+    config: configOverrides,
   } = props;
+
+  // Merge caller's config overrides with defaults
+  const config: GalleryConfig = React.useMemo(() => ({
+    ...DEFAULT_GALLERY_CONFIG,
+    ...configOverrides,
+  }), [configOverrides]);
+
+  // Destructure config for convenience (avoids config.X everywhere in JSX)
+  const {
+    showDelete, showDownload, showShare, showEdit, showStar, showAddToShot,
+    enableSingleClick, videosAsThumbnails, whiteText, reducedSpacing,
+    showShotFilter, showSearch,
+    hidePagination, hideTopFilters, hideMediaTypeFilter, hideBottomPagination, hideShotNotifier,
+  } = config;
 
   // [VideoSkeletonDebug] Mount/props summary for video gallery use
   // Optimized: only log on mount and significant changes, using ref to track

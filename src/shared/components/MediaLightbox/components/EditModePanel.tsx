@@ -19,7 +19,10 @@ import { ImageUpscaleForm } from './ImageUpscaleForm';
 import { ModeSelector } from './ModeSelector';
 import { RepositionButtons, Img2ImgControls, GenerateButton } from './editModes';
 import { useLightboxCoreSafe, useLightboxVariantsSafe, type LightboxCoreState, type LightboxVariantState } from '../contexts/LightboxStateContext';
-import { useImageEditSafe, type ImageEditState } from '../contexts/ImageEditContext';
+import { useImageEditCanvasSafe } from '../contexts/ImageEditCanvasContext';
+import { useImageEditFormSafe } from '../contexts/ImageEditFormContext';
+import { useImageEditStatusSafe } from '../contexts/ImageEditStatusContext';
+import type { ImageEditState } from '../contexts/ImageEditContext';
 
 interface EditModePanelProps {
   /** Layout variant */
@@ -146,13 +149,15 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   // Otherwise, read from context (for use within MediaLightbox).
   // ========================================
   const contextCore = useLightboxCoreSafe();
-  const contextImageEdit = useImageEditSafe();
+  const contextCanvas = useImageEditCanvasSafe();
+  const contextForm = useImageEditFormSafe();
+  const contextStatus = useImageEditStatusSafe();
   const contextVariants = useLightboxVariantsSafe();
 
   // Core state
   const { onClose } = coreState ?? contextCore;
 
-  // Image edit state (unified: mode + form + generation status)
+  // Canvas state (mode, brush, reposition)
   const {
     editMode,
     setEditMode,
@@ -160,10 +165,10 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     brushStrokes,
     handleExitMagicEditMode,
     hasTransformChanges,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
+  } = imageEditState ?? contextCanvas;
+
+  // Form state (prompts, LoRA, model, settings)
+  const {
     inpaintPrompt,
     setInpaintPrompt,
     inpaintNumGenerations,
@@ -172,10 +177,6 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     setLoraMode,
     customLoraUrl,
     setCustomLoraUrl,
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
     createAsGeneration,
     setCreateAsGeneration,
     img2imgPrompt,
@@ -183,11 +184,23 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     img2imgStrength,
     setImg2imgStrength,
     setEnablePromptExpansion,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
     qwenEditModel,
     setQwenEditModel,
-  } = imageEditState ?? contextImageEdit;
+  } = imageEditState ?? contextForm;
+
+  // Generation status
+  const {
+    isGeneratingReposition,
+    repositionGenerateSuccess,
+    isSavingAsVariant,
+    saveAsVariantSuccess,
+    isGeneratingInpaint,
+    inpaintGenerateSuccess,
+    isCreatingMagicEditTasks,
+    magicEditTasksCreated,
+    isGeneratingImg2Img,
+    img2imgGenerateSuccess,
+  } = imageEditState ?? contextStatus;
 
   // Variants state
   const {

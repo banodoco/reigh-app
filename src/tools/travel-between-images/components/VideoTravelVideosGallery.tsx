@@ -155,16 +155,16 @@ export const VideoTravelVideosGallery: React.FC<VideoTravelVideosGalleryProps> =
           // Consolidated filter props
           filters={videoFilters}
           onFiltersChange={setVideoFilters}
-          showShotFilter={true}
-          showSearch={false}
-          projectAspectRatio={projectAspectRatio}
           columnsPerRow={effectiveColumnsPerRow}
-          showShare={false}
           onDelete={deletion?.onDelete}
           isDeleting={deletion?.isDeleting}
           // Preloading props
           generationFilters={preloading?.generationFilters}
           enableAdjacentPagePreloading={preloading?.enableAdjacentPagePreloading ?? true}
+          config={{
+            showShotFilter: true,
+            showShare: false,
+          }}
         />
       </div>
     </div>

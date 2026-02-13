@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { StyledVideoPlayer } from '@/shared/components/StyledVideoPlayer';
 import { StrokeOverlay } from './StrokeOverlay';
 import { RepositionOverlay } from './RepositionOverlay';
-import { useImageEditSafe } from '../contexts/ImageEditContext';
+import { useImageEditCanvasSafe } from '../contexts/ImageEditCanvasContext';
 
 interface MediaDisplayWithCanvasProps {
   // Media info
@@ -48,7 +48,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
   debugContext = 'MediaDisplay',
   imageDimensions,
 }) => {
-  // Read edit state from ImageEditContext (safe defaults when outside provider)
+  // Read canvas/tool state from ImageEditCanvasContext (safe defaults when outside provider)
   const {
     isFlippedHorizontally, isSaving, isInpaintMode, editMode: rawEditMode,
     isAnnotateMode, brushStrokes, isEraseMode, brushSize, annotationMode,
@@ -56,7 +56,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
     repositionDragHandlers, isRepositionDragging, repositionTransform, getTransformStyle,
     setScale: onRepositionScaleChange, setRotation: onRepositionRotationChange,
     imageContainerRef,
-  } = useImageEditSafe();
+  } = useImageEditCanvasSafe();
 
   // Derive reposition values from context
   const editMode = rawEditMode ?? 'text';

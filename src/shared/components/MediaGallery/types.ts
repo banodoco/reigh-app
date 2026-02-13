@@ -136,6 +136,62 @@ export const DEFAULT_GALLERY_FILTERS: GalleryFilterState = {
   toolTypeFilter: true,
 };
 
+/**
+ * Boolean config flags for MediaGallery appearance and behavior.
+ * Group these into a single `config` prop to reduce top-level prop count.
+ * All fields are optional — defaults are applied via `DEFAULT_GALLERY_CONFIG`.
+ */
+export interface GalleryConfig {
+  // Visibility flags — which action buttons to show on gallery items
+  showDelete: boolean;
+  showDownload: boolean;
+  showShare: boolean;
+  showEdit: boolean;
+  showStar: boolean;
+  showAddToShot: boolean;
+
+  // UI mode flags
+  /** When true, single click selects (instead of opening lightbox) */
+  enableSingleClick: boolean;
+  /** When true, videos render as static thumbnails instead of hover-scrub */
+  videosAsThumbnails: boolean;
+  /** White text mode for dark backgrounds */
+  whiteText: boolean;
+  /** Reduced spacing between gallery elements */
+  reducedSpacing: boolean;
+  /** Show shot filter dropdown in header */
+  showShotFilter: boolean;
+  /** Show search input in header */
+  showSearch: boolean;
+
+  // Hide flags — which sections to suppress
+  hidePagination: boolean;
+  hideTopFilters: boolean;
+  hideMediaTypeFilter: boolean;
+  hideBottomPagination: boolean;
+  hideShotNotifier: boolean;
+}
+
+export const DEFAULT_GALLERY_CONFIG: GalleryConfig = {
+  showDelete: true,
+  showDownload: true,
+  showShare: true,
+  showEdit: false,
+  showStar: true,
+  showAddToShot: true,
+  enableSingleClick: false,
+  videosAsThumbnails: false,
+  whiteText: false,
+  reducedSpacing: false,
+  showShotFilter: false,
+  showSearch: false,
+  hidePagination: false,
+  hideTopFilters: false,
+  hideMediaTypeFilter: false,
+  hideBottomPagination: false,
+  hideShotNotifier: false,
+};
+
 export interface MediaGalleryProps {
   images: GeneratedImageWithMetadata[];
   onDelete?: (id: string) => void;
@@ -151,7 +207,6 @@ export interface MediaGalleryProps {
   currentViewingShotId?: string;
   offset?: number;
   totalCount?: number;
-  whiteText?: boolean;
   /**
    * Number of columns per row.
    * - 'auto': Calculate dynamically based on project aspect ratio (default)
@@ -167,18 +222,12 @@ export interface MediaGalleryProps {
   defaultFilters?: Partial<GalleryFilterState>;
   onServerPageChange?: (page: number, fromBottom?: boolean) => void;
   serverPage?: number;
-  showShotFilter?: boolean;
-  showSearch?: boolean;
   onToggleStar?: (id: string, starred: boolean) => void;
   currentToolTypeName?: string;
   formAssociatedShotId?: string | null;
   onSwitchToAssociatedShot?: (shotId: string) => void;
-  reducedSpacing?: boolean;
   /** Additional className to apply to the gallery wrapper (can override default spacing) */
   className?: string;
-  hidePagination?: boolean;
-  hideTopFilters?: boolean;
-  hideMediaTypeFilter?: boolean;
   /** @deprecated Use generationFilters instead - callbacks no longer needed */
   onPrefetchAdjacentPages?: (prevPage: number | null, nextPage: number | null) => void;
   enableAdjacentPagePreloading?: boolean;
@@ -187,18 +236,11 @@ export interface MediaGalleryProps {
   onCreateShot?: (shotName: string, files: File[]) => Promise<void>;
   /** Called after delete to trigger data refetch. Should invalidate queries and refetch current page. */
   onBackfillRequest?: () => Promise<void>;
-  showDelete?: boolean;
-  showDownload?: boolean;
-  showShare?: boolean;
-  showEdit?: boolean;
-  showStar?: boolean;
-  showAddToShot?: boolean;
-  enableSingleClick?: boolean;
   onImageClick?: (image: GeneratedImageWithMetadata) => void;
-  hideBottomPagination?: boolean;
-  /** When true, videos are rendered as static thumbnail images instead of HoverScrubVideo for better performance */
-  videosAsThumbnails?: boolean;
-  /** When true, hides the shot filter notifier message */
-  hideShotNotifier?: boolean;
+  /**
+   * Boolean config flags controlling gallery appearance and behavior.
+   * All fields optional — unset fields use defaults from DEFAULT_GALLERY_CONFIG.
+   */
+  config?: Partial<GalleryConfig>;
 }
 

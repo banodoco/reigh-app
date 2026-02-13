@@ -235,3 +235,26 @@ Context shape is unchanged — all consumers (`useProject()`) get the exact same
 3. **Stale comments:** Updated 3 references to deleted `useDeviceDetection` → `useDeviceInfo`.
 
 **Sense check:** The ProjectContext decomposition is the largest structural change. Reviewed for over-engineering — the hook boundaries are clean and each hook has a single responsibility. `useProjectDefaults` is a bag of side effects by design (the orchestrator pattern keeps the other hooks pure). `tsc --noEmit` passes clean.
+
+### Wave 5a — Evaluation
+
+**Agent V (ImageEditContext → 3 sub-contexts):** Clean decomposition. Original 319-line monolithic context split into:
+- `ImageEditCanvasContext.tsx` (182 lines): mode, brush, annotation, canvas, reposition, display refs. Consumers: LightboxLayout, FloatingToolControls, MediaDisplayWithCanvas, InfoPanel.
+- `ImageEditFormContext.tsx` (105 lines): prompts, strengths, LoRA, model, advanced settings. Consumer: EditModePanel only.
+- `ImageEditStatusContext.tsx` (76 lines): 10 generation loading/success booleans. Consumer: EditModePanel only.
+- `ImageEditContext.tsx` (234 lines): composed provider with `useMemo` slices. Backward-compatible `useImageEditSafe()` preserved.
+
+Split strategy was 3 contexts instead of planned 4 — correct decision since mode/brush/annotation/canvas/reposition are always consumed together by canvas components. The natural boundary is canvas vs. form vs. status. Consumers migrated to specific hooks. `tsc --noEmit` passes clean.
+
+**Pre-existing issue found:** InlineEditView renders FloatingToolControls without wrapping in ImageEditProvider. FloatingToolControls reads from context (gets defaults), and the props InlineEditView passes are silently ignored. This predates our changes — FloatingToolControls was already context-only before Wave 5a.
+
+**Agent W (SegmentSettingsForm → 3 sub-components):** Good extraction. Original 1044 lines → parent 376 lines + 3 extracted components:
+- `AdvancedSettingsSection.tsx` (396 lines): collapsible advanced panel with motion/LoRA/structure video. Owns its own `savingField` state and LoRA handlers.
+- `PromptSection.tsx` (116 lines): prompt textarea with enhanced/default badges and field controls.
+- `StructureVideoSection.tsx` (429 lines): video upload, preview, treatment selector, strength/percent sliders, DatasetBrowser modal.
+
+Total is 1334 lines (up from 1044) due to interface definitions and imports — expected overhead of decomposition. Each file has a clear single responsibility. No new contexts or abstractions — pure prop drilling at 1 level.
+
+**Agent X (MediaGallery GalleryConfig object):** Clean. 17 individual boolean props → single `config?: Partial<GalleryConfig>` prop with `DEFAULT_GALLERY_CONFIG` defaults. Migrated 8 callers across 7 files. Internal components (Grid, Header, Lightbox) still accept individual props — correct since they're internal, and a second level of config-object indirection would add complexity for no benefit. `tsc --noEmit` passes clean. Net prop count: MediaGalleryProps went from ~50 fields to ~35.
+
+**Sense check:** No over-engineering. All three decompositions are justified — each addressed a genuine monolith (>300 LOC or >40 props). The ImageEditContext split is the most impactful (re-render reduction for canvas components). SegmentSettingsForm extraction makes the code navigable. MediaGallery config object is a standard pattern. `tsc --noEmit` passes clean.

@@ -74,26 +74,28 @@ export function MediaSelectionPanel({ onSelect, mediaType, label }: MediaSelecti
                images={(generationsData as GenerationsPaginatedResponse | undefined)?.items || []}
                onImageClick={(media) => onSelect(media as GenerationRow)}
                allShots={shots || []}
-               showShotFilter={true}
-               showSearch={true}
                filters={galleryFilters}
                onFiltersChange={setGalleryFilters}
-               hideTopFilters={true}
-               hideShotNotifier={true}
                itemsPerPage={itemsPerPage}
                offset={(currentPage - 1) * itemsPerPage}
                totalCount={(generationsData as GenerationsPaginatedResponse | undefined)?.total || 0}
                onServerPageChange={setCurrentPage}
                serverPage={currentPage}
-               showDelete={false}
-               showDownload={false}
-               showShare={false}
-               showEdit={false}
-               showStar={false}
-               showAddToShot={false}
-               enableSingleClick={true}
-               hideBottomPagination={true}
-               videosAsThumbnails={mediaType === 'video'}
+               config={{
+                 showShotFilter: true,
+                 showSearch: true,
+                 hideTopFilters: true,
+                 hideShotNotifier: true,
+                 showDelete: false,
+                 showDownload: false,
+                 showShare: false,
+                 showEdit: false,
+                 showStar: false,
+                 showAddToShot: false,
+                 enableSingleClick: true,
+                 hideBottomPagination: true,
+                 videosAsThumbnails: mediaType === 'video',
+               }}
             />
          )}
       </div>

@@ -1,319 +1,233 @@
 /**
- * ImageEditContext
+ * ImageEditContext — Composed provider for all image edit state.
  *
- * Single context for all image edit state in the lightbox.
- * Only provided by ImageLightbox, not VideoLightbox.
+ * Splits state into three sub-contexts by concern:
+ *   - ImageEditCanvasContext: mode, brush, annotation, canvas, reposition, display
+ *   - ImageEditFormContext: prompts, strengths, LoRA, model, advanced settings
+ *   - ImageEditStatusContext: generation loading/success flags
  *
- * The state is composed from domain sub-interfaces:
- *   EditModeState         – which edit mode is active, entry/exit handlers
- *   BrushToolState        – inpaint brush, erase, undo/clear, panel position
- *   AnnotationToolState   – shape annotations
- *   CanvasInteractionState – stroke overlay callbacks & refs
- *   RepositionState       – image transform + interaction handlers
- *   DisplayRefsState      – container ref, flip, saving
- *   EditFormState         – prompts, strengths, LoRA, model, advanced settings
- *   GenerationStatusState – loading/success feedback for all edit modes
+ * The split reduces re-renders: canvas components don't re-render when the user
+ * types in a prompt field, and form components don't re-render on brush strokes.
  *
- * Components consume via useImageEditSafe() and destructure what they need.
+ * For backward compatibility, ImageEditState and useImageEditSafe() still exist
+ * and return the full merged state. Components should migrate to the specific
+ * sub-context hooks (useImageEditCanvasSafe, useImageEditFormSafe,
+ * useImageEditStatusSafe) for optimal performance.
  */
 
-import React, { createContext, useContext } from 'react';
-import type { BrushStroke, AnnotationMode } from '../hooks/inpainting/types';
-import type { ImageTransform } from '../hooks/useRepositionMode';
-import type { StrokeOverlayHandle } from '../components/StrokeOverlay';
-import type {
-  LoraMode,
-  QwenEditModel,
-  EditAdvancedSettings,
-} from '../hooks/editSettingsTypes';
-import { DEFAULT_ADVANCED_SETTINGS } from '../hooks/editSettingsTypes';
+import React, { useMemo } from 'react';
+import type { LoraMode } from '../hooks/editSettingsTypes';
 
+// Sub-contexts
+import {
+  ImageEditCanvasProvider,
+  useImageEditCanvasSafe,
+  type ImageEditCanvasState,
+  type ImageEditMode,
+} from './ImageEditCanvasContext';
+import {
+  ImageEditFormProvider,
+  useImageEditFormSafe,
+  type ImageEditFormState,
+} from './ImageEditFormContext';
+import {
+  ImageEditStatusProvider,
+  useImageEditStatusSafe,
+  type ImageEditStatusState,
+} from './ImageEditStatusContext';
+
+// Re-export sub-context types and hooks for direct consumption
+export type { ImageEditCanvasState, ImageEditFormState, ImageEditStatusState, ImageEditMode };
+export { useImageEditCanvasSafe, useImageEditFormSafe, useImageEditStatusSafe };
 export type { LoraMode };
 
 // ============================================================================
-// Sub-Interfaces
-// ============================================================================
-
-type ImageEditMode = 'inpaint' | 'annotate' | 'reposition' | 'img2img' | 'text' | 'upscale' | null;
-
-/** Which edit mode is active, plus entry/exit handlers */
-interface EditModeState {
-  isInpaintMode: boolean;
-  isMagicEditMode: boolean;
-  isSpecialEditMode: boolean;
-  editMode: ImageEditMode;
-  setIsInpaintMode: (value: boolean) => void;
-  setIsMagicEditMode: (value: boolean) => void;
-  setEditMode: (mode: ImageEditMode) => void;
-  handleEnterInpaintMode: () => void;
-  handleExitInpaintMode: () => void;
-  handleEnterMagicEditMode: () => void;
-  handleExitMagicEditMode: () => void;
-}
-
-/** Inpaint brush tool: size, erase mode, strokes, undo/clear, panel position */
-interface BrushToolState {
-  brushSize: number;
-  setBrushSize: (size: number) => void;
-  isEraseMode: boolean;
-  setIsEraseMode: (value: boolean) => void;
-  brushStrokes: BrushStroke[];
-  handleUndo: () => void;
-  handleClearMask: () => void;
-  inpaintPanelPosition: 'left' | 'right';
-  setInpaintPanelPosition: (pos: 'left' | 'right') => void;
-}
-
-/** Shape annotation tool */
-interface AnnotationToolState {
-  isAnnotateMode: boolean;
-  setIsAnnotateMode: (value: boolean | ((prev: boolean) => boolean)) => void;
-  annotationMode: AnnotationMode;
-  setAnnotationMode: (mode: AnnotationMode | ((prev: AnnotationMode) => AnnotationMode)) => void;
-  selectedShapeId: string | null;
-}
-
-/** Canvas overlay callbacks and refs (stroke/annotation interaction) */
-interface CanvasInteractionState {
-  onStrokeComplete: (stroke: BrushStroke) => void;
-  onStrokesChange: (strokes: BrushStroke[]) => void;
-  onSelectionChange: (shapeId: string | null) => void;
-  onTextModeHint: () => void;
-  strokeOverlayRef: React.RefObject<StrokeOverlayHandle>;
-  getDeleteButtonPosition: () => { x: number; y: number } | null;
-  handleToggleFreeForm: () => void;
-  handleDeleteSelected: () => void;
-}
-
-/** Image reposition/transform state + interaction handlers */
-interface RepositionState {
-  repositionTransform: ImageTransform | null;
-  hasTransformChanges: boolean;
-  isRepositionDragging: boolean;
-  repositionDragHandlers: {
-    onPointerDown: (e: React.PointerEvent) => void;
-    onPointerMove: (e: React.PointerEvent) => void;
-    onPointerUp: (e: React.PointerEvent) => void;
-    onPointerCancel: (e: React.PointerEvent) => void;
-    onWheel: (e: React.WheelEvent) => void;
-  } | null;
-  getTransformStyle: () => string;
-  setScale: (value: number) => void;
-  setRotation: (value: number) => void;
-  toggleFlipH: () => void;
-  toggleFlipV: () => void;
-  resetTransform: () => void;
-}
-
-/** Display refs and visual state */
-interface DisplayRefsState {
-  imageContainerRef: React.RefObject<HTMLDivElement>;
-  isFlippedHorizontally: boolean;
-  isSaving: boolean;
-}
-
-/** Prompts, strengths, LoRA, model selection, advanced settings */
-interface EditFormState {
-  inpaintPrompt: string;
-  setInpaintPrompt: (value: string) => void;
-  inpaintNumGenerations: number;
-  setInpaintNumGenerations: (value: number) => void;
-  img2imgPrompt: string;
-  setImg2imgPrompt: (value: string) => void;
-  img2imgStrength: number;
-  setImg2imgStrength: (value: number) => void;
-  enablePromptExpansion: boolean;
-  setEnablePromptExpansion: (value: boolean) => void;
-  loraMode: LoraMode;
-  setLoraMode: (mode: LoraMode) => void;
-  customLoraUrl: string;
-  setCustomLoraUrl: (url: string) => void;
-  createAsGeneration: boolean;
-  setCreateAsGeneration: (value: boolean) => void;
-  qwenEditModel: QwenEditModel;
-  setQwenEditModel: (model: QwenEditModel) => void;
-  advancedSettings: EditAdvancedSettings;
-  setAdvancedSettings: (settings: EditAdvancedSettings) => void;
-}
-
-/** Loading/success flags for all edit modes */
-interface GenerationStatusState {
-  isGeneratingInpaint: boolean;
-  inpaintGenerateSuccess: boolean;
-  isGeneratingImg2Img: boolean;
-  img2imgGenerateSuccess: boolean;
-  isGeneratingReposition: boolean;
-  repositionGenerateSuccess: boolean;
-  isSavingAsVariant: boolean;
-  saveAsVariantSuccess: boolean;
-  isCreatingMagicEditTasks: boolean;
-  magicEditTasksCreated: boolean;
-}
-
-// ============================================================================
-// Composed Type
+// Composed Type (backward-compatible)
 // ============================================================================
 
 /**
- * Full image edit state, composed from domain sub-interfaces.
- * Consumers destructure the fields they need — the flat shape makes this natural.
+ * Full image edit state, composed from the three sub-contexts.
+ * Consumers that need fields from only one concern should use the
+ * sub-context hooks directly for better performance.
  */
 export type ImageEditState =
-  EditModeState &
-  BrushToolState &
-  AnnotationToolState &
-  CanvasInteractionState &
-  RepositionState &
-  DisplayRefsState &
-  EditFormState &
-  GenerationStatusState;
+  ImageEditCanvasState &
+  ImageEditFormState &
+  ImageEditStatusState;
 
 // ============================================================================
-// Defaults (one per sub-interface, composed into EMPTY_IMAGE_EDIT)
+// Composed Provider
 // ============================================================================
-
-const DEFAULT_MODE: EditModeState = {
-  isInpaintMode: false,
-  isMagicEditMode: false,
-  isSpecialEditMode: false,
-  editMode: null,
-  setIsInpaintMode: () => {},
-  setIsMagicEditMode: () => {},
-  setEditMode: () => {},
-  handleEnterInpaintMode: () => {},
-  handleExitInpaintMode: () => {},
-  handleEnterMagicEditMode: () => {},
-  handleExitMagicEditMode: () => {},
-};
-
-const DEFAULT_BRUSH: BrushToolState = {
-  brushSize: 20,
-  setBrushSize: () => {},
-  isEraseMode: false,
-  setIsEraseMode: () => {},
-  brushStrokes: [],
-  handleUndo: () => {},
-  handleClearMask: () => {},
-  inpaintPanelPosition: 'right',
-  setInpaintPanelPosition: () => {},
-};
-
-const DEFAULT_ANNOTATION: AnnotationToolState = {
-  isAnnotateMode: false,
-  setIsAnnotateMode: () => {},
-  annotationMode: null,
-  setAnnotationMode: () => {},
-  selectedShapeId: null,
-};
-
-const EMPTY_CANVAS_INTERACTION: CanvasInteractionState = {
-  onStrokeComplete: () => {},
-  onStrokesChange: () => {},
-  onSelectionChange: () => {},
-  onTextModeHint: () => {},
-  strokeOverlayRef: { current: null } as React.RefObject<StrokeOverlayHandle>,
-  getDeleteButtonPosition: () => null,
-  handleToggleFreeForm: () => {},
-  handleDeleteSelected: () => {},
-};
-
-const DEFAULT_REPOSITION: RepositionState = {
-  repositionTransform: null,
-  hasTransformChanges: false,
-  isRepositionDragging: false,
-  repositionDragHandlers: null,
-  getTransformStyle: () => '',
-  setScale: () => {},
-  setRotation: () => {},
-  toggleFlipH: () => {},
-  toggleFlipV: () => {},
-  resetTransform: () => {},
-};
-
-const EMPTY_DISPLAY_REFS: DisplayRefsState = {
-  imageContainerRef: { current: null } as React.RefObject<HTMLDivElement>,
-  isFlippedHorizontally: false,
-  isSaving: false,
-};
-
-const DEFAULT_FORM: EditFormState = {
-  inpaintPrompt: '',
-  setInpaintPrompt: () => {},
-  inpaintNumGenerations: 1,
-  setInpaintNumGenerations: () => {},
-  img2imgPrompt: '',
-  setImg2imgPrompt: () => {},
-  img2imgStrength: 0.6,
-  setImg2imgStrength: () => {},
-  enablePromptExpansion: false,
-  setEnablePromptExpansion: () => {},
-  loraMode: 'none',
-  setLoraMode: () => {},
-  customLoraUrl: '',
-  setCustomLoraUrl: () => {},
-  createAsGeneration: false,
-  setCreateAsGeneration: () => {},
-  qwenEditModel: 'qwen-edit-2511',
-  setQwenEditModel: () => {},
-  advancedSettings: DEFAULT_ADVANCED_SETTINGS,
-  setAdvancedSettings: () => {},
-};
-
-const DEFAULT_STATUS: GenerationStatusState = {
-  isGeneratingInpaint: false,
-  inpaintGenerateSuccess: false,
-  isGeneratingImg2Img: false,
-  img2imgGenerateSuccess: false,
-  isGeneratingReposition: false,
-  repositionGenerateSuccess: false,
-  isSavingAsVariant: false,
-  saveAsVariantSuccess: false,
-  isCreatingMagicEditTasks: false,
-  magicEditTasksCreated: false,
-};
-
-const EMPTY_IMAGE_EDIT: ImageEditState = {
-  ...DEFAULT_MODE,
-  ...DEFAULT_BRUSH,
-  ...DEFAULT_ANNOTATION,
-  ...EMPTY_CANVAS_INTERACTION,
-  ...DEFAULT_REPOSITION,
-  ...EMPTY_DISPLAY_REFS,
-  ...DEFAULT_FORM,
-  ...DEFAULT_STATUS,
-};
-
-// ============================================================================
-// Context + Provider
-// ============================================================================
-
-const ImageEditContext = createContext<ImageEditState | null>(null);
 
 interface ImageEditProviderProps {
   children: React.ReactNode;
   value: ImageEditState;
 }
 
+/**
+ * Provides all three sub-contexts from a single ImageEditState value.
+ * The value is split into sub-context slices via useMemo.
+ */
 export const ImageEditProvider: React.FC<ImageEditProviderProps> = ({
   children,
   value,
 }) => {
+  // Split the composed value into sub-context slices.
+  // Each useMemo depends only on the fields for that sub-context,
+  // so unchanged slices keep the same reference.
+
+  const canvasValue = useMemo<ImageEditCanvasState>(() => ({
+    // Edit mode
+    isInpaintMode: value.isInpaintMode,
+    isMagicEditMode: value.isMagicEditMode,
+    isSpecialEditMode: value.isSpecialEditMode,
+    editMode: value.editMode,
+    setIsInpaintMode: value.setIsInpaintMode,
+    setIsMagicEditMode: value.setIsMagicEditMode,
+    setEditMode: value.setEditMode,
+    handleEnterInpaintMode: value.handleEnterInpaintMode,
+    handleExitInpaintMode: value.handleExitInpaintMode,
+    handleEnterMagicEditMode: value.handleEnterMagicEditMode,
+    handleExitMagicEditMode: value.handleExitMagicEditMode,
+    // Brush tool
+    brushSize: value.brushSize,
+    setBrushSize: value.setBrushSize,
+    isEraseMode: value.isEraseMode,
+    setIsEraseMode: value.setIsEraseMode,
+    brushStrokes: value.brushStrokes,
+    handleUndo: value.handleUndo,
+    handleClearMask: value.handleClearMask,
+    inpaintPanelPosition: value.inpaintPanelPosition,
+    setInpaintPanelPosition: value.setInpaintPanelPosition,
+    // Annotation tool
+    isAnnotateMode: value.isAnnotateMode,
+    setIsAnnotateMode: value.setIsAnnotateMode,
+    annotationMode: value.annotationMode,
+    setAnnotationMode: value.setAnnotationMode,
+    selectedShapeId: value.selectedShapeId,
+    // Canvas interaction
+    onStrokeComplete: value.onStrokeComplete,
+    onStrokesChange: value.onStrokesChange,
+    onSelectionChange: value.onSelectionChange,
+    onTextModeHint: value.onTextModeHint,
+    strokeOverlayRef: value.strokeOverlayRef,
+    getDeleteButtonPosition: value.getDeleteButtonPosition,
+    handleToggleFreeForm: value.handleToggleFreeForm,
+    handleDeleteSelected: value.handleDeleteSelected,
+    // Reposition
+    repositionTransform: value.repositionTransform,
+    hasTransformChanges: value.hasTransformChanges,
+    isRepositionDragging: value.isRepositionDragging,
+    repositionDragHandlers: value.repositionDragHandlers,
+    getTransformStyle: value.getTransformStyle,
+    setScale: value.setScale,
+    setRotation: value.setRotation,
+    toggleFlipH: value.toggleFlipH,
+    toggleFlipV: value.toggleFlipV,
+    resetTransform: value.resetTransform,
+    // Display refs
+    imageContainerRef: value.imageContainerRef,
+    isFlippedHorizontally: value.isFlippedHorizontally,
+    isSaving: value.isSaving,
+  }), [
+    value.isInpaintMode, value.isMagicEditMode, value.isSpecialEditMode, value.editMode,
+    value.setIsInpaintMode, value.setIsMagicEditMode, value.setEditMode,
+    value.handleEnterInpaintMode, value.handleExitInpaintMode,
+    value.handleEnterMagicEditMode, value.handleExitMagicEditMode,
+    value.brushSize, value.setBrushSize, value.isEraseMode, value.setIsEraseMode,
+    value.brushStrokes, value.handleUndo, value.handleClearMask,
+    value.inpaintPanelPosition, value.setInpaintPanelPosition,
+    value.isAnnotateMode, value.setIsAnnotateMode, value.annotationMode,
+    value.setAnnotationMode, value.selectedShapeId,
+    value.onStrokeComplete, value.onStrokesChange, value.onSelectionChange,
+    value.onTextModeHint, value.strokeOverlayRef,
+    value.getDeleteButtonPosition, value.handleToggleFreeForm, value.handleDeleteSelected,
+    value.repositionTransform, value.hasTransformChanges,
+    value.isRepositionDragging, value.repositionDragHandlers,
+    value.getTransformStyle, value.setScale, value.setRotation,
+    value.toggleFlipH, value.toggleFlipV, value.resetTransform,
+    value.imageContainerRef, value.isFlippedHorizontally, value.isSaving,
+  ]);
+
+  const formValue = useMemo<ImageEditFormState>(() => ({
+    inpaintPrompt: value.inpaintPrompt,
+    setInpaintPrompt: value.setInpaintPrompt,
+    inpaintNumGenerations: value.inpaintNumGenerations,
+    setInpaintNumGenerations: value.setInpaintNumGenerations,
+    img2imgPrompt: value.img2imgPrompt,
+    setImg2imgPrompt: value.setImg2imgPrompt,
+    img2imgStrength: value.img2imgStrength,
+    setImg2imgStrength: value.setImg2imgStrength,
+    enablePromptExpansion: value.enablePromptExpansion,
+    setEnablePromptExpansion: value.setEnablePromptExpansion,
+    loraMode: value.loraMode,
+    setLoraMode: value.setLoraMode,
+    customLoraUrl: value.customLoraUrl,
+    setCustomLoraUrl: value.setCustomLoraUrl,
+    createAsGeneration: value.createAsGeneration,
+    setCreateAsGeneration: value.setCreateAsGeneration,
+    qwenEditModel: value.qwenEditModel,
+    setQwenEditModel: value.setQwenEditModel,
+    advancedSettings: value.advancedSettings,
+    setAdvancedSettings: value.setAdvancedSettings,
+  }), [
+    value.inpaintPrompt, value.setInpaintPrompt,
+    value.inpaintNumGenerations, value.setInpaintNumGenerations,
+    value.img2imgPrompt, value.setImg2imgPrompt,
+    value.img2imgStrength, value.setImg2imgStrength,
+    value.enablePromptExpansion, value.setEnablePromptExpansion,
+    value.loraMode, value.setLoraMode,
+    value.customLoraUrl, value.setCustomLoraUrl,
+    value.createAsGeneration, value.setCreateAsGeneration,
+    value.qwenEditModel, value.setQwenEditModel,
+    value.advancedSettings, value.setAdvancedSettings,
+  ]);
+
+  const statusValue = useMemo<ImageEditStatusState>(() => ({
+    isGeneratingInpaint: value.isGeneratingInpaint,
+    inpaintGenerateSuccess: value.inpaintGenerateSuccess,
+    isGeneratingImg2Img: value.isGeneratingImg2Img,
+    img2imgGenerateSuccess: value.img2imgGenerateSuccess,
+    isGeneratingReposition: value.isGeneratingReposition,
+    repositionGenerateSuccess: value.repositionGenerateSuccess,
+    isSavingAsVariant: value.isSavingAsVariant,
+    saveAsVariantSuccess: value.saveAsVariantSuccess,
+    isCreatingMagicEditTasks: value.isCreatingMagicEditTasks,
+    magicEditTasksCreated: value.magicEditTasksCreated,
+  }), [
+    value.isGeneratingInpaint, value.inpaintGenerateSuccess,
+    value.isGeneratingImg2Img, value.img2imgGenerateSuccess,
+    value.isGeneratingReposition, value.repositionGenerateSuccess,
+    value.isSavingAsVariant, value.saveAsVariantSuccess,
+    value.isCreatingMagicEditTasks, value.magicEditTasksCreated,
+  ]);
+
   return (
-    <ImageEditContext.Provider value={value}>
-      {children}
-    </ImageEditContext.Provider>
+    <ImageEditCanvasProvider value={canvasValue}>
+      <ImageEditFormProvider value={formValue}>
+        <ImageEditStatusProvider value={statusValue}>
+          {children}
+        </ImageEditStatusProvider>
+      </ImageEditFormProvider>
+    </ImageEditCanvasProvider>
   );
 };
 
 // ============================================================================
-// Hook
+// Backward-compatible Hook
 // ============================================================================
 
 /**
- * Returns image edit state, or safe defaults when used outside ImageEditProvider.
- * Consumers destructure just the fields they need.
+ * Returns the full merged image edit state.
+ *
+ * For better performance, prefer the specific sub-context hooks:
+ * - useImageEditCanvasSafe() — mode, brush, annotation, canvas, reposition
+ * - useImageEditFormSafe() — prompts, strengths, LoRA, model, settings
+ * - useImageEditStatusSafe() — generation loading/success flags
  */
 export function useImageEditSafe(): ImageEditState {
-  const context = useContext(ImageEditContext);
-  return context ?? EMPTY_IMAGE_EDIT;
+  const canvas = useImageEditCanvasSafe();
+  const form = useImageEditFormSafe();
+  const status = useImageEditStatusSafe();
+  return { ...canvas, ...form, ...status };
 }

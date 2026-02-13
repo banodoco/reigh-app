@@ -747,11 +747,12 @@ const CharacterAnimatePage: React.FC = () => {
                   currentToolType={TOOL_IDS.CHARACTER_ANIMATE}
                   defaultFilters={{ mediaType: 'video', toolTypeFilter: true, shotFilter: 'all' }}
                   currentToolTypeName="Animate Characters"
-                  showShotFilter={false}
                   columnsPerRow={3}
                   itemsPerPage={isMobile ? 20 : 12}
-                  reducedSpacing={true}
-                  hidePagination={videosData.items.length <= (isMobile ? 20 : 12)}
+                  config={{
+                    reducedSpacing: true,
+                    hidePagination: videosData.items.length <= (isMobile ? 20 : 12),
+                  }}
                 />
               </div>
             );

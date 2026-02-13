@@ -468,14 +468,13 @@ export default function EditVideoPage() {
                     serverPage={resultsPage}
                     onDelete={handleDeleteVariant}
                     isDeleting={deleteVariantMutation.isPending ? deleteVariantMutation.variables as string : null}
-                    showDownload={true}
-                    showShare={false}
-                    showEdit={false}
-                    showStar={true}
-                    showAddToShot={true}
-                    enableSingleClick={true}
-                    hideMediaTypeFilter={true}
-                    hideBottomPagination={true}
+                    config={{
+                      showShare: false,
+                      showEdit: false,
+                      enableSingleClick: true,
+                      hideMediaTypeFilter: true,
+                      hideBottomPagination: true,
+                    }}
                   />
                 )}
               </div>
@@ -549,14 +548,13 @@ export default function EditVideoPage() {
                     serverPage={resultsPage}
                     onDelete={handleDeleteVariant}
                     isDeleting={deleteVariantMutation.isPending ? deleteVariantMutation.variables as string : null}
-                    showDownload={true}
-                    showShare={false}
-                    showEdit={false}
-                    showStar={true}
-                    showAddToShot={true}
-                    enableSingleClick={true}
-                    hideMediaTypeFilter={true}
-                    hideBottomPagination={true}
+                    config={{
+                      showShare: false,
+                      showEdit: false,
+                      enableSingleClick: true,
+                      hideMediaTypeFilter: true,
+                      hideBottomPagination: true,
+                    }}
                   />
                 )}
               </div>

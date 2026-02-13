@@ -285,15 +285,14 @@ export default function EditImagesPage() {
             serverPage={resultsPage}
             onDelete={handleDeleteVariant}
             isDeleting={deleteVariantMutation.isPending ? deleteVariantMutation.variables as string : null}
-            showDownload={true}
-            showShare={false}
-            showEdit={false}
-            showStar={true}
-            showAddToShot={true}
-            enableSingleClick={true}
             defaultFilters={{ toolTypeFilter: false }}
-            hideMediaTypeFilter={true}
-            hideBottomPagination={true}
+            config={{
+              showShare: false,
+              showEdit: false,
+              enableSingleClick: true,
+              hideMediaTypeFilter: true,
+              hideBottomPagination: true,
+            }}
           />
         )}
       </div>

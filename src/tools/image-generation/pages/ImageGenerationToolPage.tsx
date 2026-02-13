@@ -173,7 +173,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
           ) : (
             <div className={gallery.isLoadingGenerations && gallery.isFilterChange ? 'opacity-60 pointer-events-none transition-opacity duration-200' : ''}>
               <MediaGallery
-                reducedSpacing={true}
                 images={gallery.imagesToShow}
                 onDelete={actions.handleDeleteImage}
                 onAddToLastShot={actions.handleAddImageToTargetShot}
@@ -190,8 +189,6 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
                 totalCount={gallery.generationsResponse?.total ?? gallery.lastKnownTotal}
                 onServerPageChange={gallery.handleServerPageChange}
                 serverPage={gallery.currentPage}
-                showShotFilter={true}
-                showSearch={true}
                 currentToolTypeName="Image Generation"
                 formAssociatedShotId={formAssociatedShotId}
                 onSwitchToAssociatedShot={gallery.handleSwitchToAssociatedShot}
@@ -199,8 +196,12 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
                 enableAdjacentPagePreloading
                 onCreateShot={actions.handleCreateShot}
                 onBackfillRequest={actions.handleBackfillRequest}
-                showShare={false}
-                isLoading={gallery.isPlaceholderData}
+                config={{
+                  reducedSpacing: true,
+                  showShotFilter: true,
+                  showSearch: true,
+                  showShare: false,
+                }}
               />
             </div>
           )}
