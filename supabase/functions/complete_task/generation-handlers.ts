@@ -11,6 +11,8 @@
  * All routing is determined by params extracted in createGenerationFromTask
  */
 
+import { VARIANT_TYPE_DEFAULT } from './constants.ts';
+
 import {
   extractBasedOn,
   extractShotAndPosition,
@@ -69,7 +71,7 @@ export async function handleVariantCreation(
   thumbnailUrl: string | null
 ): Promise<boolean> {
   const isPrimary = taskData.params?.is_primary === true;
-  const variantType = taskData.variant_type || 'edit';
+  const variantType = taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
   console.log(`[Variant] Task ${taskId} creating ${variantType} variant on ${basedOnGenerationId} (is_primary=${isPrimary})`);
 
@@ -150,7 +152,7 @@ export async function handleVariantOnParent(ctx: HandlerContext): Promise<any | 
     action: "create_variant_on_parent"
   });
 
-  const variantType = taskData.variant_type || 'edit';
+  const variantType = taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
   const result = await createVariantOnParent(
     supabase,
@@ -275,7 +277,7 @@ export async function handleVariantOnChild(ctx: HandlerContext): Promise<any | n
   // For the child variant, only auto-view if makePrimary is true
   const childViewedAt = makePrimary ? singleSegmentViewedAt : null;
 
-  const variantType = taskData.variant_type || 'edit';
+  const variantType = taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
   await createVariant(
     supabase,

@@ -303,10 +303,10 @@ serve(async (req) => {
       .single();
 
     if (taskTypeError || !taskType) {
-      logger.warn("No task type config found, using defaults", { task_type: task.task_type });
+      logger.error("No task type config found, using defaults", { task_type: task.task_type });
 
-      // Use default cost if no config found
-      const defaultCostPerSecond = 0.01;
+      // Use default cost if no config found — must match DB-level get_task_cost() default of 0.0278
+      const defaultCostPerSecond = 0.0278;
       const cost = defaultCostPerSecond * durationSeconds;
 
       const { error: ledgerError } = await supabaseAdmin.from('credits_ledger').insert({
@@ -320,6 +320,7 @@ serve(async (req) => {
           base_cost_per_second: defaultCostPerSecond,
           billing_type: 'per_second',
           calculated_at: new Date().toISOString(),
+          cost_fallback_used: true,
           note: 'Default cost used - no task type configuration found'
         }
       });

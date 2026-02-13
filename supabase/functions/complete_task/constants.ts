@@ -18,6 +18,8 @@ export const TOOL_TYPES = {
 
 export type ToolType = typeof TOOL_TYPES[keyof typeof TOOL_TYPES];
 
+export const VARIANT_TYPE_DEFAULT = 'edit' as const;
+
 export interface SegmentTypeConfig {
   segmentType: TaskType;
   /** Final step tasks (e.g. join_final_stitch) complete the orchestrator directly — no sibling counting. */

@@ -43,9 +43,11 @@ const copyTemplateToNewUser = async (newProjectId: string, newShotId: string): P
     });
 
     if (error) {
+      console.error('[ProjectContext] Template copy failed:', error);
       return;
     }
   } catch (err) {
+    console.error('[ProjectContext] Template copy failed:', err);
     handleError(err, { context: 'ProjectContext', showToast: false });
   }
 };

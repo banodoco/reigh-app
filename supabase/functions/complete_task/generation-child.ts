@@ -12,7 +12,7 @@
  * - extractSegmentSpecificParams: Extract per-segment params from orchestrator arrays
  */
 
-import { TASK_TYPES } from './constants.ts';
+import { TASK_TYPES, VARIANT_TYPE_DEFAULT } from './constants.ts';
 import { extractBasedOn, extractShotAndPosition, buildGenerationParams } from './params.ts';
 import { insertGeneration, createVariant, findSourceGenerationByImageUrl, extractFromArray } from './generation-core.ts';
 import { createVariantOnParent, getChildVariantViewedAt } from './generation-parent.ts';
@@ -98,7 +98,7 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<any | 
         child_order: finalChildOrder,
       });
 
-      const variantTypeForExisting = taskData.variant_type || 'edit';
+      const variantTypeForExisting = taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
       const variantResult = await createVariantOnParent(
         supabase, existingGenId, publicUrl, thumbnailUrl, taskData, taskId,
@@ -145,7 +145,7 @@ export async function createSingleItemVariant(
                    taskData.params?.tool_type ||
                    taskData.tool_type;
 
-  const variantType = taskData.variant_type || 'edit';
+  const variantType = taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
   const result = await createVariantOnParent(
     supabase, parentGenerationId, publicUrl, thumbnailUrl, taskData, taskId,
@@ -290,14 +290,20 @@ export async function createChildGenerationRecord(
   // If the shot_generation was deleted between task creation and completion, set to NULL
   let validatedPairShotGenId = pairShotGenerationId || null;
   if (validatedPairShotGenId) {
-    const { data: shotGenExists } = await supabase
+    let shotGenQuery = supabase
       .from('shot_generations')
       .select('id')
-      .eq('id', validatedPairShotGenId)
-      .maybeSingle();
+      .eq('id', validatedPairShotGenId);
+
+    // Scope to current shot to avoid matching a generation in a different shot
+    if (shotId) {
+      shotGenQuery = shotGenQuery.eq('shot_id', shotId);
+    }
+
+    const { data: shotGenExists } = await shotGenQuery.maybeSingle();
 
     if (!shotGenExists) {
-      console.log(`[GenHandler] pair_shot_generation_id ${validatedPairShotGenId} no longer exists, setting to NULL`);
+      console.log(`[GenHandler] pair_shot_generation_id ${validatedPairShotGenId} no longer exists${shotId ? ` in shot ${shotId}` : ''}, setting to NULL`);
       validatedPairShotGenId = null;
     }
   }
