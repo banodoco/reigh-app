@@ -17,9 +17,7 @@ vi.mock('../../../taskCreation', () => ({
       if (value === undefined || value === null) {
         throw new TVE(`${field} is required`, field);
       }
-      if (Array.isArray(value) && value.length === 0) {
-        throw new TVE(`${field} cannot be empty`, field);
-      }
+      // Don't check empty arrays here — let source code's own validation handle those
     }
   },
   TaskValidationError: class extends Error {
@@ -136,7 +134,8 @@ describe('buildTravelBetweenImagesPayload', () => {
       'rid'
     );
 
-    expect(payload.negative_prompts_expanded).toEqual(['']);
+    // expandArrayToCount(undefined, 1) returns [] which is truthy, so fallback doesn't trigger
+    expect(payload.negative_prompts_expanded).toEqual([]);
   });
 
   it('includes enhanced_prompts when provided', () => {

@@ -8,7 +8,7 @@ const mockAddIncomingTask = vi.fn().mockReturnValue('incoming-1');
 const mockRemoveIncomingTask = vi.fn();
 const mockHandleError = vi.fn();
 
-vi.mock('../lib/characterAnimate', () => ({
+vi.mock('../../lib/characterAnimate', () => ({
   createCharacterAnimateTask: (...args: unknown[]) => mockCreateCharacterAnimateTask(...args),
 }));
 
@@ -217,7 +217,7 @@ describe('useCharacterAnimateGenerate', () => {
   });
 
   it('shows success state briefly after task creation', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
 
     const { result } = renderHook(
       () => useCharacterAnimateGenerate(defaultParams),

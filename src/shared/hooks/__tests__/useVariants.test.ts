@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import type { GenerationVariant } from '../useVariants';
-
 // Mock supabase
 const mockFrom = vi.fn();
 vi.mock('@/integrations/supabase/client', () => ({
@@ -19,6 +17,9 @@ vi.mock('@/shared/hooks/useGenerationInvalidation', () => ({
 vi.mock('@/shared/lib/errorHandler', () => ({
   handleError: vi.fn(),
 }));
+
+import { useVariants } from '../useVariants';
+import type { GenerationVariant } from '../useVariants';
 
 const createVariant = (
   overrides: Partial<GenerationVariant> = {}
@@ -56,7 +57,7 @@ describe('useVariants', () => {
   describe('fetching', () => {
     it('does not fetch when generationId is null', () => {
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: null }),
         { wrapper }
@@ -68,7 +69,7 @@ describe('useVariants', () => {
 
     it('does not fetch when enabled is false', () => {
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1', enabled: false }),
         { wrapper }
@@ -93,7 +94,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }
@@ -121,7 +122,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }
@@ -149,7 +150,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }
@@ -175,7 +176,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }
@@ -203,7 +204,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }
@@ -231,7 +232,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }
@@ -260,7 +261,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }
@@ -290,7 +291,7 @@ describe('useVariants', () => {
       });
 
       const { wrapper } = createWrapper();
-      const { useVariants } = require('../useVariants');
+
       const { result } = renderHook(
         () => useVariants({ generationId: 'gen-1' }),
         { wrapper }

@@ -27,77 +27,57 @@ vi.mock('@/shared/lib/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-// Mock useShotImages
-const mockGenerations: GenerationRow[] = [
-  {
-    id: 'sg-1',
-    generation_id: 'gen-1',
-    shotImageEntryId: 'sg-1',
-    shot_generation_id: 'sg-1',
-    location: 'https://example.com/img1.png',
-    imageUrl: 'https://example.com/img1.png',
-    thumbUrl: 'https://example.com/thumb1.png',
-    type: 'image',
-    timeline_frame: 0,
-    created_at: '2025-01-01T00:00:00Z',
-    starred: false,
-    params: {},
-    metadata: {},
-  },
-  {
-    id: 'sg-2',
-    generation_id: 'gen-2',
-    shotImageEntryId: 'sg-2',
-    shot_generation_id: 'sg-2',
-    location: 'https://example.com/img2.png',
-    imageUrl: 'https://example.com/img2.png',
-    thumbUrl: 'https://example.com/thumb2.png',
-    type: 'image',
-    timeline_frame: 50,
-    created_at: '2025-01-01T00:00:00Z',
-    starred: false,
-    params: {},
-    metadata: {},
-  },
-  {
-    id: 'sg-3',
-    generation_id: 'gen-3',
-    shotImageEntryId: 'sg-3',
-    shot_generation_id: 'sg-3',
-    location: 'https://example.com/vid.mp4',
-    imageUrl: 'https://example.com/vid.mp4',
-    thumbUrl: 'https://example.com/vid-thumb.png',
-    type: 'video',
-    timeline_frame: 25,
-    created_at: '2025-01-01T00:00:00Z',
-    starred: false,
-    params: {},
-    metadata: {},
-  },
-  {
-    id: 'sg-4',
-    generation_id: 'gen-4',
-    shotImageEntryId: 'sg-4',
-    shot_generation_id: 'sg-4',
-    location: 'https://example.com/img3.png',
-    imageUrl: 'https://example.com/img3.png',
-    thumbUrl: 'https://example.com/thumb3.png',
-    type: 'image',
-    timeline_frame: null,
-    created_at: '2025-01-01T00:00:00Z',
-    starred: false,
-    params: {},
-    metadata: {},
-  },
-] as unknown as GenerationRow[];
+// Mock useShotImages — use vi.hoisted to avoid hoisting issues
+const { mockUseShotImages, mockGenerations } = vi.hoisted(() => {
+  const gens = [
+    {
+      id: 'sg-1', generation_id: 'gen-1', shotImageEntryId: 'sg-1', shot_generation_id: 'sg-1',
+      location: 'https://example.com/img1.png', imageUrl: 'https://example.com/img1.png',
+      thumbUrl: 'https://example.com/thumb1.png', type: 'image', timeline_frame: 0,
+      created_at: '2025-01-01T00:00:00Z', starred: false, params: {}, metadata: {},
+    },
+    {
+      id: 'sg-2', generation_id: 'gen-2', shotImageEntryId: 'sg-2', shot_generation_id: 'sg-2',
+      location: 'https://example.com/img2.png', imageUrl: 'https://example.com/img2.png',
+      thumbUrl: 'https://example.com/thumb2.png', type: 'image', timeline_frame: 50,
+      created_at: '2025-01-01T00:00:00Z', starred: false, params: {}, metadata: {},
+    },
+    {
+      id: 'sg-3', generation_id: 'gen-3', shotImageEntryId: 'sg-3', shot_generation_id: 'sg-3',
+      location: 'https://example.com/vid.mp4', imageUrl: 'https://example.com/vid.mp4',
+      thumbUrl: 'https://example.com/vid-thumb.png', type: 'video', timeline_frame: 25,
+      created_at: '2025-01-01T00:00:00Z', starred: false, params: {}, metadata: {},
+    },
+    {
+      id: 'sg-4', generation_id: 'gen-4', shotImageEntryId: 'sg-4', shot_generation_id: 'sg-4',
+      location: 'https://example.com/img3.png', imageUrl: 'https://example.com/img3.png',
+      thumbUrl: 'https://example.com/thumb3.png', type: 'image', timeline_frame: null,
+      created_at: '2025-01-01T00:00:00Z', starred: false, params: {}, metadata: {},
+    },
+  ];
+
+  const mockFn = {
+    __isMockFn: true,
+    calls: [] as unknown[][],
+    mockReturnValue(val: unknown) {
+      this._returnValue = val;
+      return this;
+    },
+    _returnValue: { data: gens, isLoading: false, error: null, refetch: () => {} },
+  };
+
+  return { mockUseShotImages: mockFn, mockGenerations: gens };
+});
+
+const useShotImagesMock = vi.fn().mockReturnValue({
+  data: mockGenerations,
+  isLoading: false,
+  error: null,
+  refetch: vi.fn(),
+});
 
 vi.mock('@/shared/hooks/useShotImages', () => ({
-  useShotImages: vi.fn().mockReturnValue({
-    data: mockGenerations,
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
+  useShotImages: (...args: unknown[]) => useShotImagesMock(...args),
 }));
 
 vi.mock('@/shared/hooks/useGenerationInvalidation', () => ({
@@ -123,6 +103,9 @@ vi.mock('@/shared/utils/timelinePositionCalculator', () => ({
 }));
 
 import { useTimelineCore } from '../useTimelineCore';
+import { readSegmentOverrides } from '@/shared/utils/settingsMigration';
+
+const mockReadSegmentOverrides = readSegmentOverrides as ReturnType<typeof vi.fn>;
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -191,8 +174,7 @@ describe('useTimelineCore', () => {
 
   describe('pairPrompts', () => {
     it('returns empty object when no positioned items', () => {
-      const { useShotImages } = require('@/shared/hooks/useShotImages');
-      useShotImages.mockReturnValue({
+      useShotImagesMock.mockReturnValue({
         data: [],
         isLoading: false,
         error: null,
@@ -206,15 +188,13 @@ describe('useTimelineCore', () => {
     });
 
     it('builds pairPrompts from positioned items metadata', () => {
-      const { readSegmentOverrides } = require('@/shared/utils/settingsMigration');
-      readSegmentOverrides.mockReturnValue({
+      mockReadSegmentOverrides.mockReturnValue({
         prompt: 'pair prompt',
         negativePrompt: 'pair neg',
       });
 
       // Reset useShotImages to use mock generations
-      const { useShotImages } = require('@/shared/hooks/useShotImages');
-      useShotImages.mockReturnValue({
+      useShotImagesMock.mockReturnValue({
         data: mockGenerations,
         isLoading: false,
         error: null,
@@ -234,8 +214,7 @@ describe('useTimelineCore', () => {
 
   describe('null shotId', () => {
     it('handles null shotId gracefully', () => {
-      const { useShotImages } = require('@/shared/hooks/useShotImages');
-      useShotImages.mockReturnValue({
+      useShotImagesMock.mockReturnValue({
         data: undefined,
         isLoading: false,
         error: null,
@@ -254,8 +233,7 @@ describe('useTimelineCore', () => {
 
   describe('getSegmentOverrides', () => {
     it('returns empty object for invalid pair index', () => {
-      const { useShotImages } = require('@/shared/hooks/useShotImages');
-      useShotImages.mockReturnValue({
+      useShotImagesMock.mockReturnValue({
         data: mockGenerations,
         isLoading: false,
         error: null,
@@ -273,8 +251,7 @@ describe('useTimelineCore', () => {
 
   describe('getEnhancedPrompt', () => {
     it('returns undefined when item not found', () => {
-      const { useShotImages } = require('@/shared/hooks/useShotImages');
-      useShotImages.mockReturnValue({
+      useShotImagesMock.mockReturnValue({
         data: mockGenerations,
         isLoading: false,
         error: null,
@@ -290,8 +267,7 @@ describe('useTimelineCore', () => {
 
   describe('loading state', () => {
     it('propagates loading state from useShotImages', () => {
-      const { useShotImages } = require('@/shared/hooks/useShotImages');
-      useShotImages.mockReturnValue({
+      useShotImagesMock.mockReturnValue({
         data: undefined,
         isLoading: true,
         error: null,
@@ -306,8 +282,7 @@ describe('useTimelineCore', () => {
 
     it('propagates error from useShotImages', () => {
       const mockError = new Error('Fetch failed');
-      const { useShotImages } = require('@/shared/hooks/useShotImages');
-      useShotImages.mockReturnValue({
+      useShotImagesMock.mockReturnValue({
         data: undefined,
         isLoading: false,
         error: mockError,

@@ -158,9 +158,16 @@ function createWrapper() {
 }
 
 describe('useToolSettings hook', () => {
+  // Import the hook directly — vi.mock hoisting ensures mocks are applied
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  let useToolSettings: typeof import('../useToolSettings').useToolSettings;
+
+  beforeEach(async () => {
+    const mod = await import('../useToolSettings');
+    useToolSettings = mod.useToolSettings;
+  });
+
   it('returns loading state initially', () => {
-    // Need to use a dynamic import to avoid module-level mock timing issues
-    const { useToolSettings } = require('../useToolSettings');
     const wrapper = createWrapper();
     const { result } = renderHook(() => useToolSettings('test-tool'), { wrapper });
 
@@ -174,7 +181,6 @@ describe('useToolSettings hook', () => {
   });
 
   it('returns a stable update function', () => {
-    const { useToolSettings } = require('../useToolSettings');
     const wrapper = createWrapper();
     const { result, rerender } = renderHook(() => useToolSettings('test-tool'), { wrapper });
 
@@ -184,7 +190,6 @@ describe('useToolSettings hook', () => {
   });
 
   it('respects enabled option', () => {
-    const { useToolSettings } = require('../useToolSettings');
     const wrapper = createWrapper();
     const { result } = renderHook(
       () => useToolSettings('test-tool', { enabled: false }),
@@ -196,7 +201,6 @@ describe('useToolSettings hook', () => {
   });
 
   it('uses provided projectId over context', async () => {
-    const { useToolSettings } = require('../useToolSettings');
     const wrapper = createWrapper();
     const { result } = renderHook(
       () => useToolSettings('test-tool', { projectId: 'custom-project' }),

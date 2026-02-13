@@ -86,10 +86,14 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
           </p>
         </div>
 
-        {/* AI Input Mode Toggle */}
-        <div className={`${isMobile ? 'p-3' : 'p-4'} bg-muted/30 rounded-lg space-y-2 mt-3`}>
+      </div>
+
+      {/* Inputs Subsection */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Inputs</h3>
+        <div className={`${isMobile ? 'p-3' : 'p-4'} bg-muted/30 rounded-lg space-y-2`}>
           <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'}`}>
-            <span className="font-medium">AI Input:</span>
+            <span className="font-medium">Prompt creation:</span>
             <div className="flex items-center gap-0">
               <button
                 onClick={() => setAIInputMode("voice")}

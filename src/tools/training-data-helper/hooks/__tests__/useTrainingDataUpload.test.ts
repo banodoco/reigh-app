@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 const mockUpload = vi.fn();
@@ -43,6 +43,9 @@ import { useTrainingDataUpload } from '../useTrainingDataUpload';
 const originalCreateObjectURL = URL.createObjectURL;
 const originalRevokeObjectURL = URL.revokeObjectURL;
 
+// Mock document.createElement to handle <video> element for getVideoDuration
+const originalCreateElement = document.createElement.bind(document);
+
 describe('useTrainingDataUpload', () => {
   const mockSetVideos = vi.fn();
   const mockCreateSegment = vi.fn().mockResolvedValue('seg-1');
@@ -65,6 +68,30 @@ describe('useTrainingDataUpload', () => {
     URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url');
     URL.revokeObjectURL = vi.fn();
 
+    // Mock document.createElement to handle video element metadata loading
+    document.createElement = vi.fn().mockImplementation((tag: string) => {
+      if (tag === 'video') {
+        const mockVideo: any = {
+          preload: '',
+          src: '',
+          duration: 10,
+          onloadedmetadata: null,
+          onerror: null,
+        };
+        // When src is set, immediately fire onloadedmetadata
+        Object.defineProperty(mockVideo, 'src', {
+          set(_val: string) {
+            if (mockVideo.onloadedmetadata) {
+              setTimeout(() => mockVideo.onloadedmetadata(), 0);
+            }
+          },
+          get() { return ''; },
+        });
+        return mockVideo;
+      }
+      return originalCreateElement(tag);
+    });
+
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     mockUpload.mockResolvedValue({ error: null });
 
@@ -83,7 +110,8 @@ describe('useTrainingDataUpload', () => {
       },
       error: null,
     });
-    mockSelect.mockReturnValue({ single: mockSingle });
+    mockEq.mockReturnValue({ single: mockSingle });
+    mockSelect.mockReturnValue({ single: mockSingle, eq: mockEq });
     mockInsert.mockReturnValue({ select: mockSelect });
     mockFrom.mockReturnValue({ insert: mockInsert, select: mockSelect });
   });
@@ -91,6 +119,7 @@ describe('useTrainingDataUpload', () => {
   afterAll(() => {
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
+    document.createElement = originalCreateElement;
   });
 
   it('returns initial state with isUploading false', () => {

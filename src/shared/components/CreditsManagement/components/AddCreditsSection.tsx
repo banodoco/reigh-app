@@ -1,7 +1,9 @@
+import { useState, useEffect, useRef } from 'react';
 import { Coins, CreditCard, DollarSign } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Slider } from '@/shared/components/ui/slider';
 import { Checkbox } from '@/shared/components/ui/checkbox';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { formatDollarAmount } from '../utils';
 import type { AutoTopupState } from '../types';
 
@@ -41,6 +43,19 @@ export function AddCreditsSection({
   onAutoTopupToggle,
   onAutoTopupThresholdChange,
 }: AddCreditsSectionProps) {
+  const [showUpdated, setShowUpdated] = useState(false);
+  const wasUpdatingRef = useRef(false);
+
+  // Show "Updated" briefly when auto-topup finishes saving and is enabled
+  useEffect(() => {
+    if (wasUpdatingRef.current && !isUpdatingAutoTopup && localAutoTopupEnabled) {
+      setShowUpdated(true);
+      const timer = setTimeout(() => setShowUpdated(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    wasUpdatingRef.current = isUpdatingAutoTopup;
+  }, [isUpdatingAutoTopup, localAutoTopupEnabled]);
+
   return (
     <div className="space-y-3">
       {/* Current Balance Container */}
@@ -92,25 +107,27 @@ export function AddCreditsSection({
             <label htmlFor="auto-topup" className="text-muted-foreground cursor-pointer">
               Auto top-up when below
             </label>
-            <div className="flex items-center">
-              <span className="text-muted-foreground">$</span>
-              <input
-                type="number"
-                min={1}
-                max={Math.max(1, purchaseAmount - 1)}
-                value={localAutoTopupThreshold}
-                onChange={(e) => {
-                  const val = Math.min(Math.max(1, Number(e.target.value)), purchaseAmount - 1);
-                  onAutoTopupThresholdChange(val);
-                }}
-                disabled={!localAutoTopupEnabled || isUpdatingAutoTopup}
-                className="w-12 px-1 py-0.5 text-base lg:text-sm text-center border border-border rounded disabled:opacity-50 disabled:bg-muted bg-background text-foreground"
-              />
-            </div>
+            <NumberInput
+              value={localAutoTopupThreshold}
+              onChange={(val) => {
+                const clamped = Math.min(Math.max(1, val), Math.max(1, purchaseAmount - 1));
+                onAutoTopupThresholdChange(clamped);
+              }}
+              min={1}
+              max={Math.max(1, purchaseAmount - 1)}
+              disabled={!localAutoTopupEnabled || isUpdatingAutoTopup}
+              prefix="$"
+              className="w-20 h-7 text-sm border-border"
+            />
           </div>
-          {localAutoTopupEnabled && autoTopupState === 'active' && (
-            <span className="text-xs text-green-600 ml-auto">✓ Active</span>
-          )}
+          <div className="flex items-center ml-auto gap-1.5">
+            {showUpdated && (
+              <span className="text-xs text-blue-600 animate-in fade-in duration-200">Updated</span>
+            )}
+            {localAutoTopupEnabled && autoTopupState === 'active' && (
+              <span className="text-xs text-green-600">✓ Active</span>
+            )}
+          </div>
         </div>
 
         <Button

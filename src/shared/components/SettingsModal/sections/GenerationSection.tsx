@@ -23,6 +23,31 @@ import CreditsManagement from "../../CreditsManagement";
 import { getInstallationCommand, getRunCommand, generateAIInstructions, safeCopy } from "../commandUtils";
 import type { GenerationSectionProps, CommandConfig } from "../types";
 
+const COMPUTER_LABELS: Record<string, string> = {
+  linux: "Linux",
+  windows: "Windows",
+  mac: "Mac",
+};
+
+const GPU_LABELS: Record<string, string> = {
+  "nvidia-30-40": "NVIDIA ≤40 series",
+  "nvidia-50": "NVIDIA 50 series",
+  "non-nvidia": "Non-NVIDIA",
+};
+
+const MEMORY_LABELS: Record<string, string> = {
+  "1": "Max Performance",
+  "2": "High RAM",
+  "3": "Balanced",
+  "4": "Conservative",
+  "5": "Minimum",
+};
+
+const SHELL_LABELS: Record<string, string> = {
+  cmd: "Command Prompt",
+  powershell: "PowerShell",
+};
+
 const GenerationSection: React.FC<GenerationSectionProps> = ({
   isMobile,
   onComputerChecked,
@@ -242,12 +267,12 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                       <Label className="text-xs text-blue-600 dark:text-blue-400 mb-1 block">Computer:</Label>
                       <Select value={computerType} onValueChange={setComputerType}>
                         <SelectTrigger variant="retro" size="sm" colorScheme="blue" className="w-full h-9">
-                          <SelectValue />
+                          <SelectValue>{(v: string | null) => COMPUTER_LABELS[v ?? ""] ?? v}</SelectValue>
                         </SelectTrigger>
                         <SelectContent variant="retro">
-                          <SelectItem variant="retro" value="linux">Linux</SelectItem>
-                          <SelectItem variant="retro" value="windows">Windows</SelectItem>
-                          <SelectItem variant="retro" value="mac">Mac</SelectItem>
+                          <SelectItem variant="retro" value="linux" label="Linux">Linux</SelectItem>
+                          <SelectItem variant="retro" value="windows" label="Windows">Windows</SelectItem>
+                          <SelectItem variant="retro" value="mac" label="Mac">Mac</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -257,12 +282,12 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                       <Label className="text-xs text-violet-600 dark:text-violet-400 mb-1 block">GPU:</Label>
                       <Select value={gpuType} onValueChange={setGpuType} disabled={computerType === "mac"}>
                         <SelectTrigger variant="retro" size="sm" colorScheme="violet" className="w-full h-9">
-                          <SelectValue />
+                          <SelectValue>{(v: string | null) => GPU_LABELS[v ?? ""] ?? v}</SelectValue>
                         </SelectTrigger>
                         <SelectContent variant="retro">
-                          <SelectItem variant="retro" value="nvidia-30-40">NVIDIA ≤40 series</SelectItem>
-                          <SelectItem variant="retro" value="nvidia-50">NVIDIA 50 series</SelectItem>
-                          <SelectItem variant="retro" value="non-nvidia">Non-NVIDIA</SelectItem>
+                          <SelectItem variant="retro" value="nvidia-30-40" label="NVIDIA ≤40 series">NVIDIA ≤40 series</SelectItem>
+                          <SelectItem variant="retro" value="nvidia-50" label="NVIDIA 50 series">NVIDIA 50 series</SelectItem>
+                          <SelectItem variant="retro" value="non-nvidia" label="Non-NVIDIA">Non-NVIDIA</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -272,13 +297,13 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                       <Label className="text-xs text-emerald-600 dark:text-emerald-400 mb-1 block">Memory:</Label>
                       <Select value={memoryProfile} onValueChange={setMemoryProfile}>
                         <SelectTrigger variant="retro" size="sm" colorScheme="emerald" className="w-full h-9">
-                          <SelectValue />
+                          <SelectValue>{(v: string | null) => MEMORY_LABELS[v ?? ""] ?? v}</SelectValue>
                         </SelectTrigger>
                         <SelectContent variant="retro">
                           <TooltipProvider>
                             <Tooltip delayDuration={0}>
                               <TooltipTrigger asChild>
-                                <SelectItem variant="retro" value="1" className="cursor-pointer">Max Performance</SelectItem>
+                                <SelectItem variant="retro" value="1" label="Max Performance" className="cursor-pointer">Max Performance</SelectItem>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-md" sideOffset={5}>
                                 <p className="text-sm">64GB+ RAM, 24GB VRAM. Fastest.</p>
@@ -286,7 +311,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                             </Tooltip>
                             <Tooltip delayDuration={0}>
                               <TooltipTrigger asChild>
-                                <SelectItem variant="retro" value="2" className="cursor-pointer">High RAM</SelectItem>
+                                <SelectItem variant="retro" value="2" label="High RAM" className="cursor-pointer">High RAM</SelectItem>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-md" sideOffset={5}>
                                 <p className="text-sm">64GB+ RAM, 12GB VRAM. Long videos.</p>
@@ -294,7 +319,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                             </Tooltip>
                             <Tooltip delayDuration={0}>
                               <TooltipTrigger asChild>
-                                <SelectItem variant="retro" value="3" className="cursor-pointer">Balanced</SelectItem>
+                                <SelectItem variant="retro" value="3" label="Balanced" className="cursor-pointer">Balanced</SelectItem>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-md" sideOffset={5}>
                                 <p className="text-sm">32GB RAM, 24GB VRAM. Recommended for 3090/4090.</p>
@@ -302,7 +327,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                             </Tooltip>
                             <Tooltip delayDuration={0}>
                               <TooltipTrigger asChild>
-                                <SelectItem variant="retro" value="4" className="cursor-pointer">Conservative</SelectItem>
+                                <SelectItem variant="retro" value="4" label="Conservative" className="cursor-pointer">Conservative</SelectItem>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-md" sideOffset={5}>
                                 <p className="text-sm">32GB RAM, 12GB VRAM. Works everywhere.</p>
@@ -310,7 +335,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                             </Tooltip>
                             <Tooltip delayDuration={0}>
                               <TooltipTrigger asChild>
-                                <SelectItem variant="retro" value="5" className="cursor-pointer">Minimum</SelectItem>
+                                <SelectItem variant="retro" value="5" label="Minimum" className="cursor-pointer">Minimum</SelectItem>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-md" sideOffset={5}>
                                 <p className="text-sm">24GB RAM, 10GB VRAM. Slowest.</p>
@@ -327,11 +352,11 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                         <Label className="text-xs text-rose-600 dark:text-rose-400 mb-1 block">Shell:</Label>
                         <Select value={windowsShell} onValueChange={setWindowsShell}>
                           <SelectTrigger variant="retro" size="sm" colorScheme="rose" className="w-full h-9">
-                            <SelectValue />
+                            <SelectValue>{(v: string | null) => SHELL_LABELS[v ?? ""] ?? v}</SelectValue>
                           </SelectTrigger>
                           <SelectContent variant="retro">
-                            <SelectItem variant="retro" value="cmd">Command Prompt</SelectItem>
-                            <SelectItem variant="retro" value="powershell">PowerShell</SelectItem>
+                            <SelectItem variant="retro" value="cmd" label="Command Prompt">Command Prompt</SelectItem>
+                            <SelectItem variant="retro" value="powershell" label="PowerShell">PowerShell</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

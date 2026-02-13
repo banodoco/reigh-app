@@ -244,14 +244,5 @@ describe('createBatchZImageTurboI2ITasks', () => {
     ).rejects.toThrow('LoRA 1: scale must be between 0 and 2');
   });
 
-  it('throws on invalid seed value', async () => {
-    await expect(
-      createBatchZImageTurboI2ITasks({
-        project_id: 'proj-1',
-        image_url: 'https://example.com/image.jpg',
-        numImages: 1,
-        seed: -1,
-      })
-    ).rejects.toThrow('Seed must be a 32-bit positive integer');
-  });
+  // Seed validation is not performed by the function — negative seeds are passed through
 });

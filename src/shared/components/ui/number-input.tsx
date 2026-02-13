@@ -13,10 +13,11 @@ interface NumberInputProps {
   className?: string
   id?: string
   placeholder?: string
+  prefix?: string
 }
 
 const NumberInput = React.forwardRef<HTMLDivElement, NumberInputProps>(
-  ({ value, onChange, min, max, step = 1, disabled, className, id, placeholder }, ref) => {
+  ({ value, onChange, min, max, step = 1, disabled, className, id, placeholder, prefix }, ref) => {
     return (
       <NumberField.Root
         ref={ref}
@@ -36,10 +37,16 @@ const NumberInput = React.forwardRef<HTMLDivElement, NumberInputProps>(
             className
           )}
         >
+          {prefix && (
+            <span className="pl-2.5 text-muted-foreground select-none shrink-0">{prefix}</span>
+          )}
           <NumberField.Input
             id={id}
             placeholder={placeholder}
-            className="flex-1 min-w-0 h-full bg-transparent px-3 text-base lg:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none placeholder:text-muted-foreground"
+            className={cn(
+              "flex-1 min-w-0 h-full bg-transparent text-base lg:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none placeholder:text-muted-foreground",
+              prefix ? "pl-1 pr-3" : "px-3"
+            )}
           />
           <div className="flex flex-col h-full border-l border-input shrink-0">
             <NumberField.Increment

@@ -1,0 +1,77 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { waitFor } from '@testing-library/react';
+import { renderHookWithProviders } from '@/test/test-utils';
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          in: vi.fn(() => ({
+            is: vi.fn(() => ({
+              in: vi.fn(() => Promise.resolve({ count: 2, error: null })),
+            })),
+            gte: vi.fn(() => ({
+              is: vi.fn(() => ({
+                in: vi.fn(() => Promise.resolve({ count: 1, error: null })),
+              })),
+            })),
+          })),
+        })),
+      })),
+    })),
+  },
+}));
+
+vi.mock('@/shared/lib/taskConfig', () => ({
+  getVisibleTaskTypes: vi.fn(() => ['video_generation', 'travel_segment']),
+}));
+
+vi.mock('@/shared/hooks/useSmartPolling', () => ({
+  useSmartPollingConfig: vi.fn(() => ({})),
+}));
+
+vi.mock('@/shared/lib/queryDefaults', () => ({
+  QUERY_PRESETS: { immutable: { staleTime: Infinity } },
+  STANDARD_RETRY: 3,
+  STANDARD_RETRY_DELAY: vi.fn(() => 1000),
+}));
+
+vi.mock('@/shared/realtime/DataFreshnessManager', () => ({
+  dataFreshnessManager: {
+    onFetchSuccess: vi.fn(),
+    onFetchFailure: vi.fn(),
+  },
+}));
+
+vi.mock('@/shared/lib/errorHandler', () => ({
+  handleError: vi.fn(),
+}));
+
+import { useTaskStatusCounts, useAllTaskTypes } from '../useTaskStatusCounts';
+
+describe('useTaskStatusCounts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns default counts when projectId is null', () => {
+    const { result } = renderHookWithProviders(() => useTaskStatusCounts(null));
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('is disabled when projectId is null', () => {
+    const { result } = renderHookWithProviders(() => useTaskStatusCounts(null));
+    expect(result.current.isFetching).toBe(false);
+  });
+});
+
+describe('useAllTaskTypes', () => {
+  it('returns visible task types', async () => {
+    const { result } = renderHookWithProviders(() => useAllTaskTypes('proj-1'));
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(['video_generation', 'travel_segment']);
+    });
+  });
+});

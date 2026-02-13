@@ -60,7 +60,7 @@ vi.mock('@/shared/lib/vaceDefaults', () => ({
   VACE_GENERATION_DEFAULTS: { model: 'wan_2_2_default' },
 }));
 
-vi.mock('../settings', () => ({
+vi.mock('../../settings', () => ({
   joinClipsSettings: {
     defaults: {
       contextFrameCount: 15,

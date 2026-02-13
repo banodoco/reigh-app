@@ -3,12 +3,20 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-// Mock sub-hooks that useSegmentSettings composes
-const mockSavePairMetadata = vi.fn().mockResolvedValue(true);
-const mockSaveAsShotDefaults = vi.fn().mockResolvedValue(true);
-const mockSaveFieldAsDefault = vi.fn().mockResolvedValue(true);
-const mockClearEnhancedPrompt = vi.fn().mockResolvedValue(true);
-const mockSaveEnhancePromptEnabled = vi.fn().mockResolvedValue(true);
+// Mock sub-hooks — use vi.hoisted to avoid hoisting issues
+const {
+  mockSavePairMetadata,
+  mockSaveAsShotDefaults,
+  mockSaveFieldAsDefault,
+  mockClearEnhancedPrompt,
+  mockSaveEnhancePromptEnabled,
+} = vi.hoisted(() => ({
+  mockSavePairMetadata: vi.fn().mockResolvedValue(true),
+  mockSaveAsShotDefaults: vi.fn().mockResolvedValue(true),
+  mockSaveFieldAsDefault: vi.fn().mockResolvedValue(true),
+  mockClearEnhancedPrompt: vi.fn().mockResolvedValue(true),
+  mockSaveEnhancePromptEnabled: vi.fn().mockResolvedValue(true),
+}));
 
 vi.mock('../usePairMetadata', () => ({
   usePairMetadata: vi.fn().mockReturnValue({
@@ -35,7 +43,7 @@ vi.mock('../useSegmentMutations', () => ({
 }));
 
 vi.mock('../../useServerForm', () => ({
-  useServerForm: vi.fn().mockImplementation(({ serverData, isLoading }) => ({
+  useServerForm: vi.fn().mockImplementation(({ serverData, isLoading }: { serverData: unknown; isLoading: boolean }) => ({
     data: serverData || { prompt: '', negativePrompt: '', numFrames: 25, randomSeed: true, makePrimaryVariant: false },
     localData: null,
     isDirty: false,

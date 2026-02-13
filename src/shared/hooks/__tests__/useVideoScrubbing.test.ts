@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useVideoScrubbing } from '../useVideoScrubbing';
 
@@ -10,9 +10,6 @@ describe('useVideoScrubbing', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
-
-  // Need to import afterEach
-  const { afterEach } = await import('vitest');
 
   describe('initialization', () => {
     it('returns default state', () => {
@@ -111,6 +108,8 @@ describe('useVideoScrubbing', () => {
       const mockVideo = {
         duration: 5,
         currentTime: 0,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       } as unknown as HTMLVideoElement;
 
       act(() => {
@@ -137,6 +136,8 @@ describe('useVideoScrubbing', () => {
 
       const mockVideo = {
         duration: NaN,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       } as unknown as HTMLVideoElement;
 
       act(() => {

@@ -2,6 +2,19 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useVideoHoverPreview } from '../useVideoHoverPreview';
 
+function createMockVideo(overrides: Record<string, unknown> = {}): HTMLVideoElement {
+  return {
+    readyState: 4,
+    currentTime: 0,
+    duration: 10,
+    src: '',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    load: vi.fn(),
+    ...overrides,
+  } as unknown as HTMLVideoElement;
+}
+
 describe('useVideoHoverPreview', () => {
   describe('initialization', () => {
     it('returns default state', () => {
@@ -74,6 +87,9 @@ describe('useVideoHoverPreview', () => {
         useVideoHoverPreview({ videoUrl: 'test.mp4', frameRate: 30 })
       );
 
+      // Provide a mock video so seekToFrame doesn't crash
+      (result.current.videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = createMockVideo();
+
       act(() => {
         result.current.updateHoverPosition(100, 200, 15);
       });
@@ -86,6 +102,8 @@ describe('useVideoHoverPreview', () => {
       const { result } = renderHook(() =>
         useVideoHoverPreview({ videoUrl: 'test.mp4', frameRate: 30 })
       );
+
+      (result.current.videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = createMockVideo();
 
       act(() => {
         result.current.updateHoverPosition(100, 200, 15);
@@ -106,6 +124,8 @@ describe('useVideoHoverPreview', () => {
       const { result } = renderHook(() =>
         useVideoHoverPreview({ videoUrl: 'test.mp4', frameRate: 30 })
       );
+
+      (result.current.videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = createMockVideo();
 
       act(() => {
         result.current.handleMouseEnter();

@@ -9,7 +9,8 @@ const Select = SelectPrimitive.Root
 const SelectGroup = SelectPrimitive.Group
 
 // Wrapper around Base UI's SelectValue to support a `placeholder` prop.
-// Base UI uses a render function children pattern instead of a dedicated placeholder prop.
+// When no children/placeholder, Base UI's default label resolution is used (reads the `label`
+// prop from the selected SelectItem). Only fall back to a render function for placeholders.
 const SelectValue = React.forwardRef<
   HTMLSpanElement,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value> & {
@@ -17,7 +18,12 @@ const SelectValue = React.forwardRef<
   }
 >(({ placeholder, children, ...props }, ref) => (
   <SelectPrimitive.Value ref={ref} {...props}>
-    {children ?? ((value: string | null) => value ?? placeholder ?? "")}
+    {children !== undefined
+      ? children
+      : placeholder !== undefined
+        ? ((value: string | null) => value ?? placeholder)
+        : undefined
+    }
   </SelectPrimitive.Value>
 ))
 SelectValue.displayName = "SelectValue"
