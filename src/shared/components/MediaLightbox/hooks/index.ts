@@ -32,4 +32,5 @@ export { useLightboxStateValue } from './useLightboxStateValue';
 export { useLightboxVideoMode } from './useLightboxVideoMode';
 export { useSharedLightboxState } from './useSharedLightboxState';
 export { useLightboxVariantBadges } from './useLightboxVariantBadges';
+export { useImageEditOrchestrator } from './useImageEditOrchestrator';
 

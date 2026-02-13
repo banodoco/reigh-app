@@ -1,5 +1,4 @@
-import React, { useCallback, useRef, useEffect, useLayoutEffect } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import React, { useCallback, useLayoutEffect, useMemo } from 'react';
 import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from '../constants';
 
 // Timeline sub-components (existing)
@@ -8,7 +7,7 @@ import DropIndicator from '../DropIndicator';
 import PairRegion from '../PairRegion';
 import TimelineItem from '../TimelineItem';
 import TrailingEndpoint from '../TrailingEndpoint';
-import { TRAILING_ENDPOINT_KEY, PENDING_POSITION_KEY, getPairInfo } from '../utils/timeline-utils';
+import { TRAILING_ENDPOINT_KEY, PENDING_POSITION_KEY, getPairInfo, findTrailingVideoInfo } from '../utils/timeline-utils';
 import { GuidanceVideoStrip } from '../GuidanceVideoStrip';
 import { GuidanceVideoUploader } from '../GuidanceVideoUploader';
 import { GuidanceVideosContainer } from '../GuidanceVideosContainer';
@@ -16,7 +15,6 @@ import { AudioStrip } from '../AudioStrip';
 import { SegmentOutputStrip } from '../SegmentOutputStrip';
 import { DatasetBrowserModal } from '@/shared/components/DatasetBrowserModal';
 import { SelectionActionBar } from '@/shared/components/ShotImageManager/components/SelectionActionBar';
-import { handleError } from '@/shared/lib/errorHandler';
 
 // Extracted sub-components
 import {
@@ -28,9 +26,10 @@ import {
   AddAudioButton,
 } from './components';
 
-// Orchestrator hook
+// Hooks
 import { useTimelineOrchestrator } from '../hooks/useTimelineOrchestrator';
-import { findTrailingVideoInfo } from '../utils/timeline-utils';
+import { useTrailingEndpoint } from '../hooks/useTrailingEndpoint';
+import { usePairSettingsHandler } from '../hooks/usePairSettingsHandler';
 
 // Types
 import type { TimelineContainerProps } from './types';
@@ -95,11 +94,11 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     onAudioChange,
   } = useTimelineMedia();
 
-  // Derive trailingEndFrame from positions map (single source of truth)
+  // --- Pre-orchestrator trailing endpoint state ---
+  // These derive from framePositions only and must be available before the orchestrator.
   const trailingEndFrame = framePositions.get(TRAILING_ENDPOINT_KEY);
 
-  // Helper: update trailing endpoint in positions
-  const handleTrailingEndFrameChange = React.useCallback((endFrame: number | undefined) => {
+  const handleTrailingEndFrameChange = useCallback((endFrame: number | undefined) => {
     const next = new Map(framePositions);
     if (endFrame === undefined) {
       next.delete(TRAILING_ENDPOINT_KEY);
@@ -109,33 +108,23 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     setFramePositions(next);
   }, [framePositions, setFramePositions]);
 
-  // Register trailing end frame updater with parent (for useFrameCountUpdater to use).
-  // Uses useLayoutEffect to ensure the ref is set before any user interactions fire.
   useLayoutEffect(() => {
     onRegisterTrailingUpdater?.(handleTrailingEndFrameChange);
   }, [onRegisterTrailingUpdater, handleTrailingEndFrameChange]);
 
   // Compute trailing video info from videoOutputs SYNCHRONOUSLY to avoid layout shift
-  // This replaces the async callback approach that caused fullMax to expand after render
-  const { hasTrailing: hasExistingTrailingVideo, videoUrl: computedTrailingVideoUrl } = React.useMemo(() => {
+  const { hasTrailing: hasExistingTrailingVideo, videoUrl: computedTrailingVideoUrl } = useMemo(() => {
     if (!videoOutputs || videoOutputs.length === 0 || images.length === 0) {
       return { hasTrailing: false, videoUrl: null };
     }
-
-    // Find the last image's shot_generation_id from framePositions (exclude trailing key)
     const sortedEntries = [...framePositions.entries()]
       .filter(([id]) => id !== TRAILING_ENDPOINT_KEY)
       .sort((a, b) => a[1] - b[1]);
     const lastImageShotGenId = sortedEntries[sortedEntries.length - 1]?.[0] || null;
-
     return findTrailingVideoInfo(videoOutputs, lastImageShotGenId);
   }, [videoOutputs, framePositions, images.length]);
 
-  // Use computed URL, with callback as fallback for edge cases
-  const [callbackTrailingVideoUrl, setTrailingVideoUrl] = React.useState<string | null>(null);
-  const trailingVideoUrl = computedTrailingVideoUrl || callbackTrailingVideoUrl;
-
-  // Use orchestrator hook for all state, effects, and handlers
+  // --- Orchestrator hook (all state, effects, and handlers) ---
   const {
     timelineRef,
     containerRef,
@@ -218,19 +207,23 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     hasExistingTrailingVideo,
   });
 
-  // Image-only positions (excluding trailing endpoint) for sorts that need the "last image"
-  const imagePositions = React.useMemo(() => {
-    const filtered = new Map(currentPositions);
-    filtered.delete(TRAILING_ENDPOINT_KEY);
-    return filtered;
-  }, [currentPositions]);
+  // --- Post-orchestrator trailing endpoint (needs currentPositions) ---
+  const {
+    trailingVideoUrl,
+    handleExtractFinalFrame,
+    setTrailingVideoUrl,
+    imagePositions,
+  } = useTrailingEndpoint({
+    images,
+    currentPositions,
+    trailingEndFrame,
+    computedTrailingVideoUrl,
+    onFileDrop,
+  });
 
-  // When any pending item exists (duplicate, drop, external add), compute augmented
-  // pairInfo + positions so pair regions and segment strip update immediately
-  const imagePositionsWithPending = React.useMemo(() => {
+  // --- Derived pair data (augmented with pending items) ---
+  const imagePositionsWithPending = useMemo(() => {
     if (activePendingFrame === null) return imagePositions;
-    // Skip phantom if a real item already exists at this frame (optimistic update
-    // arrived before pending state cleared — prevents a brief extra pair/segment)
     const realItemAtFrame = [...imagePositions.values()].some(pos => pos === activePendingFrame);
     if (realItemAtFrame) return imagePositions;
     const augmented = new Map(imagePositions);
@@ -238,7 +231,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     return augmented;
   }, [imagePositions, activePendingFrame]);
 
-  const pairInfoWithPending = React.useMemo(() => {
+  const pairInfoWithPending = useMemo(() => {
     if (activePendingFrame === null) return pairInfo;
     return getPairInfo(imagePositionsWithPending);
   }, [pairInfo, activePendingFrame, imagePositionsWithPending]);
@@ -246,101 +239,20 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   const numPairs = Math.max(0, images.length - 1);
   const maxAllowedGap = 81;
 
-  // Track the last image ID to detect when it changes (new image added at end)
-  // When the last image changes, clear trailingVideoUrl to prevent showing stale video
-  // Note: trailingEndFrame is handled by derivedEndFrame validation (end_frame > lastImageFrame)
-  const lastImageIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (imagePositions.size === 0) return;
+  // --- Pair settings handler ---
+  const { handleOpenPairSettings } = usePairSettingsHandler({
+    images,
+    imagePositions,
+    trailingEndFrame,
+    currentPositions,
+    pairInfo,
+    pairDataByIndex,
+    onPairClick,
+  });
 
-    // Find the current last image (highest frame position)
-    const sortedEntries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
-    const currentLastImageId = sortedEntries[sortedEntries.length - 1]?.[0] || null;
-
-    // If the last image changed, clear trailing video URL
-    if (lastImageIdRef.current !== null &&
-        currentLastImageId !== lastImageIdRef.current) {
-      if (trailingVideoUrl) {
-        setTrailingVideoUrl(null);
-      }
-    }
-
-    lastImageIdRef.current = currentLastImageId;
-  }, [imagePositions, trailingVideoUrl]);
-
-  // Handler to extract final frame from trailing video and add as next image
-  const handleExtractFinalFrame = useCallback(async () => {
-    if (!trailingVideoUrl || !onFileDrop) return;
-
-    try {
-      // Create video element to extract frame
-      const video = document.createElement('video');
-      video.crossOrigin = 'anonymous';
-      video.muted = true;
-      video.playsInline = true;
-      video.preload = 'auto';
-      video.src = trailingVideoUrl;
-
-      await new Promise<void>((resolve, reject) => {
-        video.onloadedmetadata = () => resolve();
-        video.onerror = () => reject(new Error('Failed to load video'));
-        setTimeout(() => reject(new Error('Video load timeout')), 10000);
-      });
-
-      // Seek to the last frame (duration - small epsilon)
-      video.currentTime = Math.max(0, video.duration - 0.01);
-
-      await new Promise<void>((resolve) => {
-        video.onseeked = () => resolve();
-        setTimeout(resolve, 2000);
-      });
-
-      // Extract frame to canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Failed to get canvas context');
-
-      ctx.drawImage(video, 0, 0);
-
-      // Convert to blob
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error('Failed to create blob'))),
-          'image/png',
-          1.0
-        );
-      });
-
-      // Create File object
-      const file = new File([blob], `extracted-frame-${Date.now()}.png`, { type: 'image/png' });
-
-      // Calculate target frame (after the trailing endpoint)
-      const sortedPositions = [...currentPositions.values()].sort((a, b) => a - b);
-      const lastImageFrame = sortedPositions[sortedPositions.length - 1] ?? 0;
-      const effectiveEndFrame = trailingEndFrame ?? (lastImageFrame + 17);
-      const targetFrame = effectiveEndFrame + 5; // Add small gap after endpoint
-
-      // Drop the file at the target position
-      await onFileDrop([file], targetFrame);
-
-      // Note: The trailing segment state will be automatically cleared by the useEffect
-      // that watches for last image changes
-
-      // Clean up
-      video.src = '';
-    } catch (error) {
-      handleError(error, { context: 'extractAndDropFinalFrame' });
-      toast.error('Failed to extract frame from video');
-    }
-  }, [trailingVideoUrl, onFileDrop, currentPositions, trailingEndFrame]);
-
+  // --- Simple handlers ---
   const handleReset = useCallback(() => {
     if (images.length === 1) {
-      // Single-image: combine image reset + trailing in one position update.
-      // Calling onResetFrames then handleTrailingEndFrameChange would trigger two
-      // parallel setFramePositions calls that race on metadata.end_frame.
       const newPositions = new Map<string, number>();
       newPositions.set(images[0].id, 0);
       newPositions.set(TRAILING_ENDPOINT_KEY, resetGap);
@@ -350,92 +262,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     }
   }, [onResetFrames, resetGap, images, setFramePositions]);
 
-  // Build pair click handler for SegmentOutputStrip
-  const handleOpenPairSettings = useCallback((pairIndex: number, passedFrameData?: { frames: number; startFrame: number; endFrame: number }) => {
-
-    if (!onPairClick) return;
-
-    // Handle single-image mode (trailing segment is the only segment)
-    if (images.length === 1 && trailingEndFrame !== undefined) {
-      const entry = [...imagePositions.entries()][0];
-      if (entry) {
-        const [imageId, imageFrame] = entry;
-        const image = images[0];
-        const frames = passedFrameData?.frames ?? (trailingEndFrame - imageFrame);
-        const startFrame = passedFrameData?.startFrame ?? imageFrame;
-        const endFrame = passedFrameData?.endFrame ?? trailingEndFrame;
-        onPairClick(pairIndex, {
-          index: 0,
-          frames,
-          startFrame,
-          endFrame,
-          startImage: {
-            id: imageId,
-            generationId: image.generation_id,
-            url: image.imageUrl || image.thumbUrl,
-            thumbUrl: image.thumbUrl,
-            position: 1,
-          },
-          endImage: null,
-        });
-      }
-      return;
-    }
-
-    // Handle multi-image trailing segment (pairIndex is after all regular pairs)
-    if (pairIndex === pairInfo.length && trailingEndFrame !== undefined && imagePositions.size > 0) {
-      const sortedEntries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
-      const lastEntry = sortedEntries[sortedEntries.length - 1];
-      if (lastEntry) {
-        const [imageId, imageFrame] = lastEntry;
-        const lastImage = images.find(img => {
-          const imgId = img.shot_generation_id || img.id;
-          return imgId === imageId;
-        }) || images[images.length - 1];
-
-        const defaultOffset = 9; // Same as multi-image default
-        const effectiveEndFrame = trailingEndFrame ?? (imageFrame + defaultOffset);
-        const frames = passedFrameData?.frames ?? (effectiveEndFrame - imageFrame);
-        const startFrame = passedFrameData?.startFrame ?? imageFrame;
-        const endFrame = passedFrameData?.endFrame ?? effectiveEndFrame;
-
-        const pairData = {
-          index: pairIndex,
-          frames,
-          startFrame,
-          endFrame,
-          startImage: lastImage ? {
-            id: imageId,
-            generationId: lastImage.generation_id,
-            url: lastImage.imageUrl || lastImage.thumbUrl,
-            thumbUrl: lastImage.thumbUrl,
-            position: sortedEntries.length,
-          } : null,
-          endImage: null,
-        };
-        onPairClick(pairIndex, pairData);
-      }
-      return;
-    }
-
-    const pairData = pairDataByIndex.get(pairIndex);
-    const frameData = passedFrameData ?? pairInfo[pairIndex];
-    if (frameData) {
-      const mergedPairData = {
-        index: pairIndex,
-        frames: frameData.frames,
-        startFrame: frameData.startFrame,
-        endFrame: frameData.endFrame,
-        startImage: pairData?.startImage ?? null,
-        endImage: pairData?.endImage ?? null,
-      };
-      onPairClick(pairIndex, mergedPairData);
-    } else if (pairData) {
-      onPairClick(pairIndex, pairData);
-    }
-  }, [onPairClick, images, trailingEndFrame, currentPositions, pairDataByIndex, pairInfo]);
-
-  // Memoized callbacks for SelectionActionBar
   const handleDeleteSelected = useCallback(() => {
     selectedIds.forEach(id => onImageDelete(id));
     clearSelection();
@@ -447,6 +273,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     return newShotId;
   }, [onNewShotFromSelection, selectedIds]);
 
+  // --- JSX ---
   return (
     <div className="w-full overflow-x-hidden relative">
       <div className="relative">
@@ -503,15 +330,12 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
         >
           {/* Segment output strip */}
           {shotId && (projectId || (readOnly && videoOutputs)) && (() => {
-            // Compute trailing segment info for SegmentOutputStrip
             const sortedEntries = imagePositions.size > 0
               ? [...imagePositions.entries()].sort((a, b) => a[1] - b[1])
               : [];
             const lastEntry = sortedEntries[sortedEntries.length - 1];
             const isMultiImage = images.length > 1;
             const realLastFrame = lastEntry ? lastEntry[1] : undefined;
-
-            // If any pending item is beyond the last real image, trailing starts from it
             const pendingIsLast = activePendingFrame !== null &&
               realLastFrame !== undefined &&
               activePendingFrame > realLastFrame;
@@ -537,11 +361,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 onOpenPairSettings={onPairClick ? handleOpenPairSettings : undefined}
                 selectedParentId={selectedOutputId}
                 onSegmentFrameCountChange={onSegmentFrameCountChange}
-                // SIMPLIFIED: Always pass lastImageId so hook can find existing trailing videos
                 lastImageId={lastEntry?.[0]}
-                // SIMPLIFIED: Only pass trailingSegmentMode when user has configured trailing
-                // (trailingEndFrame is set and valid - validation happens in derivedEndFrame)
-                // When pending item is at the end, shift trailing to start from it
                 trailingSegmentMode={lastEntry && trailingEndFrame !== undefined ? (() => {
                   const [imageId, imageFrame] = lastEntry;
                   const trailingDuration = trailingEndFrame - imageFrame;
@@ -553,11 +373,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 isMultiImage={isMultiImage}
                 lastImageFrame={effectiveLastFrame}
                 onAddTrailingSegment={realLastFrame !== undefined && lastEntry ? () => {
-                  // Initialize trailing segment with default 17-frame duration
                   handleTrailingEndFrameChange(realLastFrame + 17);
                 } : undefined}
                 onRemoveTrailingSegment={isMultiImage && trailingEndFrame !== undefined ? () => {
-                  // Remove trailing segment by clearing the end frame
                   handleTrailingEndFrameChange(undefined);
                 } : undefined}
                 onTrailingVideoInfo={setTrailingVideoUrl}
@@ -786,39 +604,28 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
             })()}
 
             {/* Trailing endpoint - appears after last image */}
-            {/* For single-image: always show (needed for generation) */}
-            {/* For multi-image: only show when explicitly enabled (trailingEndFrame is set) */}
             {imagePositions.size > 0 && (() => {
-              // Find the last image (highest frame position)
               const sortedEntries = [...imagePositions.entries()].sort((a, b) => a[1] - b[1]);
               const lastEntry = sortedEntries[sortedEntries.length - 1];
               if (!lastEntry) return null;
               const [id, imageFrame] = lastEntry;
 
-              // For multi-image mode, show trailing endpoint when:
-              // 1. trailingEndFrame is explicitly set (user added trailing segment), OR
-              // 2. A trailing video already exists (need to show marker for it)
               const isMultiImage = images.length > 1;
               const hasTrailingSegment = trailingEndFrame !== undefined;
 
-              // Don't render anything on the timeline if multi-image without trailing segment
-              // UNLESS a trailing video already exists - then we need to show the marker
               if (isMultiImage && !hasTrailingSegment && !hasExistingTrailingVideo) {
                 return null;
               }
 
-              // Show the trailing endpoint
               const defaultEndFrame = imageFrame + (isMultiImage ? 17 : 49);
               const effectiveEndFrame = trailingEndFrame ?? defaultEndFrame;
               const gapToImage = effectiveEndFrame - imageFrame;
-              // Find the corresponding image for pair data
               const lastImageIndex = sortedEntries.length - 1;
               const lastImage = images.find(img => {
                 const imgId = img.shot_generation_id || img.id;
                 return imgId === id;
               }) || images[lastImageIndex];
 
-              // Trailing segment pair index is after all regular pairs
               const trailingPairIndex = Math.max(0, sortedEntries.length - 1);
 
               return (

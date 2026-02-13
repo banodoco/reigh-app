@@ -8,6 +8,7 @@
  * - Img2Img mode
  *
  * Uses useSharedLightboxState for shared functionality (variants, navigation, etc.)
+ * Uses useImageEditOrchestrator for all edit-mode hooks and context value construction.
  *
  * This is part of the split architecture where MediaLightbox dispatches to
  * ImageLightbox or VideoLightbox based on media type.
@@ -27,18 +28,14 @@ import { useIsMobile } from '@/shared/hooks/use-mobile';
 // Import hooks
 import {
   useUpscale,
-  useInpainting,
-  useMagicEditMode,
-  useRepositionMode,
-  useImg2ImgMode,
   useEditSettingsPersistence,
-  useEditSettingsSync,
   usePanelModeRestore,
   useAdjustedTaskDetails,
   useSharedLightboxState,
   useLightboxStateValue,
   useLightboxWorkflowProps,
   useLightboxVariantBadges,
+  useImageEditOrchestrator,
 } from './hooks';
 
 // Import components
@@ -46,7 +43,7 @@ import { LightboxShell, LightboxProviders } from './components';
 import { LightboxLayout } from './components/layouts';
 import { EditModePanel } from './components/EditModePanel';
 import { InfoPanel } from './components/InfoPanel';
-import { ImageEditProvider, type ImageEditState } from './contexts/ImageEditContext';
+import { ImageEditProvider } from './contexts/ImageEditContext';
 
 // Import utils
 import { extractDimensionsFromMedia, handleLightboxDownload } from './utils';
@@ -143,8 +140,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     optimisticUnpositionedIds,
     onOptimisticPositioned,
     onOptimisticUnpositioned,
-    positionedInSelectedShot,
-    associatedWithoutPositionInSelectedShot,
     onOpenExternalGeneration,
     shotId,
     tasksPaneOpen,
@@ -164,17 +159,14 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   const isCloudMode = generationMethods.inCloud;
   const isLocalGeneration = generationMethods.onComputer && !generationMethods.inCloud;
 
-  // Panes context for tasks pane
   const {
     isTasksPaneOpen: tasksPaneOpenContext,
     tasksPaneWidth: tasksPaneWidthContext,
     isTasksPaneLocked,
   } = usePanes();
 
-  // Use prop values if provided, else fall back to context
   const effectiveTasksPaneOpen = tasksPaneOpen ?? tasksPaneOpenContext;
   const effectiveTasksPaneWidth = tasksPaneWidth ?? tasksPaneWidthContext;
-
 
   // Refs
   const contentRef = useRef<HTMLDivElement>(null);
@@ -186,9 +178,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   const [replaceImages, setReplaceImages] = useState(true);
   const [_variantParamsToLoad, setVariantParamsToLoad] = useState<Record<string, unknown> | null>(null);
 
-  // Compute actual generation ID
-  // For timeline images, media.id is shot_generations.id, not the generation ID
-  // So we need to prefer media.generation_id for variant fetching
   const actualGenerationId = getGenerationId(media);
   const variantFetchGenerationId = media.parent_generation_id || actualGenerationId;
 
@@ -227,41 +216,34 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     projectId: selectedProjectId,
     enabled: true,
   });
-  const {
-    loraMode,
-    setLoraMode,
-    customLoraUrl,
-    setCustomLoraUrl,
-    prompt: persistedPrompt,
-    setPrompt: setPersistedPrompt,
-    numGenerations: persistedNumGenerations,
-    setNumGenerations: setPersistedNumGenerations,
-    img2imgStrength: persistedImg2imgStrength,
-    setImg2imgStrength: setPersistedImg2imgStrength,
-    img2imgEnablePromptExpansion: persistedImg2imgEnablePromptExpansion,
-    setImg2imgEnablePromptExpansion: setPersistedImg2imgEnablePromptExpansion,
-    img2imgPrompt: persistedImg2imgPrompt,
-    setImg2imgPrompt: setPersistedImg2imgPrompt,
-    img2imgPromptHasBeenSet: persistedImg2imgPromptHasBeenSet,
-    editModeLoRAs,
-    createAsGeneration,
-    setCreateAsGeneration,
-    advancedSettings,
-    setAdvancedSettings,
-    qwenEditModel,
-    setQwenEditModel,
-    editMode: persistedEditMode,
-    setEditMode: setPersistedEditMode,
-    panelMode: persistedPanelMode,
-    isReady: isEditSettingsReady,
-    hasPersistedSettings,
-  } = editSettingsPersistence;
+
+  // ========================================
+  // LORA MANAGEMENT
+  // ========================================
+
+  const { data: availableLoras } = usePublicLoras();
+
+  const editLoraManager = useLoraManager(availableLoras, {
+    projectId: selectedProjectId || undefined,
+    persistenceScope: 'none',
+    enableProjectPersistence: false,
+    disableAutoLoad: true,
+  });
+
+  const effectiveEditModeLoRAs = useMemo(() => {
+    if (editLoraManager.selectedLoras.length > 0) {
+      return editLoraManager.selectedLoras.map(lora => ({
+        url: lora.path,
+        strength: lora.strength,
+      }));
+    }
+    return editSettingsPersistence.editModeLoRAs;
+  }, [editLoraManager.selectedLoras, editSettingsPersistence.editModeLoRAs]);
 
   // ========================================
   // SHARED LIGHTBOX STATE
   // ========================================
 
-  // Navigation handlers (for slot-based navigation in segment mode)
   const handleSlotNavNext = useCallback(() => {
     if (onNext) onNext();
   }, [onNext]);
@@ -270,9 +252,10 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     if (onPrevious) onPrevious();
   }, [onPrevious]);
 
-  // useSharedLightboxState needs isInpaintMode/isMagicEditMode for layout calculations,
-  // but these come from hooks called AFTER it. Local state proxies are updated via
-  // useEffect below — one-frame delay is acceptable for swipe/layout calculations.
+  // Local state proxies for edit mode flags. useSharedLightboxState needs these
+  // for layout calculations, but the real values come from useImageEditOrchestrator
+  // which runs AFTER shared state (it needs variant data). One-frame delay is
+  // acceptable for swipe/layout calculations.
   const [isInpaintModeLocal, setIsInpaintModeLocal] = useState(false);
   const [isMagicEditModeLocal, setIsMagicEditModeLocal] = useState(false);
 
@@ -321,13 +304,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     isDeleting,
     isUpscaling,
     handleUpscale,
-    handleEnterMagicEditMode: () => {}, // Will be replaced after hook
+    handleEnterMagicEditMode: () => {}, // Will be replaced after orchestrator runs
     effectiveImageUrl,
     imageDimensions: imageDimensions || { width: 1024, height: 1024 },
     projectAspectRatio,
   });
 
-  // Extract shared state
   const {
     variants,
     intendedActiveVariantIdRef,
@@ -347,246 +329,49 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   }, [variants.activeVariant?.location, variants.activeVariant?.id, setUpscaleActiveVariant]);
 
   // ========================================
-  // LORA MANAGEMENT
+  // IMAGE EDIT ORCHESTRATOR
   // ========================================
+  // Composes inpainting, magic edit, reposition, img2img hooks.
+  // Builds the ImageEditContext value.
 
-  const { data: availableLoras } = usePublicLoras();
-
-  const editLoraManager = useLoraManager(availableLoras, {
-    projectId: selectedProjectId || undefined,
-    persistenceScope: 'none',
-    enableProjectPersistence: false,
-    disableAutoLoad: true,
-  });
-
-  const effectiveEditModeLoRAs = useMemo(() => {
-    if (editLoraManager.selectedLoras.length > 0) {
-      return editLoraManager.selectedLoras.map(lora => ({
-        url: lora.path,
-        strength: lora.strength,
-      }));
-    }
-    return editModeLoRAs;
-  }, [editLoraManager.selectedLoras, editModeLoRAs]);
-
-  // ========================================
-  // INPAINTING HOOK
-  // ========================================
-
-  const inpaintingHook = useInpainting({
+  const editOrchestrator = useImageEditOrchestrator({
     media,
     selectedProjectId,
-    shotId,
-    toolTypeOverride,
-    isVideo: false,
-    imageContainerRef,
-    imageDimensions,
-    handleExitInpaintMode: () => {},
-    loras: effectiveEditModeLoRAs,
-    activeVariantId: variants.activeVariant?.id,
-    activeVariantLocation: variants.activeVariant?.location,
-    createAsGeneration,
-    advancedSettings,
-    qwenEditModel,
-    imageUrl: variants.activeVariant?.location || effectiveImageUrl,
-    thumbnailUrl: variants.activeVariant?.thumbnail_url || media.thumbUrl,
-    initialEditMode: persistedEditMode,
-  });
-
-  const {
-    isInpaintMode,
-    brushStrokes,
-    isEraseMode,
-    inpaintPrompt,
-    inpaintNumGenerations,
-    brushSize,
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isAnnotateMode,
-    editMode,
-    annotationMode,
-    selectedShapeId,
-    setIsInpaintMode,
-    setIsEraseMode,
-    setInpaintPrompt,
-    setInpaintNumGenerations,
-    setBrushSize,
-    setIsAnnotateMode,
-    setEditMode,
-    setAnnotationMode,
-    handleUndo,
-    handleClearMask,
-    handleEnterInpaintMode,
-    handleGenerateInpaint,
-    handleGenerateAnnotatedEdit,
-    handleDeleteSelected,
-    handleToggleFreeForm,
-    getDeleteButtonPosition,
-    onStrokeComplete,
-    onStrokesChange,
-    onSelectionChange,
-    onTextModeHint,
-    strokeOverlayRef,
-  } = inpaintingHook;
-
-  // ========================================
-  // EDIT SETTINGS SYNC
-  // ========================================
-
-  useEditSettingsSync({
     actualGenerationId,
-    isEditSettingsReady,
-    hasPersistedSettings,
-    persistedEditMode,
-    persistedNumGenerations,
-    persistedPrompt,
-    editMode,
-    inpaintNumGenerations,
-    inpaintPrompt,
-    setEditMode,
-    setInpaintNumGenerations,
-    setInpaintPrompt,
-    setPersistedEditMode,
-    setPersistedNumGenerations,
-    setPersistedPrompt,
-  });
-
-  const handleExitInpaintMode = () => {
-    setIsInpaintMode(false);
-  };
-
-  // ========================================
-  // MAGIC EDIT MODE HOOK
-  // ========================================
-
-  const magicEditHook = useMagicEditMode({
-    media,
-    selectedProjectId,
-    autoEnterInpaint,
-    isVideo: false,
-    isInpaintMode,
-    setIsInpaintMode,
-    handleEnterInpaintMode,
-    handleGenerateInpaint,
-    brushStrokes,
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-    editModeLoRAs: effectiveEditModeLoRAs,
-    sourceUrlForTasks: effectiveImageUrl,
-    imageDimensions,
+    shotId,
     toolTypeOverride,
-    isInSceneBoostEnabled: false,
-    setIsInSceneBoostEnabled: () => {},
-    activeVariantId: variants.activeVariant?.id,
-    activeVariantLocation: variants.activeVariant?.location,
-    createAsGeneration,
-    advancedSettings,
-    qwenEditModel,
-    enabled: true,
-  });
-
-  const {
-    isMagicEditMode,
-    setIsMagicEditMode,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
-    handleEnterMagicEditMode,
-    handleExitMagicEditMode,
-    handleUnifiedGenerate,
-    isSpecialEditMode,
-  } = magicEditHook;
-
-  // Sync edit mode state to shared state hook (see STATE SYNC PATTERN NOTE above)
-  // This runs after useMagicEditMode provides the real values
-  useEffect(() => {
-    setIsInpaintModeLocal(isInpaintMode);
-    setIsMagicEditModeLocal(isMagicEditMode);
-  }, [isInpaintMode, isMagicEditMode]);
-
-  // ========================================
-  // REPOSITION MODE HOOK
-  // ========================================
-
-  const repositionHook = useRepositionMode({
-    media,
-    selectedProjectId,
+    autoEnterInpaint,
     imageDimensions,
     imageContainerRef,
-    loras: effectiveEditModeLoRAs,
-    inpaintPrompt,
-    inpaintNumGenerations,
-    toolTypeOverride,
-    shotId,
-    onVariantCreated: variants.setActiveVariantId,
+    effectiveImageUrl,
+    activeVariant: variants.activeVariant,
+    setActiveVariantId: variants.setActiveVariantId,
     refetchVariants: variants.refetch,
-    createAsGeneration,
-    advancedSettings,
-    activeVariantLocation: variants.activeVariant?.location,
-    activeVariantId: variants.activeVariant?.id,
-    activeVariantParams: variants.activeVariant?.params as Record<string, unknown> | null,
-    qwenEditModel,
+    editSettingsPersistence,
+    effectiveEditModeLoRAs,
+    editLoraManager,
+    availableLoras,
+    thumbnailUrl: variants.activeVariant?.thumbnail_url || media.thumbUrl,
   });
 
   const {
-    transform: repositionTransform,
-    hasTransformChanges,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
+    imageEditValue,
+    isSpecialEditMode,
+    editMode,
+    handleEnterMagicEditMode,
+    handleUnifiedGenerate,
+    handleGenerateAnnotatedEdit,
     handleGenerateReposition,
     handleSaveAsVariant,
-    getTransformStyle,
-    isDragging: isRepositionDragging,
-    dragHandlers: repositionDragHandlers,
-  } = repositionHook;
-
-  // ========================================
-  // IMG2IMG MODE HOOK
-  // ========================================
-
-  const img2imgHook = useImg2ImgMode({
-    media,
-    selectedProjectId,
-    isVideo: false,
-    sourceUrlForTasks: effectiveImageUrl,
-    toolTypeOverride,
-    createAsGeneration,
-    availableLoras,
-    img2imgStrength: persistedImg2imgStrength,
-    setImg2imgStrength: setPersistedImg2imgStrength,
-    enablePromptExpansion: persistedImg2imgEnablePromptExpansion,
-    setEnablePromptExpansion: setPersistedImg2imgEnablePromptExpansion,
-    img2imgPrompt: persistedImg2imgPrompt,
-    setImg2imgPrompt: setPersistedImg2imgPrompt,
-    img2imgPromptHasBeenSet: persistedImg2imgPromptHasBeenSet,
-    numGenerations: persistedNumGenerations,
-    activeVariantLocation: variants.activeVariant?.location,
-    activeVariantId: variants.activeVariant?.id,
-    shotId,
-  });
-
-  const {
-    img2imgPrompt,
-    img2imgStrength,
-    enablePromptExpansion,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
-    setImg2imgPrompt,
-    setImg2imgStrength,
-    setEnablePromptExpansion,
     handleGenerateImg2Img,
-    loraManager: img2imgLoraManager,
-  } = img2imgHook;
+    img2imgLoraManager,
+  } = editOrchestrator;
+
+  // Sync real edit mode flags back to local proxies for sharedState
+  useEffect(() => {
+    setIsInpaintModeLocal(editOrchestrator.isInpaintMode);
+    setIsMagicEditModeLocal(editOrchestrator.isMagicEditMode);
+  }, [editOrchestrator.isInpaintMode, editOrchestrator.isMagicEditMode]);
 
   // ========================================
   // ADJUSTED TASK DETAILS
@@ -605,7 +390,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
 
   usePanelModeRestore({
     mediaId: media.id,
-    persistedPanelMode,
+    persistedPanelMode: editSettingsPersistence.panelMode,
     isVideo: false,
     isSpecialEditMode,
     isInVideoEditMode: false,
@@ -670,145 +455,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     swipeNavigation: navigation.swipeNavigation,
   });
 
-  // Placeholder values for context fields not yet wired to real state
-  const isFlippedHorizontally = false;
-  const isSaving = false;
-
-  // Build ImageEditContext value (unified: mode + form + generation status)
-  const imageEditValue = useMemo<ImageEditState>(() => ({
-    // Mode state
-    isInpaintMode,
-    isMagicEditMode,
-    isSpecialEditMode,
-    editMode: editMode as ImageEditState['editMode'],
-
-    // Mode setters
-    setIsInpaintMode,
-    setIsMagicEditMode,
-    setEditMode: setEditMode as ImageEditState['setEditMode'],
-
-    // Mode entry/exit handlers
-    handleEnterInpaintMode,
-    handleExitInpaintMode,
-    handleEnterMagicEditMode,
-    handleExitMagicEditMode,
-
-    // Brush/Inpaint state
-    brushSize,
-    setBrushSize,
-    isEraseMode,
-    setIsEraseMode,
-    brushStrokes,
-
-    // Annotation state
-    isAnnotateMode,
-    setIsAnnotateMode,
-    annotationMode,
-    setAnnotationMode,
-    selectedShapeId,
-
-    // Undo/Clear
-    handleUndo,
-    handleClearMask,
-
-    // Canvas interaction
-    onStrokeComplete,
-    onStrokesChange,
-    onSelectionChange,
-    onTextModeHint,
-    strokeOverlayRef,
-    getDeleteButtonPosition,
-    handleToggleFreeForm,
-    handleDeleteSelected,
-
-    // Reposition state + interaction handlers
-    repositionTransform,
-    hasTransformChanges,
-    isRepositionDragging,
-    repositionDragHandlers,
-    getTransformStyle,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
-
-    // Display refs
-    imageContainerRef,
-    isFlippedHorizontally,
-    isSaving,
-
-    // Panel UI state
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
-
-    // Inpaint form
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-
-    // Img2Img form
-    img2imgPrompt,
-    setImg2imgPrompt,
-    img2imgStrength,
-    setImg2imgStrength,
-    enablePromptExpansion,
-    setEnablePromptExpansion,
-
-    // LoRA mode
-    loraMode,
-    setLoraMode,
-    customLoraUrl,
-    setCustomLoraUrl,
-
-    // Generation options
-    createAsGeneration,
-    setCreateAsGeneration,
-
-    // Model selection
-    qwenEditModel,
-    setQwenEditModel,
-
-    // Advanced settings
-    advancedSettings,
-    setAdvancedSettings,
-
-    // Generation status
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-  }), [
-    isInpaintMode, isMagicEditMode, isSpecialEditMode, editMode,
-    setIsInpaintMode, setIsMagicEditMode, setEditMode,
-    handleEnterInpaintMode, handleExitInpaintMode, handleEnterMagicEditMode, handleExitMagicEditMode,
-    brushSize, setBrushSize, isEraseMode, setIsEraseMode, brushStrokes,
-    isAnnotateMode, setIsAnnotateMode, annotationMode, setAnnotationMode, selectedShapeId,
-    handleUndo, handleClearMask,
-    onStrokeComplete, onStrokesChange, onSelectionChange, onTextModeHint, strokeOverlayRef,
-    getDeleteButtonPosition, handleToggleFreeForm, handleDeleteSelected,
-    repositionTransform, hasTransformChanges, isRepositionDragging, repositionDragHandlers,
-    getTransformStyle, setScale, setRotation, toggleFlipH, toggleFlipV, resetTransform,
-    imageContainerRef, isFlippedHorizontally, isSaving,
-    inpaintPanelPosition, setInpaintPanelPosition,
-    inpaintPrompt, setInpaintPrompt, inpaintNumGenerations, setInpaintNumGenerations,
-    img2imgPrompt, setImg2imgPrompt, img2imgStrength, setImg2imgStrength,
-    enablePromptExpansion, setEnablePromptExpansion,
-    loraMode, setLoraMode, customLoraUrl, setCustomLoraUrl,
-    createAsGeneration, setCreateAsGeneration, qwenEditModel, setQwenEditModel,
-    advancedSettings, setAdvancedSettings,
-    isGeneratingInpaint, inpaintGenerateSuccess, isGeneratingImg2Img, img2imgGenerateSuccess,
-    isGeneratingReposition, repositionGenerateSuccess, isSavingAsVariant, saveAsVariantSuccess,
-    isCreatingMagicEditTasks, magicEditTasksCreated,
-  ]);
-
   // ========================================
   // DOWNLOAD HANDLER
   // ========================================
@@ -842,13 +488,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   // LAYOUT DECISIONS
   // ========================================
 
-  // Always fullscreen so click-to-close on content background works the same
-  // as videos (where DesktopSidePanelLayout handles it). Without fullscreen,
-  // the Popup is w-auto/h-auto and the dark area is the Backdrop, which has
-  // a broken click path due to preventDefault on pointerdown killing click events.
   const needsFullscreenLayout = true;
-  // Check both effectiveTasksPaneOpen AND isTasksPaneLocked as a defensive measure
-  // in case they're temporarily out of sync (e.g., during hydration)
   const needsTasksPaneOffset = needsFullscreenLayout && (effectiveTasksPaneOpen || isTasksPaneLocked) && !layout.isPortraitMode && layout.isTabletOrLarger;
 
   const accessibilityTitle = `Image Lightbox - ${media?.id?.substring(0, 8)}`;
@@ -857,19 +497,16 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   // ========================================
   // SHOW PANEL DECISION
   // ========================================
-  // showPanel = true when the controls panel should render (desktop side panel or mobile stacked)
+
   const showPanel = layout.shouldShowSidePanel || ((showTaskDetails || isSpecialEditMode) && isMobile);
 
   // ========================================
-  // BUILD CONTROLS PANEL PROPS (local — only when panel is shown)
+  // BUILD CONTROLS PANEL CONTENT
   // ========================================
 
-  // Shared props for panel content
   const panelVariant = (layout.shouldShowSidePanel && !isMobile) ? 'desktop' as const : 'mobile' as const;
   const panelTaskId = adjustedTaskDetailsData?.taskId || (media as unknown as Record<string, unknown>)?.source_task_id as string | null || null;
 
-  // Build panel content directly (eliminates ControlsPanel routing + video stubs)
-  // ImageLightbox only routes between EditModePanel and InfoPanel
   const controlsPanelContent = useMemo(() => {
     if (!showPanel) return undefined;
 
@@ -900,8 +537,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
           img2imgLoraManager={img2imgLoraManager}
           editLoraManager={editLoraManager}
           availableLoras={availableLoras}
-          advancedSettings={advancedSettings}
-          setAdvancedSettings={setAdvancedSettings}
+          advancedSettings={editSettingsPersistence.advancedSettings}
+          setAdvancedSettings={editSettingsPersistence.setAdvancedSettings}
           isLocalGeneration={isLocalGeneration}
         />
       );
@@ -935,7 +572,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     handleUnifiedGenerate, handleGenerateAnnotatedEdit, handleGenerateReposition,
     handleSaveAsVariant, handleGenerateImg2Img, isCloudMode, handleUpscale,
     isUpscaling, upscaleSuccess, img2imgLoraManager, editLoraManager, availableLoras,
-    advancedSettings, setAdvancedSettings, isLocalGeneration,
+    editSettingsPersistence.advancedSettings, editSettingsPersistence.setAdvancedSettings, isLocalGeneration,
     showImageEditTools, adjustedTaskDetailsData, lineage.derivedItems,
     lineage.derivedGenerations, lineage.paginatedDerived, lineage.derivedPage,
     lineage.derivedTotalPages, lineage.setDerivedPage, replaceImages, setReplaceImages,
@@ -943,7 +580,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   ]);
 
   // ========================================
-  // BUILD LAYOUT PROPS (via hook — workflow + panel + navigation only)
+  // BUILD LAYOUT PROPS
   // ========================================
 
   const { layoutProps } = useLightboxWorkflowProps({
@@ -1000,8 +637,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
       <ImageEditProvider value={imageEditValue}>
         <LightboxShell
           onClose={onClose}
-          hasCanvasOverlay={isInpaintMode}
-          isRepositionMode={isInpaintMode && editMode === 'reposition'}
+          hasCanvasOverlay={editOrchestrator.isInpaintMode}
+          isRepositionMode={editOrchestrator.isInpaintMode && editMode === 'reposition'}
           isMobile={isMobile}
           isTabletOrLarger={layout.isTabletOrLarger}
           effectiveTasksPaneOpen={effectiveTasksPaneOpen}
