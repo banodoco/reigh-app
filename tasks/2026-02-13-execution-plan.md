@@ -258,3 +258,63 @@ Total is 1334 lines (up from 1044) due to interface definitions and imports — 
 **Agent X (MediaGallery GalleryConfig object):** Clean. 17 individual boolean props → single `config?: Partial<GalleryConfig>` prop with `DEFAULT_GALLERY_CONFIG` defaults. Migrated 8 callers across 7 files. Internal components (Grid, Header, Lightbox) still accept individual props — correct since they're internal, and a second level of config-object indirection would add complexity for no benefit. `tsc --noEmit` passes clean. Net prop count: MediaGalleryProps went from ~50 fields to ~35.
 
 **Sense check:** No over-engineering. All three decompositions are justified — each addressed a genuine monolith (>300 LOC or >40 props). The ImageEditContext split is the most impactful (re-render reduction for canvas components). SegmentSettingsForm extraction makes the code navigable. MediaGallery config object is a standard pattern. `tsc --noEmit` passes clean.
+
+---
+
+## Wave 5b Evaluation (commit `d4a4ea75`)
+
+**Agent Y (ImageLightbox → useImageEditOrchestrator):** Extracted 536L orchestrator hook composing 5 edit-mode hooks + ImageEditState context value. ImageLightbox 1022→658L. Clean props interface.
+
+**Agent Z (TimelineContainer → useTrailingEndpoint + usePairSettingsHandler):** 988→795L. Extracted 157L trailing endpoint hook (video URL, frame extraction) and 119L pair settings handler. Data dependency ordering preserved (pre/post orchestrator split).
+
+**Agent AA (useGenerationActions → 3 sub-hooks):** 727→89L thin composition. useDeleteActions (172L), useDuplicateAction (134L), useDropActions (369L).
+
+**Sense check found BUG:** ImageLightbox missing destructured props `positionedInSelectedShot` and `associatedWithoutPositionInSelectedShot` → would ReferenceError at runtime. Fixed in Wave 5c commit. Also found: bare `supabase` in useDropActions (missing import), dead props in useGenerationActions, unnecessary dep in usePairSettingsHandler.
+
+---
+
+## Wave 5c Evaluation (commits `9c93639a`, `f8f4e9cf`)
+
+**VideoLightbox → useVideoEditContextValue:** 900→803L. Extracted 225L hook with variant params routing + context value construction. Justified — real business logic.
+
+**EditModePanel → useEditModePanelState:** 642→557L. Extracted 302L hook. Rated MILD by review — mostly context forwarding with 40+ field return bag. Harmless but didn't earn its weight.
+
+**useAutoSaveSettings → useDebouncedSettingsSave:** 720→527L. Extracted 281L debounce/flush lifecycle hook. GOOD — eliminated real duplication between updateField/updateFields.
+
+**InlineEditView context bug FIX:** Wrapped InlineEditCanvas in ImageEditProvider, added 20+ missing canvas fields to imageEditValue, removed ghost props from FloatingToolControls and MediaDisplayWithCanvas. This was the #1 pre-existing bug.
+
+**InlineEditView persistence dedup:** Replaced 78L hand-rolled sync effects with shared useEditSettingsSync hook. Added prompt race-condition protection to the shared hook.
+
+**useTrainingData decomposition:** 715→237L orchestrator + transforms (74L) + useTrainingDataBatches (124L) + useTrainingDataUpload (205L). Clean separation of genuinely distinct concerns.
+
+**ImageLightbox prop fix:** Restored `positionedInSelectedShot` and `associatedWithoutPositionInSelectedShot` destructuring.
+
+---
+
+## Bug Fix Pass (commit `b46ae5a4`)
+
+Fixed all bugs discovered during sense-check reviews:
+- **useDropActions**: Added missing `supabase` import (would ReferenceError in ES strict mode)
+- **useProjectCRUD**: Moved `onProjectDeleted` outside `setProjects` updater (pure updater contract)
+- **useProjectSelection**: Added localStorage write in `handleProjectDeleted` (stale ID on refresh)
+- **useGenerationActions**: Removed dead props `onShotImagesUpdate`, `skipNextSyncRef`
+- **usePairSettingsHandler**: Removed unused `currentPositions` from deps and interface
+
+---
+
+## Final Status
+
+**Completed:** Waves 1-5c (all committed), bug fix pass, InlineEditView context bug fix.
+
+**Remaining from plan:**
+- `useImageGenForm` decomposition (714L, skipped from Wave 5c)
+- `InlineEditView` / `useInlineEditState` full decomposition (893L, only bug fix + persistence dedup done)
+- Edge function deployment (0 of ~25 modified functions deployed)
+- `complete_task` FK migration (committed but not deployed — must deploy before function)
+- `stripe-webhook` @ts-nocheck removal
+- `ai-prompt` auth migration to `authenticateRequest()`
+- Rate limiting on `complete_task`, `calculate-task-cost`, `delete-project`
+
+**Mildly overzealous (no revert needed):**
+- PromptSection extraction (116L, too thin)
+- useEditModePanelState extraction (302L, mostly context forwarding)
