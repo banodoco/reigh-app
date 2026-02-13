@@ -32,10 +32,10 @@ import { usePromptFieldState } from '@/shared/hooks/usePromptFieldState';
 import { AdvancedSettingsSection, PromptSection } from './components';
 
 // Extracted hooks
-import { useStructureVideoUpload } from './hooks';
+import { useSaveFieldAsDefault, useStructureVideoUpload } from './hooks';
 
 // Types
-import type { SegmentSettingsFormProps, SegmentSettings } from './types';
+import type { SegmentSettingsFormProps } from './types';
 
 // =============================================================================
 // COMPONENT
@@ -84,8 +84,13 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
   const [saveDefaultsSuccess, setSaveDefaultsSuccess] = useState(false);
-  const [savingField, setSavingField] = useState<string | null>(null);
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
+
+  // Save-field-as-default (shared with AdvancedSettingsSection)
+  const { savingField, handleSaveFieldAsDefault } = useSaveFieldAsDefault({
+    onSaveFieldAsDefault,
+    onChange,
+  });
 
   // Structure video upload hook
   const videoUpload = useStructureVideoUpload({
@@ -140,20 +145,6 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
       setIsSavingDefaults(false);
     }
   }, [onSaveAsShotDefaults]);
-
-  const handleSaveFieldAsDefault = useCallback(async (field: keyof SegmentSettings, value: SegmentSettings[keyof SegmentSettings]) => {
-    if (!onSaveFieldAsDefault) return;
-    setSavingField(field);
-    try {
-      const success = await onSaveFieldAsDefault(field, value);
-      if (success) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-        onChange({ [field]: undefined } as Partial<SegmentSettings>);
-      }
-    } finally {
-      setSavingField(null);
-    }
-  }, [onSaveFieldAsDefault, onChange]);
 
   // Drag and drop handlers for video upload
   const handleDragOver = useCallback((e: React.DragEvent) => {

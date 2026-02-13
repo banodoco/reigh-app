@@ -125,7 +125,6 @@ function useGenerationsPageLogic({
   // 2. Filter changed and we're showing stale placeholder data
   const isLoading = generationsQuery.isLoading || (isFetching && isPlaceholderData);
 
-
   // ============================================================================
   // QUERY FALLBACK - delegate to filter state hook
   // ============================================================================
@@ -146,7 +145,7 @@ function useGenerationsPageLogic({
   const addImageToShotMutation = useAddImageToShot();
   const addImageToShotWithoutPositionMutation = useAddImageToShotWithoutPosition();
   const positionExistingGenerationMutation = usePositionExistingGenerationInShot();
-  const { requestDelete, DeleteConfirmDialog, isPending: isDeletePending, deletingId } = useDeleteGenerationWithConfirm();
+  const { requestDelete, DeleteConfirmDialog, deletingId } = useDeleteGenerationWithConfirm();
   const toggleStarMutation = useToggleGenerationStar();
 
   // ============================================================================

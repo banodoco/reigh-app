@@ -253,7 +253,7 @@ export const uploadImageToStorage = async (
 /**
  * Upload a Blob (e.g., thumbnail) to storage with same timeout/retry support
  */
-export const uploadBlobToStorage = async (
+export const uploadBlobToStorage = (
   blob: Blob,
   filename: string,
   contentType: string,

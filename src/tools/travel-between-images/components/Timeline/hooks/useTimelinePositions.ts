@@ -227,7 +227,7 @@ export function useTimelinePositions({
     }
     
     // Check if positions actually changed
-    const syncKey = JSON.stringify([...newPositions.entries()].sort());
+    const syncKey = JSON.stringify([...newPositions.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
     if (syncKey === lastSyncRef.current) {
       return; // No change
     }

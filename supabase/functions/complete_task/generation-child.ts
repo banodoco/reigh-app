@@ -387,7 +387,7 @@ export async function createChildGenerationRecord(
  * Logs a comprehensive summary of a segment after creation.
  * For debugging FE vs BE discrepancies in travel segment generation.
  */
-export function logSegmentMasterState(params: {
+function logSegmentMasterState(params: {
   taskId: string;
   generationId: string;
   segmentIndex: number;
@@ -555,7 +555,7 @@ export function logSegmentMasterState(params: {
  * Extract segment-specific params from expanded arrays in orchestrator_details.
  * For travel segments, each segment can have different prompts, frame counts, etc.
  */
-export function extractSegmentSpecificParams(
+function extractSegmentSpecificParams(
   params: any,
   orchDetails: any,
   segmentIndex: number

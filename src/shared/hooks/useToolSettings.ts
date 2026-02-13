@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import React, { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -122,7 +122,7 @@ setSettingsWriteFunction(rawUpdateToolSettings);
  * @param mode - 'debounced' (default) or 'immediate' for flush-on-unmount
  * @returns The full merged settings after update
  */
-export async function updateToolSettingsSupabase(
+export function updateToolSettingsSupabase(
   params: UpdateToolSettingsParams,
   _signal?: AbortSignal,
   mode: 'debounced' | 'immediate' = 'debounced'
@@ -237,7 +237,7 @@ export function useToolSettings<T>(
   }, []);
 
   // Fetch merged settings using Supabase with mobile optimizations
-  const { data: queryResult, isLoading, error, fetchStatus } = useQuery({
+  const { data: queryResult, isLoading, error } = useQuery({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
     queryFn: async ({ signal }) => {
       try {
@@ -286,15 +286,6 @@ export function useToolSettings<T>(
   if (error && !error?.message?.includes('Request was cancelled')) {
     handleError(error, { context: 'useToolSettings', showToast: false });
   }
-
-  // [ShotNavPerf] Log query status ONLY when it changes (not every render)
-  const prevStatusRef = React.useRef<string>('');
-  React.useEffect(() => {
-    const statusKey = `${toolId}-${shotId}-${isLoading}-${fetchStatus}`;
-    if (prevStatusRef.current !== statusKey) {
-      prevStatusRef.current = statusKey;
-    }
-  }, [toolId, shotId, isLoading, fetchStatus, settings]);
 
   // Update settings mutation
   const updateMutation = useMutation({

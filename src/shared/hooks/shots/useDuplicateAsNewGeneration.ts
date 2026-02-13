@@ -10,6 +10,9 @@ import { invalidateGenerationsSync } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 
+/** Maximum offset to try when resolving timeline frame collisions */
+const MAX_FRAME_COLLISION_OFFSET = 1000;
+
 export const useDuplicateAsNewGeneration = () => {
   const queryClient = useQueryClient();
 
@@ -130,7 +133,7 @@ export const useDuplicateAsNewGeneration = () => {
       let newTimelineFrame = Math.max(0, Math.round(targetTimelineFrame));
       if (existingFrames.includes(newTimelineFrame)) {
         let offset = 1;
-        while (offset < 1000) {
+        while (offset < MAX_FRAME_COLLISION_OFFSET) {
           const higher = newTimelineFrame + offset;
           if (!existingFrames.includes(higher)) {
             newTimelineFrame = higher;

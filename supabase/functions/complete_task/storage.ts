@@ -9,7 +9,7 @@ import { storagePaths, MEDIA_BUCKET } from '../_shared/storagePaths.ts';
 
 // ===== TYPES =====
 
-export interface StorageResult {
+interface StorageResult {
   publicUrl: string;
   objectPath: string;
   thumbnailUrl: string | null;

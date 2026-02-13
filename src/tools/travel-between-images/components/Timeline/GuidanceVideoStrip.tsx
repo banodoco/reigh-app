@@ -262,13 +262,6 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     outerContainerRef as React.RefObject<HTMLDivElement>
   );
 
-  // Log rendering state for debugging
-  console.log('[StructureVideo] GuidanceVideoStrip render', {
-    framesExtracted: displayFrameImages.length,
-    framesToRender: framesToRender.length,
-    widthPixel: widthPixel.toFixed(1),
-  });
-
   // Handle mouse move for hover preview
   const mouseMoveCountRef = useRef(0);
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -289,14 +282,6 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
 
     // Log first few moves to trace the flow
     mouseMoveCountRef.current++;
-    if (mouseMoveCountRef.current <= 3) {
-      console.log('[StructureVideo] handleMouseMove', {
-        moveCount: mouseMoveCountRef.current,
-        videoFrame,
-        normalizedPosition: normalizedPosition.toFixed(2),
-        stripWidth,
-      });
-    }
 
     setCurrentVideoFrame(videoFrame);
     hoverPreview.updateHoverPosition(e.clientX, e.clientY - 140, videoFrame);

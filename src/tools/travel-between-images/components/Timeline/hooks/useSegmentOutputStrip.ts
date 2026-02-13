@@ -10,7 +10,7 @@ import { useSourceImageChanges } from '@/shared/hooks/useSourceImageChanges';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
 import { TIMELINE_PADDING_OFFSET } from '../constants';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import type { PairData } from '../TimelineContainer';
+import type { PairData } from '@/shared/types/pairData';
 
 import { useSegmentDeletion } from './useSegmentDeletion';
 import { useSegmentScrubbing } from './useSegmentScrubbing';
@@ -48,7 +48,7 @@ interface SegmentDataProps {
 }
 
 /** A display slot merged with its pixel position — ready for rendering */
-export interface PositionedSlot {
+interface PositionedSlot {
   slot: SegmentSlot;
   leftPercent: number;
   widthPercent: number;

@@ -70,7 +70,7 @@ export function useSourceImageChanges(
 
   // Query current generations at each slot (shot_generations -> generations)
   const { data: slotData, isLoading } = useQuery({
-    queryKey: ['source-slot-generations', ...startGenIds.sort()],
+    queryKey: ['source-slot-generations', ...startGenIds.sort((a, b) => a.localeCompare(b))],
     queryFn: async () => {
       if (startGenIds.length === 0) return {};
 

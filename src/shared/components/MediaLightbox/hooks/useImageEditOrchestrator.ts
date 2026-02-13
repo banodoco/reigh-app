@@ -28,7 +28,7 @@ import {
 // Props
 // ============================================================================
 
-export interface UseImageEditOrchestratorProps {
+interface UseImageEditOrchestratorProps {
   // Media & project
   media: GenerationRow;
   selectedProjectId: string | null;
@@ -84,7 +84,6 @@ export interface UseImageEditOrchestratorProps {
 
   // LoRA managers
   effectiveEditModeLoRAs: Array<{ url: string; strength: number }> | undefined;
-  editLoraManager: UseLoraManagerReturn;
   availableLoras?: LoraModel[];
 
   // Thumbnail URL for magic edit
@@ -95,7 +94,7 @@ export interface UseImageEditOrchestratorProps {
 // Return Type
 // ============================================================================
 
-export interface UseImageEditOrchestratorReturn {
+interface UseImageEditOrchestratorReturn {
   // Context value (pass to ImageEditProvider)
   imageEditValue: ImageEditState;
 
@@ -140,7 +139,6 @@ export function useImageEditOrchestrator({
   refetchVariants,
   editSettingsPersistence,
   effectiveEditModeLoRAs,
-  editLoraManager,
   availableLoras,
   thumbnailUrl,
 }: UseImageEditOrchestratorProps): UseImageEditOrchestratorReturn {

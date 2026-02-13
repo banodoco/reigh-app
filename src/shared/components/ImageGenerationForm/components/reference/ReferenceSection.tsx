@@ -9,7 +9,7 @@ import { ReferenceModeControls } from "./ReferenceModeControls";
 import { LoraGrid } from "./LoraGrid";
 import { useFormCoreContext, useFormReferencesContext } from "../../ImageGenerationFormContext";
 
-export interface ReferenceSectionProps {
+interface ReferenceSectionProps {
   onOpenLoraModal: () => void;
   isLoadingReferenceData?: boolean;
   referenceCount?: number;

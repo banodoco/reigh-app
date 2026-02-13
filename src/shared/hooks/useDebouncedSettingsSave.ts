@@ -137,7 +137,7 @@ export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
   }, [cancelPendingSave]);
 
   // Schedule a debounced save
-  const scheduleSave = useCallback((forEntityId: string | null) => {
+  const scheduleSave = useCallback((_forEntityId: string | null) => {
     // During loading, don't schedule saves - just let pending tracking do its work
     if (status !== 'ready' && status !== 'saving') {
       return;

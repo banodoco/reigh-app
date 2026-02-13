@@ -10,7 +10,7 @@ import type { LoraMode } from '@/shared/components/MediaLightbox/hooks/editSetti
 // Params — sub-hook results needed to build ImageEditState
 // ============================================================================
 
-export interface UseImageEditValueParams {
+interface UseImageEditValueParams {
   // Mode state
   isInpaintMode: boolean;
   isSpecialEditMode: boolean;

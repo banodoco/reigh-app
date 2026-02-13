@@ -187,9 +187,9 @@ export function useTaskLog(
 
       const availableFilters = {
         // Show all visible task types (same as TasksPane dropdown)
-        taskTypes: visibleTaskTypes.sort(),
+        taskTypes: visibleTaskTypes.sort((a, b) => a.localeCompare(b)),
         projects: projects,
-        statuses: [...new Set((allTasks || []).map(t => t.status))].sort()
+        statuses: [...new Set((allTasks || []).map(t => t.status))].sort((a, b) => a.localeCompare(b))
       };
 
       const total = count || 0;

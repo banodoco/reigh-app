@@ -121,5 +121,5 @@ export const debugPolling = {
 
 // Make available globally for debugging
 if (typeof window !== 'undefined') {
-  (window as any).debugPolling = debugPolling;
+  (window as unknown as Record<string, typeof debugPolling>).debugPolling = debugPolling;
 }

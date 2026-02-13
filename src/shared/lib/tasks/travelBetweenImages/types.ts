@@ -69,28 +69,6 @@ export interface StructureGuidanceConfig {
   zero_empty_frames?: boolean;
 }
 
-// ============================================================================
-// LEGACY INTERFACES (kept for backward compatibility)
-// ============================================================================
-
-/**
- * Structure video parameters for VACE mode (LEGACY - single video format).
- * Controls how a reference video guides the motion/structure of generation.
- * @deprecated Use `structure_guidance` + `structure_videos` array format instead.
- */
-interface VideoStructureApiParams {
-  /** Path to structure video (S3/Storage URL) */
-  structure_video_path?: string | null;
-  /** How to handle frame count mismatches between structure video and generation */
-  structure_video_treatment?: 'adjust' | 'clip';
-  /** Motion strength: 0.0 = no motion, 1.0 = full motion, >1.0 = amplified */
-  structure_video_motion_strength?: number;
-  /** Type of structure extraction from video: uni3c (raw), optical flow, canny, or depth */
-  structure_video_type?: 'uni3c' | 'flow' | 'canny' | 'depth';
-  /** Uni3C end percent (0-1, only used when structure_video_type is 'uni3c') */
-  uni3c_end_percent?: number;
-}
-
 /**
  * Single structure video configuration within the structure_videos array.
  * Defines which OUTPUT timeline frames this video guides and which SOURCE frames to use.
@@ -281,7 +259,6 @@ export interface ModelConfig {
  * This matches the original steerable-motion edge function request body.
  */
 export interface TravelBetweenImagesTaskParams extends
-  Partial<VideoStructureApiParams>,
   Partial<VideoMotionApiParams>,
   Partial<VideoModelApiParams>,
   Partial<VideoPromptApiParams> {
@@ -362,6 +339,14 @@ export interface TravelBetweenImagesTaskParams extends
   // LEGACY PARAMS (kept for backward compatibility, prefer structure_guidance)
   // ============================================================================
 
+  /** @deprecated Use structure_guidance + structure_videos array format instead */
+  structure_video_path?: string | null;
+  /** @deprecated Use structure_guidance + structure_videos array format instead */
+  structure_video_treatment?: 'adjust' | 'clip';
+  /** @deprecated Use structure_guidance + structure_videos array format instead */
+  structure_video_motion_strength?: number;
+  /** @deprecated Use structure_guidance + structure_videos array format instead */
+  structure_video_type?: 'uni3c' | 'flow' | 'canny' | 'depth';
   /** @deprecated Use structure_guidance.step_window[0] instead */
   uni3c_start_percent?: number;
   /** @deprecated Use structure_guidance.step_window[1] instead */

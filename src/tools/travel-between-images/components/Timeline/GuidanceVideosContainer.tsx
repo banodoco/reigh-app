@@ -54,13 +54,6 @@ export const GuidanceVideosContainer: React.FC<GuidanceVideosContainerProps> = (
   // Prevents layout shift when the strip pops in after settings load.
   const shouldShowSkeleton = isLoading && structureVideos.length === 0 && cachedHasStructureVideo;
 
-  console.log('[StructureVideo] GuidanceVideosContainer render', {
-    videoCount: structureVideos.length,
-    isLoading,
-    cachedHasStructureVideo,
-    shouldShowSkeleton,
-  });
-
   // Don't render anything if no videos and no skeleton needed
   if (structureVideos.length === 0 && !shouldShowSkeleton) {
     return null;

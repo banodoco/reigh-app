@@ -467,7 +467,7 @@ export const useRemoveImageFromShot = () => {
       return { previousShots, previousFastGens, projectId, shotId };
     },
 
-    onError: (err: Error, variables, context) => {
+    onError: (err: Error, _variables, context) => {
       if (context?.previousShots && context.projectId) {
         rollbackShotsCaches(queryClient, context.projectId, context.previousShots);
       }

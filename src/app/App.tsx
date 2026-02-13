@@ -29,6 +29,8 @@ import { getNetworkStatusManager } from '@/shared/lib/NetworkStatusManager';
 // Initialize task type config cache early
 import { TaskTypeConfigInitializer } from '@/shared/components/TaskTypeConfigInitializer';
 
+const STALE_TIME_MS = 5 * 60 * 1000; // 5 minutes
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -45,7 +47,7 @@ const queryClient = new QueryClient({
       // Ensure queries don't refetch on window focus by default
       refetchOnWindowFocus: false,
       // Prevent stale time issues
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: STALE_TIME_MS,
       // Enable network mode for better mobile handling
       networkMode: 'online',
     },

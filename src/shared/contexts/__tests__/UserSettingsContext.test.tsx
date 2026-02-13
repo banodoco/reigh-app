@@ -1,0 +1,183 @@
+/**
+ * UserSettingsContext Tests
+ *
+ * Tests for user settings state management.
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import React from 'react';
+
+// Use vi.hoisted for variables referenced inside vi.mock factories
+const { mockGetUserId, mockSupabaseSelect, mockUpdateToolSettings } = vi.hoisted(() => ({
+  mockGetUserId: vi.fn().mockReturnValue('user-123'),
+  mockSupabaseSelect: vi.fn(),
+  mockUpdateToolSettings: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../AuthContext', () => ({
+  useAuth: () => ({ userId: mockGetUserId() }),
+}));
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: mockSupabaseSelect,
+        }),
+      }),
+    }),
+  },
+}));
+
+vi.mock('@/shared/hooks/useToolSettings', () => ({
+  updateToolSettingsSupabase: mockUpdateToolSettings,
+}));
+
+vi.mock('@/shared/hooks/useMobileTimeoutFallback', () => ({
+  useMobileTimeoutFallback: vi.fn(),
+}));
+
+vi.mock('@/shared/lib/errorHandler', () => ({
+  handleError: vi.fn(),
+}));
+
+import { UserSettingsProvider, useUserSettings } from '../UserSettingsContext';
+
+// Test consumer
+function SettingsConsumer() {
+  const { userSettings, isLoadingSettings } = useUserSettings();
+  return (
+    <div>
+      <span data-testid="isLoading">{String(isLoadingSettings)}</span>
+      <span data-testid="settings">{JSON.stringify(userSettings ?? 'undefined')}</span>
+    </div>
+  );
+}
+
+describe('UserSettingsContext', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUserId.mockReturnValue('user-123');
+    mockSupabaseSelect.mockResolvedValue({
+      data: {
+        settings: {
+          'user-preferences': { theme: 'dark', lastProject: 'proj-1' },
+        },
+      },
+      error: null,
+    });
+  });
+
+  describe('useUserSettings hook', () => {
+    it('throws when used outside UserSettingsProvider', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      function BadConsumer() {
+        useUserSettings();
+        return null;
+      }
+
+      expect(() => {
+        render(<BadConsumer />);
+      }).toThrow('useUserSettings must be used within a UserSettingsProvider');
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('UserSettingsProvider', () => {
+    it('renders children', async () => {
+      render(
+        <UserSettingsProvider>
+          <div data-testid="child">Hello</div>
+        </UserSettingsProvider>
+      );
+
+      expect(screen.getByTestId('child')).toHaveTextContent('Hello');
+    });
+
+    it('fetches user settings on mount when userId is available', async () => {
+      render(
+        <UserSettingsProvider>
+          <SettingsConsumer />
+        </UserSettingsProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('isLoading')).toHaveTextContent('false');
+      });
+
+      expect(screen.getByTestId('settings')).toHaveTextContent('"theme":"dark"');
+    });
+
+    it('provides undefined settings when no userId', async () => {
+      mockGetUserId.mockReturnValue(null);
+
+      render(
+        <UserSettingsProvider>
+          <SettingsConsumer />
+        </UserSettingsProvider>
+      );
+
+      // Should not be loading and settings should be undefined
+      expect(screen.getByTestId('isLoading')).toHaveTextContent('false');
+      expect(screen.getByTestId('settings')).toHaveTextContent('undefined');
+    });
+
+    it('sets empty settings on fetch error', async () => {
+      mockSupabaseSelect.mockResolvedValue({
+        data: null,
+        error: new Error('Database error'),
+      });
+
+      render(
+        <UserSettingsProvider>
+          <SettingsConsumer />
+        </UserSettingsProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('isLoading')).toHaveTextContent('false');
+      });
+
+      expect(screen.getByTestId('settings')).toHaveTextContent('{}');
+    });
+
+    it('provides updateUserSettings function', async () => {
+      function UpdateConsumer() {
+        const { updateUserSettings } = useUserSettings();
+        return (
+          <button
+            data-testid="update"
+            onClick={() => updateUserSettings('user', { theme: 'light' } as Record<string, unknown>)}
+          >
+            Update
+          </button>
+        );
+      }
+
+      render(
+        <UserSettingsProvider>
+          <UpdateConsumer />
+        </UserSettingsProvider>
+      );
+
+      await waitFor(() => {
+        // Wait for initial fetch to complete
+      });
+
+      await act(async () => {
+        screen.getByTestId('update').click();
+      });
+
+      expect(mockUpdateToolSettings).toHaveBeenCalledWith({
+        scope: 'user',
+        id: 'user-123',
+        toolId: 'user-preferences',
+        patch: { theme: 'light' },
+      });
+    });
+  });
+});

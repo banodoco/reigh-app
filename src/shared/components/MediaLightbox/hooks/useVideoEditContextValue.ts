@@ -8,7 +8,7 @@
  * Extracted from VideoLightbox to keep the component focused on layout/rendering.
  */
 
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useEffect } from 'react';
 import type { VideoEditState } from '../contexts/VideoEditContext';
 import type { VideoEnhanceSettings } from './editSettingsTypes';
 

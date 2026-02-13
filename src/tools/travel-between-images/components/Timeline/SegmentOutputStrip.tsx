@@ -16,7 +16,7 @@ import { TIMELINE_HORIZONTAL_PADDING } from './constants';
 import { getDisplayUrl } from '@/shared/lib/utils';
 import { cn } from '@/shared/lib/utils';
 
-import type { PairData } from './TimelineContainer';
+import type { PairData } from '@/shared/types/pairData';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import { useSegmentOutputStrip } from './hooks/useSegmentOutputStrip';
 

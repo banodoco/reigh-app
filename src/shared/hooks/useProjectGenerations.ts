@@ -37,6 +37,9 @@ import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
 import { SHOT_FILTER } from '@/shared/constants/filterConstants';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
+/** Cache garbage collection time for paginated generation queries */
+const GENERATIONS_GC_TIME_MS = 10 * 60 * 1000; // 10 minutes
+
 /** Common filter options for generation queries */
 interface GenerationFilters {
   toolType?: string;
@@ -417,7 +420,7 @@ export function useProjectGenerations(
     // Synchronously grab initial data from the cache on mount to prevent skeletons on revisit
     initialData: () => queryClient.getQueryData(queryKey),
     // Cache management to prevent memory leaks as pagination grows
-    gcTime: 10 * 60 * 1000, // 10 minutes, slightly longer gcTime
+    gcTime: GENERATIONS_GC_TIME_MS,
     refetchOnWindowFocus: false, // Prevent double-fetches
 
     // 🎯 SMART POLLING: Intelligent polling based on realtime health (or disabled)

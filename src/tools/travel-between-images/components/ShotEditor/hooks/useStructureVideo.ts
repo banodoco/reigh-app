@@ -227,11 +227,6 @@ export function useStructureVideo({
         timelineEndFrame
       );
 
-      console.log('[StructureVideo] Initial load for shot', shotId, {
-        settingsFromDB: structureVideoSettings ?? null,
-        migratedCount: migratedVideos.length,
-        paths: migratedVideos.map(v => v.path),
-      });
       setStructureVideosState(migratedVideos);
       // Seed prevSettingsRef so the external sync effect doesn't immediately re-fire
       prevSettingsRef.current = structureVideoSettings ?? null;
@@ -261,12 +256,6 @@ export function useStructureVideo({
 
     if (videosChanged && currentVideos !== undefined) {
       const migratedVideos = migrateToArrayFormat(currentSettings, timelineEndFrame);
-      console.log('[StructureVideo] External settings change detected', {
-        shotId,
-        prevCount: prevVideos?.length ?? 0,
-        newCount: migratedVideos.length,
-        paths: migratedVideos.map(v => v.path),
-      });
       setStructureVideosState(migratedVideos);
     }
 
@@ -279,11 +268,6 @@ export function useStructureVideo({
 
   // Save structure videos to database
   const saveToDatabase = useCallback((videos: StructureVideoConfigWithMetadata[]) => {
-    console.log('[StructureVideo] Saving to DB', {
-      count: videos.length,
-      paths: videos.map(v => v.path),
-      ranges: videos.map(v => `${v.start_frame}-${v.end_frame}`),
-    });
     if (videos.length > 0) {
       // Save in new array format (also save legacy format for backwards compat)
       const first = videos[0];

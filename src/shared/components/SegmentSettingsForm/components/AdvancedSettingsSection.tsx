@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { useSaveFieldAsDefault } from '../hooks';
 import { Button } from '@/shared/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronLeft } from 'lucide-react';
@@ -83,7 +84,10 @@ export const AdvancedSettingsSection: React.FC<AdvancedSettingsSectionProps> = (
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isLoraModalOpen, setIsLoraModalOpen] = useState(false);
-  const [savingField, setSavingField] = useState<string | null>(null);
+  const { savingField, handleSaveFieldAsDefault } = useSaveFieldAsDefault({
+    onSaveFieldAsDefault,
+    onChange,
+  });
 
   // Fetch available LoRAs
   const { data: availableLoras = [] } = usePublicLoras();
@@ -183,19 +187,7 @@ export const AdvancedSettingsSection: React.FC<AdvancedSettingsSectionProps> = (
     });
   }, [effectiveLoras, onChange]);
 
-  const handleSaveFieldAsDefault = useCallback(async (field: keyof SegmentSettings, value: SegmentSettings[keyof SegmentSettings]) => {
-    if (!onSaveFieldAsDefault) return;
-    setSavingField(field);
-    try {
-      const success = await onSaveFieldAsDefault(field, value);
-      if (success) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-        onChange({ [field]: undefined } as Partial<SegmentSettings>);
-      }
-    } finally {
-      setSavingField(null);
-    }
-  }, [onSaveFieldAsDefault, onChange]);
+  // handleSaveFieldAsDefault and savingField provided by useSaveFieldAsDefault hook above
 
   // Computed values for motion default controls
   const isUsingMotionModeDefault = settings.motionMode === undefined && !!shotDefaults?.motionMode;

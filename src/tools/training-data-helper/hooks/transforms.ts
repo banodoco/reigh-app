@@ -5,7 +5,7 @@
 import type { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from './types';
 
 // Database types (snake_case, matching Supabase row shapes)
-export interface TrainingDataBatchDB {
+interface TrainingDataBatchDB {
   id: string;
   user_id: string;
   name: string;
@@ -15,7 +15,7 @@ export interface TrainingDataBatchDB {
   updated_at: string | null;
 }
 
-export interface TrainingDataVideoDB {
+interface TrainingDataVideoDB {
   id: string;
   original_filename: string;
   storage_location: string;
@@ -27,7 +27,7 @@ export interface TrainingDataVideoDB {
   batch_id: string;
 }
 
-export interface TrainingDataSegmentDB {
+interface TrainingDataSegmentDB {
   id: string;
   training_data_id: string;
   start_time: number;

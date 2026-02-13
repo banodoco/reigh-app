@@ -137,15 +137,11 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
     };
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
-    
-    // iOS debug logging
-    const handleLoadStart = () => {
-    };
-    
+
     const handleCanPlay = () => {
       setIsVideoReady(true);
     };
-    
+
     const handleVideoError = (_e: Event) => {
       const mediaError = video.error;
       handleError(new Error(mediaError?.message || 'Video playback error'), {
@@ -160,33 +156,21 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
         },
       });
     };
-    
-    const handleStalled = () => {
-    };
-    
-    const handleWaiting = () => {
-    };
 
     video.addEventListener('timeupdate', updateTime);
     video.addEventListener('loadedmetadata', updateDuration);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
-    video.addEventListener('loadstart', handleLoadStart);
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('error', handleVideoError);
-    video.addEventListener('stalled', handleStalled);
-    video.addEventListener('waiting', handleWaiting);
 
     return () => {
       video.removeEventListener('timeupdate', updateTime);
       video.removeEventListener('loadedmetadata', updateDuration);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
-      video.removeEventListener('loadstart', handleLoadStart);
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleVideoError);
-      video.removeEventListener('stalled', handleStalled);
-      video.removeEventListener('waiting', handleWaiting);
     };
   }, [src, hasPlaybackConstraints, effectiveStart, effectiveEnd]);
 

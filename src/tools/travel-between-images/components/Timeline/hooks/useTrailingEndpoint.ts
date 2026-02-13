@@ -2,10 +2,8 @@ import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
-import type { GenerationRow } from '@/types/shots';
 
 interface UseTrailingEndpointProps {
-  images: GenerationRow[];
   /** Drag-aware positions from the orchestrator */
   currentPositions: Map<string, number>;
   /** Source-of-truth trailing end frame (derived from framePositions before orchestrator) */
@@ -41,7 +39,6 @@ interface UseTrailingEndpointReturn {
  * - Frame extraction from trailing videos
  */
 export function useTrailingEndpoint({
-  images,
   currentPositions,
   trailingEndFrame,
   computedTrailingVideoUrl,

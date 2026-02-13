@@ -65,7 +65,7 @@ export const useDeleteShot = () => {
       });
     },
 
-    onError: (error: Error, variables, context) => {
+    onError: (error: Error, _variables, context) => {
       // Rollback optimistic update
       if (context?.previousShots && context.projectId) {
         rollbackShotsCaches(queryClient, context.projectId, context.previousShots);

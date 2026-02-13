@@ -214,7 +214,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     setTrailingVideoUrl,
     imagePositions,
   } = useTrailingEndpoint({
-    images,
     currentPositions,
     trailingEndFrame,
     computedTrailingVideoUrl,

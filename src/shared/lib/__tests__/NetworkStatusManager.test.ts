@@ -10,7 +10,9 @@ import { NetworkStatusManager, getNetworkStatusManager } from '../NetworkStatusM
 const mockNavigator = {
   onLine: true,
   connection: {
-    effectiveType: '4g'
+    effectiveType: '4g',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   }
 };
 
@@ -21,8 +23,8 @@ Object.defineProperty(global, 'navigator', {
 
 // Mock window
 const mockWindow = {
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn()
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn()
 };
 
 Object.defineProperty(global, 'window', {
@@ -34,7 +36,7 @@ describe('NetworkStatusManager', () => {
   let manager: NetworkStatusManager;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     manager = new NetworkStatusManager();
   });
 
@@ -101,13 +103,13 @@ describe('NetworkStatusManager', () => {
 
   describe('subscriptions', () => {
     it('should allow subscribing to network changes', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       const unsubscribe = manager.subscribe(callback);
       expect(typeof unsubscribe).toBe('function');
     });
 
     it('should call subscribers on network changes', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       manager.subscribe(callback);
       
       // Simulate network change

@@ -12,7 +12,7 @@ import { extractOrchestratorRef } from '../_shared/billing.ts';
 /**
  * Configuration for where thumbnail_url should be stored based on task_type
  */
-export const THUMBNAIL_PATH_CONFIG: Record<string, { path: string[]; extras?: Record<string, any> }> = {
+const THUMBNAIL_PATH_CONFIG: Record<string, { path: string[]; extras?: Record<string, any> }> = {
   'travel_stitch': {
     path: ['full_orchestrator_payload', 'thumbnail_url'],
     extras: { accelerated: false } // Always hardcode accelerated=false for travel_stitch
@@ -39,7 +39,7 @@ export const THUMBNAIL_PATH_CONFIG: Record<string, { path: string[]; extras?: Re
  * @param logTag - Optional log tag prefix
  * @returns The extracted value as string, or null if not found
  */
-export function extractFromParams(params: any, fieldName: string, paths: string[][], logTag: string = 'ParamExtractor'): string | null {
+function extractFromParams(params: any, fieldName: string, paths: string[][], logTag: string = 'ParamExtractor'): string | null {
   try {
     for (const path of paths) {
       let value = params;

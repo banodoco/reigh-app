@@ -225,7 +225,7 @@ export const ImageEditProvider: React.FC<ImageEditProviderProps> = ({
  * - useImageEditFormSafe() — prompts, strengths, LoRA, model, settings
  * - useImageEditStatusSafe() — generation loading/success flags
  */
-export function useImageEditSafe(): ImageEditState {
+function _useImageEditSafe(): ImageEditState {
   const canvas = useImageEditCanvasSafe();
   const form = useImageEditFormSafe();
   const status = useImageEditStatusSafe();

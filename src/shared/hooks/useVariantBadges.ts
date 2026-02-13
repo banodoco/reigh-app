@@ -49,7 +49,7 @@ export function useVariantBadges(
 
   // Stable query key based on sorted IDs
   const queryKey = useMemo(() => {
-    const sortedIds = [...generationIds].sort();
+    const sortedIds = [...generationIds].sort((a, b) => a.localeCompare(b));
     return ['variant-badges', sortedIds.join(',')];
   }, [generationIds]);
 

@@ -84,7 +84,7 @@ const JoinClipsPage: React.FC = () => {
   useEffect(() => {
     if (!settingsLoaded) return;
 
-    const lorasKey = loraManager.selectedLoras.map(l => `${l.id}:${l.strength}`).sort().join(',');
+    const lorasKey = loraManager.selectedLoras.map(l => `${l.id}:${l.strength}`).sort((a, b) => a.localeCompare(b)).join(',');
     if (lorasKey === lorasSyncStateRef.current.lastSyncedKey) return;
 
     lorasSyncStateRef.current.lastSyncedKey = lorasKey;

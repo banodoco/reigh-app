@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { GenerationRow } from '@/types/shots';
-import type { PairData } from '../TimelineContainer';
+import type { PairData } from '@/shared/types/pairData';
 
 interface UseSegmentLightboxProps {
   displaySlots: SegmentSlot[];

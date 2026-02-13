@@ -9,7 +9,7 @@ import { getContentType } from './params.ts';
 /**
  * Upload mode for complete-task requests
  */
-export type UploadMode = 'base64' | 'presigned' | 'reference';
+type UploadMode = 'base64' | 'presigned' | 'reference';
 
 /**
  * Parsed request data from complete-task endpoint
@@ -35,7 +35,7 @@ export interface ParsedRequest {
 /**
  * Result of request parsing - either success with data or error with response
  */
-export type ParseResult = 
+type ParseResult =
   | { success: true; data: ParsedRequest }
   | { success: false; response: Response };
 

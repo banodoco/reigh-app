@@ -25,7 +25,6 @@ export function usePairSettingsHandler({
   images,
   imagePositions,
   trailingEndFrame,
-  currentPositions,
   pairInfo,
   pairDataByIndex,
   onPairClick,

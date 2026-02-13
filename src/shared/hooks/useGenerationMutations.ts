@@ -137,22 +137,30 @@ async function toggleGenerationStar(id: string, starred: boolean): Promise<void>
 
 // ===== Mutation Hooks =====
 
-export function useDeleteGeneration() {
+/**
+ * Shared delete mutation factory for generations and variants.
+ * @internal
+ */
+function useDeleteFromTable(table: 'generations' | 'generation_variants', entityLabel: string) {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('generations')
+        .from(table)
         .delete()
         .eq('id', id);
 
       if (error) {
-        throw new Error(`Failed to delete generation: ${error.message}`);
+        throw new Error(`Failed to delete ${entityLabel}: ${error.message}`);
       }
     },
     onError: (error: Error) => {
-      handleError(error, { context: 'useDeleteGeneration', toastTitle: 'Failed to delete generation' });
+      handleError(error, { context: `useDelete${entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)}`, toastTitle: `Failed to delete ${entityLabel}` });
     },
   });
+}
+
+export function useDeleteGeneration() {
+  return useDeleteFromTable('generations', 'generation');
 }
 
 /**
@@ -160,21 +168,7 @@ export function useDeleteGeneration() {
  * Use this for edit tools (edit-images, edit-video, character-animate) that create variants.
  */
 export function useDeleteVariant() {
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('generation_variants')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        throw new Error(`Failed to delete variant: ${error.message}`);
-      }
-    },
-    onError: (error: Error) => {
-      handleError(error, { context: 'useDeleteVariant', toastTitle: 'Failed to delete variant' });
-    },
-  });
+  return useDeleteFromTable('generation_variants', 'variant');
 }
 
 export function useUpdateGenerationLocation() {

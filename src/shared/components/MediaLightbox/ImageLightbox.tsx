@@ -351,7 +351,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     refetchVariants: variants.refetch,
     editSettingsPersistence,
     effectiveEditModeLoRAs,
-    editLoraManager,
     availableLoras,
     thumbnailUrl: variants.activeVariant?.thumbnail_url || media.thumbUrl,
   });

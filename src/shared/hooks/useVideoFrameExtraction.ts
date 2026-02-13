@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { VideoMetadata } from '@/shared/lib/videoUploader';
 import { handleError } from '@/shared/lib/errorHandler';
 
@@ -197,16 +197,6 @@ export function useVideoFrameExtraction(
           extractedFrames.push(dataUrl);
 
           // Log first frame details to verify data URL validity
-          if (i === 0) {
-            console.log('[FrameExtraction] First frame captured', {
-              dataUrlLength: dataUrl.length,
-              prefix: dataUrl.substring(0, 40),
-              canvasSize: `${canvas.width}x${canvas.height}`,
-              videoSize: `${video.videoWidth}x${video.videoHeight}`,
-              videoReadyState: video.readyState,
-              videoCurrentTime: video.currentTime.toFixed(3),
-            });
-          }
 
           // Flush frames progressively: after first frame, then every FLUSH_INTERVAL
           if (i === 0 || (i + 1) % FLUSH_INTERVAL === 0) {

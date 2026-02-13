@@ -93,23 +93,15 @@ export function useVideoHoverPreview(
   const drawVideoFrame = useCallback((video: HTMLVideoElement, frame: number): boolean => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      console.log('[HoverPreview] drawVideoFrame: no canvas ref');
       return false;
     }
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) {
-      console.log('[HoverPreview] drawVideoFrame: no canvas context');
       return false;
     }
 
     if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
-      console.log('[HoverPreview] drawVideoFrame: video not ready', {
-        readyState: video.readyState,
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        currentTime: video.currentTime,
-      });
       return false;
     }
 
@@ -125,7 +117,6 @@ export function useVideoHoverPreview(
 
       // Check if draw succeeded
       if (isCanvasBlank(canvas)) {
-        console.log('[HoverPreview] drawVideoFrame: canvas blank after draw', { frame, currentTime: video.currentTime });
         seekingRef.current = false;
         return false;
       }
@@ -133,7 +124,6 @@ export function useVideoHoverPreview(
       lastDrawnFrameRef.current = frame;
       return true;
     } catch (e) {
-      console.log('[HoverPreview] drawVideoFrame: exception', e);
       seekingRef.current = false;
       return false;
     }
@@ -169,9 +159,6 @@ export function useVideoHoverPreview(
   const seekToFrameCountRef = useRef(0);
   const seekToFrame = useCallback(async (frame: number) => {
     const video = videoRef.current;
-    if (!video) { console.log('[HoverPreview] seekToFrame: no video ref'); return; }
-    if (!enabled) { console.log('[HoverPreview] seekToFrame: disabled'); return; }
-    if (frameRate <= 0) { console.log('[HoverPreview] seekToFrame: bad frameRate', frameRate); return; }
 
     const now = Date.now();
     const timeSinceLastSeek = now - lastSeekTimeRef.current;
@@ -198,29 +185,16 @@ export function useVideoHoverPreview(
     try {
       const ready = await ensureVideoReady(video);
       if (!ready) {
-        console.log('[HoverPreview] seekToFrame: video not ready after ensure', { readyState: video.readyState });
         return;
       }
 
       const timeInSeconds = frame / frameRate;
 
       seekToFrameCountRef.current++;
-      if (seekToFrameCountRef.current <= 5) {
-        console.log('[HoverPreview] seekToFrame', {
-          count: seekToFrameCountRef.current,
-          frame,
-          timeInSeconds: timeInSeconds.toFixed(3),
-          videoReadyState: video.readyState,
-          videoSrc: video.src ? 'set' : 'empty',
-        });
-      }
 
       // Skip seek if already at this frame
       if (Math.abs(video.currentTime - timeInSeconds) < 0.05) {
-        const drawn = drawVideoFrame(video, frame);
-        if (seekToFrameCountRef.current <= 5) {
-          console.log('[HoverPreview] seekToFrame: skipped seek (same frame), drawn:', drawn);
-        }
+        drawVideoFrame(video, frame);
         return;
       }
 
@@ -229,10 +203,7 @@ export function useVideoHoverPreview(
       await new Promise<void>((resolve) => {
         const handleSeeked = () => {
           video.removeEventListener('seeked', handleSeeked);
-          const drawn = drawVideoFrame(video, frame);
-          if (seekToFrameCountRef.current <= 5) {
-            console.log('[HoverPreview] seekToFrame: seeked event, drawn:', drawn);
-          }
+          drawVideoFrame(video, frame);
           resolve();
         };
 
@@ -240,10 +211,7 @@ export function useVideoHoverPreview(
 
         setTimeout(() => {
           video.removeEventListener('seeked', handleSeeked);
-          const drawn = drawVideoFrame(video, frame);
-          if (seekToFrameCountRef.current <= 5) {
-            console.log('[HoverPreview] seekToFrame: timeout fallback, drawn:', drawn);
-          }
+          drawVideoFrame(video, frame);
           resolve();
         }, 500);
       });
@@ -287,13 +255,11 @@ export function useVideoHoverPreview(
   useEffect(() => {
     const video = videoRef.current;
     if (!video) {
-      console.log('[HoverPreview] readyState effect: no video ref');
       return;
     }
 
     const checkReady = () => {
       const ready = video.readyState >= 2;
-      console.log('[HoverPreview] checkReady', { readyState: video.readyState, ready, src: video.src ? 'set' : 'empty' });
       setIsVideoReady(ready);
     };
 

@@ -5,7 +5,7 @@
 
 // ===== TYPES =====
 
-export interface ShotValidationResult {
+interface ShotValidationResult {
   needsUpdate: boolean;
   updatedParams: Record<string, any>;
 }

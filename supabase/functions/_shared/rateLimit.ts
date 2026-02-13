@@ -5,7 +5,7 @@ declare const Deno: any;
 /**
  * Rate limiting configuration
  */
-export interface RateLimitConfig {
+interface RateLimitConfig {
   /** Maximum requests allowed in the window */
   maxRequests: number;
   /** Time window in seconds */
@@ -17,7 +17,7 @@ export interface RateLimitConfig {
 /**
  * Rate limit check result
  */
-export interface RateLimitResult {
+interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   resetAt: Date;
@@ -142,7 +142,7 @@ export async function checkRateLimit(
 /**
  * Create rate limit headers for response
  */
-export function rateLimitHeaders(result: RateLimitResult, config: RateLimitConfig): Record<string, string> {
+function rateLimitHeaders(result: RateLimitResult, config: RateLimitConfig): Record<string, string> {
   const headers: Record<string, string> = {
     'X-RateLimit-Limit': config.maxRequests.toString(),
     'X-RateLimit-Remaining': result.remaining.toString(),

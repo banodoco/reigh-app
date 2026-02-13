@@ -77,12 +77,11 @@ export function GenerationTaskProvider({
 // HOOKS FOR USING THE CONTEXT
 // ================================================================
 
-function useGenerationTaskContext() {
+function _useGenerationTaskContext() {
   const context = useContext(GenerationTaskContext);
   if (!context) {
     throw new Error('useGenerationTaskContext must be used within a GenerationTaskProvider');
   }
   return context;
 }
-
 

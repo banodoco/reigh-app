@@ -6,7 +6,7 @@ declare const Deno: any;
 /**
  * Authentication result for edge functions
  */
-export interface AuthResult {
+interface AuthResult {
   isServiceRole: boolean;
   userId: string | null; // Set if user token (PAT or JWT)
   success: boolean;
@@ -18,7 +18,7 @@ export interface AuthResult {
 /**
  * Options for authenticateRequest
  */
-export interface AuthOptions {
+interface AuthOptions {
   /** If true, also accept Supabase JWTs and extract user ID from payload.sub */
   allowJwtUserAuth?: boolean;
 }

@@ -39,7 +39,6 @@ import {
   useSharedLightboxState,
   useLightboxStateValue,
   useLightboxWorkflowProps,
-  useReplaceInShot,
   useLightboxVariantBadges,
   useVideoEditContextValue,
 } from './hooks';
@@ -376,7 +375,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
     navigation,
     lineage,
     shots,
-    sourceGeneration,
     makeMainVariant,
     effectiveMedia,
     layout,
@@ -608,8 +606,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
       onNavigateToShot(minimalShot);
     }
   }, [onNavigateToShot, onClose]);
-
-  const { handleReplaceInShot } = useReplaceInShot({ onClose });
 
   // ========================================
   // LAYOUT DECISIONS

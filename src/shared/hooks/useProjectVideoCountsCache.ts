@@ -104,12 +104,6 @@ async function fetchProjectShotDataFromDB(projectId: string): Promise<Map<string
       }
     }
   }
-  console.log('[StructureVideo] Project cache fetched', {
-    projectId,
-    totalShots: shotsResult.data?.length ?? 0,
-    shotsWithStructureVideo: structureVideoShots.size,
-    shotIds: [...structureVideoShots],
-  });
 
   const counts = new Map<string, ShotCounts>();
   statsResult.data?.forEach(row => {

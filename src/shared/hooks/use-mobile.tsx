@@ -136,7 +136,7 @@ export function useIsTablet() {
 }
 
 /** Phone only (isMobile && !isTablet) — hides advanced UI that tablets can show */
-export function useIsPhone() {
+function _useIsPhone() {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   return isMobile && !isTablet;
@@ -161,7 +161,7 @@ export function useIsTouchDevice() {
 
 // --- Composite hook ---
 
-export interface DeviceInfo {
+interface DeviceInfo {
   /** Tablet device (iPad-like) */
   isTablet: boolean;
   /** Phone only (isMobile && !isTablet) */
