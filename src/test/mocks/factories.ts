@@ -8,14 +8,14 @@ function nextId() {
 }
 
 /** Reset the ID counter between tests if needed */
-export function resetFactoryCounter() {
+function _resetFactoryCounter() {
   counter = 0;
 }
 
 /**
  * Create a mock GenerationRow (the frontend-facing generation type with shot_generations fields).
  */
-export function createMockGenerationRow(overrides: Partial<GenerationRow> = {}): GenerationRow {
+function createMockGenerationRow(overrides: Partial<GenerationRow> = {}): GenerationRow {
   const id = overrides.id ?? nextId();
   return {
     id,
@@ -34,7 +34,7 @@ export function createMockGenerationRow(overrides: Partial<GenerationRow> = {}):
 /**
  * Create a mock Generation (the database row type).
  */
-export function createMockGeneration(overrides: Partial<Generation> = {}): Generation {
+function _createMockGeneration(overrides: Partial<Generation> = {}): Generation {
   const id = overrides.id ?? nextId();
   return {
     id,
@@ -50,7 +50,7 @@ export function createMockGeneration(overrides: Partial<Generation> = {}): Gener
 /**
  * Create a mock Shot.
  */
-export function createMockShot(overrides: Partial<Shot> = {}): Shot {
+function _createMockShot(overrides: Partial<Shot> = {}): Shot {
   const id = overrides.id ?? nextId();
   return {
     id,
@@ -66,7 +66,7 @@ export function createMockShot(overrides: Partial<Shot> = {}): Shot {
 /**
  * Create a mock Task.
  */
-export function createMockTask(overrides: Partial<Task> = {}): Task {
+function _createMockTask(overrides: Partial<Task> = {}): Task {
   return {
     id: overrides.id ?? nextId(),
     taskType: 'video_generation',
@@ -81,7 +81,7 @@ export function createMockTask(overrides: Partial<Task> = {}): Task {
 /**
  * Create a mock Project.
  */
-export function createMockProject(overrides: Partial<Project> = {}): Project {
+function _createMockProject(overrides: Partial<Project> = {}): Project {
   const id = overrides.id ?? nextId();
   return {
     id,
@@ -96,7 +96,7 @@ export function createMockProject(overrides: Partial<Project> = {}): Project {
 /**
  * Create mock GenerationMetadata for timeline images.
  */
-export function createMockMetadata(overrides: Partial<GenerationMetadata> = {}): GenerationMetadata {
+function createMockMetadata(overrides: Partial<GenerationMetadata> = {}): GenerationMetadata {
   return {
     frame_spacing: 30,
     is_keyframe: false,
@@ -108,7 +108,7 @@ export function createMockMetadata(overrides: Partial<GenerationMetadata> = {}):
 /**
  * Create a mock GenerationRow positioned on the timeline.
  */
-export function createMockTimelineGeneration(
+function _createMockTimelineGeneration(
   timelineFrame: number,
   overrides: Partial<GenerationRow> = {},
 ): GenerationRow {

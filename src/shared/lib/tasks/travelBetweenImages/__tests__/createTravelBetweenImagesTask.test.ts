@@ -42,7 +42,7 @@ vi.mock('@/shared/lib/toolConstants', () => ({
 vi.stubGlobal('crypto', { randomUUID: () => 'mock-uuid-1234' });
 
 import { createTravelBetweenImagesTask } from '../createTravelBetweenImagesTask';
-import { validateTravelBetweenImagesParams, buildTravelBetweenImagesPayload } from '../payloadBuilder';
+import { validateTravelBetweenImagesParams } from '../payloadBuilder';
 
 describe('createTravelBetweenImagesTask', () => {
   beforeEach(() => {

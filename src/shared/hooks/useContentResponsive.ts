@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { usePanes } from '@/shared/contexts/PanesContext';
 
+// Tailwind-standard breakpoint thresholds (px)
+const BREAKPOINT_SM = 640;
+const BREAKPOINT_MD = 768;
+const BREAKPOINT_LG = 1024;
+const BREAKPOINT_XL = 1280;
+const BREAKPOINT_2XL = 1536;
+
 // Local fallback type definition (mirrors original)
 interface ContentBreakpoints {
   isSm: boolean;
@@ -60,11 +67,11 @@ export const useContentResponsive = (): ContentBreakpoints => {
   const { width, height } = viewport;
 
   return {
-    isSm: width >= 640,
-    isMd: width >= 768,
-    isLg: width >= 1024,
-    isXl: width >= 1280,
-    is2Xl: width >= 1536,
+    isSm: width >= BREAKPOINT_SM,
+    isMd: width >= BREAKPOINT_MD,
+    isLg: width >= BREAKPOINT_LG,
+    isXl: width >= BREAKPOINT_XL,
+    is2Xl: width >= BREAKPOINT_2XL,
     contentWidth: width,
     contentHeight: height,
   };

@@ -4,7 +4,7 @@ import { renderHook, act } from '@testing-library/react';
 vi.mock('../usePersistentState', () => {
   const { useState } = require('react');
   return {
-    default: (key: string, defaultValue: unknown) => useState(defaultValue),
+    default: (_key: string, defaultValue: unknown) => useState(defaultValue),
   };
 });
 

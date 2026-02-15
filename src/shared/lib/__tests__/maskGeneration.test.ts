@@ -121,7 +121,7 @@ describe('generateMaskFromCanvas', () => {
             width: 2,
             height: 1,
           }),
-          putImageData: vi.fn((imgData: any) => {
+          putImageData: vi.fn((_imgData: any) => {
             // Capture what was written
           }),
           clearRect: vi.fn(),

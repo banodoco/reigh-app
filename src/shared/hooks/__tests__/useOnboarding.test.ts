@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 
 const mockGetUser = vi.fn();
 const mockSelect = vi.fn();
@@ -10,7 +10,7 @@ vi.mock('@/integrations/supabase/client', () => ({
     auth: {
       getUser: () => mockGetUser(),
     },
-    from: vi.fn((table: string) => ({
+    from: vi.fn((_table: string) => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           single: () => mockSelect(),

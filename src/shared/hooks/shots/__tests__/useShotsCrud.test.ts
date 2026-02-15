@@ -168,9 +168,8 @@ describe('useCreateShot', () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useCreateShot(), { wrapper });
 
-    let data: unknown;
     await act(async () => {
-      data = await result.current.mutateAsync({
+      await result.current.mutateAsync({
         name: 'New Shot',
         projectId: 'project-1',
       });
@@ -207,9 +206,8 @@ describe('useDuplicateShot', () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useDuplicateShot(), { wrapper });
 
-    let data: unknown;
     await act(async () => {
-      data = await result.current.mutateAsync({
+      await result.current.mutateAsync({
         shotId: 'shot-1',
         projectId: 'project-1',
       });

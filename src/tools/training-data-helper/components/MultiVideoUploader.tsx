@@ -31,7 +31,7 @@ interface MultiVideoUploaderProps {
 }
 
 // Scene detection algorithm based on frame differences
-const detectScenes = async (videoFile: File, threshold: number = 0.25): Promise<number[]> => {
+const detectScenes = (videoFile: File, threshold: number = 0.25): Promise<number[]> => {
   return new Promise((resolve) => {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');

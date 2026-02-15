@@ -178,6 +178,18 @@ export function useCredits() {
     },
     onSuccess: (data) => {
       if (data.checkoutUrl) {
+        // Validate checkout URL to prevent open redirect attacks
+        // Only allow Stripe checkout URLs from our own backend
+        try {
+          const url = new URL(data.checkoutUrl);
+          if (url.hostname !== 'checkout.stripe.com') {
+            toast.error('Invalid checkout URL');
+            return;
+          }
+        } catch {
+          toast.error('Invalid checkout URL');
+          return;
+        }
         // Redirect to Stripe checkout
         window.location.href = data.checkoutUrl;
       } else if (data.error) {

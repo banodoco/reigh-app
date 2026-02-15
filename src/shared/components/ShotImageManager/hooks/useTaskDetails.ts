@@ -62,7 +62,12 @@ export function useTaskDetails({
   // Derive input images from task params using shared utility
   const inputImages = useMemo(() => {
     if (!task?.params) return [];
-    const params = typeof task.params === 'string' ? JSON.parse(task.params) : task.params;
+    let params: Record<string, unknown>;
+    try {
+      params = typeof task.params === 'string' ? JSON.parse(task.params) : task.params;
+    } catch {
+      return [];
+    }
     return deriveInputImages(params);
   }, [task]);
 

@@ -50,7 +50,7 @@ describe('createBatchZImageTurboI2ITasks', () => {
   });
 
   it('creates a single task with defaults', async () => {
-    const results = await createBatchZImageTurboI2ITasks({
+    await createBatchZImageTurboI2ITasks({
       project_id: 'proj-1',
       image_url: 'https://example.com/image.jpg',
       numImages: 1,

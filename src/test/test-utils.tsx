@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 /**
  * Create a fresh QueryClient with retries and caching disabled for tests.
  */
-export function createTestQueryClient(): QueryClient {
+function createTestQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
@@ -72,7 +72,7 @@ function createWrapper(options: ProviderOptions = {}) {
  * Render a component wrapped with test providers (QueryClient).
  * Use for component tests that need React Query context.
  */
-export function renderWithProviders(
+function _renderWithProviders(
   ui: ReactElement,
   options: ProviderOptions & Omit<RenderOptions, 'wrapper'> = {},
 ) {

@@ -74,6 +74,12 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
 }) => {
   const [relationshipFilter, setRelationshipFilter] = useState<RelationshipFilter>('all');
   const [currentPage, setCurrentPage] = useState(0);
+  // Reset page when filter changes (prev-value ref avoids useEffect+setState)
+  const prevRelFilterRef = React.useRef(relationshipFilter);
+  if (prevRelFilterRef.current !== relationshipFilter) {
+    prevRelFilterRef.current = relationshipFilter;
+    if (currentPage !== 0) setCurrentPage(0);
+  }
   const isMobile = useIsMobile();
   const { data: availableLoras } = usePublicLoras();
 
@@ -149,11 +155,6 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
     }
     return sortedVariants;
   }, [sortedVariants, relationshipFilter, parentVariants, childVariants, activeVariantId]);
-
-  // Reset page when filter changes
-  React.useEffect(() => {
-    setCurrentPage(0);
-  }, [relationshipFilter]);
 
   const hasRelationships = parentVariants.size > 0 || childVariants.size > 0;
   const showFilterRow = hasRelationships || starredCount > 0;

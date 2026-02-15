@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, renderHook, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -20,7 +20,7 @@ vi.mock('@/shared/lib/generationTaskBridge', () => ({
 
 import { GenerationTaskProvider } from '../GenerationTaskContext';
 
-function createWrapper(providerProps: Record<string, unknown> = {}) {
+function _createWrapper(providerProps: Record<string, unknown> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });

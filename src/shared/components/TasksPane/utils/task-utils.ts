@@ -56,9 +56,14 @@ export const getAbbreviatedTaskName = (fullName: string): string => {
  * Parse task params safely (handles both string and object formats)
  */
 export const parseTaskParamsForDisplay = (params: unknown): { parsed: Record<string, unknown>; promptText: string } => {
-  const parsed = typeof params === 'string'
-    ? (() => { try { return JSON.parse(params); } catch { return {}; } })()
-    : (params || {}) as Record<string, unknown>;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = typeof params === 'string'
+      ? JSON.parse(params) as Record<string, unknown>
+      : (params || {}) as Record<string, unknown>;
+  } catch {
+    parsed = {};
+  }
 
   const p = parsed as DeepJsonParams;
   const promptText = ((p?.orchestrator_details as DeepJsonParams)?.prompt as string) || (p?.prompt as string) || '';

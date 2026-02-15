@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
@@ -42,7 +42,7 @@ vi.mock('@/shared/lib/errorHandler', () => ({
 }));
 
 vi.mock('@/shared/constants/supabaseErrors', () => ({
-  isNotFoundError: (err: unknown) => false,
+  isNotFoundError: (_err: unknown) => false,
 }));
 
 vi.mock('@/shared/lib/queryKeys', () => ({

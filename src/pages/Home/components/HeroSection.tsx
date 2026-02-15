@@ -8,6 +8,19 @@ import { GoldSpotlight } from './GoldSpotlight';
 import { useHeroAnimation } from '../hooks/useHeroAnimation';
 import type { Session } from '@supabase/supabase-js';
 
+// External links
+const GITHUB_REPO_URL = 'https://github.com/banodoco/Reigh';
+const DISCORD_INVITE_URL = 'https://discord.gg/D5K2c6kfhy';
+const BANODOCO_URL = 'http://banodoco.ai/';
+
+// Retro theme color tokens (inline for hydration safety - see comment on retroButtonInlineStyles)
+const RETRO_THEME = {
+  bg: '#3a4a4a',
+  border: '#8a9a9a',
+  text: '#d8d4cb',
+  light: '#ecede3',
+} as const;
+
 interface ExampleStyle {
   prompt: string;
   image1: string;
@@ -92,9 +105,9 @@ const CTAContent: React.FC<CTAContentProps> = ({ icon, text }) => {
 // Using inline styles for colors to guarantee they're present during re-renders, Tailwind classes for layout/behavior
 const retroButtonBaseStyles = "hero-cta inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-14 px-8 sm:px-12 py-4 text-base sm:text-xl max-w-[90vw] sm:max-w-none font-heading rounded-sm border-2 tracking-wide shadow-[-3px_3px_0_0_hsl(var(--shadow-retro-deep)_/_0.4)] hover:shadow-[-1.5px_1.5px_0_0_hsl(var(--shadow-retro-deep)_/_0.4)] hover:translate-x-[-0.75px] hover:translate-y-[0.75px] active:shadow-none active:translate-x-[-1.5px] active:translate-y-[1.5px]";
 const retroButtonInlineStyles = {
-  backgroundColor: '#3a4a4a',
-  borderColor: '#8a9a9a',
-  color: '#d8d4cb',
+  backgroundColor: RETRO_THEME.bg,
+  borderColor: RETRO_THEME.border,
+  color: RETRO_THEME.text,
 } as const;
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -199,7 +212,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                               <path
                                 className="arrow-curve-left arrow-draw-curve-left"
                                 d="M20 17.25 Q12 17.25 12 11 Q12 6 1 6"
-                                stroke="#ecede3"
+                                stroke={RETRO_THEME.light}
                                 strokeWidth="1.5"
                                 strokeLinecap="round"
                                 strokeDasharray="3 3"
@@ -208,7 +221,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                               <path
                                 className="arrow-head-left"
                                 d="M4 3 L1 6 L4 9"
-                                stroke="#ecede3"
+                                stroke={RETRO_THEME.light}
                                 strokeWidth="1.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -263,7 +276,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                               <path
                                 className="arrow-curve-right arrow-draw-curve-right"
                                 d="M0 17.25 Q8 17.25 8 11 Q8 6 19 6"
-                                stroke="#ecede3"
+                                stroke={RETRO_THEME.light}
                                 strokeWidth="1.5"
                                 strokeLinecap="round"
                                 strokeDasharray="3 3"
@@ -272,7 +285,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                               <path
                                 className="arrow-head-right"
                                 d="M16 3 L19 6 L16 9"
-                                stroke="#ecede3"
+                                stroke={RETRO_THEME.light}
                                 strokeWidth="1.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -423,7 +436,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   <div className="flex items-center gap-x-3">
                     <div style={getPopStyle(0.8, false)}>
                       <a
-                        href="https://github.com/banodoco/Reigh"
+                        href={GITHUB_REPO_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block p-2 bg-transparent rounded-full border border-[#ecede3]/30 hover:border-[#ecede3]/60 transition-all duration-300 hover:bg-[#ecede3]/10 group"
@@ -433,7 +446,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     </div>
                     <div style={getPopStyle(0.95, false)}>
                       <a
-                        href="https://discord.gg/D5K2c6kfhy"
+                        href={DISCORD_INVITE_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block p-2 bg-transparent rounded-full border border-[#ecede3]/30 hover:border-[#ecede3]/60 transition-all duration-300 hover:bg-[#ecede3]/10 group"
@@ -455,7 +468,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               {/* Banodoco Logo */}
               <div className="flex justify-center mt-4">
                   <a
-                    href="http://banodoco.ai/"
+                    href={BANODOCO_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block opacity-60 hover:opacity-100 transition-opacity duration-300"

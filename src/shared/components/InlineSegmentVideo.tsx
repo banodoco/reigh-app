@@ -723,12 +723,13 @@ export const InlineSegmentVideo: React.FC<InlineSegmentVideoProps> = ({
   }, [generationId, markAllViewed]);
 
   // Check if recently created (show NEW for segments created in last 10 minutes)
+  const RECENTLY_CREATED_THRESHOLD_MS = 10 * 60 * 1000;
   const isRecentlyCreated = useMemo(() => {
     const createdAt = child.created_at || child.createdAt;
     if (!createdAt) return false;
     const createdTime = new Date(createdAt).getTime();
-    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-    return createdTime > tenMinutesAgo;
+    const cutoff = Date.now() - RECENTLY_CREATED_THRESHOLD_MS;
+    return createdTime > cutoff;
   }, [child.created_at, child.createdAt]);
 
   // Show NEW badge if: has unviewed variants OR is recently created with no variants yet

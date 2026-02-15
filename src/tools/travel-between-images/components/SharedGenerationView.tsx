@@ -91,7 +91,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
     }
   };
 
-  const handleCopyToAccount = async () => {
+  const handleCopyToAccount = () => {
     if (!isAuthenticated) {
       sessionStorage.setItem('pending_share', shareSlug);
       toast({

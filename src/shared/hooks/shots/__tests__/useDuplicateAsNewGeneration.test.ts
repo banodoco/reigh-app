@@ -33,20 +33,8 @@ function createWrapper() {
 }
 
 describe('useDuplicateAsNewGeneration', () => {
-  // Track supabase chain calls
-  let supabaseChain: {
-    selectResult: unknown;
-    insertResult: unknown;
-    selectShotGenResult: unknown;
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    supabaseChain = {
-      selectResult: null,
-      insertResult: null,
-      selectShotGenResult: null,
-    };
   });
 
   function setupMocks(options: {

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 vi.mock('@/shared/hooks/usePersistentState', () => ({
-  default: vi.fn((key: string, defaultVal: boolean) => {
+  default: vi.fn((_key: string, defaultVal: boolean) => {
     const { useState } = require('react');
     return useState(defaultVal);
   }),

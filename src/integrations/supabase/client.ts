@@ -15,6 +15,12 @@ import { maybeAutoLogin } from '@/integrations/supabase/dev/autoLogin';
 // Install window-only instrumentation BEFORE any client creation
 installWindowOnlyInstrumentation();
 
+// Timeout configuration for network requests
+const EDGE_FUNCTION_TIMEOUT_MS = 60000;
+const STORAGE_UPLOAD_TIMEOUT_MS = 30000;
+const REALTIME_HEARTBEAT_INTERVAL_MS = 30000;
+const REALTIME_MAX_RECONNECT_DELAY_MS = 10000;
+
 // Singleton pattern to prevent HMR-related duplicate declarations
 // Store the client on window to avoid redeclaration errors during HMR
 const getOrCreateSupabaseClient = (): ReturnType<typeof createClient<Database>> => {
@@ -34,8 +40,8 @@ const getOrCreateSupabaseClient = (): ReturnType<typeof createClient<Database>> 
       },
       realtime: {
         params: { eventsPerSecond: 10 },
-        heartbeatIntervalMs: 30000,
-        reconnectAfterMs: (tries: number) => Math.min(tries * 1000, 10000),
+        heartbeatIntervalMs: REALTIME_HEARTBEAT_INTERVAL_MS,
+        reconnectAfterMs: (tries: number) => Math.min(tries * 1000, REALTIME_MAX_RECONNECT_DELAY_MS),
       },
       global: {
         fetch: (url: string, options: RequestInit = {}) => {
@@ -45,7 +51,7 @@ const getOrCreateSupabaseClient = (): ReturnType<typeof createClient<Database>> 
             return fetch(url, options);
           }
           const controller = new AbortController();
-          const timeoutMs = isEdgeFunction ? 60000 : 30000;
+          const timeoutMs = isEdgeFunction ? EDGE_FUNCTION_TIMEOUT_MS : STORAGE_UPLOAD_TIMEOUT_MS;
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
           let composedSignal = controller.signal;
           if (options.signal instanceof AbortSignal) {

@@ -56,6 +56,13 @@ export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = ({
   const [modelTypeFilter, setModelTypeFilter] = useState<ModelTypeFilter>(initialModelTypeFilter);
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 12;
+  // Reset page when filter/sort changes (prev-value ref avoids useEffect+setState)
+  const prevFilterKeyRef = React.useRef(`${searchTerm}|${sortOption}|${showMyPresetsOnly}|${showSelectedPresetOnly}|${modelTypeFilter}`);
+  const filterKey = `${searchTerm}|${sortOption}|${showMyPresetsOnly}|${showSelectedPresetOnly}|${modelTypeFilter}`;
+  if (prevFilterKeyRef.current !== filterKey) {
+    prevFilterKeyRef.current = filterKey;
+    if (page !== 0) setPage(0);
+  }
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -158,9 +165,6 @@ export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = ({
   React.useEffect(() => {
     onProcessedPresetsLengthChange(processedPresets.length);
   }, [processedPresets.length, onProcessedPresetsLengthChange]);
-
-  // Reset page when filter/sort changes
-  React.useEffect(() => { setPage(0); }, [searchTerm, sortOption, showMyPresetsOnly, showSelectedPresetOnly, modelTypeFilter]);
 
   const totalPages = Math.ceil(processedPresets.length / ITEMS_PER_PAGE);
   const paginatedPresets = useMemo(() => processedPresets.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE), [processedPresets, page]);

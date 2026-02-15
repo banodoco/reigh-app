@@ -6,7 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import React from 'react';
 
 import { IncomingTasksProvider, useIncomingTasks } from '../IncomingTasksContext';
 
@@ -15,8 +14,6 @@ function IncomingTasksConsumer() {
   const {
     incomingTasks,
     addIncomingTask,
-    removeIncomingTask,
-    completeIncomingTask,
     hasIncomingTasks,
   } = useIncomingTasks();
 

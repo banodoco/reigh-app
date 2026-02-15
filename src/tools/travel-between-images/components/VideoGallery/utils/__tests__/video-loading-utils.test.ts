@@ -16,7 +16,7 @@ describe('determineVideoPhase', () => {
   });
 
   it('returns WAITING_TO_LOAD when no thumbnail and not loading', () => {
-    const result = determineVideoPhase(false, false, false, false, false);
+    determineVideoPhase(false, false, false, false, false);
     // No thumbnail + not shouldLoad = INITIAL (first condition not met, second: !hasThumbnail && !shouldLoad)
     // Actually: hasThumbnail=false, thumbnailLoaded=false, so first condition fails
     // Second: !hasThumbnail(true) && !shouldLoad(true) → WAITING_TO_LOAD

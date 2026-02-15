@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi
+} from 'vitest';
 
 // We need to control environment flags before importing the module.
 // The logger module reads env flags at import time and during function calls.
-
-// Mock import.meta.env
-const envFlags: Record<string, string | undefined> = {};
 
 vi.stubGlobal('window', {
   addEventListener: vi.fn(),

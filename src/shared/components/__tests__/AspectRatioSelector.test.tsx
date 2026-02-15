@@ -28,7 +28,7 @@ vi.mock('../AspectRatioVisualizer', () => ({
 
 // Mock the Select components from shadcn
 vi.mock('@/shared/components/ui/select', () => ({
-  Select: ({ children, value, onValueChange, disabled }: Record<string, unknown>) => (
+  Select: ({ children, value, disabled }: Record<string, unknown>) => (
     <div data-testid="select-root" data-value={value as string} data-disabled={disabled as boolean}>
       {(children as React.ReactNode)}
     </div>

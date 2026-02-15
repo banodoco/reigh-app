@@ -254,12 +254,13 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     if (onPrevious) onPrevious();
   }, [onPrevious]);
 
-  // Local state proxies for edit mode flags. useSharedLightboxState needs these
-  // for layout calculations, but the real values come from useImageEditOrchestrator
-  // which runs AFTER shared state (it needs variant data). One-frame delay is
-  // acceptable for swipe/layout calculations.
-  const [isInpaintModeLocal, setIsInpaintModeLocal] = useState(false);
-  const [isMagicEditModeLocal, setIsMagicEditModeLocal] = useState(false);
+  // Refs cache the previous render's edit mode flags for useSharedLightboxState,
+  // which runs BEFORE useImageEditOrchestrator (orchestrator needs variant data
+  // from shared state). Using refs avoids the state-sync anti-pattern (useEffect
+  // that only calls setState) and the extra re-render it caused. One-frame delay
+  // is acceptable for swipe/layout calculations.
+  const isInpaintModeRef = useRef(false);
+  const isMagicEditModeRef = useRef(false);
 
   const sharedState = useSharedLightboxState({
     media,
@@ -278,7 +279,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     hasPrevious,
     handleSlotNavNext,
     handleSlotNavPrev,
-    swipeDisabled: isMagicEditModeLocal || readOnly,
+    swipeDisabled: isMagicEditModeRef.current || readOnly,
     shotId,
     selectedShotId,
     allShots,
@@ -295,9 +296,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     positionedInSelectedShot,
     associatedWithoutPositionInSelectedShot,
     showTaskDetails,
-    isSpecialEditMode: isMagicEditModeLocal,
-    isInpaintMode: isInpaintModeLocal,
-    isMagicEditMode: isMagicEditModeLocal,
+    isSpecialEditMode: isMagicEditModeRef.current,
+    isInpaintMode: isInpaintModeRef.current,
+    isMagicEditMode: isMagicEditModeRef.current,
     isCloudMode,
     showDownload,
     isDownloading,
@@ -368,11 +369,10 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     img2imgLoraManager,
   } = editOrchestrator;
 
-  // Sync real edit mode flags back to local proxies for sharedState
-  useEffect(() => {
-    setIsInpaintModeLocal(editOrchestrator.isInpaintMode);
-    setIsMagicEditModeLocal(editOrchestrator.isMagicEditMode);
-  }, [editOrchestrator.isInpaintMode, editOrchestrator.isMagicEditMode]);
+  // Update refs so next render's useSharedLightboxState sees current values.
+  // No useEffect needed — ref assignment is synchronous and doesn't trigger re-renders.
+  isInpaintModeRef.current = editOrchestrator.isInpaintMode;
+  isMagicEditModeRef.current = editOrchestrator.isMagicEditMode;
 
   // ========================================
   // ADJUSTED TASK DETAILS

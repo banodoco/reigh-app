@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, waitFor } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import { renderHookWithProviders } from '@/test/test-utils';
 
-const { mockRpc, mockInsert, mockFrom } = vi.hoisted(() => ({
+const { mockRpc, mockFrom } = vi.hoisted(() => ({
   mockRpc: vi.fn(),
   mockInsert: vi.fn(),
   mockFrom: vi.fn(),

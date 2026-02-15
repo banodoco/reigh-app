@@ -3,9 +3,6 @@ import type { TaskCreationResult } from '../taskCreation';
 import { handleError } from '@/shared/lib/errorHandler';
 import type { FalLoraConfig } from '@/shared/types/lora';
 
-/** @deprecated Use FalLoraConfig from '@/shared/types/lora' instead */
-export type ZImageLoraConfig = FalLoraConfig;
-
 /**
  * Parameters for creating a Z Image Turbo I2I task
  * Maps to fal-ai/z-image/turbo/image-to-image endpoint

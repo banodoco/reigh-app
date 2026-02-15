@@ -6,7 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
 
 // Use vi.hoisted for variables referenced inside vi.mock factories
 const { mockGetSession, mockOnAuthStateChange } = vi.hoisted(() => ({

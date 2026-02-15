@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { waitFor } from '@testing-library/react';
 import { renderHookWithProviders } from '@/test/test-utils';
 
 const mockSingle = vi.fn();

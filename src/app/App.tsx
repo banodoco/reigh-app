@@ -30,6 +30,8 @@ import { getNetworkStatusManager } from '@/shared/lib/NetworkStatusManager';
 import { TaskTypeConfigInitializer } from '@/shared/components/TaskTypeConfigInitializer';
 
 const STALE_TIME_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_QUERY_RETRY_DELAY_MS = 3000;
+const MUTATION_RETRY_DELAY_MS = 1500;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,7 +45,7 @@ const queryClient = new QueryClient({
         // Retry up to 2 times for network errors (reduced from default 3 for faster UX)
         return failureCount < 2;
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Exponential backoff, max 3s
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, MAX_QUERY_RETRY_DELAY_MS),
       // Ensure queries don't refetch on window focus by default
       refetchOnWindowFocus: false,
       // Prevent stale time issues
@@ -61,7 +63,7 @@ const queryClient = new QueryClient({
         // Retry once for network errors
         return failureCount < 1;
       },
-      retryDelay: 1500, // Fixed 1.5s delay for mutations
+      retryDelay: MUTATION_RETRY_DELAY_MS,
       networkMode: 'online',
     },
   },

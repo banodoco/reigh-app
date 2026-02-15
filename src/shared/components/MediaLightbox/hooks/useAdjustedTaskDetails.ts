@@ -143,9 +143,13 @@ export function useAdjustedTaskDetails({
       } else if (!variantParams.orchestrator_details && variantSourceTask?.params) {
         // Only use fetched task params if variant doesn't already have orchestrator_details
         // clip_join variants store orchestrator_details directly, so we don't want to overwrite
-        effectiveParams = typeof variantSourceTask.params === 'string'
-          ? JSON.parse(variantSourceTask.params)
-          : variantSourceTask.params;
+        try {
+          effectiveParams = typeof variantSourceTask.params === 'string'
+            ? JSON.parse(variantSourceTask.params)
+            : variantSourceTask.params;
+        } catch {
+          // Keep variantParams as fallback on parse failure
+        }
       }
       // Otherwise keep variantParams which may already have orchestrator_details (e.g., clip_join)
 

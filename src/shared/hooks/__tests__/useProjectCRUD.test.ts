@@ -1,5 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import { determineProjectIdToSelect } from '../useProjectCRUD';
 
 // Test the pure function separately since the hook has heavy side effects

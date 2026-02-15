@@ -47,6 +47,15 @@ interface WanderingGroup {
   nextFadeChange: number;
 }
 
+// --- Canvas configuration constants ---
+const STAR_AREA_PER_STAR = 8000; // Pixels per star (lower = more stars)
+const WANDERING_FADE_DELAY_MS = 5000; // Delay before wandering groups start fading in
+const WANDERING_FADE_DURATION_MS = 3000; // Duration of fade-in animation
+const DIRECTION_CHANGE_MIN_MS = 5000; // Minimum interval between direction changes
+const DIRECTION_CHANGE_RANGE_MS = 10000; // Random range added to min interval
+const FADE_CHANGE_MIN_MS = 8000; // Minimum interval between fade target changes
+const FADE_CHANGE_RANGE_MS = 12000; // Random range added to min interval
+
 export const ConstellationCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const starsRef = useRef<Star[]>([]);
@@ -82,7 +91,7 @@ export const ConstellationCanvas: React.FC = () => {
     };
 
     const initStars = () => {
-      const starCount = Math.floor((canvas.width * canvas.height) / 8000);
+      const starCount = Math.floor((canvas.width * canvas.height) / STAR_AREA_PER_STAR);
       starsRef.current = [];
 
       // Create regular stars
@@ -164,8 +173,8 @@ export const ConstellationCanvas: React.FC = () => {
           opacity: Math.random() * 0.3, // Start with varying opacity
           targetOpacity: 0.15 + Math.random() * 0.25, // Subtle: 0.15-0.4
           fadeSpeed: 0.0005 + Math.random() * 0.001, // Very slow fade
-          nextDirectionChange: now + 5000 + Math.random() * 10000, // Change direction every 5-15s
-          nextFadeChange: now + 8000 + Math.random() * 12000, // Change fade every 8-20s
+          nextDirectionChange: now + DIRECTION_CHANGE_MIN_MS + Math.random() * DIRECTION_CHANGE_RANGE_MS,
+          nextFadeChange: now + FADE_CHANGE_MIN_MS + Math.random() * FADE_CHANGE_RANGE_MS,
         });
       }
     };
@@ -241,9 +250,9 @@ export const ConstellationCanvas: React.FC = () => {
       // Update and draw wandering groups
       const now = performance.now();
 
-      // Calculate master fade-in opacity (delay 5s, fade over 3s)
-      const fadeDelay = 5000; // 5 seconds delay
-      const fadeDuration = 3000; // 3 seconds to fade in
+      // Calculate master fade-in opacity (delay then fade in)
+      const fadeDelay = WANDERING_FADE_DELAY_MS;
+      const fadeDuration = WANDERING_FADE_DURATION_MS;
       const timeSinceStart = now - wanderingFadeInRef.current.startTime;
       let masterOpacity = 0;
       if (timeSinceStart >= fadeDelay) {
@@ -272,7 +281,7 @@ export const ConstellationCanvas: React.FC = () => {
         if (now > group.nextDirectionChange) {
           group.targetVx = (Math.random() - 0.5) * group.speed;
           group.targetVy = (Math.random() - 0.5) * group.speed;
-          group.nextDirectionChange = now + 5000 + Math.random() * 10000;
+          group.nextDirectionChange = now + DIRECTION_CHANGE_MIN_MS + Math.random() * DIRECTION_CHANGE_RANGE_MS;
         }
 
         // Smoothly fade toward target opacity
@@ -282,7 +291,7 @@ export const ConstellationCanvas: React.FC = () => {
         if (now > group.nextFadeChange) {
           // Sometimes fade out almost completely, sometimes become more visible
           group.targetOpacity = Math.random() < 0.3 ? 0.05 : (0.15 + Math.random() * 0.25);
-          group.nextFadeChange = now + 8000 + Math.random() * 12000;
+          group.nextFadeChange = now + FADE_CHANGE_MIN_MS + Math.random() * FADE_CHANGE_RANGE_MS;
         }
 
         // Draw particles in this group

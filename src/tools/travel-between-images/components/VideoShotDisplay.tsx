@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Shot, GenerationRow } from '../../../types/shots';
 import { useUpdateShotName, useDeleteShot, useDuplicateShot } from '../../../shared/hooks/useShots';
 import { Input } from '@/shared/components/ui/input';
@@ -454,6 +454,12 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [editableName, setEditableName] = useState(shot.name);
+  // Reset editable name when shot.name prop changes (prev-value ref avoids useEffect+setState)
+  const prevShotNameRef = useRef(shot.name);
+  if (prevShotNameRef.current !== shot.name) {
+    prevShotNameRef.current = shot.name;
+    setEditableName(shot.name);
+  }
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [showVideo, setShowVideo] = useState(false); // Toggle to show final video preview
@@ -516,10 +522,6 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
       setIsSelectedForAddition(false);
     }
   }, [isGenerationsPaneLocked]);
-
-  useEffect(() => {
-    setEditableName(shot.name); // Reset editable name if shot prop changes
-  }, [shot.name]);
 
   const handleNameEditToggle = (e?: React.MouseEvent) => {
     e?.stopPropagation();

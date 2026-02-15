@@ -140,7 +140,7 @@ describe('useClipManager', () => {
 
     const params = createDefaultParams();
 
-    const { result } = renderHook(() => useClipManager(params));
+    renderHook(() => useClipManager(params));
 
     await waitFor(() => {
       expect(mockBuildInitialClipsFromSettings).toHaveBeenCalledWith(params.joinSettings.settings);
@@ -154,7 +154,7 @@ describe('useClipManager', () => {
       posterUrlsToPreload: [],
     });
 
-    const { result } = renderHook(() => useClipManager(createDefaultParams()));
+    renderHook(() => useClipManager(createDefaultParams()));
 
     await waitFor(() => {
       expect(mockCreateEmptyClip).toHaveBeenCalled();

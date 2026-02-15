@@ -52,7 +52,8 @@ function installWindowOnlyInstrumentationLegacy() {
         userAgent: navigator.userAgent.slice(0, 100)
       };
 
-      if (source && source.includes('supabase-js.js') && lineno === 2372) {
+      const SUPABASE_JS_KNOWN_ERROR_LINE = 2372;
+      if (source && source.includes('supabase-js.js') && lineno === SUPABASE_JS_KNOWN_ERROR_LINE) {
         console.error('[RealtimeCorruptionTrace] SUPABASE ERROR CAPTURED!', {
           ...errorInfo,
           realtimeSnapshot: captureRealtimeSnapshot(),

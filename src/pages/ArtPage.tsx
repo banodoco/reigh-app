@@ -2,6 +2,10 @@ import { useEffect } from 'react';
 import { Video, Heart, Eye, Calendar } from 'lucide-react';
 import { PageFadeIn, FadeInSection } from '@/shared/components/transitions';
 
+const FADE_IN_BASE_DELAY_S = 0.2;
+const FADE_IN_INCREMENT_S = 0.1;
+const MS_PER_SECOND = 1000;
+
 export default function ArtPage() {
   // Scroll to top when component mounts
   useEffect(() => {
@@ -100,7 +104,7 @@ export default function ArtPage() {
             {artPieces.map((piece, index) => (
               <FadeInSection 
                 key={piece.id} 
-                delayMs={(0.2 + index * 0.1) * 1000}
+                delayMs={(FADE_IN_BASE_DELAY_S + index * FADE_IN_INCREMENT_S) * MS_PER_SECOND}
                 className="wes-vintage-card group"
               >
                 {/* Video Placeholder */}

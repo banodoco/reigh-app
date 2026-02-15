@@ -68,11 +68,11 @@ describe('useIsMobile', () => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,
-      addEventListener: vi.fn((event: string, handler: () => void) => {
+      addEventListener: vi.fn((_event: string, handler: () => void) => {
         if (!listeners[query]) listeners[query] = new Set();
         listeners[query].add(handler);
       }),
-      removeEventListener: vi.fn((event: string, handler: () => void) => {
+      removeEventListener: vi.fn((_event: string, handler: () => void) => {
         listeners[query]?.delete(handler);
       }),
     }));

@@ -25,8 +25,8 @@ vi.mock('../timelineFrameCalculators', () => ({
     gens.find((sg: any) => sg.generation_id === id || sg.id === id) || null
   ),
   calculateDistributedFrames: vi.fn(() => []),
-  deduplicateUpdates: vi.fn((updates: any) => new Map()),
-  buildAndNormalizeFinalPositions: vi.fn((updates: any) => new Map()),
+  deduplicateUpdates: vi.fn((_updates: any) => new Map()),
+  buildAndNormalizeFinalPositions: vi.fn((_updates: any) => new Map()),
 }));
 
 import { useTimelineFrameUpdates } from '../useTimelineFrameUpdates';

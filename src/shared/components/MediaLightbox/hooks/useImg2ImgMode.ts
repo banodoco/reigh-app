@@ -4,7 +4,8 @@ import { toast } from '@/shared/components/ui/sonner';
 import { handleError } from '@/shared/lib/errorHandler';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { GenerationRow } from '@/types/shots';
-import { createBatchZImageTurboI2ITasks, ZImageLoraConfig } from '@/shared/lib/tasks/zImageTurboI2I';
+import { createBatchZImageTurboI2ITasks } from '@/shared/lib/tasks/zImageTurboI2I';
+import type { FalLoraConfig } from '@/shared/types/lora';
 import { useLoraManager, UseLoraManagerReturn, ActiveLora, LoraModel } from '@/shared/hooks/useLoraManager';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
@@ -156,7 +157,7 @@ export const useImg2ImgMode = ({
 
     try {
       // Convert selected LoRAs to the format expected by the task
-      const loras: ZImageLoraConfig[] = loraManager.selectedLoras.map((lora: ActiveLora) => ({
+      const loras: FalLoraConfig[] = loraManager.selectedLoras.map((lora: ActiveLora) => ({
         path: lora.path,
         scale: lora.strength,
       }));

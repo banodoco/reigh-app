@@ -5,7 +5,7 @@
  * Used by EditVideoPage (video selection) and EditImagesPage (image selection).
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { LayoutGrid } from 'lucide-react';
 import { GenerationRow } from '@/types/shots';
 import { ReighLoading } from '@/shared/components/ReighLoading';
@@ -32,6 +32,13 @@ export function MediaSelectionPanel({ onSelect, mediaType, label }: MediaSelecti
     excludePositioned: false,
   });
   const [currentPage, setCurrentPage] = useState(1);
+  // Reset to page 1 when filters change (prev-value ref avoids useEffect+setState)
+  const prevFilterKeyRef = React.useRef(`${galleryFilters.shotFilter}|${galleryFilters.searchTerm}`);
+  const filterKey = `${galleryFilters.shotFilter}|${galleryFilters.searchTerm}`;
+  if (prevFilterKeyRef.current !== filterKey) {
+    prevFilterKeyRef.current = filterKey;
+    if (currentPage !== 1) setCurrentPage(1);
+  }
   const { data: shots } = useListShots(selectedProjectId);
   const itemsPerPage = 15;
 
@@ -49,11 +56,6 @@ export function MediaSelectionPanel({ onSelect, mediaType, label }: MediaSelecti
       searchTerm: galleryFilters.searchTerm.trim() || undefined
     }
   );
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [galleryFilters.shotFilter, galleryFilters.searchTerm]);
 
   const headerText = label ?? (mediaType === 'video' ? 'Select a Video' : 'Select an Image');
 

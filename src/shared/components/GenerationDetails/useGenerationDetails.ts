@@ -42,7 +42,12 @@ export function useGenerationDetails({
     }
     if (!task?.params) return [];
     // Parse params if needed
-    const params = typeof task.params === 'string' ? JSON.parse(task.params) : task.params;
+    let params: Record<string, unknown>;
+    try {
+      params = typeof task.params === 'string' ? JSON.parse(task.params) : task.params;
+    } catch {
+      return [];
+    }
     return deriveInputImages(params);
   }, [inputImagesProp, task]);
 

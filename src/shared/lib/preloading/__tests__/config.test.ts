@@ -1,9 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  afterEach
+} from 'vitest';
 import { getPreloadConfig } from '../config';
 
 describe('getPreloadConfig', () => {
   const originalInnerWidth = window.innerWidth;
-  const originalNavigator = { ...navigator };
 
   afterEach(() => {
     Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, writable: true });

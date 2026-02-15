@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { waitFor } from '@testing-library/react';
 import { renderHookWithProviders } from '@/test/test-utils';
 
 vi.mock('@/integrations/supabase/client', () => ({

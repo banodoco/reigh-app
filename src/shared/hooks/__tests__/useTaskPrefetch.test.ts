@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import { renderHookWithProviders } from '@/test/test-utils';
 
 const mockMaybeSingle = vi.fn();
@@ -7,7 +7,7 @@ const mockSingle = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
-    from: vi.fn((table: string) => ({
+    from: vi.fn((_table: string) => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           maybeSingle: mockMaybeSingle,

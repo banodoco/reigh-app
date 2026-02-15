@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import type { GenerationRow } from '@/types/shots';
 
 // Mock supabase
 vi.mock('@/integrations/supabase/client', () => ({
@@ -28,7 +27,7 @@ vi.mock('@/shared/lib/errorHandler', () => ({
 }));
 
 // Mock useShotImages — use vi.hoisted to avoid hoisting issues
-const { mockUseShotImages, mockGenerations } = vi.hoisted(() => {
+const { mockGenerations } = vi.hoisted(() => {
   const gens = [
     {
       id: 'sg-1', generation_id: 'gen-1', shotImageEntryId: 'sg-1', shot_generation_id: 'sg-1',

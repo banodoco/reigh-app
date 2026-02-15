@@ -9,7 +9,7 @@ import { vi } from 'vitest';
  *   vi.mocked(supabase.from).mockReturnValue(mock.from('any'));
  *   mock.setResponse({ data: [...], error: null });
  */
-export function createSupabaseMock() {
+function createSupabaseMock() {
   let response: { data: unknown; error: unknown } = { data: null, error: null };
 
   const terminalResponse = () => Promise.resolve(response);
@@ -57,19 +57,19 @@ export function createSupabaseMock() {
 }
 
 /** Shorthand: mock a successful supabase response */
-export function mockSupabaseResponse(data: unknown) {
+function _mockSupabaseResponse(data: unknown) {
   return { data, error: null };
 }
 
 /** Shorthand: mock a supabase error */
-export function mockSupabaseError(message: string) {
+function _mockSupabaseError(message: string) {
   return { data: null, error: { message, code: 'PGRST000' } };
 }
 
 /**
  * Creates a mock supabase auth object.
  */
-export function createMockAuth(overrides: {
+function createMockAuth(overrides: {
   userId?: string;
   email?: string;
 } = {}) {
@@ -95,7 +95,7 @@ export function createMockAuth(overrides: {
 /**
  * Creates a mock supabase storage object.
  */
-export function createMockStorage() {
+function createMockStorage() {
   return {
     from: vi.fn().mockReturnValue({
       upload: vi.fn().mockResolvedValue({ data: { path: 'test/path' }, error: null }),
@@ -115,7 +115,7 @@ export function createMockStorage() {
  *     supabase: createMockSupabaseClient(),
  *   }));
  */
-export function createMockSupabaseClient() {
+function _createMockSupabaseClient() {
   const queryMock = createSupabaseMock();
   return {
     from: queryMock.from,

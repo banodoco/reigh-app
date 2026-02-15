@@ -1,0 +1,9 @@
+{
+  "ignore": [],
+  "review_max_age_days": 30,
+  "holistic_max_age_days": 30,
+  "generate_scorecard": true,
+  "badge_path": "scorecard.png",
+  "exclude": [],
+  "zone_overrides": {}
+}

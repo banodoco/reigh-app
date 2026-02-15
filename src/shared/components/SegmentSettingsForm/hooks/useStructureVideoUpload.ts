@@ -18,6 +18,9 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { SegmentSettings } from '../../segmentSettingsUtils';
 
+const MAX_UPLOAD_SIZE_MB = 200;
+const BYTES_PER_KB = 1024;
+
 interface UseStructureVideoUploadOptions {
   /** Frame range for the segment (required for creating structure video config) */
   structureVideoFrameRange?: {
@@ -137,9 +140,9 @@ export function useStructureVideoUpload(
       return;
     }
 
-    // Validate file size (max 200MB)
-    const maxSizeMB = 200;
-    const fileSizeMB = file.size / (1024 * 1024);
+    // Validate file size
+    const maxSizeMB = MAX_UPLOAD_SIZE_MB;
+    const fileSizeMB = file.size / (BYTES_PER_KB * BYTES_PER_KB);
     if (fileSizeMB > maxSizeMB) {
       toast.error(`File too large. Maximum size is ${maxSizeMB}MB`);
       return;

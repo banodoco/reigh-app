@@ -3,6 +3,8 @@ import type { SupabaseClient, Session } from '@supabase/supabase-js';
 
 type AuthCallback = (event: string, session: Session | null) => void;
 
+const AUTH_HEAL_DEBOUNCE_MS = 5000;
+
 export class AuthStateManager {
   private listeners: Array<{id: string, callback: AuthCallback}> = [];
   private isInitialized = false;
@@ -35,7 +37,7 @@ export class AuthStateManager {
         setTimeout(async () => {
           try {
             const now = Date.now();
-            if (now - this.__LAST_AUTH_HEAL_AT__ > 5000) {
+            if (now - this.__LAST_AUTH_HEAL_AT__ > AUTH_HEAL_DEBOUNCE_MS) {
               this.__LAST_AUTH_HEAL_AT__ = now;
               
               // Use ReconnectScheduler instead of direct event dispatch

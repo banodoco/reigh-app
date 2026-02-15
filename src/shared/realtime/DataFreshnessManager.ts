@@ -284,11 +284,15 @@ class DataFreshnessManager {
       realtimeStatus: this.state.realtimeStatus,
       timeSinceStatusChange: now - this.state.lastStatusChange,
       trackedQueries: this.state.lastEventTimes.size,
-      queryAges: Array.from(this.state.lastEventTimes.entries()).map(([key, time]) => ({
-        query: JSON.parse(key),
-        ageMs: now - time,
-        ageSec: Math.round((now - time) / 1000)
-      })),
+      queryAges: Array.from(this.state.lastEventTimes.entries()).map(([key, time]) => {
+        let query: unknown;
+        try { query = JSON.parse(key); } catch { query = key; }
+        return {
+          query,
+          ageMs: now - time,
+          ageSec: Math.round((now - time) / 1000)
+        };
+      }),
       subscriberCount: this.subscribers.size,
       timestamp: now
     };

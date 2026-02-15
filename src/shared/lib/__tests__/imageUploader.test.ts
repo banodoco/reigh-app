@@ -83,8 +83,6 @@ describe('uploadImageToStorage', () => {
     // The uploader should throw a specific "too large" error for 413 responses
     // and NOT retry. Since XHR testing in jsdom is unreliable, we test this
     // by verifying the error message pattern from the source code.
-    const file = new File(['data'], 'test.jpg', { type: 'image/jpeg' });
-
     // The uploadImageToStorage function checks for '413' or 'too large' in error messages
     // and throws without retrying. We verify the error categorization logic exists
     // by confirming the function signature accepts maxRetries.

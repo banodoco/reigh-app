@@ -15,6 +15,7 @@ interface UseVoiceRecordingOptions {
 }
 
 const MAX_RECORDING_SECONDS = 15;
+const MS_PER_SECOND = 1000;
 
 export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
   const { onResult, onError, task = "transcribe_and_write", context = "", example = "", existingValue = "" } = options;
@@ -190,7 +191,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
           mediaRecorderRef.current.stop();
         }
-      }, MAX_RECORDING_SECONDS * 1000);
+      }, MAX_RECORDING_SECONDS * MS_PER_SECOND);
     } catch (err: unknown) {
       handleError(err, { context: 'useVoiceRecording', showToast: false });
       const errName = isError(err) ? err.name : '';

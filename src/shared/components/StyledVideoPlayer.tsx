@@ -50,8 +50,16 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  // Track video loading state - show thumbnail until video can play
+  // Track video loading state - show thumbnail until video can play.
+  // Reset to false when src/poster changes (previous-value ref avoids useEffect+setState).
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const prevSrcRef = useRef(src);
+  const prevPosterRef = useRef(poster);
+  if (prevSrcRef.current !== src || prevPosterRef.current !== poster) {
+    prevSrcRef.current = src;
+    prevPosterRef.current = poster;
+    if (isVideoReady) setIsVideoReady(false);
+  }
 
   const togglePlayPause = useCallback(() => {
     const video = videoRef.current;
@@ -101,11 +109,6 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
   const hasPlaybackConstraints = playbackStart !== undefined && playbackEnd !== undefined;
   const effectiveStart = playbackStart ?? 0;
   const effectiveEnd = playbackEnd ?? duration;
-
-  // Reset video ready state when src changes
-  useEffect(() => {
-    setIsVideoReady(false);
-  }, [src, poster]);
 
   useEffect(() => {
     const video = videoRef.current;

@@ -112,9 +112,8 @@ describe('useAddImageToShot', () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useAddImageToShot(), { wrapper });
 
-    let data: unknown;
     await act(async () => {
-      data = await result.current.mutateAsync({
+      await result.current.mutateAsync({
         shot_id: 'shot-1',
         generation_id: 'gen-1',
         project_id: 'project-1',

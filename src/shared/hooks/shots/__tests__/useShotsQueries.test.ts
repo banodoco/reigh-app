@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { waitFor } from '@testing-library/react';
 import { renderHookWithProviders } from '@/test/test-utils';
 
 const mockShotsData = [
@@ -29,12 +28,7 @@ const mockShotGenerations = [
   },
 ];
 
-const mockOrder = vi.fn();
-const mockLimit = vi.fn();
-const mockRange = vi.fn();
-const mockEqChain = vi.fn();
 const mockNot = vi.fn();
-const mockOr = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Button } from "@/shared/components/ui/button";
@@ -48,19 +48,26 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
   // Sub-filter for specific model type within category (defaulted from lora_type when possible)
   const [selectedSubFilter, setSelectedSubFilter] = useState<string>(() => getDefaultSubFilter(lora_type));
 
-  // Reset model filter when prop changes (e.g., when opening from different context)
-  useEffect(() => {
+  // Reset model filter when lora_type prop changes (prev-value ref avoids useEffect+setState)
+  const prevLoraTypeRef = React.useRef(lora_type);
+  if (prevLoraTypeRef.current !== lora_type) {
+    prevLoraTypeRef.current = lora_type;
     setSelectedModelFilter(getFilterCategory(lora_type));
     setSelectedSubFilter(getDefaultSubFilter(lora_type));
-  }, [lora_type]);
+  }
 
-  // Reset sub-filter when category changes
-  useEffect(() => {
-    const options = getSubFilterOptions(selectedModelFilter).map(opt => opt.value);
-    if (!options.includes(selectedSubFilter)) {
+  // Reset sub-filter when category changes and current sub-filter isn't valid
+  const validSubOptions = React.useMemo(
+    () => getSubFilterOptions(selectedModelFilter).map(opt => opt.value),
+    [selectedModelFilter]
+  );
+  const prevValidOptionsRef = React.useRef(validSubOptions);
+  if (prevValidOptionsRef.current !== validSubOptions) {
+    prevValidOptionsRef.current = validSubOptions;
+    if (!validSubOptions.includes(selectedSubFilter)) {
       setSelectedSubFilter('all');
     }
-  }, [selectedModelFilter, selectedSubFilter]);
+  }
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);

@@ -248,10 +248,10 @@ export const extractSettings = (taskData: TaskData): ExtractedSettings => {
 
 // ==================== Apply Functions ====================
 
-export const applyModelSettings = async (
+export const applyModelSettings = (
   settings: ExtractedSettings,
   context: ApplyContext
-): Promise<ApplyResult> => {
+): ApplyResult => {
   if (!settings.model || settings.model === context.steerableMotionSettings.model_name) {
     return { success: true, settingName: 'model', details: 'skipped - no change' };
   }
@@ -302,10 +302,10 @@ export const applyPromptSettings = async (
   return { success: true, settingName: 'prompts' };
 };
 
-export const applyGenerationSettings = async (
+export const applyGenerationSettings = (
   settings: ExtractedSettings,
   context: ApplyContext
-): Promise<ApplyResult> => {
+): ApplyResult => {
   // Apply frames
   if (typeof settings.frames === 'number' && !Number.isNaN(settings.frames)) {
     context.onBatchVideoFramesChange(settings.frames);
@@ -322,10 +322,10 @@ export const applyGenerationSettings = async (
   return { success: true, settingName: 'generation' };
 };
 
-export const applyModeSettings = async (
+export const applyModeSettings = (
   settings: ExtractedSettings,
   context: ApplyContext
-): Promise<ApplyResult> => {
+): ApplyResult => {
   // Apply generation mode
   if (settings.generationMode && (settings.generationMode === 'batch' || settings.generationMode === 'timeline' || settings.generationMode === 'by-pair')) {
     context.onGenerationModeChange(settings.generationMode);
@@ -349,10 +349,10 @@ export const applyModeSettings = async (
   return { success: true, settingName: 'modes' };
 };
 
-export const applyAdvancedModeSettings = async (
+export const applyAdvancedModeSettings = (
   settings: ExtractedSettings,
   context: ApplyContext
-): Promise<ApplyResult> => {
+): ApplyResult => {
   // Helper to deep clone phase config to prevent shared references
   const deepClonePhaseConfig = (config: typeof settings.phaseConfig) => {
     if (!config) return undefined;
@@ -398,10 +398,10 @@ export const applyAdvancedModeSettings = async (
   return { success: true, settingName: 'advancedMode' };
 };
 
-export const applyTextPromptAddons = async (
+export const applyTextPromptAddons = (
   settings: ExtractedSettings,
   context: ApplyContext
-): Promise<ApplyResult> => {
+): ApplyResult => {
   // Apply text before prompts
   if (settings.textBeforePrompts !== undefined && context.onTextBeforePromptsChange) {
     context.onTextBeforePromptsChange(settings.textBeforePrompts);
@@ -415,10 +415,10 @@ export const applyTextPromptAddons = async (
   return { success: true, settingName: 'textAddons' };
 };
 
-export const applyMotionSettings = async (
+export const applyMotionSettings = (
   settings: ExtractedSettings,
   context: ApplyContext
-): Promise<ApplyResult> => {
+): ApplyResult => {
   // Only apply if NOT in advanced mode
   if (settings.amountOfMotion !== undefined && !settings.advancedMode && context.onAmountOfMotionChange) {
     context.onAmountOfMotionChange(settings.amountOfMotion * 100);

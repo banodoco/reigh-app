@@ -268,6 +268,12 @@ function useResourceBrowsing({
   const [processingResource, setProcessingResource] = useState<string | null>(null);
   const [loadedThumbnails, setLoadedThumbnails] = useState<Set<string>>(new Set());
   const [showMyResourcesOnly, setShowMyResourcesOnly] = useState(false);
+  // Reset to page 1 when filter changes (prev-value ref avoids useEffect+setState)
+  const prevShowMyResourcesOnlyRef = React.useRef(showMyResourcesOnly);
+  if (prevShowMyResourcesOnlyRef.current !== showMyResourcesOnly) {
+    prevShowMyResourcesOnlyRef.current = showMyResourcesOnly;
+    setCurrentPage(1);
+  }
 
   // Get current user session
   useEffect(() => {
@@ -338,10 +344,7 @@ function useResourceBrowsing({
     setCurrentPage(newPage);
   }, []);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, showMyResourcesOnly]);
+  // Note: page reset for searchTerm is handled at call sites (handleSearch, cleanup).
 
   const handleToggleVisibility = useCallback(async (resourceId: string, currentIsPublic: boolean) => {
     const resource = allResources.find(r => r.id === resourceId);
