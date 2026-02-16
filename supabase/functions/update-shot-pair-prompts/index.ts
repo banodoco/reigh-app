@@ -1,13 +1,9 @@
 // deno-lint-ignore-file
-// @ts-ignore
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest, verifyShotOwnership } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge function: update-shot-pair-prompts
@@ -78,7 +74,7 @@ serve(async (req) => {
   });
 
   // Parse request body
-  let requestBody: any = {};
+  let requestBody: unknown = {};
   try {
     const bodyText = await req.text();
     if (bodyText) {
@@ -198,7 +194,7 @@ serve(async (req) => {
     };
     
     const imageGenerations = shotGenerations.filter(sg => {
-      const gen = sg.generation as any;
+      const gen = sg.generation as unknown;
       // Exclude videos
       const isVideo = gen?.type === 'video' || 
                      gen?.type === 'video_travel_output' ||
@@ -301,7 +297,7 @@ serve(async (req) => {
     const results = await Promise.all(updatePromises);
     const successCount = results.filter(r => r.success).length;
     const failedCount = results.filter(r => !r.success).length;
-    const skippedCount = results.filter(r => (r as any).skipped).length;
+    const skippedCount = results.filter(r => (r as unknown).skipped).length;
 
     logger.info("Update complete", {
       shot_id,
@@ -325,7 +321,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { 
       shot_id, 
       error: error?.message || String(error) 

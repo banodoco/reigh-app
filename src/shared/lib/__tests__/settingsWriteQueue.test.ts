@@ -199,7 +199,7 @@ describe('settingsWriteQueue', () => {
 
     it('throws when write function is not initialized', async () => {
       // Reset the write function to null
-      setSettingsWriteFunction(null as any);
+      setSettingsWriteFunction(null as unknown);
       // Re-set to a proper function that signals missing initialization
       // Actually, we need to test the path where writeFunction is null
       // The module checks `if (!writeFunction)` and throws

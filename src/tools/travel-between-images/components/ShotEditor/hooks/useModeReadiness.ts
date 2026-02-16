@@ -98,7 +98,7 @@ export function useModeReadiness({
     }
     // Note: We intentionally DON'T include contextImages.length in deps
     // to prevent mode flipping when cache updates temporarily clear images
-  }, [selectedShot?.id, actions]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedShot?.id, actions]);  
 
   // Compute readiness state
   const readinessState = useMemo(() => ({

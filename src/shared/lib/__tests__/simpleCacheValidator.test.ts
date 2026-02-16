@@ -16,10 +16,10 @@ describe('simpleCacheValidator', () => {
     await import('../simpleCacheValidator');
 
     // In vitest (DEV=true), these should be registered
-    expect(typeof (window as any).validateImageCache).toBe('function');
-    expect(typeof (window as any).startCacheWatch).toBe('function');
-    expect(typeof (window as any).showCacheStats).toBe('function');
-    expect(typeof (window as any).showCacheHelp).toBe('function');
+    expect(typeof (window as unknown).validateImageCache).toBe('function');
+    expect(typeof (window as unknown).startCacheWatch).toBe('function');
+    expect(typeof (window as unknown).showCacheStats).toBe('function');
+    expect(typeof (window as unknown).showCacheHelp).toBe('function');
   });
 
   it('validateImageCache runs without throwing', async () => {
@@ -28,7 +28,7 @@ describe('simpleCacheValidator', () => {
     const consoleEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    expect(() => (window as any).validateImageCache()).not.toThrow();
+    expect(() => (window as unknown).validateImageCache()).not.toThrow();
 
     consoleSpy.mockRestore();
     consoleEndSpy.mockRestore();
@@ -39,7 +39,7 @@ describe('simpleCacheValidator', () => {
     await import('../simpleCacheValidator');
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    expect(() => (window as any).showCacheStats()).not.toThrow();
+    expect(() => (window as unknown).showCacheStats()).not.toThrow();
 
     consoleLogSpy.mockRestore();
   });
@@ -50,7 +50,7 @@ describe('simpleCacheValidator', () => {
     const consoleEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    expect(() => (window as any).showCacheHelp()).not.toThrow();
+    expect(() => (window as unknown).showCacheHelp()).not.toThrow();
 
     consoleSpy.mockRestore();
     consoleEndSpy.mockRestore();
@@ -61,12 +61,12 @@ describe('simpleCacheValidator', () => {
     await import('../simpleCacheValidator');
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    (window as any).startCacheWatch();
+    (window as unknown).startCacheWatch();
 
-    expect(typeof (window as any).stopCacheWatch).toBe('function');
+    expect(typeof (window as unknown).stopCacheWatch).toBe('function');
 
     // Clean up the interval
-    (window as any).stopCacheWatch();
+    (window as unknown).stopCacheWatch();
 
     consoleLogSpy.mockRestore();
   });

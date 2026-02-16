@@ -1,7 +1,5 @@
 // deno-lint-ignore-file
-// @ts-ignore
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-// @ts-ignore
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { authenticateRequest, verifyTaskOwnership, getTaskUserId } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
@@ -17,14 +15,13 @@ import { validateAndCleanupShotId } from './shotValidation.ts';
 import { triggerCostCalculationIfNotSubTask } from './billing.ts';
 
 // Provide a loose Deno type for local tooling
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 interface TaskContext {
   id: string;
   task_type: string;
   project_id: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
   tool_type: string;
   category: string;
   content_type: 'image' | 'video';
@@ -37,7 +34,7 @@ interface TaskContext {
  * Returns null if task not found or on error.
  */
 async function fetchTaskContext(
-  supabase: any,
+  supabase: unknown,
   taskId: string
 ): Promise<TaskContext | null> {
   const { data: task, error } = await supabase
@@ -90,11 +87,11 @@ export interface CompleteTaskDeps {
   /**
    * Override Supabase client factory for tests.
    */
-  createClient?: (supabaseUrl: string, serviceKey: string) => any;
+  createClient?: (supabaseUrl: string, serviceKey: string) => unknown;
   /**
    * Provide a pre-constructed Supabase client (bypasses createClient).
    */
-  supabaseAdmin?: any;
+  supabaseAdmin?: unknown;
   /**
    * Override auth + ownership utilities for tests.
    */
@@ -285,7 +282,7 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
           thumbnailUrl,
           logger
         );
-      } catch (genErr: any) {
+      } catch (genErr: unknown) {
         const msg = genErr?.message || String(genErr);
         logger.error("Generation creation failed", { error: msg });
         await logger.flush();
@@ -346,7 +343,7 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { 
       task_id: taskIdString, 
       error: error?.message,
@@ -359,6 +356,6 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
 }
 
 // Some TS envs don't know about import.meta.main; Deno does.
-if ((import.meta as any).main) {
+if ((import.meta as unknown).main) {
   serve((req) => completeTaskHandler(req));
 }

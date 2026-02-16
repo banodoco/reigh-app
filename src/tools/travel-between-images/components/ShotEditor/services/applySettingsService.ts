@@ -96,7 +96,7 @@ export interface ApplyContext {
   onAmountOfMotionChange?: (motion: number) => void;
   
   // Structure video
-  handleStructureVideoChange: (
+  onStructureVideoInputChange: (
     videoPath: string | null,
     metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',
@@ -157,10 +157,8 @@ export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
 
 export const extractSettings = (taskData: TaskData): ExtractedSettings => {
   // Cast to permissive record for dynamic property access from Supabase JSON
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const params = taskData.params as Record<string, any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orchestrator = taskData.orchestrator as Record<string, any>;
+  const params = taskData.params as Record<string, unknown>;
+  const orchestrator = taskData.orchestrator as Record<string, unknown>;
 
   const structureGuidance = (orchestrator.structure_guidance ?? params.structure_guidance) as Record<string, unknown> | undefined;
   const guidanceTarget = structureGuidance?.target as string | undefined;
@@ -460,7 +458,6 @@ export const applyMotionSettings = (
   // Only apply if NOT in advanced mode
   if (settings.amountOfMotion !== undefined && !settings.advancedMode && context.onAmountOfMotionChange) {
     context.onAmountOfMotionChange(settings.amountOfMotion * 100);
-  } else if (settings.advancedMode) {
   }
   
   return { success: true, settingName: 'motion' };
@@ -536,8 +533,8 @@ export const applyStructureVideo = async (
 
   if (structureVideoPath) {
     
-    if (!context.handleStructureVideoChange) {
-      console.error('[ApplySettings] ❌ handleStructureVideoChange is not defined!');
+    if (!context.onStructureVideoInputChange) {
+      console.error('[ApplySettings] ❌ onStructureVideoInputChange is not defined!');
       return { success: false, settingName: 'structureVideo', error: 'handler not defined' };
     }
     
@@ -545,10 +542,9 @@ export const applyStructureVideo = async (
       let metadata = null;
       try {
         metadata = firstStructureVideo?.metadata ?? await extractVideoMetadataFromUrl(structureVideoPath);
-      } catch (metadataError) {
-      }
+      } catch (metadataError) { /* intentionally ignored */ }
       
-      context.handleStructureVideoChange(
+      context.onStructureVideoInputChange(
         structureVideoPath,
         metadata,
         firstStructureVideo?.treatment ?? (settings.structureVideoTreatment || 'adjust'),
@@ -563,8 +559,8 @@ export const applyStructureVideo = async (
       return { success: false, settingName: 'structureVideo', error: errorMessage };
     }
   } else {
-    if (context.handleStructureVideoChange) {
-      context.handleStructureVideoChange(null, null, 'adjust', 1.0, 'uni3c');
+    if (context.onStructureVideoInputChange) {
+      context.onStructureVideoInputChange(null, null, 'adjust', 1.0, 'uni3c');
     }
     return { success: true, settingName: 'structureVideo', details: 'cleared' };
   }

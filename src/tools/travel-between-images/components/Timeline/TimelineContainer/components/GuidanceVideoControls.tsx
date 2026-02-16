@@ -15,14 +15,14 @@ interface GuidanceVideoControlsProps {
   projectId?: string;
   readOnly?: boolean;
   hasNoImages?: boolean;
-  structureVideoType: 'uni3c' | 'flow' | 'canny' | 'depth';
-  structureVideoTreatment: 'adjust' | 'clip';
-  structureVideoMotionStrength: number;
+  primaryStructureVideoType: 'uni3c' | 'flow' | 'canny' | 'depth';
+  primaryStructureVideoTreatment: 'adjust' | 'clip';
+  primaryStructureVideoMotionStrength: number;
   structureVideos?: StructureVideoConfigWithMetadata[];
   fullMax: number;
   onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
   onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
-  onStructureVideoChange?: (
+  onPrimaryStructureVideoInputChange?: (
     videoPath: string | null,
     metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',
@@ -41,14 +41,14 @@ export const GuidanceVideoControls: React.FC<GuidanceVideoControlsProps> = ({
   projectId,
   readOnly = false,
   hasNoImages = false,
-  structureVideoType,
-  structureVideoTreatment,
-  structureVideoMotionStrength,
+  primaryStructureVideoType,
+  primaryStructureVideoTreatment,
+  primaryStructureVideoMotionStrength,
   structureVideos,
   fullMax,
   onAddStructureVideo,
   onUpdateStructureVideo,
-  onStructureVideoChange,
+  onPrimaryStructureVideoInputChange,
   onShowVideoBrowser,
   isUploadingStructureVideo,
   setIsUploadingStructureVideo,
@@ -99,13 +99,13 @@ export const GuidanceVideoControls: React.FC<GuidanceVideoControlsProps> = ({
           end_frame: placement.end_frame,
           treatment: 'adjust',
           motion_strength: 1.0,
-          structure_type: structureVideoType,
+          structure_type: primaryStructureVideoType,
           metadata,
           resource_id: null,
         });
-      } else if (onStructureVideoChange) {
+      } else if (onPrimaryStructureVideoInputChange) {
         // Legacy single-video interface
-        onStructureVideoChange(videoUrl, metadata, structureVideoTreatment, structureVideoMotionStrength, structureVideoType);
+        onPrimaryStructureVideoInputChange(videoUrl, metadata, primaryStructureVideoTreatment, primaryStructureVideoMotionStrength, primaryStructureVideoType);
       }
       e.target.value = '';
     } catch (error) {

@@ -1,7 +1,5 @@
 // deno-lint-ignore-file
-// @ts-ignore
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Authentication result for edge functions
@@ -43,7 +41,7 @@ interface AuthOptions {
  */
 export async function authenticateRequest(
   req: Request,
-  supabaseAdmin: any,
+  supabaseAdmin: unknown,
   logPrefix: string = "[AUTH]",
   options: AuthOptions = {}
 ): Promise<AuthResult> {
@@ -144,7 +142,7 @@ export async function authenticateRequest(
  * @returns Object with success status and optional error details
  */
 export async function verifyTaskOwnership(
-  supabaseAdmin: any,
+  supabaseAdmin: unknown,
   taskId: string,
   userId: string,
   logPrefix: string = "[AUTH]"
@@ -207,7 +205,7 @@ export async function verifyTaskOwnership(
  * @returns Object with success status and optional error details
  */
 export async function verifyShotOwnership(
-  supabaseAdmin: any,
+  supabaseAdmin: unknown,
   shotId: string,
   userId: string,
   logPrefix: string = "[AUTH]"
@@ -269,7 +267,7 @@ export async function verifyShotOwnership(
  * @returns Object with userId or error
  */
 export async function getTaskUserId(
-  supabaseAdmin: any,
+  supabaseAdmin: unknown,
   taskId: string,
   logPrefix: string = "[AUTH]"
 ): Promise<{ userId: string | null; error?: string; statusCode?: number }> {

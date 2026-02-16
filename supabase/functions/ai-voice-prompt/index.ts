@@ -173,7 +173,7 @@ Output:`;
         top_p: 1,
       });
       logger.info('Kimi API responded successfully');
-    } catch (kimiError: any) {
+    } catch (kimiError: unknown) {
       logger.error('Kimi API error', { error: kimiError?.message || String(kimiError) });
       // Fall back to transcription if Kimi fails
       return jsonResponse({ 
@@ -196,7 +196,7 @@ Output:`;
       usage: resp.usage
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error('Error', { error: err?.message || String(err) });
     await logger.flush();
     return jsonResponse({ error: "Internal server error", details: err?.message }, 500);

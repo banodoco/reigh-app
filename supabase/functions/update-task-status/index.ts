@@ -5,8 +5,7 @@ import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 import { extractOrchestratorRef, getSubTaskOrchestratorId, buildSubTaskFilter, triggerCostCalculation, UUID_REGEX } from "../_shared/billing.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge function: update-task-status
@@ -42,12 +41,12 @@ declare const Deno: any;
  * When an orchestrator is cancelled, we should still bill for any completed segments.
  */
 async function handleOrchestratorCancellationBilling(
-  supabaseAdmin: any,
+  supabaseAdmin: unknown,
   supabaseUrl: string,
   serviceKey: string,
   logger: SystemLogger,
   cancelledTaskId: string,
-  cancelledTaskData: any
+  cancelledTaskData: unknown
 ): Promise<void> {
   try {
     // Check if this is an orchestrator task (has orchestrator_details but no orchestrator reference to another task)
@@ -132,7 +131,7 @@ async function handleOrchestratorCancellationBilling(
     logger.info("Triggering billing for cancelled orchestrator", { orchestrator_task_id: cancelledTaskId });
     await triggerCostCalculation(supabaseUrl, serviceKey, cancelledTaskId, 'CancelledOrchBilling');
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error in orchestrator cancellation billing", { error: error?.message });
   }
 }
@@ -145,11 +144,11 @@ async function handleOrchestratorCancellationBilling(
  * 3. Marks them all as Failed/Cancelled appropriately
  */
 async function handleCascadingTaskFailure(
-  supabaseAdmin: any,
+  supabaseAdmin: unknown,
   logger: SystemLogger,
   failedTaskId: string,
   failureStatus: string,
-  failedTaskData: any
+  failedTaskData: unknown
 ) {
   try {
     logger.info("Processing cascading failure", { 
@@ -234,12 +233,12 @@ async function handleCascadingTaskFailure(
       logger.info("Cascade complete", {
         task_id: failedTaskId,
         cascaded_count: cascadedCount,
-        cascaded_task_ids: cascadeResult.data.map((t: any) => t.id.substring(0, 8)),
+        cascaded_task_ids: cascadeResult.data.map((t: unknown) => t.id.substring(0, 8)),
         status: failureStatus
       });
     }
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Unexpected error in cascade handler", { error: error?.message });
   }
 }
@@ -267,7 +266,7 @@ serve(async (req) => {
   }
 
   // Parse request body
-  let requestBody: any = {};
+  let requestBody: unknown = {};
   try {
     const bodyText = await req.text();
     if (bodyText) {
@@ -377,7 +376,7 @@ serve(async (req) => {
     }
 
     // Build update payload
-    const updatePayload: any = {
+    const updatePayload: unknown = {
       status: status,
       updated_at: new Date().toISOString()
     };
@@ -440,7 +439,7 @@ serve(async (req) => {
         return new Response("User has no projects", { status: 403 });
       }
 
-      const projectIds = userProjects.map((p: any) => p.id);
+      const projectIds = userProjects.map((p: unknown) => p.id);
       
       updateResult = await supabaseAdmin
         .from("tasks")
@@ -506,7 +505,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { task_id, error: error?.message });
     await logger.flush();
     return new Response(`Internal server error: ${error?.message}`, { status: 500 });

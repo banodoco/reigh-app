@@ -131,8 +131,7 @@ export function useReferenceResourceMutations(
           selectedReferenceIdByShot: updatedSelections
         })
       );
-    } catch (e) {
-    }
+    } catch (e) { /* intentionally ignored */ }
 
     await updateProjectImageSettings('project', {
       references: filteredPointers,

@@ -18,7 +18,7 @@ interface LogContext {
   task_id?: string;
   shot_id?: string;
   user_id?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface BufferedLog {
@@ -28,17 +28,17 @@ interface BufferedLog {
   log_level: LogLevel;
   message: string;
   task_id: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
-class SystemLogger {
-  private supabaseAdmin: any;
+export class SystemLogger {
+  private supabaseAdmin: unknown;
   private functionName: string;
   private logPrefix: string;
   private logBuffer: BufferedLog[] = [];
   private defaultTaskId: string | null = null;
 
-  constructor(supabaseAdmin: any, functionName: string, defaultTaskId?: string) {
+  constructor(supabaseAdmin: unknown, functionName: string, defaultTaskId?: string) {
     this.supabaseAdmin = supabaseAdmin;
     this.functionName = functionName;
     this.logPrefix = `[${functionName.toUpperCase()}]`;
@@ -117,7 +117,7 @@ class SystemLogger {
       
       console.log(`${this.logPrefix} Flushed ${bufferSize} logs to database`);
       return { inserted: result.inserted || bufferSize, errors: result.errors || 0 };
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(`${this.logPrefix} Exception flushing logs:`, e?.message || e);
       return { inserted: 0, errors: this.logBuffer.length };
     }
@@ -130,4 +130,3 @@ class SystemLogger {
     return this.logBuffer.length;
   }
 }
-

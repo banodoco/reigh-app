@@ -8,7 +8,7 @@
 /**
  * Helper to safely extract value from array by index
  */
-function extractFromArray(arr: any[], index: number): any | undefined {
+export function extractFromArray(arr: unknown[], index: number): unknown | undefined {
   if (Array.isArray(arr) && index >= 0 && index < arr.length) {
     return arr[index];
   }
@@ -20,7 +20,7 @@ function extractFromArray(arr: any[], index: number): any | undefined {
 /**
  * Check for existing generation referencing this task_id
  */
-export async function findExistingGeneration(supabase: any, taskId: string): Promise<any | null> {
+export async function findExistingGeneration(supabase: unknown, taskId: string): Promise<unknown | null> {
   try {
     const { data, error } = await supabase
       .from('generations')
@@ -43,7 +43,7 @@ export async function findExistingGeneration(supabase: any, taskId: string): Pro
 /**
  * Find source generation by image URL (for magic edit tracking)
  */
-export async function findSourceGenerationByImageUrl(supabase: any, imageUrl: string): Promise<string | null> {
+export async function findSourceGenerationByImageUrl(supabase: unknown, imageUrl: string): Promise<string | null> {
   if (!imageUrl) return null;
 
   try {
@@ -76,7 +76,7 @@ export async function findSourceGenerationByImageUrl(supabase: any, imageUrl: st
 /**
  * Insert generation record
  */
-export async function insertGeneration(supabase: any, record: any): Promise<any> {
+export async function insertGeneration(supabase: unknown, record: unknown): Promise<unknown> {
   const { data, error } = await supabase
     .from('generations')
     .insert(record)
@@ -95,17 +95,17 @@ export async function insertGeneration(supabase: any, record: any): Promise<any>
  * @param viewedAt - Optional: if provided, marks the variant as already viewed (for single-segment cases)
  */
 export async function createVariant(
-  supabase: any,
+  supabase: unknown,
   generationId: string,
   location: string,
   thumbnailUrl: string | null,
-  params: any,
+  params: unknown,
   isPrimary: boolean,
   variantType: string | null,
   name?: string | null,
   viewedAt?: string | null
-): Promise<any> {
-  const variantRecord: Record<string, any> = {
+): Promise<unknown> {
+  const variantRecord: Record<string, unknown> = {
     generation_id: generationId,
     location,
     thumbnail_url: thumbnailUrl,
@@ -138,7 +138,7 @@ export async function createVariant(
  * Link generation to shot using the existing RPC
  */
 export async function linkGenerationToShot(
-  supabase: any,
+  supabase: unknown,
   shotId: string,
   generationId: string,
   addInPosition: boolean

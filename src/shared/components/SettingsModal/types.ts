@@ -62,6 +62,4 @@ export interface PreferencesSectionProps {
   setAIInputMode: (mode: AIInputMode) => void;
 }
 
-interface TransactionsSectionProps {
-  // Currently no props needed - thin wrapper around CreditsManagement
-}
+type TransactionsSectionProps = Record<string, never>;

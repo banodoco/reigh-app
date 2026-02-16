@@ -24,7 +24,7 @@ interface MaybeHasGenerationId {
  * Priority: generation_id > metadata.generation_id > id
  *
  * @example
- * // Instead of: (media as any).generation_id || media.id
+ * // Instead of: (media as unknown).generation_id || media.id
  * const genId = getGenerationId(media);
  */
 export function getGenerationId(

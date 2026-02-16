@@ -4,8 +4,8 @@ import { captureRealtimeSnapshot } from '../snapshot';
 describe('captureRealtimeSnapshot', () => {
   beforeEach(() => {
     // Reset window.supabase before each test
-    delete (window as any).supabase;
-    delete (window as any).__SUPABASE_WEBSOCKET_INSTANCES__;
+    delete (window as unknown).supabase;
+    delete (window as unknown).__SUPABASE_WEBSOCKET_INSTANCES__;
   });
 
   it('returns error when no realtime client exists', () => {
@@ -17,7 +17,7 @@ describe('captureRealtimeSnapshot', () => {
   });
 
   it('returns error when supabase exists but no realtime', () => {
-    (window as any).supabase = {};
+    (window as unknown).supabase = {};
     const result = captureRealtimeSnapshot();
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -26,7 +26,7 @@ describe('captureRealtimeSnapshot', () => {
   });
 
   it('returns snapshot with channel information', () => {
-    (window as any).supabase = {
+    (window as unknown).supabase = {
       realtime: {
         channels: {
           'test-topic': { state: 'joined', joinRef: '1', ref: '2' },
@@ -49,7 +49,7 @@ describe('captureRealtimeSnapshot', () => {
 
   it('handles socket info when available', () => {
     const mockSocket = { readyState: 1, url: 'wss://test.supabase.co/realtime', protocol: 'wss' };
-    (window as any).supabase = {
+    (window as unknown).supabase = {
       realtime: {
         socket: mockSocket,
         channels: {},
@@ -69,7 +69,7 @@ describe('captureRealtimeSnapshot', () => {
 
   it('handles conn transport info', () => {
     const mockTransport = { readyState: 1, url: 'wss://test.supabase.co/realtime' };
-    (window as any).supabase = {
+    (window as unknown).supabase = {
       realtime: {
         conn: { transport: mockTransport, connectionState: 'open' },
         channels: {},
@@ -85,7 +85,7 @@ describe('captureRealtimeSnapshot', () => {
   });
 
   it('returns null socket when no socket present', () => {
-    (window as any).supabase = {
+    (window as unknown).supabase = {
       realtime: {
         channels: {},
         isConnected: () => false,

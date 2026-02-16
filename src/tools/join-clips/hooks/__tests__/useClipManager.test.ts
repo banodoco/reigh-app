@@ -21,7 +21,7 @@ vi.mock('@dnd-kit/core', () => ({
 
 vi.mock('@dnd-kit/sortable', () => ({
   sortableKeyboardCoordinates: vi.fn(),
-  arrayMove: (arr: any[], from: number, to: number) => {
+  arrayMove: (arr: unknown[], from: number, to: number) => {
     const result = [...arr];
     const [removed] = result.splice(from, 1);
     result.splice(to, 0, removed);
@@ -34,13 +34,13 @@ const mockGetCachedClipsCount = vi.fn().mockReturnValue(0);
 const mockSetCachedClipsCount = vi.fn();
 const mockPreloadPosterImages = vi.fn().mockResolvedValue([]);
 const mockConsumePendingJoinClips = vi.fn().mockResolvedValue([]);
-const mockApplyPendingClipActions = vi.fn((prev: any[]) => prev);
+const mockApplyPendingClipActions = vi.fn((prev: unknown[]) => prev);
 const mockBuildInitialClipsFromSettings = vi.fn().mockReturnValue({
   clips: [],
   transitionPrompts: [],
   posterUrlsToPreload: [],
 });
-const mockPadClipsWithEmptySlots = vi.fn((clips: any[]) => clips);
+const mockPadClipsWithEmptySlots = vi.fn((clips: unknown[]) => clips);
 const mockCreateEmptyClip = vi.fn().mockImplementation(() => ({
   id: `empty-${Math.random().toString(36).slice(2)}`,
   url: '',
@@ -89,12 +89,12 @@ function createDefaultParams() {
       },
       updateField: vi.fn(),
       updateFields: vi.fn(),
-    } as any,
+    } as unknown,
     settingsLoaded: true,
     loopFirstClip: false,
     createGenerationMutation: {
       mutateAsync: vi.fn().mockResolvedValue({}),
-    } as any,
+    } as unknown,
   };
 }
 

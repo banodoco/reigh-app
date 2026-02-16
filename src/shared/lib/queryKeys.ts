@@ -293,8 +293,7 @@ export const queryKeys = {
 type QueryKeys = typeof queryKeys;
 
 /** Helper type to extract return type of a query key function */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- `any` required for generic inference in conditional types
-type QueryKeyOf<T> = T extends (...args: any[]) => infer R ? R : T;
+type QueryKeyOf<T> = T extends (...args: unknown[]) => infer R ? R : T;
 
 // ============================================================================
 // LEGACY KEY CONSTANTS

@@ -1,0 +1,47 @@
+name: Edge Functions
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke-and-budget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Create edge CI env file
+        run: |
+          cat <<'EOF' > .env.edge-ci
+          SUPABASE_URL=http://127.0.0.1:54321
+          SUPABASE_SERVICE_ROLE_KEY=edge-ci-service-role-key
+          DISCORD_STATS_WEBHOOK_URL=https://example.com/webhook
+          STRIPE_SECRET_KEY=edge-ci-stripe-key
+          STRIPE_WEBHOOK_SECRET=edge-ci-webhook-secret
+          EOF
+
+      - name: Enforce edge debt budget
+        run: npm run check:edge-budget
+
+      - name: Run edge smoke tests
+        env:
+          EDGE_ENV_FILE: .env.edge-ci
+          EDGE_BASE_URL: http://127.0.0.1:54321/functions/v1
+          EDGE_SMOKE_REQUIRE_RUNTIME: "1"
+        run: npm run test:edge:smoke

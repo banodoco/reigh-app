@@ -159,7 +159,7 @@ export function useSourceImageChanges(
       const variantIds = (genData || []).map(g => g.primary_variant_id).filter(Boolean);
 
       // Query variants for their locations
-      let variantLocations: Record<string, { location: string; created_at: string }> = {};
+      const variantLocations: Record<string, { location: string; created_at: string }> = {};
       if (variantIds.length > 0) {
         const { data: variantData, error: variantError } = await supabase
           .from('generation_variants')

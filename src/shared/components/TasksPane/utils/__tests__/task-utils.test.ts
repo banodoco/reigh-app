@@ -319,7 +319,7 @@ describe('checkSegmentConnection', () => {
     }));
     const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
     const mockSelect = vi.fn(() => ({ eq: mockEq }));
-    vi.mocked(supabase.from).mockReturnValueOnce({ select: mockSelect } as any);
+    vi.mocked(supabase.from).mockReturnValueOnce({ select: mockSelect } as unknown);
 
     const result = await checkSegmentConnection('pair-1', 'shot-1');
     expect(result).toBe(true);
@@ -331,7 +331,7 @@ describe('checkSegmentConnection', () => {
     }));
     const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
     const mockSelect = vi.fn(() => ({ eq: mockEq }));
-    vi.mocked(supabase.from).mockReturnValueOnce({ select: mockSelect } as any);
+    vi.mocked(supabase.from).mockReturnValueOnce({ select: mockSelect } as unknown);
 
     const result = await checkSegmentConnection('pair-1', 'shot-1');
     expect(result).toBe(false);

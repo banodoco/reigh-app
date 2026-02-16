@@ -103,7 +103,7 @@ describe('useImageGenSubmit', () => {
 
     let taskIds: string[] = [];
     await act(async () => {
-      taskIds = await result.current.handleNewGenerate(taskParams as any);
+      taskIds = await result.current.handleNewGenerate(taskParams as unknown);
     });
 
     expect(taskIds).toEqual(['task-1', 'task-2']);
@@ -122,7 +122,7 @@ describe('useImageGenSubmit', () => {
     };
 
     await act(async () => {
-      await result.current.handleNewGenerate(taskParams as any);
+      await result.current.handleNewGenerate(taskParams as unknown);
     });
 
     expect(mockAddIncomingTask).toHaveBeenCalledWith({
@@ -144,7 +144,7 @@ describe('useImageGenSubmit', () => {
     };
 
     await act(async () => {
-      await result.current.handleNewGenerate(taskParams as any);
+      await result.current.handleNewGenerate(taskParams as unknown);
     });
 
     expect(mockAddIncomingTask).toHaveBeenCalledWith({
@@ -160,7 +160,7 @@ describe('useImageGenSubmit', () => {
     );
 
     await act(async () => {
-      await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as any);
+      await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
     });
 
     expect(mockRemoveIncomingTask).toHaveBeenCalledWith('incoming-1');
@@ -174,7 +174,7 @@ describe('useImageGenSubmit', () => {
 
     let taskIds: string[] = [];
     await act(async () => {
-      taskIds = await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as any);
+      taskIds = await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
     });
 
     expect(taskIds).toEqual([]);
@@ -193,7 +193,7 @@ describe('useImageGenSubmit', () => {
 
     let taskIds: string[] = [];
     await act(async () => {
-      taskIds = await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as any);
+      taskIds = await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
     });
 
     expect(taskIds).toEqual([]);
@@ -214,7 +214,7 @@ describe('useImageGenSubmit', () => {
     );
 
     await act(async () => {
-      await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as any);
+      await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
     });
 
     expect(mockRemoveIncomingTask).toHaveBeenCalledWith('incoming-1');
@@ -227,7 +227,7 @@ describe('useImageGenSubmit', () => {
     );
 
     await act(async () => {
-      await result.current.handleNewGenerate({ prompts: [] } as any);
+      await result.current.handleNewGenerate({ prompts: [] } as unknown);
     });
 
     expect(mockAddIncomingTask).toHaveBeenCalledWith({

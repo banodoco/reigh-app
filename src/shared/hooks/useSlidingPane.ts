@@ -66,7 +66,7 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
     if (isSmallMobile) {
       setIsOpen(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [location.pathname]);
 
   // Lock body scroll when pane is open on small phones (both temporary and locked states)

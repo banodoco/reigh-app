@@ -1,6 +1,5 @@
 // deno-lint-ignore-file
-// @ts-ignore
-declare const Deno: any;
+declare const Deno: unknown;
 
 /**
  * Rate limiting configuration
@@ -27,7 +26,7 @@ interface RateLimitResult {
 /**
  * Default rate limit configs for different function types
  */
-const RATE_LIMITS = {
+export const RATE_LIMITS = {
   // Unauthenticated/webhook endpoints - stricter
   webhook: { maxRequests: 100, windowSeconds: 60, identifierType: 'ip' as const },
   
@@ -48,7 +47,7 @@ const RATE_LIMITS = {
  * Extract client IP from request headers
  * Handles Cloudflare, standard proxies, and direct connections
  */
-function getClientIp(req: Request): string {
+export function getClientIp(req: Request): string {
   // Cloudflare
   const cfIp = req.headers.get('cf-connecting-ip');
   if (cfIp) return cfIp;
@@ -79,7 +78,7 @@ function getClientIp(req: Request): string {
  * @returns Rate limit check result
  */
 export async function checkRateLimit(
-  supabaseAdmin: any,
+  supabaseAdmin: unknown,
   functionName: string,
   identifier: string,
   config: RateLimitConfig,
@@ -157,7 +156,7 @@ function rateLimitHeaders(result: RateLimitResult, config: RateLimitConfig): Rec
 /**
  * Create a 429 Too Many Requests response
  */
-function rateLimitResponse(result: RateLimitResult, config: RateLimitConfig): Response {
+export function rateLimitResponse(result: RateLimitResult, config: RateLimitConfig): Response {
   return new Response(
     JSON.stringify({
       error: 'Too many requests',
@@ -174,4 +173,3 @@ function rateLimitResponse(result: RateLimitResult, config: RateLimitConfig): Re
     }
   );
 }
-

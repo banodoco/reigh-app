@@ -24,7 +24,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 vi.mock('../transforms', () => ({
-  transformVideo: (v: any) => ({
+  transformVideo: (v: unknown) => ({
     id: v.id,
     originalFilename: v.original_filename,
     storageLocation: v.storage_location,
@@ -71,7 +71,7 @@ describe('useTrainingDataUpload', () => {
     // Mock document.createElement to handle video element metadata loading
     document.createElement = vi.fn().mockImplementation((tag: string) => {
       if (tag === 'video') {
-        const mockVideo: any = {
+        const mockVideo: unknown = {
           preload: '',
           src: '',
           duration: 10,
@@ -158,7 +158,7 @@ describe('useTrainingDataUpload', () => {
   });
 
   it('uploadVideo sets isUploading during upload', async () => {
-    let resolveUpload: Function;
+    let resolveUpload: ((value: { error: unknown }) => void) | undefined;
     mockUpload.mockReturnValue(new Promise((r) => { resolveUpload = r; }));
 
     const { result } = renderHook(() => useTrainingDataUpload(defaultProps));

@@ -248,7 +248,7 @@ describe('useImageEditValue', () => {
   it('passes through reposition state correctly', () => {
     const params = createMockParams();
     const mockTransform = { x: 10, y: 20, scale: 1.5, rotation: 45, flipH: false, flipV: false };
-    params.repositionTransform = mockTransform as any;
+    params.repositionTransform = mockTransform as unknown;
     params.hasTransformChanges = true;
     params.isRepositionDragging = true;
 

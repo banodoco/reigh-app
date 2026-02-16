@@ -71,7 +71,7 @@ export function useReferralTracking(): void {
           localStorage.setItem('referralCode', referrerCode);
           localStorage.setItem('referralTimestamp', Date.now().toString());
           if (fingerprint) localStorage.setItem('referralFingerprint', fingerprint);
-        } catch {}
+        } catch { /* intentionally ignored */ }
 
         const { data, error } = await supabase.rpc('track_referral_visit', {
           p_referrer_username: referrerCode,
@@ -81,7 +81,7 @@ export function useReferralTracking(): void {
         });
 
         if (!error && data && typeof data === 'string') {
-          try { localStorage.setItem('referralSessionId', data); } catch {}
+          try { localStorage.setItem('referralSessionId', data); } catch { /* intentionally ignored */ }
         }
       } catch (err) {
         handleError(err, { context: 'useReferralTracking', showToast: false });

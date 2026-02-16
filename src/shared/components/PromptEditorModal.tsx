@@ -19,8 +19,8 @@ import { useScrollFade } from "@/shared/hooks/useScrollFade";
 import { useTouchDragDetection } from "@/shared/hooks/useTouchDragDetection";
 
 // Use aliased types for internal state if they were named the same
-interface GenerationControlValues extends PGC_GenerationControlValues {}
-interface BulkEditControlValues extends BEC_BulkEditControlValues {}
+type GenerationControlValues = PGC_GenerationControlValues;
+type BulkEditControlValues = BEC_BulkEditControlValues;
 
 interface PersistedEditorControlsSettings {
   generationSettings?: GenerationControlValues;

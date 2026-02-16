@@ -4,8 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge Function: get-completed-segments
@@ -45,7 +44,7 @@ serve(async (req) => {
   }
 
   // Parse request body
-  let requestBody: any = {};
+  let requestBody: unknown = {};
   try {
     requestBody = await req.json();
   } catch (e) {
@@ -78,7 +77,7 @@ serve(async (req) => {
 
   try {
     // Authorization for non-service callers
-    let effectiveProjectId = project_id;
+    const effectiveProjectId = project_id;
 
     if (!isServiceRole) {
       if (!effectiveProjectId) {
@@ -160,7 +159,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.critical("Unexpected error", { error: e?.message });
     await logger.flush();
     return new Response(JSON.stringify({ error: e?.message }), {

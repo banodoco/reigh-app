@@ -130,7 +130,7 @@ export function useGalleryFilterState({
 
     return () => {
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   // Track the filter that was applied for the last shot (to preserve "all" during navigation)

@@ -28,7 +28,7 @@ export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
  *
  * Returns the raw string value (may not be a valid UUID) or null.
  */
-function extractOrchestratorRef(params: any): string | null {
+export function extractOrchestratorRef(params: unknown): string | null {
   if (!params || typeof params !== 'object') return null;
 
   return (
@@ -53,7 +53,7 @@ function extractOrchestratorRef(params: any): string | null {
  * @param taskId  - the task's own ID, to guard against self-references
  * @returns The orchestrator task ID if this is a sub-task, or null otherwise
  */
-function getSubTaskOrchestratorId(params: any, taskId: string): string | null {
+export function getSubTaskOrchestratorId(params: unknown, taskId: string): string | null {
   const ref = extractOrchestratorRef(params);
   if (!ref) return null;
   if (!UUID_REGEX.test(ref)) return null;
@@ -72,7 +72,7 @@ function getSubTaskOrchestratorId(params: any, taskId: string): string | null {
  * Usage:
  *   supabase.from('tasks').select('...').or(buildSubTaskFilter(orchestratorId))
  */
-function buildSubTaskFilter(orchestratorTaskId: string): string {
+export function buildSubTaskFilter(orchestratorTaskId: string): string {
   return [
     `params->>orchestrator_task_id_ref.eq.${orchestratorTaskId}`,
     `params->orchestrator_details->>orchestrator_task_id.eq.${orchestratorTaskId}`,
@@ -112,7 +112,9 @@ export async function triggerCostCalculation(
     if (costResp.ok) {
       const costData = await costResp.json();
       if (costData.skipped) {
+        // Intentionally no-op: caller may skip billing for non-billable tasks.
       } else if (typeof costData.cost === 'number') {
+        // Intentionally no-op: successful billing response.
       }
     } else {
       const errTxt = await costResp.text();

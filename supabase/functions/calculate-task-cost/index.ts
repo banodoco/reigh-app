@@ -4,11 +4,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 import { getSubTaskOrchestratorId, buildSubTaskFilter } from "../_shared/billing.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 // Helper for standard JSON responses with CORS headers
-function jsonResponse(body: any, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -30,9 +29,9 @@ const VIDEO_ENHANCE_PRICING = {
 
 // Special cost calculation for video_enhance task
 // Combines FILM (time-based) and FlashVSR (megapixel-based) pricing
-function calculateVideoEnhanceCost(taskParams: any): { cost: number; breakdown: any } {
+function calculateVideoEnhanceCost(taskParams: unknown): { cost: number; breakdown: unknown } {
   let totalCost = 0;
-  const breakdown: any = {};
+  const breakdown: unknown = {};
 
   // Get result data from task params (worker should populate this)
   const result = taskParams?.result || taskParams;
@@ -76,9 +75,9 @@ function calculateTaskCost(
   baseCostPerSecond: number,
   unitCost: number,
   durationSeconds: number,
-  costFactors: any,
-  taskParams: any
-): { cost: number; breakdown?: any } {
+  costFactors: unknown,
+  taskParams: unknown
+): { cost: number; breakdown?: unknown } {
   // Special case: video_enhance has compound pricing (FILM + FlashVSR)
   if (taskType === 'video_enhance') {
     return calculateVideoEnhanceCost(taskParams);
@@ -310,7 +309,7 @@ serve(async (req) => {
       const cost = defaultCostPerSecond * durationSeconds;
 
       const { error: ledgerError } = await supabaseAdmin.from('credits_ledger').insert({
-        user_id: (task as any).projects.user_id,
+        user_id: (task as unknown).projects.user_id,
         task_id: task.id,
         amount: -cost,
         type: 'spend',
@@ -379,12 +378,12 @@ serve(async (req) => {
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .select('id')
-      .eq('id', (task as any).projects.user_id)
+      .eq('id', (task as unknown).projects.user_id)
       .single();
 
     if (userError || !user) {
       logger.error("User not found for credit ledger", { 
-        user_id: (task as any).projects.user_id, 
+        user_id: (task as unknown).projects.user_id, 
         error: userError?.message 
       });
       await logger.flush();
@@ -393,7 +392,7 @@ serve(async (req) => {
 
     // Insert cost into credit ledger
     const { error: ledgerError } = await supabaseAdmin.from('credits_ledger').insert({
-      user_id: (task as any).projects.user_id,
+      user_id: (task as unknown).projects.user_id,
       task_id: task.id,
       amount: -cost,
       type: 'spend',
@@ -415,7 +414,7 @@ serve(async (req) => {
     if (ledgerError) {
       logger.error("Failed to insert into credit ledger", { 
         error: ledgerError.message,
-        user_id: (task as any).projects.user_id,
+        user_id: (task as unknown).projects.user_id,
         cost
       });
       await logger.flush();
@@ -426,7 +425,7 @@ serve(async (req) => {
       cost,
       billing_type: taskType.billing_type,
       duration_seconds: durationSeconds,
-      user_id: (task as any).projects.user_id,
+      user_id: (task as unknown).projects.user_id,
       ...(costBreakdown ? { breakdown: costBreakdown } : {})
     });
     await logger.flush();
@@ -445,7 +444,7 @@ serve(async (req) => {
       ...(costBreakdown ? { cost_breakdown: costBreakdown } : {})
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { error: error?.message, stack: error?.stack?.substring(0, 500) });
     await logger.flush();
     return jsonResponse({ error: error?.message || 'Unknown error occurred' }, 500);

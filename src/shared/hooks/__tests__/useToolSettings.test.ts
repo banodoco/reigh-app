@@ -159,7 +159,7 @@ function createWrapper() {
 
 describe('useToolSettings hook', () => {
   // Import the hook directly — vi.mock hoisting ensures mocks are applied
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   let useToolSettings: typeof import('../useToolSettings').useToolSettings;
 
   beforeEach(async () => {

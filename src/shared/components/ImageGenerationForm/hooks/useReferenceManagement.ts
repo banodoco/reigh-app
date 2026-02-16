@@ -217,7 +217,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   // When the backing setting updates, drop the local override
   useEffect(() => {
     upload.setStyleReferenceOverride(undefined);
-  }, [rawStyleReferenceImage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rawStyleReferenceImage]);  
 
   // Clear pending mode update when switching references
   const prevSelectedReferenceId = useRef(selectedReferenceId);
@@ -316,8 +316,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
       queryClient.setQueryData(queryKeys.settings.tool('project-image-settings', selectedProjectId, undefined), (prev: unknown) =>
         updateSettingsCache<ProjectImageSettings>(prev, { selectedReferenceIdByShot: optimisticUpdate })
       );
-    } catch (e) {
-    }
+    } catch (e) { /* intentionally ignored */ }
 
     await updateProjectImageSettings('project', {
       selectedReferenceIdByShot: optimisticUpdate
@@ -332,7 +331,7 @@ export function useReferenceManagement(props: UseReferenceManagementProps): UseR
   const handleRemoveStyleReference = useCallback(async () => {
     if (!selectedReferenceId) return;
     await upload.handleDeleteReference(selectedReferenceId);
-  }, [selectedReferenceId, upload.handleDeleteReference]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedReferenceId, upload.handleDeleteReference]);  
 
   // ============================================================================
   // Strength and Settings Handlers

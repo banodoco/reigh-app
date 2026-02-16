@@ -48,7 +48,7 @@ describe('uploadImageToStorage', () => {
   });
 
   it('throws for null file', async () => {
-    await expect(uploadImageToStorage(null as any)).rejects.toThrow('No file provided');
+    await expect(uploadImageToStorage(null as unknown)).rejects.toThrow('No file provided');
   });
 
   it('throws when abort signal is already aborted', async () => {
@@ -66,7 +66,7 @@ describe('uploadImageToStorage', () => {
     const { supabase } = await import('@/integrations/supabase/client');
     vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
       data: { session: null },
-    } as any);
+    } as unknown);
 
     const file = new File(['data'], 'test.jpg', { type: 'image/jpeg' });
 

@@ -6,15 +6,15 @@ vi.mock('@/shared/lib/errorHandler', () => ({
 }));
 
 // We need to mock FileReader, Image, document.createElement, URL.createObjectURL
-let imageInstances: any[] = [];
+let imageInstances: unknown[] = [];
 
 beforeEach(() => {
   imageInstances = [];
 
   // Mock FileReader - triggers onload synchronously for predictability
   vi.stubGlobal('FileReader', class MockFileReader {
-    onload: ((ev: any) => void) | null = null;
-    onerror: ((ev: any) => void) | null = null;
+    onload: ((ev: unknown) => void) | null = null;
+    onerror: ((ev: unknown) => void) | null = null;
     result: string | null = null;
 
     readAsDataURL(_file: File) {
@@ -31,7 +31,7 @@ beforeEach(() => {
     width = 0;
     height = 0;
     onload: (() => void) | null = null;
-    onerror: ((err: any) => void) | null = null;
+    onerror: ((err: unknown) => void) | null = null;
     private _src = '';
 
     constructor() {
@@ -83,7 +83,7 @@ afterEach(() => {
 import { cropImageToProjectAspectRatio } from '../imageCropper';
 
 // Helper: trigger the image load after FileReader completes
-async function waitForImageInstance(): Promise<any> {
+async function waitForImageInstance(): Promise<unknown> {
   // Wait for FileReader microtask to fire, which sets img.src
   await new Promise(resolve => queueMicrotask(resolve));
   await new Promise(resolve => queueMicrotask(resolve));

@@ -11,6 +11,7 @@
     "build": "tsc && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:edge": "eslint supabase/functions --ext ts --max-warnings 0",
     "preview": "vite preview",
     "preview:full": "npm run preview --port 5001",
     "start:railway": "npm run build && npm run serve",
@@ -21,8 +22,11 @@
     "bun:preview": "bun run preview",
     "bun:install": "bun install",
     "test": "vitest run",
+    "test:edge": "vitest run --config vitest.edge.config.ts",
+    "test:edge:smoke": "vitest run --config vitest.edge.config.ts --testNamePattern=\"Smoke\"",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check:edge-budget": "node scripts/edge/quality-budget.mjs --check"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",

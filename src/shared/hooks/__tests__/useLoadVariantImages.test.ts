@@ -60,7 +60,7 @@ describe('useLoadVariantImages', () => {
       })
     );
 
-    const mockVariant = { params: { start_image_generation_id: 'gen-1' } } as any;
+    const mockVariant = { params: { start_image_generation_id: 'gen-1' } } as unknown;
 
     await act(async () => {
       await result.current.loadVariantImages(mockVariant);
@@ -77,11 +77,11 @@ describe('useLoadVariantImages', () => {
           endGenerationId: 'gen-2',
           startUrl: 'start.jpg',
           endUrl: 'end.jpg',
-        } as any,
+        } as unknown,
       })
     );
 
-    const mockVariant = { params: null } as any;
+    const mockVariant = { params: null } as unknown;
 
     await act(async () => {
       await result.current.loadVariantImages(mockVariant);

@@ -79,13 +79,13 @@ export interface BatchModeContentProps {
   projectAspectRatio?: string;
 
   // Structure video (batch mode)
-  structureVideoPath?: string | null;
-  structureVideoMetadata?: VideoMetadata | null;
-  structureVideoTreatment: 'adjust' | 'clip';
-  structureVideoMotionStrength: number;
-  structureVideoType: 'uni3c' | 'flow' | 'canny' | 'depth';
-  uni3cEndPercent: number;
-  onStructureVideoChange?: (
+  primaryStructureVideoPath?: string | null;
+  primaryStructureVideoMetadata?: VideoMetadata | null;
+  primaryStructureVideoTreatment: 'adjust' | 'clip';
+  primaryStructureVideoMotionStrength: number;
+  primaryStructureVideoType: 'uni3c' | 'flow' | 'canny' | 'depth';
+  primaryStructureVideoUni3cEndPercent: number;
+  onPrimaryStructureVideoInputChange?: (
     videoPath: string | null,
     metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',
@@ -140,13 +140,13 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
   onClearPendingImageToOpen,
   navigateWithTransition,
   projectAspectRatio,
-  structureVideoPath,
-  structureVideoMetadata,
-  structureVideoTreatment,
-  structureVideoMotionStrength,
-  structureVideoType,
-  uni3cEndPercent,
-  onStructureVideoChange,
+  primaryStructureVideoPath,
+  primaryStructureVideoMetadata,
+  primaryStructureVideoTreatment,
+  primaryStructureVideoMotionStrength,
+  primaryStructureVideoType,
+  primaryStructureVideoUni3cEndPercent,
+  onPrimaryStructureVideoInputChange,
   onUni3cEndPercentChange,
   unpositionedGenerationsCount,
   onOpenUnpositionedPane,
@@ -227,7 +227,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
       )}
 
       {/* Batch mode structure video */}
-      {selectedShotId && (projectId || readOnly) && onStructureVideoChange && (structureVideoPath || !readOnly) && (
+      {selectedShotId && (projectId || readOnly) && onPrimaryStructureVideoInputChange && (primaryStructureVideoPath || !readOnly) && (
         <>
           <div className="mb-4 mt-6">
             <SectionHeader title="Camera Guidance Video" theme="green" />
@@ -235,55 +235,55 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
           <BatchGuidanceVideo
             shotId={selectedShotId}
             projectId={projectId}
-            videoUrl={structureVideoPath}
-            videoMetadata={structureVideoMetadata}
-            treatment={structureVideoTreatment}
-            motionStrength={structureVideoMotionStrength}
-            structureType={structureVideoType}
+            videoUrl={primaryStructureVideoPath}
+            videoMetadata={primaryStructureVideoMetadata}
+            treatment={primaryStructureVideoTreatment}
+            motionStrength={primaryStructureVideoMotionStrength}
+            structureType={primaryStructureVideoType}
             imageCount={images.length}
             timelineFramePositions={images.map((_, index) => index * batchVideoFrames)}
             onVideoUploaded={(videoUrl, metadata, resourceId) => {
-              onStructureVideoChange(
+              onPrimaryStructureVideoInputChange(
                 videoUrl,
                 metadata,
-                structureVideoTreatment,
-                structureVideoMotionStrength,
-                structureVideoType,
+                primaryStructureVideoTreatment,
+                primaryStructureVideoMotionStrength,
+                primaryStructureVideoType,
                 resourceId
               );
             }}
             onTreatmentChange={(treatment) => {
-              if (structureVideoPath && structureVideoMetadata) {
-                onStructureVideoChange(
-                  structureVideoPath,
-                  structureVideoMetadata,
+              if (primaryStructureVideoPath && primaryStructureVideoMetadata) {
+                onPrimaryStructureVideoInputChange(
+                  primaryStructureVideoPath,
+                  primaryStructureVideoMetadata,
                   treatment,
-                  structureVideoMotionStrength,
-                  structureVideoType
+                  primaryStructureVideoMotionStrength,
+                  primaryStructureVideoType
                 );
               }
             }}
             onMotionStrengthChange={(strength) => {
-              if (structureVideoPath && structureVideoMetadata) {
-                onStructureVideoChange(
-                  structureVideoPath,
-                  structureVideoMetadata,
-                  structureVideoTreatment,
+              if (primaryStructureVideoPath && primaryStructureVideoMetadata) {
+                onPrimaryStructureVideoInputChange(
+                  primaryStructureVideoPath,
+                  primaryStructureVideoMetadata,
+                  primaryStructureVideoTreatment,
                   strength,
-                  structureVideoType
+                  primaryStructureVideoType
                 );
               }
             }}
             onStructureTypeChange={(type) => {
-              onStructureVideoChange(
-                structureVideoPath,
-                structureVideoMetadata,
-                structureVideoTreatment,
-                structureVideoMotionStrength,
+              onPrimaryStructureVideoInputChange(
+                primaryStructureVideoPath,
+                primaryStructureVideoMetadata,
+                primaryStructureVideoTreatment,
+                primaryStructureVideoMotionStrength,
                 type
               );
             }}
-            uni3cEndPercent={uni3cEndPercent}
+            uni3cEndPercent={primaryStructureVideoUni3cEndPercent}
             onUni3cEndPercentChange={onUni3cEndPercentChange}
             readOnly={readOnly}
             hideStructureSettings={true}

@@ -183,8 +183,7 @@ export default function EditVideoPage() {
           .getPublicUrl(posterFileName);
         posterUrl = publicUrl;
       }
-    } catch (posterError) {
-    }
+    } catch (posterError) { /* intentionally ignored */ }
 
     const fileExt = getFileExtension(file.name, file.type, 'mp4');
     const fileName = storagePaths.upload(userId, `${timestamp}.${fileExt}`);

@@ -73,7 +73,11 @@ export const JoinClipsDetails: React.FC<TaskDetailsProps> = ({
               loop muted playsInline autoPlay
               onClick={(e) => {
                 const video = e.currentTarget;
-                video.paused ? video.play() : video.pause();
+                if (video.paused) {
+                  video.play();
+                } else {
+                  video.pause();
+                }
               }}
             />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">

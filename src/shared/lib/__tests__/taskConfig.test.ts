@@ -60,7 +60,7 @@ describe('taskConfig', () => {
           category: 'generation',
           variant_type: null,
         },
-      } as any);
+      } as unknown);
 
       expect(getTaskDisplayName('custom_task')).toBe('Custom Task Display');
     });
@@ -100,7 +100,7 @@ describe('taskConfig', () => {
           category: 'orchestration',
           variant_type: null,
         },
-      } as any);
+      } as unknown);
 
       expect(taskSupportsProgress('new_orchestrator')).toBe(true);
     });
@@ -165,7 +165,7 @@ describe('taskConfig', () => {
           category: 'utility',
           variant_type: null,
         },
-      } as any);
+      } as unknown);
 
       const visible = getVisibleTaskTypes();
       const hidden = getHiddenTaskTypes();

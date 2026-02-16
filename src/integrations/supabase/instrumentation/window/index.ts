@@ -102,54 +102,52 @@ function installWindowOnlyInstrumentationLegacy() {
     const isSupabaseRealtime = url.includes('supabase.co/realtime');
     const isSupabaseWebSocket = url.includes('supabase.co') && url.includes('websocket');
 
-    let ws: WebSocket;
-    try {
-      ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
+    const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
 
-      if (isSupabaseRealtime || isSupabaseWebSocket) {
-        instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ = instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ || [];
-        instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__.push({
-          wsId,
-          url,
-          protocols,
-          createdAt: Date.now(),
-          websocketRef: ws
-        });
-      }
-
-      ws.addEventListener('message', (event: MessageEvent) => {
-        if (isSupabaseRealtime || isSupabaseWebSocket) {
-          try {
-            const messageData = typeof event.data === 'string' ? event.data : '[BINARY_DATA]';
-            if (typeof messageData === 'string') {
-              try {
-                const parsed = JSON.parse(messageData) as PhoenixMessage;
-                if (parsed.event) {
-                  addCorruptionEvent('PHOENIX_MESSAGE', {
-                    event: parsed.event,
-                    topic: parsed.topic,
-                    ref: parsed.ref,
-                    payload: parsed.payload ? Object.keys(parsed.payload) : null
-                  });
-                }
-              } catch {}
-            }
-            const snap = instrumentedWindow.__REALTIME_SNAPSHOT__ || {};
-            instrumentedWindow.__REALTIME_SNAPSHOT__ = { ...snap, lastPhoenixMsgAt: Date.now() };
-          } catch {}
-        }
+    if (isSupabaseRealtime || isSupabaseWebSocket) {
+      instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ = instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ || [];
+      instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__.push({
+        wsId,
+        url,
+        protocols,
+        createdAt: Date.now(),
+        websocketRef: ws
       });
-
-      ws.addEventListener('close', () => {
-        wsDestroyedCount++;
-      });
-    } catch (error: unknown) {
-      throw error;
     }
+
+    ws.addEventListener('message', (event: MessageEvent) => {
+      if (isSupabaseRealtime || isSupabaseWebSocket) {
+        try {
+          const messageData = typeof event.data === 'string' ? event.data : '[BINARY_DATA]';
+          if (typeof messageData === 'string') {
+            try {
+              const parsed = JSON.parse(messageData) as PhoenixMessage;
+              if (parsed.event) {
+                addCorruptionEvent('PHOENIX_MESSAGE', {
+                  event: parsed.event,
+                  topic: parsed.topic,
+                  ref: parsed.ref,
+                  payload: parsed.payload ? Object.keys(parsed.payload) : null
+                });
+              }
+            } catch {
+              // Ignore malformed websocket payloads during instrumentation.
+            }
+          }
+          const snap = instrumentedWindow.__REALTIME_SNAPSHOT__ || {};
+          instrumentedWindow.__REALTIME_SNAPSHOT__ = { ...snap, lastPhoenixMsgAt: Date.now() };
+        } catch {
+          // Ignore instrumentation parse failures so realtime flow remains unaffected.
+        }
+      }
+    });
+
+    ws.addEventListener('close', () => {
+      wsDestroyedCount++;
+    });
 
     return ws as WebSocket;
   } as unknown as typeof WebSocket;
 
   // Global fetch instrumentation removed - not needed in production
 }
-

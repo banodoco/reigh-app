@@ -188,7 +188,7 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
       // Play the currently selected travel video
       playTravelVideo(selectedTravelExample);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isOpen, isOpening, selectedTravelExample]);
 
   // Reset when pane closes
@@ -204,7 +204,7 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
       // Reset all animation state
       resetAll();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isOpen, isClosing]);
 
   // Preload critical images when pane opens

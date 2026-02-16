@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // We need to mock Image and document.createElement for canvas operations
-let imageInstances: any[] = [];
+let imageInstances: unknown[] = [];
 
 beforeEach(() => {
   imageInstances = [];

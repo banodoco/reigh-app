@@ -9,7 +9,7 @@ export interface BulkEditControlValues {
   modelType: AIModelType;
 }
 
-export interface BulkEditParams extends BulkEditControlValues {}
+export type BulkEditParams = BulkEditControlValues;
 
 interface BulkEditControlsProps {
   onBulkEdit: (params: BulkEditParams) => Promise<void>;

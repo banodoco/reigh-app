@@ -18,12 +18,12 @@ import { insertGeneration, createVariant, findSourceGenerationByImageUrl, extrac
 import { createVariantOnParent, getChildVariantViewedAt } from './generation-parent.ts';
 
 interface HandlerContext {
-  supabase: any;
+  supabase: unknown;
   taskId: string;
-  taskData: any;
+  taskData: unknown;
   publicUrl: string;
   thumbnailUrl: string | null;
-  logger?: any;
+  logger?: unknown;
   childGenerationId?: string;
   parentGenerationId?: string;
   childOrder?: number | null;
@@ -37,7 +37,7 @@ interface HandlerContext {
  * All behavior is params-driven via ctx.isSingleItem
  * Used by: travel_segment, join_clips_segment, individual_travel_segment (fallback)
  */
-export async function handleChildGeneration(ctx: HandlerContext): Promise<any | null> {
+export async function handleChildGeneration(ctx: HandlerContext): Promise<unknown | null> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger, parentGenerationId, childOrder, isSingleItem } = ctx;
 
   // Must have parent generation to create child
@@ -138,7 +138,7 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<any | 
 export async function createSingleItemVariant(
   ctx: HandlerContext,
   parentGenerationId: string
-): Promise<any | null> {
+): Promise<unknown | null> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, childOrder } = ctx;
 
   // Check if this is first variant on parent
@@ -174,7 +174,7 @@ export async function createSingleItemVariant(
  * Find existing generation at a position (for variant creation)
  */
 export async function findExistingGenerationAtPosition(
-  supabase: any,
+  supabase: unknown,
   parentGenerationId: string,
   childOrder: number,
   pairShotGenId?: string
@@ -233,7 +233,7 @@ export async function createChildGenerationRecord(
   childOrder: number | null,
   isSingleItemCase: boolean,
   pairShotGenerationId?: string | null | false
-): Promise<any> {
+): Promise<unknown> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger } = ctx;
 
   const { shotId } = extractShotAndPosition(taskData.params);
@@ -305,7 +305,7 @@ export async function createChildGenerationRecord(
     }
   }
 
-  const generationRecord: Record<string, any> = {
+  const generationRecord: Record<string, unknown> = {
     id: newGenerationId,
     tasks: [taskId],
     params: generationParams,
@@ -343,6 +343,11 @@ export async function createChildGenerationRecord(
         shotId,
       });
     } catch (logError) {
+      console.warn("[SegmentMaster] Failed to write segment master state log", {
+        task_id: taskId,
+        generation_id: newGeneration.id,
+        error: logError instanceof Error ? logError.message : String(logError),
+      });
     }
   }
 
@@ -385,8 +390,8 @@ function logSegmentMasterState(params: {
   generationId: string;
   segmentIndex: number;
   parentGenerationId: string | null;
-  orchDetails: any;
-  segmentParams: any;
+  orchDetails: unknown;
+  segmentParams: unknown;
   shotId?: string;
 }) {
   const TAG = '[SEGMENT_MASTER_STATE]';
@@ -437,7 +442,7 @@ function logSegmentMasterState(params: {
 
   if (structureVideos.length > 0) {
     let foundAffecting = false;
-    structureVideos.forEach((sv: any, idx: number) => {
+    structureVideos.forEach((sv: unknown, idx: number) => {
       const svStart = sv.start_frame || 0;
       const svEnd = sv.end_frame || 0;
       if (svStart < segEndFrame && svEnd > segStartFrame) {
@@ -461,8 +466,8 @@ function logSegmentMasterState(params: {
     });
   } else if (phaseConfig?.phases) {
     const uniqueLoras = new Set<string>();
-    phaseConfig.phases.forEach((phase: any) => {
-      phase.loras?.forEach((lora: any) => uniqueLoras.add(lora.url?.split('/').pop() || 'unknown'));
+    phaseConfig.phases.forEach((phase: unknown) => {
+      phase.loras?.forEach((lora: unknown) => uniqueLoras.add(lora.url?.split('/').pop() || 'unknown'));
     });
   }
 
@@ -478,10 +483,10 @@ function logSegmentMasterState(params: {
  * For travel segments, each segment can have different prompts, frame counts, etc.
  */
 function extractSegmentSpecificParams(
-  params: any,
-  orchDetails: any,
+  params: unknown,
+  orchDetails: unknown,
   segmentIndex: number
-): any {
+): unknown {
   const specificParams = { ...params };
 
   const specificPrompt = extractFromArray(orchDetails.base_prompts_expanded, segmentIndex);

@@ -50,7 +50,8 @@ export function GenerationTaskProvider({
         delayBetweenBatches: preloadDelay,
         preloadFullTaskData: true, // Preload full task data for better UX
       });
-    } catch (error) {
+    } catch (_error) {
+      // Best effort preloading: the main UI can still function without prefetched task data.
     }
   }, [queryClient, isPreloadingEnabled, preloadBatchSize, preloadDelay]);
 
@@ -77,11 +78,10 @@ export function GenerationTaskProvider({
 // HOOKS FOR USING THE CONTEXT
 // ================================================================
 
-function _useGenerationTaskContext() {
+export function useGenerationTaskContext() {
   const context = useContext(GenerationTaskContext);
   if (!context) {
     throw new Error('useGenerationTaskContext must be used within a GenerationTaskProvider');
   }
   return context;
 }
-

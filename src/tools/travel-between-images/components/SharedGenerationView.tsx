@@ -232,12 +232,12 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                   onDefaultPromptChange={() => {}}
                   defaultNegativePrompt={negativePrompt}
                   onDefaultNegativePromptChange={() => {}}
-                  structureVideoPath={structureVideo?.path || null}
-                  structureVideoMetadata={structureVideo?.metadata || null}
-                  structureVideoTreatment={structureVideo?.treatment || "adjust"}
-                  structureVideoMotionStrength={structureVideo?.motionStrength ?? amountOfMotion}
-                  structureVideoType={structureVideo?.structureType || "uni3c"}
-                  onStructureVideoChange={() => {}}
+                  primaryStructureVideoPath={structureVideo?.path || null}
+                  primaryStructureVideoMetadata={structureVideo?.metadata || null}
+                  primaryStructureVideoTreatment={structureVideo?.treatment || "adjust"}
+                  primaryStructureVideoMotionStrength={structureVideo?.motionStrength ?? amountOfMotion}
+                  primaryStructureVideoType={structureVideo?.structureType || "uni3c"}
+                  onPrimaryStructureVideoInputChange={() => {}}
                   structureVideos={structureVideos}
                   onAddStructureVideo={() => {}}
                   onUpdateStructureVideo={() => {}}

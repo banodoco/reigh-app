@@ -47,7 +47,7 @@ interface ApplySettingsContext {
   onAmountOfMotionChange: (motion: number) => void;
   onTextBeforePromptsChange: (text: string) => void;
   onTextAfterPromptsChange: (text: string) => void;
-  handleStructureVideoChange: (
+  onStructureVideoInputChange: (
     videoPath: string | null,
     metadata: Record<string, unknown> | null,
     treatment: 'adjust' | 'clip',
@@ -156,7 +156,7 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
         onTextBeforePromptsChange: ctx.onTextBeforePromptsChange,
         onTextAfterPromptsChange: ctx.onTextAfterPromptsChange,
         onAmountOfMotionChange: ctx.onAmountOfMotionChange,
-        handleStructureVideoChange: ctx.handleStructureVideoChange,
+        onStructureVideoInputChange: ctx.onStructureVideoInputChange,
         loraManager: ctx.loraManager,
         availableLoras: ctx.availableLoras,
         updatePairPromptsByIndex: ctx.updatePairPromptsByIndex,
@@ -242,7 +242,7 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
       }
 
       // Filter and sort snapshot
-      let preparedPairPromptTargets = pairPromptSnapshot
+      const preparedPairPromptTargets = pairPromptSnapshot
         .filter(row => {
           const generation = row.generation;
           const isVideo = generation?.type === 'video' ||
@@ -298,4 +298,3 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
     }
   }, [queryClient]); // ✅ Only depends on queryClient (stable)
 }
-

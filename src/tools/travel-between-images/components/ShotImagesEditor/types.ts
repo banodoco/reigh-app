@@ -86,14 +86,14 @@ export interface ShotImagesEditorProps {
   onDefaultNegativePromptChange?: (prompt: string) => void;
 
   // Structure video props - legacy single-video interface
-  structureVideoPath?: string | null;
-  structureVideoMetadata?: VideoMetadata | null;
-  structureVideoTreatment?: 'adjust' | 'clip';
-  structureVideoMotionStrength?: number;
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
-  /** Uni3C end percent (only used when structureVideoType is 'uni3c') */
-  uni3cEndPercent?: number;
-  onStructureVideoChange?: (
+  primaryStructureVideoPath?: string | null;
+  primaryStructureVideoMetadata?: VideoMetadata | null;
+  primaryStructureVideoTreatment?: 'adjust' | 'clip';
+  primaryStructureVideoMotionStrength?: number;
+  primaryStructureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
+  /** Uni3C end percent (only used when primaryStructureVideoType is 'uni3c') */
+  primaryStructureVideoUni3cEndPercent?: number;
+  onPrimaryStructureVideoInputChange?: (
     videoPath: string | null,
     metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',

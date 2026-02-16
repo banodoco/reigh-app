@@ -35,12 +35,12 @@ interface UseTimelineOrchestratorProps {
   hasExistingTrailingVideo?: boolean;
   // Structure video props for video browser handler
   structureVideos?: StructureVideoConfigWithMetadata[];
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
-  structureVideoTreatment?: 'adjust' | 'clip';
-  structureVideoMotionStrength?: number;
+  primaryStructureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
+  primaryStructureVideoTreatment?: 'adjust' | 'clip';
+  primaryStructureVideoMotionStrength?: number;
   onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
   onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
-  onStructureVideoChange?: (
+  onPrimaryStructureVideoInputChange?: (
     videoPath: string | null,
     metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',
@@ -151,12 +151,12 @@ export function useTimelineOrchestrator({
   isUploadingImage = false,
   maxFrameLimit = 81,
   structureVideos,
-  structureVideoType = 'flow',
-  structureVideoTreatment = 'adjust',
-  structureVideoMotionStrength = 1.0,
+  primaryStructureVideoType = 'flow',
+  primaryStructureVideoTreatment = 'adjust',
+  primaryStructureVideoMotionStrength = 1.0,
   onAddStructureVideo,
   onUpdateStructureVideo,
-  onStructureVideoChange,
+  onPrimaryStructureVideoInputChange,
   hasExistingTrailingVideo = false,
 }: UseTimelineOrchestratorProps): UseTimelineOrchestratorReturn {
   // Local state
@@ -519,21 +519,21 @@ export function useTimelineOrchestrator({
         end_frame: placement.end_frame,
         treatment: 'adjust',
         motion_strength: 1.0,
-        structure_type: structureVideoType,
+        structure_type: primaryStructureVideoType,
         metadata: metadata.videoMetadata,
         resource_id: resource.id,
       });
-    } else if (onStructureVideoChange) {
-      onStructureVideoChange(
+    } else if (onPrimaryStructureVideoInputChange) {
+      onPrimaryStructureVideoInputChange(
         metadata.videoUrl,
         metadata.videoMetadata,
-        structureVideoTreatment,
-        structureVideoMotionStrength,
-        structureVideoType
+        primaryStructureVideoTreatment,
+        primaryStructureVideoMotionStrength,
+        primaryStructureVideoType
       );
     }
     setShowVideoBrowser(false);
-  }, [fullMax, structureVideos, structureVideoType, structureVideoTreatment, structureVideoMotionStrength, onAddStructureVideo, onUpdateStructureVideo, onStructureVideoChange]);
+  }, [fullMax, structureVideos, primaryStructureVideoType, primaryStructureVideoTreatment, primaryStructureVideoMotionStrength, onAddStructureVideo, onUpdateStructureVideo, onPrimaryStructureVideoInputChange]);
 
   // Endpoint drag (extracted hook)
   const {

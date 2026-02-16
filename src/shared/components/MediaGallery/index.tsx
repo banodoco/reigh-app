@@ -450,7 +450,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         stateHook.setPendingLightboxTarget(null);
         pendingTargetSetTimeRef.current = null;
       }
-    } else if (stateHook.state.pendingLightboxTarget && filtersHook.filteredImages.length === 0) {
     }
   }, [filtersHook.filteredImages, stateHook.state.pendingLightboxTarget, actionsHook.handleOpenLightbox, stateHook.setPendingLightboxTarget, serverPage]);
 

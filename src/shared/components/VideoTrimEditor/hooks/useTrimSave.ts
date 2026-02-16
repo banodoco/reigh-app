@@ -139,8 +139,7 @@ export const useTrimSave = ({
           .eq('id', sourceVariantId)
           .single();
 
-        if (fetchError) {
-        } else if (sourceVariant?.params) {
+        if (!fetchError && sourceVariant?.params) {
           sourceVariantParams = (typeof sourceVariant.params === 'string'
             ? JSON.parse(sourceVariant.params)
             : sourceVariant.params) as Record<string, unknown>;

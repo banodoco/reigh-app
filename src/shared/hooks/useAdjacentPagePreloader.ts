@@ -190,8 +190,7 @@ export function useAdjacentPagePreloader({
           if (cached?.items) {
             preloadingService.preloadImages(cached.items, PRIORITY_VALUES.normal);
           }
-        } catch (err) {
-        }
+        } catch (err) { /* intentionally ignored */ }
       }
 
       // Clean up distant pages

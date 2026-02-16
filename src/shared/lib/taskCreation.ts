@@ -74,8 +74,7 @@ export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     try {
       return crypto.randomUUID();
-    } catch (error) {
-    }
+    } catch (error) { /* intentionally ignored */ }
   }
   
   // Fallback to nanoid for mobile browsers or when crypto.randomUUID is not available

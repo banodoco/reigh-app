@@ -35,7 +35,6 @@ export function useLightbox({
     if (lightboxIndex !== null && lightboxIndex >= currentImages.length) {
       setLightboxIndex(null);
       setShouldAutoEnterInpaint(false);
-    } else if (lightboxIndex !== null) {
     }
   }, [lightboxIndex, currentImages.length, images.length, externalGenerations.length, tempDerivedGenerations.length, derivedNavContext]);
   
@@ -88,4 +87,3 @@ export function useLightbox({
     handlePrevious
   };
 }
-

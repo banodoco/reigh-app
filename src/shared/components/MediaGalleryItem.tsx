@@ -240,6 +240,38 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // Placeholder check
   const isPlaceholder = !image.id && actualDisplayUrl === "/placeholder.svg";
   const currentTargetShotName = selectedShotIdLocal ? simplifiedShotOptions.find(s => s.id === selectedShotIdLocal)?.name : undefined;
+
+  // Handle drag start for dropping onto timeline
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    // Only enable drag on desktop
+    if (isMobile) {
+      e.preventDefault();
+      return;
+    }
+
+    setIsDragging(true);
+
+    // Use shared utility to set drag data
+    setGenerationDragData(e, {
+      generationId: image.id,
+      imageUrl: image.url,
+      thumbUrl: image.thumbUrl,
+      metadata: image.metadata
+    });
+
+    // Create drag preview and clean up after brief moment
+    const cleanup = createDragPreview(e);
+    if (cleanup) {
+      setTimeout(cleanup, 0);
+    }
+  }, [image, isMobile, setIsDragging]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, [setIsDragging]);
+
+  // Track touch start position to detect scrolling vs tapping
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   
   // Shot position state (positioned, associated-without-position, viewing selected shot)
   const {
@@ -311,38 +343,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
       </div>
     );
   }
-
-  // Handle drag start for dropping onto timeline
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    // Only enable drag on desktop
-    if (isMobile) {
-      e.preventDefault();
-      return;
-    }
-    
-    setIsDragging(true);
-    
-    // Use shared utility to set drag data
-    setGenerationDragData(e, {
-      generationId: image.id,
-      imageUrl: image.url,
-      thumbUrl: image.thumbUrl,
-      metadata: image.metadata
-    });
-    
-    // Create drag preview and clean up after brief moment
-    const cleanup = createDragPreview(e);
-    if (cleanup) {
-      setTimeout(cleanup, 0);
-    }
-  }, [image, isMobile]);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  // Track touch start position to detect scrolling vs tapping
-  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Helper to determine if interaction was a tap or a scroll/drag
   const handleTouchStart = (e: React.TouchEvent) => {

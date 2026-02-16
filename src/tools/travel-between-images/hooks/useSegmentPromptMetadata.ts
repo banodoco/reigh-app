@@ -93,7 +93,7 @@ export function useSegmentPromptMetadata({
     }
 
     // Use new format for writing
-    let updatedMetadata = writeSegmentOverrides(
+    const updatedMetadata = writeSegmentOverrides(
       shotGen.metadata as Record<string, unknown> | null,
       {
         prompt: prompt,

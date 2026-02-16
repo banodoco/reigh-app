@@ -729,7 +729,7 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = ({
     onAmountOfMotionChange: motionSettings.setAmountOfMotion,
     onTextBeforePromptsChange: promptSettings.setTextBeforePrompts,
     onTextAfterPromptsChange: promptSettings.setTextAfterPrompts,
-    handleStructureVideoChange: handleStructureVideoInputChange,
+    onStructureVideoInputChange: handleStructureVideoInputChange,
     generationMode: generationModeSettings.generationMode,
     generationTypeMode: phaseConfigSettings.generationTypeMode,
     advancedMode: phaseConfigSettings.advancedMode,

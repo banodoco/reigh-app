@@ -55,12 +55,11 @@ describe('extractVideoMetadata', () => {
       onerror: null as (() => void) | null,
     };
 
-    vi.spyOn(document, 'createElement').mockReturnValue(mockVideo as any);
+    vi.spyOn(document, 'createElement').mockReturnValue(mockVideo as unknown);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
     const file = new File(['video-data'], 'test.mp4', { type: 'video/mp4' });
-    file.size as any; // Access to set up the file
 
     const promise = extractVideoMetadata(file);
 
@@ -85,7 +84,7 @@ describe('extractVideoMetadata', () => {
       onerror: null as (() => void) | null,
     };
 
-    vi.spyOn(document, 'createElement').mockReturnValue(mockVideo as any);
+    vi.spyOn(document, 'createElement').mockReturnValue(mockVideo as unknown);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
@@ -111,7 +110,7 @@ describe('extractVideoMetadataFromUrl', () => {
       onerror: null as (() => void) | null,
     };
 
-    vi.spyOn(document, 'createElement').mockReturnValue(mockVideo as any);
+    vi.spyOn(document, 'createElement').mockReturnValue(mockVideo as unknown);
 
     const promise = extractVideoMetadataFromUrl('https://example.com/video.mp4');
 
@@ -146,7 +145,7 @@ describe('uploadVideoToStorage', () => {
     const { supabase } = await import('@/integrations/supabase/client');
     vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
       data: { session: null },
-    } as any);
+    } as unknown);
 
     const file = new File(['video'], 'test.mp4', { type: 'video/mp4' });
 

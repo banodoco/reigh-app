@@ -13,7 +13,7 @@ describe('getDisplayNameFromUrl', () => {
     ];
     expect(getDisplayNameFromUrl(
       'https://example.com/my-lora.safetensors',
-      availableLoras as any,
+      availableLoras as unknown,
     )).toBe('My Cool LoRA');
   });
 
@@ -23,7 +23,7 @@ describe('getDisplayNameFromUrl', () => {
     ];
     const result = getDisplayNameFromUrl(
       'https://example.com/lora.safetensors',
-      availableLoras as any,
+      availableLoras as unknown,
     );
     // Should fall through to filename extraction
     expect(result).toBe('lora');

@@ -92,7 +92,6 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
         console.error("[createTravelBetweenImagesTask] Exception linking parent to shot:", linkErr);
         // Don't throw - the generation was created, just not linked
       }
-    } else if (effectiveParentGenerationId) {
     }
 
     // 5. Build orchestrator payload (now includes parent_generation_id)

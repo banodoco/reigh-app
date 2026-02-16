@@ -1,4 +1,3 @@
-/* eslint-disable */
 // deno-lint-ignore-file
 
 const JSON_HEADERS = {

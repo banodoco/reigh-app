@@ -23,7 +23,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     try {
       const raw = typeof window !== 'undefined' ? window.sessionStorage.getItem('ig:formExpanded') : null;
       if (raw === 'false') return false;
-    } catch {}
+    } catch { /* intentionally ignored */ }
     return true;
   });
 
@@ -45,7 +45,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       try {
         const fromStorage = window.localStorage.getItem('lastSelectedProjectId');
         if (fromStorage) return fromStorage;
-      } catch {}
+      } catch { /* intentionally ignored */ }
     }
     return null;
   }, [selectedProjectId]);
@@ -97,7 +97,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     const formCollapsedParam = searchParams.get('formCollapsed');
     if (formCollapsedParam === 'true') {
       setIsFormExpanded(false);
-      try { window.sessionStorage.setItem('ig:formExpanded', 'false'); } catch {}
+      try { window.sessionStorage.setItem('ig:formExpanded', 'false'); } catch { /* intentionally ignored */ }
 
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.delete('formCollapsed');
@@ -106,12 +106,12 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
         : window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []); // Run once on mount
 
   const handleCollapsibleOpenChange = useCallback((nextOpen: boolean) => {
     setIsFormExpanded(nextOpen);
-    try { window.sessionStorage.setItem('ig:formExpanded', String(nextOpen)); } catch {}
+    try { window.sessionStorage.setItem('ig:formExpanded', String(nextOpen)); } catch { /* intentionally ignored */ }
   }, []);
 
   return (

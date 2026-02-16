@@ -155,7 +155,7 @@ function calculateDropIndex(
   const row = Math.max(0, Math.floor(relativeY / totalItemHeight));
   
   // Calculate target index
-  let targetIndex = row * columns + column;
+  const targetIndex = row * columns + column;
   
   // Clamp to valid range (can insert at end, which is itemCount)
   return Math.max(0, Math.min(targetIndex, itemCount));

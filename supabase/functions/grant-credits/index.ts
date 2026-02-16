@@ -43,7 +43,7 @@ serve(async (req) => {
   }
 
   // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {

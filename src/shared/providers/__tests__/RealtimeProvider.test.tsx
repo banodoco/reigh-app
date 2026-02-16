@@ -9,7 +9,7 @@ import { render, screen, act } from '@testing-library/react';
 
 // Mock all external dependencies
 let statusChangeCallback: ((state: Record<string, unknown>) => void) | null = null;
-let _eventCallback: ((event: Record<string, unknown>) => void) | null = null;
+const _eventCallback: ((event: Record<string, unknown>) => void) | null = null;
 
 vi.mock('@/shared/contexts/ProjectContext', () => ({
   useProject: vi.fn().mockReturnValue({ selectedProjectId: 'proj-1' }),

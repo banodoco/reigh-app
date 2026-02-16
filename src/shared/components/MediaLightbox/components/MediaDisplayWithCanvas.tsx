@@ -298,7 +298,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
     // NOTE: imageDimensions is intentionally NOT in deps to avoid infinite loop:
     // This effect calls onImageLoad which updates imageDimensions in parent,
     // which would trigger this effect again if imageDimensions was a dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [effectiveImageUrl, thumbUrl, debugContext, onImageLoad]);
 
   // Measure the actual image element for Konva Stage size and position
@@ -329,7 +329,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
   // Variant-specific styling
   const getMediaStyle = (): React.CSSProperties => {
     switch (variant) {
-      case 'desktop-side-panel':
+      case 'desktop-side-panel': {
         // Adjust max-width to account for tasks pane if present
         const adjustedMaxWidth = tasksPaneWidth > 0 
           ? `calc(55vw - ${tasksPaneWidth * 0.55}px)` // 55% of remaining space after tasks pane
@@ -339,6 +339,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
           maxHeight: '98vh',
           transition: 'max-width 300ms ease', // Smooth resize when tasks pane opens/closes
         };
+      }
       case 'mobile-stacked':
         // Use 100% to fit within the container (which is 45dvh in InlineEditView)
         // instead of fixed vh/vw which might overflow

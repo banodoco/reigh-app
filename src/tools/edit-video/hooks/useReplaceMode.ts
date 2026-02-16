@@ -165,7 +165,7 @@ export function useReplaceMode({
       }
       return prev;
     });
-  }, [videoDuration, videoFps]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [videoDuration, videoFps]);  
 
   // Add a new selection
   const handleAddSelection = useCallback(() => {

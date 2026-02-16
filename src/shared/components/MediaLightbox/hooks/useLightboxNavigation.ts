@@ -37,9 +37,9 @@ export const useLightboxNavigation = ({
       shield.style.touchAction = 'none';
 
       const block = (ev: Event) => {
-        try { ev.preventDefault(); } catch {}
-        try { ev.stopPropagation(); } catch {}
-        try { ev.stopImmediatePropagation?.(); } catch {}
+        try { ev.preventDefault(); } catch { /* intentionally ignored */ }
+        try { ev.stopPropagation(); } catch { /* intentionally ignored */ }
+        try { ev.stopImmediatePropagation?.(); } catch { /* intentionally ignored */ }
       };
 
       shield.addEventListener('click', block, true);
@@ -51,9 +51,9 @@ export const useLightboxNavigation = ({
       document.body.appendChild(shield);
 
       window.setTimeout(() => {
-        try { shield.remove(); } catch {}
+        try { shield.remove(); } catch { /* intentionally ignored */ }
       }, 350);
-    } catch {}
+    } catch { /* intentionally ignored */ }
   }, []);
 
   const safeClose = useCallback(() => {
