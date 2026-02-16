@@ -18,20 +18,20 @@ interface SegmentTask {
 interface OrchestratorTask {
   id: string;
   status: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 }
 
 interface TaskContext {
   task_type: string;
   project_id: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 }
 
 /**
  * Check if all sibling segments are complete and mark orchestrator done if so
  */
 export async function checkOrchestratorCompletion(
-  supabase: any,
+  supabase: unknown,
   taskIdString: string,
   completedTask: TaskContext,
   publicUrl: string,
@@ -57,7 +57,7 @@ export async function checkOrchestratorCompletion(
     ? (config.billingSegmentType || config.segmentType)
     : config.segmentType;
 
-  const orchPromise: Promise<{ data: OrchestratorTask | null; error: any }> =
+  const orchPromise: Promise<{ data: OrchestratorTask | null; error: unknown }> =
     supabase.from("tasks").select("id, status, params").eq("id", orchestratorTaskId).single();
 
   const [orchResult, allSegments] = await Promise.all([
@@ -169,14 +169,14 @@ export async function checkOrchestratorCompletion(
  * Find sibling segment tasks using run_id (preferred) or orchestrator_task_id (fallback)
  */
 async function findSiblingSegments(
-  supabase: any,
+  supabase: unknown,
   segmentType: string,
   projectId: string,
   orchestratorTaskId: string,
   orchestratorRunId: string | null
 ): Promise<SegmentTask[] | null> {
   let allSegments: SegmentTask[] | null = null;
-  let segmentsError: any = null;
+  let segmentsError: unknown = null;
 
   if (orchestratorRunId) {
 
@@ -221,7 +221,7 @@ async function findSiblingSegments(
  * Check the status of the final stitch task for this orchestrator
  */
 async function checkFinalStitchStatus(
-  supabase: any,
+  supabase: unknown,
   finalStepType: string,
   projectId: string,
   orchestratorTaskId: string,
@@ -258,7 +258,7 @@ async function checkFinalStitchStatus(
  * Mark orchestrator as Failed
  */
 async function markOrchestratorFailed(
-  supabase: any,
+  supabase: unknown,
   orchestratorTaskId: string,
   failedSegments: number,
   totalSegments: number
@@ -283,7 +283,7 @@ async function markOrchestratorFailed(
  * Mark orchestrator as Complete and trigger billing
  */
 async function markOrchestratorComplete(
-  supabase: any,
+  supabase: unknown,
   orchestratorTaskId: string,
   allSegments: SegmentTask[],
   publicUrl: string,
@@ -302,7 +302,7 @@ async function markOrchestratorComplete(
     }
   }
 
-  const updateData: Record<string, any> = {
+  const updateData: Record<string, unknown> = {
     status: "Complete",
     generation_started_at: earliestStartTime || new Date().toISOString(),
     generation_processed_at: new Date().toISOString()

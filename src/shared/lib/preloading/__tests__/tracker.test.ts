@@ -30,13 +30,13 @@ describe('Image Load Tracker', () => {
     });
 
     it('sets __memoryCached on the image object', () => {
-      const image = { id: 'img-1' } as any;
+      const image = { id: 'img-1' } as unknown;
       setImageLoadStatus(image, true);
       expect(image.__memoryCached).toBe(true);
     });
 
     it('does nothing for images without id', () => {
-      const image = { id: '' } as any;
+      const image = { id: '' } as unknown;
       setImageLoadStatus(image, true);
       expect(hasLoadedImage(image)).toBe(false);
     });

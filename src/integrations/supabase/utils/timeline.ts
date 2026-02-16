@@ -1,7 +1,7 @@
 // Corruption timeline ring buffer and helper
 import { __CORRUPTION_TRACE_ENABLED__ } from '@/integrations/supabase/config/env';
 
-export let __CORRUPTION_TIMELINE__: Array<{ event: string; timestamp: number; data: Record<string, unknown>; stack?: string }> = [];
+export const __CORRUPTION_TIMELINE__: Array<{ event: string; timestamp: number; data: Record<string, unknown>; stack?: string }> = [];
 
 export function addCorruptionEvent(event: string, data: Record<string, unknown> = {}) {
   if (!__CORRUPTION_TRACE_ENABLED__) return;

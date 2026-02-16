@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/shared/lib/mediaTypeHelpers', () => ({
-  getGenerationId: (gen: any) => gen.generation_id || gen.id || null,
+  getGenerationId: (gen: unknown) => gen.generation_id || gen.id || null,
 }));
 
 import {
@@ -38,13 +38,13 @@ describe('transformGenerationToParentRow', () => {
   it('maps location to imageUrl', () => {
     const gen = { id: 'gen-1', location: '/video/path.mp4' };
     const result = transformGenerationToParentRow(gen);
-    expect((result as any).imageUrl).toBe('/video/path.mp4');
+    expect((result as unknown).imageUrl).toBe('/video/path.mp4');
   });
 
   it('maps thumbUrl from thumbnail_url', () => {
     const gen = { id: 'gen-1', thumbnail_url: '/thumb.jpg' };
     const result = transformGenerationToParentRow(gen);
-    expect((result as any).thumbUrl).toBe('/thumb.jpg');
+    expect((result as unknown).thumbUrl).toBe('/thumb.jpg');
   });
 });
 

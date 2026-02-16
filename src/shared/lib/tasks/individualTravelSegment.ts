@@ -637,8 +637,7 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
           .limit(1)
           .maybeSingle();
 
-        if (pairIdError) {
-        } else if (childByPairId) {
+        if (!pairIdError && childByPairId) {
           effectiveChildGenerationId = childByPairId.id;
         }
       }
@@ -655,11 +654,9 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
           .limit(1)
           .maybeSingle();
 
-        if (orderError) {
-        } else if (childByOrder) {
+        if (!orderError && childByOrder) {
           effectiveChildGenerationId = childByOrder.id;
         }
-      } else if (!effectiveChildGenerationId && params.pair_shot_generation_id) {
       }
     }
     

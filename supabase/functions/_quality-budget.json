@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-02-16T00:00:00.000Z",
+  "limits": {
+    "explicitAny": 190,
+    "denoLintIgnoreFile": 26,
+    "fileLevelEslintDisable": 8,
+    "tsIgnoreDirectives": 7,
+    "noExplicitAnySuppressions": 18
+  }
+}

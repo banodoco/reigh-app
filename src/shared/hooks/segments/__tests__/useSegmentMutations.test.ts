@@ -60,7 +60,7 @@ describe('useSegmentMutations', () => {
           numFrames: 25,
           randomSeed: true,
           makePrimaryVariant: false,
-        } as any);
+        } as unknown);
       });
 
       expect(success!).toBe(false);
@@ -99,7 +99,7 @@ describe('useSegmentMutations', () => {
           numFrames: 25,
           randomSeed: true,
           makePrimaryVariant: false,
-        } as any);
+        } as unknown);
       });
 
       expect(success!).toBe(true);
@@ -133,7 +133,7 @@ describe('useSegmentMutations', () => {
           numFrames: 25,
           randomSeed: true,
           makePrimaryVariant: false,
-        } as any);
+        } as unknown);
       });
 
       expect(success!).toBe(false);

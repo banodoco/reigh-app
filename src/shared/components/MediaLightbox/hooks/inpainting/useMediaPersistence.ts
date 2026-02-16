@@ -122,8 +122,7 @@ export function useMediaPersistence({
         savedAt: Date.now()
       };
       localStorage.setItem(storageKey, JSON.stringify(data));
-    } catch (e) {
-    }
+    } catch (e) { /* intentionally ignored */ }
   }, [inpaintStrokes, annotationStrokes, inpaintPrompt, inpaintNumGenerations, brushSize, isInpaintMode, storageKey]);
 
   // ============================================
@@ -195,8 +194,7 @@ export function useMediaPersistence({
           hydratedMediaIdsRef.current.add(storageKey);
 
         }
-      } catch (e) {
-      }
+      } catch (e) { /* intentionally ignored */ }
     }
 
     // 5. Restore UI state (mode, annotation mode)
@@ -266,8 +264,7 @@ export function useMediaPersistence({
             savedAt: Date.now()
           };
           localStorage.setItem(prevStorageKeyRef.current, JSON.stringify(data));
-        } catch (e) {
-        }
+        } catch (e) { /* intentionally ignored */ }
       }
 
       // Load strokes from new variant's key

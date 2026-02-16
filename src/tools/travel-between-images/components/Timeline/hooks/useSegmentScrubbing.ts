@@ -29,7 +29,7 @@ export function useSegmentScrubbing({ projectAspectRatio, displaySlots }: UseSeg
     if (activeScrubbingIndex !== null) {
       scrubbing.containerProps.onMouseEnter();
     }
-  }, [activeScrubbingIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeScrubbingIndex]);  
 
   // Clear scrubbing preview on scroll
   useEffect(() => {

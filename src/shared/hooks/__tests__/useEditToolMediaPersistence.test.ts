@@ -51,7 +51,7 @@ describe('useEditToolMediaPersistence', () => {
       })
     );
 
-    const mockMedia = { id: 'gen-1', location: 'test.jpg' } as any;
+    const mockMedia = { id: 'gen-1', location: 'test.jpg' } as unknown;
     act(() => {
       result.current.setSelectedMedia(mockMedia);
     });
@@ -67,7 +67,7 @@ describe('useEditToolMediaPersistence', () => {
       })
     );
 
-    const mockMedia = { id: 'gen-1', location: 'test.jpg' } as any;
+    const mockMedia = { id: 'gen-1', location: 'test.jpg' } as unknown;
     act(() => {
       result.current.setSelectedMedia(mockMedia);
     });

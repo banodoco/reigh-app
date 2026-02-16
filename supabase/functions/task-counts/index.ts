@@ -4,8 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge function: task-counts
@@ -79,7 +78,7 @@ serve(async (req) => {
   const logger = new SystemLogger(supabaseAdmin, 'task-counts');
 
   // Parse request body
-  let requestBody: any = {};
+  let requestBody: unknown = {};
   try {
     const bodyText = await req.text();
     if (bodyText) {
@@ -165,7 +164,7 @@ serve(async (req) => {
 
       // Format user stats
       const user_stats = Array.isArray(userStatsResult.data)
-        ? userStatsResult.data.map((u: any) => ({
+        ? userStatsResult.data.map((u: unknown) => ({
             user_id: u.user_id,
             credits: u.credits,
             queued_tasks: u.queued_tasks,
@@ -385,8 +384,8 @@ serve(async (req) => {
 
       const projectIds = projectsResult.data?.map(p => p.id) || [];
 
-      let queued_tasks: any[] = [];
-      let active_tasks: any[] = [];
+      let queued_tasks: unknown[] = [];
+      let active_tasks: unknown[] = [];
 
       if (projectIds.length > 0) {
         // Fetch task details (parallel)

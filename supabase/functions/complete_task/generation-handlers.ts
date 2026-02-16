@@ -33,12 +33,12 @@ import {
 } from './generation-parent.ts';
 
 interface HandlerContext {
-  supabase: any;
+  supabase: unknown;
   taskId: string;
-  taskData: any;
+  taskData: unknown;
   publicUrl: string;
   thumbnailUrl: string | null;
-  logger?: any;
+  logger?: unknown;
   childGenerationId?: string;
   parentGenerationId?: string;
   childOrder?: number | null;
@@ -60,9 +60,9 @@ export {
  * Reads is_primary and variant_type from task data
  */
 export async function handleVariantCreation(
-  supabase: any,
+  supabase: unknown,
   taskId: string,
-  taskData: any,
+  taskData: unknown,
   basedOnGenerationId: string,
   publicUrl: string,
   thumbnailUrl: string | null
@@ -117,7 +117,7 @@ export async function handleVariantCreation(
  * Creates a variant on the parent generation (for stitch tasks)
  * Used by: travel_stitch, join_final_stitch
  */
-export async function handleVariantOnParent(ctx: HandlerContext): Promise<any | null> {
+export async function handleVariantOnParent(ctx: HandlerContext): Promise<unknown | null> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger } = ctx;
 
   const orchTaskId = taskData.params?.orchestrator_task_id_ref ||
@@ -204,7 +204,7 @@ export async function handleVariantOnParent(ctx: HandlerContext): Promise<any | 
  * Creates a variant on an existing child generation (for individual segment regeneration)
  * Used by: individual_travel_segment (when child_generation_id is present)
  */
-export async function handleVariantOnChild(ctx: HandlerContext): Promise<any | null> {
+export async function handleVariantOnChild(ctx: HandlerContext): Promise<unknown | null> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger, childGenerationId } = ctx;
 
   if (!childGenerationId) {
@@ -320,7 +320,7 @@ export async function handleVariantOnChild(ctx: HandlerContext): Promise<any | n
  * Creates an independent generation (for regular tasks)
  * Used by: single_image, wan_2_2_i2v, image_inpaint, etc.
  */
-export async function handleStandaloneGeneration(ctx: HandlerContext): Promise<any> {
+export async function handleStandaloneGeneration(ctx: HandlerContext): Promise<unknown> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger } = ctx;
 
   const { shotId, addInPosition } = extractShotAndPosition(taskData.params);
@@ -371,7 +371,7 @@ export async function handleStandaloneGeneration(ctx: HandlerContext): Promise<a
     generation_type: generationType,
   });
 
-  const generationRecord: Record<string, any> = {
+  const generationRecord: Record<string, unknown> = {
     id: newGenerationId,
     tasks: [taskId],
     params: generationParams,

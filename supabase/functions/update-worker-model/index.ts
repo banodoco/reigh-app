@@ -4,8 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge function: update-worker-model
@@ -68,7 +67,7 @@ serve(async (req) => {
   }
 
   // Parse request body
-  let requestBody: any = {};
+  let requestBody: unknown = {};
   try {
     const bodyText = await req.text();
     if (bodyText) {
@@ -176,7 +175,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { worker_id, error: error?.message });
     await logger.flush();
     return new Response(`Internal server error: ${error?.message}`, { status: 500 });

@@ -16,7 +16,7 @@ const mockCanvas = {
 };
 
 describe('extractVideoPosterFrame', () => {
-  let mockVideo: any;
+  let mockVideo: unknown;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -30,7 +30,7 @@ describe('extractVideoPosterFrame', () => {
       duration: 10,
       currentTime: 0,
       src: '',
-      addEventListener: vi.fn((event: string, handler: any) => {
+      addEventListener: vi.fn((event: string, handler: unknown) => {
         if (event === 'loadedmetadata') {
           mockVideo._onLoadedMetadata = handler;
         } else if (event === 'seeked') {
@@ -43,7 +43,7 @@ describe('extractVideoPosterFrame', () => {
 
     vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
       if (tag === 'video') return mockVideo;
-      if (tag === 'canvas') return mockCanvas as any;
+      if (tag === 'canvas') return mockCanvas as unknown;
       return document.createElement(tag);
     });
 
@@ -106,7 +106,7 @@ describe('extractVideoPosterFrame', () => {
   });
 
   it('rejects when toBlob returns null', async () => {
-    mockCanvas.toBlob.mockImplementationOnce((cb: any) => cb(null));
+    mockCanvas.toBlob.mockImplementationOnce((cb: unknown) => cb(null));
 
     const file = new File(['video-data'], 'test.mp4', { type: 'video/mp4' });
     const promise = extractVideoPosterFrame(file);
@@ -119,7 +119,7 @@ describe('extractVideoPosterFrame', () => {
 });
 
 describe('extractVideoFinalFrame', () => {
-  let mockVideo: any;
+  let mockVideo: unknown;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -133,7 +133,7 @@ describe('extractVideoFinalFrame', () => {
       duration: 5,
       currentTime: 0,
       src: '',
-      addEventListener: vi.fn((event: string, handler: any) => {
+      addEventListener: vi.fn((event: string, handler: unknown) => {
         if (event === 'loadedmetadata') {
           mockVideo._onLoadedMetadata = handler;
         } else if (event === 'seeked') {
@@ -146,7 +146,7 @@ describe('extractVideoFinalFrame', () => {
 
     vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
       if (tag === 'video') return mockVideo;
-      if (tag === 'canvas') return mockCanvas as any;
+      if (tag === 'canvas') return mockCanvas as unknown;
       return document.createElement(tag);
     });
 

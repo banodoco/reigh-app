@@ -209,7 +209,7 @@ describe('useTrainingDataBatches', () => {
     ];
 
     const { result } = renderHook(() =>
-      useTrainingDataBatches({ videos: videos as any }),
+      useTrainingDataBatches({ videos: videos as unknown }),
     );
 
     await act(async () => {

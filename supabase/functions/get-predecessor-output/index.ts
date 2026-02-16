@@ -4,8 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge function: get-predecessor-output
@@ -49,7 +48,7 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch (e) {
@@ -199,7 +198,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { error: error?.message });
     await logger.flush();
     return new Response(`Internal error: ${error?.message}`, { status: 500 });

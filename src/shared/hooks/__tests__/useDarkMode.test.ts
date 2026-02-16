@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { useState } from 'react';
 
 vi.mock('../usePersistentState', () => {
-  const { useState } = require('react');
   return {
-    default: (_key: string, defaultValue: unknown) => useState(defaultValue),
+    default: function usePersistentStateMock(_key: string, defaultValue: unknown) {
+      return useState(defaultValue);
+    },
   };
 });
 

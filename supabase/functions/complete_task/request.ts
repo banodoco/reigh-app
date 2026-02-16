@@ -60,7 +60,7 @@ export async function parseCompleteTaskRequest(req: Request): Promise<ParseResul
   }
 
   // Parse JSON body
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch (e) {
@@ -217,7 +217,7 @@ export async function parseCompleteTaskRequest(req: Request): Promise<ParseResul
  * Called after Supabase client is available for orchestrator check
  */
 export async function validateStoragePathSecurity(
-  supabase: any,
+  supabase: unknown,
   taskId: string,
   storagePath: string,
   storagePathTaskId: string | undefined

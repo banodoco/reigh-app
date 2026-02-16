@@ -27,7 +27,7 @@ describe('autoplayMonitor', () => {
   it('compareVideoStates detects length changes', () => {
     // Test the logic pattern used internally
     const current = [{ paused: true, currentTime: 0, readyState: 4 }];
-    const previous: any[] = [];
+    const previous: unknown[] = [];
 
     // Different lengths should be detected as a change
     expect(current.length !== previous.length).toBe(true);

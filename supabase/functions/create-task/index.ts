@@ -5,8 +5,7 @@ import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 import { checkRateLimit, rateLimitResponse, getClientIp, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 // Helper function to create responses with CORS headers
 function createCorsResponse(body: string, status: number = 200) {
@@ -71,7 +70,7 @@ serve(async (req) => {
   }
 
   // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
@@ -102,7 +101,7 @@ serve(async (req) => {
   if (dependant_on) {
     if (Array.isArray(dependant_on)) {
       // Filter out any null/undefined/empty values
-      const filtered = dependant_on.filter((id: any) => id && typeof id === 'string');
+      const filtered = dependant_on.filter((id: unknown) => id && typeof id === 'string');
       normalizedDependantOn = filtered.length > 0 ? filtered : null;
     } else if (typeof dependant_on === 'string') {
       normalizedDependantOn = [dependant_on];
@@ -204,7 +203,7 @@ serve(async (req) => {
 
   // ─── 5. Insert row using admin client ───────────────────────────
   try {
-    const insertObject: any = {
+    const insertObject: unknown = {
       params,
       task_type,
       project_id: finalProjectId,
@@ -281,7 +280,7 @@ serve(async (req) => {
       status: "Task queued"
     }), 200);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { error: error?.message });
     await logger.flush();
     return createCorsResponse(`Internal server error: ${error?.message}`, 500);

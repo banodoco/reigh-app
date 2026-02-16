@@ -15,7 +15,7 @@ import { handleError } from '@/shared/lib/errorHandler';
 
 // Make available globally in development
 if (typeof window !== 'undefined' && import.meta.env.DEV) {
-  (window as any).validateImageCache = () => {
+  (window as unknown).validateImageCache = () => {
     console.group('🗂️ Image Cache Validation');
     
     try {
@@ -70,7 +70,7 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
     console.groupEnd();
   };
   
-  (window as any).startCacheWatch = () => {
+  (window as unknown).startCacheWatch = () => {
     let lastMediaCount = 0;
     
     const monitor = () => {
@@ -92,13 +92,13 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
     console.log('📱 Navigate between pages to see cache behavior');
     console.log('⏹️ Run stopCacheWatch() to stop monitoring');
     
-    (window as any).stopCacheWatch = () => {
+    (window as unknown).stopCacheWatch = () => {
       clearInterval(intervalId);
       console.log('⏹️ Cache monitoring stopped');
     };
   };
   
-  (window as any).showCacheStats = () => {
+  (window as unknown).showCacheStats = () => {
     const images = document.querySelectorAll('img[src*="supabase.co/storage"]');
     const videos = document.querySelectorAll('video[src*="supabase.co/storage"]');
     
@@ -111,7 +111,7 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
   };
   
   // Also add a helpful function to show what to look for
-  (window as any).showCacheHelp = () => {
+  (window as unknown).showCacheHelp = () => {
     console.group('🔍 Cache Validation Help');
     console.log('The cache cleanup happens automatically. To validate it:');
     console.log('');

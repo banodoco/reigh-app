@@ -6,7 +6,7 @@ import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
 // Helper for standard JSON responses with CORS headers
-function jsonResponse(body: any, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -49,7 +49,7 @@ serve(async (req) => {
   }
 
   // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
@@ -128,7 +128,7 @@ serve(async (req) => {
     const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', auth.userId).single();
 
     // Prepare session configuration
-    const sessionConfig: any = {
+    const sessionConfig: unknown = {
       mode: "payment",
       payment_method_types: ["card"],
       line_items: [

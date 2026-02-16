@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
+import containerQueries from "@tailwindcss/container-queries";
 
 export default {
 	darkMode: ["class"],
@@ -714,10 +716,10 @@ export default {
 		}
 	},
 	plugins: [
-		require("tailwindcss-animate"),
-		require('@tailwindcss/container-queries'),
+		tailwindcssAnimate,
+		containerQueries,
 		// Custom plugin for text shadow
-		function({ addUtilities }: any) {
+		function({ addUtilities }: { addUtilities: (utilities: Record<string, Record<string, string>>) => void }) {
 			const newUtilities = {
 				'.text-shadow-vintage': {
 					textShadow: '0 0 5px hsl(var(--wes-vintage-gold) / 0.5)',

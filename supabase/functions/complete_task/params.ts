@@ -12,7 +12,7 @@ import { extractOrchestratorRef } from '../_shared/billing.ts';
 /**
  * Configuration for where thumbnail_url should be stored based on task_type
  */
-const THUMBNAIL_PATH_CONFIG: Record<string, { path: string[]; extras?: Record<string, any> }> = {
+const THUMBNAIL_PATH_CONFIG: Record<string, { path: string[]; extras?: Record<string, unknown> }> = {
   'travel_stitch': {
     path: ['full_orchestrator_payload', 'thumbnail_url'],
     extras: { accelerated: false } // Always hardcode accelerated=false for travel_stitch
@@ -39,7 +39,7 @@ const THUMBNAIL_PATH_CONFIG: Record<string, { path: string[]; extras?: Record<st
  * @param logTag - Optional log tag prefix
  * @returns The extracted value as string, or null if not found
  */
-function extractFromParams(params: any, fieldName: string, paths: string[][], logTag: string = 'ParamExtractor'): string | null {
+function extractFromParams(params: unknown, fieldName: string, paths: string[][], logTag: string = 'ParamExtractor'): string | null {
   try {
     for (const path of paths) {
       let value = params;
@@ -75,7 +75,7 @@ function extractFromParams(params: any, fieldName: string, paths: string[][], lo
  * Delegates to shared extractOrchestratorRef (single source of truth for path list)
  * and adds logging consistent with other complete_task extractors.
  */
-function extractOrchestratorTaskId(params: any, logTag: string = 'OrchestratorExtract'): string | null {
+export function extractOrchestratorTaskId(params: unknown, logTag: string = 'OrchestratorExtract'): string | null {
   const value = extractOrchestratorRef(params);
   return value;
 }
@@ -84,7 +84,7 @@ function extractOrchestratorTaskId(params: any, logTag: string = 'OrchestratorEx
  * Extract orchestrator run_id from task params
  * Used for finding sibling segment tasks
  */
-function extractOrchestratorRunId(params: any, logTag: string = 'OrchestratorExtract'): string | null {
+export function extractOrchestratorRunId(params: unknown, logTag: string = 'OrchestratorExtract'): string | null {
   return extractFromParams(
     params,
     'run_id',
@@ -103,7 +103,7 @@ function extractOrchestratorRunId(params: any, logTag: string = 'OrchestratorExt
  * Extract based_on from task params
  * Supports multiple param shapes for flexibility across different task types
  */
-function extractBasedOn(params: any): string | null {
+export function extractBasedOn(params: unknown): string | null {
   return extractFromParams(
     params,
     'based_on',
@@ -122,7 +122,7 @@ function extractBasedOn(params: any): string | null {
  * Extract shot_id and add_in_position from task params
  * Supports multiple param shapes as per current DB trigger logic
  */
-function extractShotAndPosition(params: any): { shotId?: string, addInPosition: boolean } {
+export function extractShotAndPosition(params: unknown): { shotId?: string, addInPosition: boolean } {
   // Extract shot_id using generic helper
   const shotId = extractFromParams(
     params,
@@ -163,11 +163,11 @@ function extractShotAndPosition(params: any): { shotId?: string, addInPosition: 
  * Set thumbnail URL in params at the correct location based on task_type
  * @returns Updated params object (does not mutate original)
  */
-function setThumbnailInParams(
-  params: Record<string, any>,
+export function setThumbnailInParams(
+  params: Record<string, unknown>,
   taskType: string,
   thumbnailUrl: string
-): Record<string, any> {
+): Record<string, unknown> {
   const config = THUMBNAIL_PATH_CONFIG[taskType] || THUMBNAIL_PATH_CONFIG.default;
   const updatedParams = JSON.parse(JSON.stringify(params || {})); // Deep clone
 
@@ -200,7 +200,7 @@ function setThumbnailInParams(
 /**
  * Get MIME content type from filename extension
  */
-function getContentType(filename: string): string {
+export function getContentType(filename: string): string {
   const ext = filename.toLowerCase().split('.').pop();
   switch (ext) {
     case 'png':
@@ -226,15 +226,15 @@ function getContentType(filename: string): string {
 /**
  * Build generation params starting from normalized task params
  */
-function buildGenerationParams(
-  baseParams: any,
+export function buildGenerationParams(
+  baseParams: unknown,
   toolType: string,
   contentType?: string,
   shotId?: string,
   thumbnailUrl?: string,
   sourceTaskId?: string
-): any {
-  let generationParams = { ...baseParams };
+): unknown {
+  const generationParams = { ...baseParams };
 
   // Add tool_type to the params JSONB
   generationParams.tool_type = toolType;
@@ -264,4 +264,3 @@ function buildGenerationParams(
 
   return generationParams;
 }
-

@@ -21,6 +21,6 @@ export function useRenderLogger(tag: string, propsSnapshot?: Record<string, unkn
       props: propsSnapshot,
     });
     // We do not want to log on unmount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   });
 } 

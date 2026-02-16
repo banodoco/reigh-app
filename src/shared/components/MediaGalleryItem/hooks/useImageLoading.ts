@@ -49,7 +49,7 @@ export function useImageLoading({
     () => {
       return `${image.id}:${image.urlIdentity || image.url || ''}:${image.thumbUrlIdentity || image.thumbUrl || ''}:${image.updatedAt || ''}`;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally using specific properties
+     
     [image.id, image.urlIdentity, image.url, image.thumbUrlIdentity, image.thumbUrl, image.updatedAt]
   );
 

@@ -18,14 +18,14 @@ import {
  * Implements the "Lazy Parent Creation" pattern
  */
 export async function getOrCreateParentGeneration(
-  supabase: any,
+  supabase: unknown,
   orchestratorTaskId: string,
   projectId: string,
-  segmentParams?: any
-): Promise<any> {
+  segmentParams?: unknown
+): Promise<unknown> {
   try {
     // Check if orchestrator already specifies a parent_generation_id
-    let orchTask: { task_type?: string; params?: any } | null = null;
+    let orchTask: { task_type?: string; params?: unknown } | null = null;
     try {
       const { data } = await supabase
         .from('tasks')
@@ -34,6 +34,7 @@ export async function getOrCreateParentGeneration(
         .single();
       orchTask = data;
     } catch {
+      // Best-effort lookup: continue with segmentParams fallback if task fetch fails.
     }
 
     // Check for parent_generation_id in orchestrator params
@@ -110,18 +111,18 @@ export async function getOrCreateParentGeneration(
  * @param viewedAt - Optional: if provided, marks the variant as already viewed (for single-segment cases)
  */
 export async function createVariantOnParent(
-  supabase: any,
+  supabase: unknown,
   parentGenId: string,
   publicUrl: string,
   thumbnailUrl: string | null,
-  taskData: any,
+  taskData: unknown,
   taskId: string,
   variantType: string,
-  extraParams: Record<string, any> = {},
+  extraParams: Record<string, unknown> = {},
   variantName?: string | null,
   makePrimary: boolean = true,
   viewedAt?: string | null
-): Promise<any | null> {
+): Promise<unknown | null> {
 
   const { data: parentGen, error: fetchError } = await supabase
     .from('generations')
@@ -183,7 +184,7 @@ export async function createVariantOnParent(
  * @returns ISO timestamp string if single-segment, null otherwise
  */
 export async function getChildVariantViewedAt(
-  supabase: any,
+  supabase: unknown,
   options: {
     // Check 1: Explicit flag from orchestrator detection (fastest)
     taskParams?: { _isSingleSegmentCase?: boolean };
@@ -217,6 +218,7 @@ export async function getChildVariantViewedAt(
         return new Date().toISOString();
       }
     } catch (err) {
+      // Non-blocking: if sibling counting fails, treat as non-single-segment.
     }
   }
 

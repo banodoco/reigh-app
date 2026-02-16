@@ -70,7 +70,7 @@ export function useShotManagement({
       masterPrompt: noShotMasterPrompt || '',
       promptMode: promptMode || 'automated',
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- associatedShotId triggers recompute to pick up fresh localStorage
+   
   }, [associatedShotId, noShotMasterPrompt, promptMode]);
 
   // Shot-specific prompts using per-shot storage

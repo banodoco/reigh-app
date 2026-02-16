@@ -62,7 +62,7 @@ export const ensureUniqueFrame = (
   minGap: number = 1
 ): number => {
   // Normalize to integer
-  let frame = Math.max(0, Math.round(targetFrame));
+  const frame = Math.max(0, Math.round(targetFrame));
   
   // If no collision, return as-is
   if (!existingFrames.includes(frame)) {

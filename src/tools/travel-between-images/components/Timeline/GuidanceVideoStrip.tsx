@@ -297,7 +297,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
   // Close hover state when treatment changes
   useEffect(() => {
     hoverPreview.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hoverPreview.reset is stable (useCallback)
+     
   }, [treatment]);
 
   return (

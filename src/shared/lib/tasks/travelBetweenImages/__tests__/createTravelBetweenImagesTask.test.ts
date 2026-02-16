@@ -59,7 +59,7 @@ describe('createTravelBetweenImagesTask', () => {
     image_urls: ['https://img1.jpg', 'https://img2.jpg'],
     resolution: '1280x720',
     shot_id: 'shot-1',
-  } as any;
+  } as unknown;
 
   it('validates parameters', async () => {
     await createTravelBetweenImagesTask(baseParams);

@@ -9,7 +9,7 @@ class MockMediaRecorder {
   onstop: (() => void) | null = null;
   state = 'inactive';
 
-  constructor(public stream: any, public options: any) {}
+  constructor(public stream: unknown, public options: unknown) {}
 
   start() {
     this.state = 'recording';
@@ -36,9 +36,9 @@ vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
 });
 
 describe('extractVideoSegment', () => {
-  let mockVideo: any;
-  let mockCanvas: any;
-  let mockCtx: any;
+  let mockVideo: unknown;
+  let mockCanvas: unknown;
+  let mockCtx: unknown;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -138,7 +138,7 @@ describe('negotiateMimeType (via extractVideoSegment)', () => {
     const promise = extractVideoSegment('https://example.com/video.mp4', 0, 5, 'test');
 
     // Trigger the flow
-    const mockVideo = (document.createElement as any).mock?.results?.[0]?.value;
+    const mockVideo = (document.createElement as unknown).mock?.results?.[0]?.value;
     if (mockVideo?.onloadedmetadata) {
       mockVideo.onloadedmetadata();
     }

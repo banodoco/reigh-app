@@ -303,7 +303,9 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
               <button
                 onClick={() => {
                   const initialVariantId = getTaskVariantId(generationData, imageVariantId);
-                  onOpenImageLightbox && onOpenImageLightbox(task, generationData, initialVariantId);
+                  if (onOpenImageLightbox) {
+                    onOpenImageLightbox(task, generationData, initialVariantId);
+                  }
                 }}
                 className="w-8 h-8 rounded border border-zinc-500 overflow-hidden hover:border-zinc-400 transition-colors flex-shrink-0"
               >

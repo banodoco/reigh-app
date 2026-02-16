@@ -16,7 +16,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useMutation: vi.fn((options: any) => ({
+  useMutation: vi.fn((options: unknown) => ({
     mutate: vi.fn(),
     mutateAsync: vi.fn(),
     ...options,
@@ -63,12 +63,12 @@ describe('preloadGenerationTaskMappings', () => {
   });
 
   it('does nothing for empty generation IDs', async () => {
-    await preloadGenerationTaskMappings([], mockQueryClient as any);
+    await preloadGenerationTaskMappings([], mockQueryClient as unknown);
     expect(mockSupabase.from).not.toHaveBeenCalled();
   });
 
   it('fetches and caches task mappings', async () => {
-    await preloadGenerationTaskMappings(['gen-1', 'gen-2'], mockQueryClient as any);
+    await preloadGenerationTaskMappings(['gen-1', 'gen-2'], mockQueryClient as unknown);
 
     expect(mockQueryClient.setQueryData).toHaveBeenCalledTimes(2);
     expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
@@ -87,7 +87,7 @@ describe('preloadGenerationTaskMappings', () => {
       error: null,
     });
 
-    await preloadGenerationTaskMappings(['gen-1'], mockQueryClient as any);
+    await preloadGenerationTaskMappings(['gen-1'], mockQueryClient as unknown);
 
     expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
       ['tasks', 'generation-mapping', 'gen-1'],
@@ -103,14 +103,14 @@ describe('preloadGenerationTaskMappings', () => {
 
     // Should not throw
     await expect(
-      preloadGenerationTaskMappings(['gen-1'], mockQueryClient as any)
+      preloadGenerationTaskMappings(['gen-1'], mockQueryClient as unknown)
     ).resolves.not.toThrow();
   });
 
   it('batches requests according to batchSize', async () => {
     const ids = Array.from({ length: 12 }, (_, i) => `gen-${i}`);
 
-    await preloadGenerationTaskMappings(ids, mockQueryClient as any, {
+    await preloadGenerationTaskMappings(ids, mockQueryClient as unknown, {
       batchSize: 5,
       delayBetweenBatches: 0,
     });
@@ -137,8 +137,8 @@ describe('enhanceGenerationsWithTaskData', () => {
       return null;
     });
 
-    const generations = [{ id: 'gen-1' }] as any[];
-    const result = enhanceGenerationsWithTaskData(generations, mockQueryClient as any);
+    const generations = [{ id: 'gen-1' }] as unknown[];
+    const result = enhanceGenerationsWithTaskData(generations, mockQueryClient as unknown);
 
     expect(result[0].taskId).toBe('task-1');
   });
@@ -146,8 +146,8 @@ describe('enhanceGenerationsWithTaskData', () => {
   it('returns null taskId when not cached', () => {
     mockQueryClient.getQueryData.mockReturnValue(undefined);
 
-    const generations = [{ id: 'gen-1' }] as any[];
-    const result = enhanceGenerationsWithTaskData(generations, mockQueryClient as any);
+    const generations = [{ id: 'gen-1' }] as unknown[];
+    const result = enhanceGenerationsWithTaskData(generations, mockQueryClient as unknown);
 
     expect(result[0].taskId).toBeNull();
   });
@@ -155,8 +155,8 @@ describe('enhanceGenerationsWithTaskData', () => {
   it('preserves original generation data', () => {
     mockQueryClient.getQueryData.mockReturnValue(undefined);
 
-    const generations = [{ id: 'gen-1', type: 'video', location: '/path.mp4' }] as any[];
-    const result = enhanceGenerationsWithTaskData(generations, mockQueryClient as any);
+    const generations = [{ id: 'gen-1', type: 'video', location: '/path.mp4' }] as unknown[];
+    const result = enhanceGenerationsWithTaskData(generations, mockQueryClient as unknown);
 
     expect(result[0].id).toBe('gen-1');
     expect(result[0].type).toBe('video');

@@ -13,16 +13,16 @@ const Slot = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
     return React.cloneElement(children as React.ReactElement, {
       ...mergeProps(props, (children as React.ReactElement).props),
       ref: forwardedRef
-        ? composeRefs(forwardedRef, (children as any).ref)
-        : (children as any).ref,
+        ? composeRefs(forwardedRef, (children as unknown).ref)
+        : (children as unknown).ref,
     })
   }
 )
 Slot.displayName = "Slot"
 
 function mergeProps(
-  slotProps: Record<string, any>,
-  childProps: Record<string, any>
+  slotProps: Record<string, unknown>,
+  childProps: Record<string, unknown>
 ) {
   const overrideProps = { ...childProps }
 

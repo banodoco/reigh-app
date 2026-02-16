@@ -86,7 +86,6 @@ const CreateShotModal: React.FC<CreateShotModalProps> = ({
           
           processedFiles = await Promise.all(cropPromises);
         }
-      } else if (!cropToProjectSize && files.length > 0) {
       }
       
       // Update project aspect ratio if checkbox is checked (don't await - do in background)

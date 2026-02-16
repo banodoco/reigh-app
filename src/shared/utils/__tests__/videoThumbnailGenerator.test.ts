@@ -60,7 +60,7 @@ const mockCanvas = {
   }),
 };
 
-let mockVideo: any;
+let mockVideo: unknown;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -76,7 +76,7 @@ beforeEach(() => {
     currentTime: 0,
     src: '',
     remove: vi.fn(),
-    addEventListener: vi.fn((event: string, handler: any) => {
+    addEventListener: vi.fn((event: string, handler: unknown) => {
       if (event === 'loadedmetadata') mockVideo._onLoadedMetadata = handler;
       else if (event === 'seeked') mockVideo._onSeeked = handler;
       else if (event === 'error') mockVideo._onError = handler;
@@ -85,7 +85,7 @@ beforeEach(() => {
 
   vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
     if (tag === 'video') return mockVideo;
-    if (tag === 'canvas') return mockCanvas as any;
+    if (tag === 'canvas') return mockCanvas as unknown;
     return document.createElement(tag);
   });
 

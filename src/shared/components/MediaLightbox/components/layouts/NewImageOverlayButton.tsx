@@ -50,7 +50,9 @@ export const NewImageOverlayButton: React.FC<NewImageOverlayButtonProps> = ({
             variant="secondary"
             size="sm"
             onClick={() => {
-              variantId && onPromote(variantId);
+              if (variantId) {
+                onPromote(variantId);
+              }
             }}
             disabled={isDisabled}
             className={`text-white ${

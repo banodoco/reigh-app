@@ -83,7 +83,7 @@ describe('useHydratedReferences', () => {
     ];
 
     const { result } = renderHook(
-      () => useHydratedReferences(pointers as any),
+      () => useHydratedReferences(pointers as unknown),
       { wrapper: createWrapper() }
     );
 
@@ -107,7 +107,7 @@ describe('useHydratedReferences', () => {
     ];
 
     const { result } = renderHook(
-      () => useHydratedReferences(pointers as any),
+      () => useHydratedReferences(pointers as unknown),
       { wrapper: createWrapper() }
     );
 
@@ -126,7 +126,7 @@ describe('useHydratedReferences', () => {
     ];
 
     const { result } = renderHook(
-      () => useHydratedReferences(pointers as any),
+      () => useHydratedReferences(pointers as unknown),
       { wrapper: createWrapper() }
     );
 

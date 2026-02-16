@@ -326,7 +326,7 @@ export function useLegacyMigrations(props: UseLegacyMigrationsProps): void {
     if (!migrationCompleteRef.current && hasLegacyReferences) {
       migrateToResources();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Minimal deps: migration runs once per project, uses refs for other values
+   
   }, [selectedProjectId]);
 
   // ============================================================================

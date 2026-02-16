@@ -72593,5 +72593,189 @@
     "feedback_nudge": 3,
     "review_not_run": 1
   },
-  "scan_path": "src"
+  "scan_path": "src",
+  "review_cache": {
+    "files": {
+      "src/shared/components/ImageGenerationForm/ImageGenerationForm.tsx": {
+        "content_hash": "19c4e2f338a7fae0",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/ImageGenerationForm/hooks/useImageGenForm.ts": {
+        "content_hash": "be231f613cb7aed5",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/ImageGenerationForm/hooks/useReferenceSelection.ts": {
+        "content_hash": "59e151f220b7711f",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/JoinClipsSettingsForm/utils.ts": {
+        "content_hash": "97608b9f97761bd9",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/MediaGallery/utils/mediaGallery-constants.ts": {
+        "content_hash": "f6cfabe481d60f8f",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/MediaLightbox/MediaLightbox.tsx": {
+        "content_hash": "127abfd9ff1d71d5",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/MediaLightbox/contexts/VideoEditContext.tsx": {
+        "content_hash": "238d083ead0c7c37",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/MediaLightbox/hooks/editSettingsTypes.ts": {
+        "content_hash": "92ef20be269811ad",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/MediaLightbox/hooks/useVideoRegenerateMode.ts": {
+        "content_hash": "1129e4532fcdb5e4",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/ModalContainer.tsx": {
+        "content_hash": "03869abafc0f7dd8",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/VariantSelector/utils.ts": {
+        "content_hash": "5f2dbac33a625428",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/VariantSelector/variantSourceImages.ts": {
+        "content_hash": "783cce8775ef7821",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/components/segmentSettingsUtils.ts": {
+        "content_hash": "e3bae143fca23e50",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/constants/variantTypes.ts": {
+        "content_hash": "b561e9fe62c59c28",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/hooks/invalidation/useGenerationInvalidation.ts": {
+        "content_hash": "8b617fbc3eb744d3",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/hooks/invalidation/useSettingsInvalidation.ts": {
+        "content_hash": "6327db099e17eaf0",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/hooks/invalidation/useShotInvalidation.ts": {
+        "content_hash": "78fa5ab99ce0e3b0",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/hooks/invalidation/useTaskInvalidation.ts": {
+        "content_hash": "5b733c8256baf67c",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/hooks/useAsyncOperation.ts": {
+        "content_hash": "8ff90de0f4598711",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/hooks/useProjectVideoCountsCache.ts": {
+        "content_hash": "39fb689c51fb6533",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/shared/lib/utils.ts": {
+        "content_hash": "4bb817e035599419",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx": {
+        "content_hash": "fab8eaafc497a3b4",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/hooks/useApplySettingsHandler.ts": {
+        "content_hash": "09d3ea37a2268b79",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/hooks/useGenerateBatch.ts": {
+        "content_hash": "c9b6c67f84bd8d00",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/hooks/useJoinSegmentsSetup.ts": {
+        "content_hash": "d869ca33570dc3dd",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/hooks/useShotSettingsValue.ts": {
+        "content_hash": "16911455651bd533",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts": {
+        "content_hash": "f933f572ae954d91",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideoHandlers.ts": {
+        "content_hash": "d7772d1c632dd9fc",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/sections/TimelineSection.tsx": {
+        "content_hash": "90b1394d70da5bdc",
+        "reviewed_at": "2026-02-16T16:46:13+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx": {
+        "content_hash": "5f97ea1cc0f25a05",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts": {
+        "content_hash": "9039cd982a4c259a",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts": {
+        "content_hash": "1a10c3c40b44e932",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/ShotImagesEditor.tsx": {
+        "content_hash": "8913c9bb58600057",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/Timeline/TimelineMediaContext.tsx": {
+        "content_hash": "6cd86f93facf732d",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts": {
+        "content_hash": "e6ac2ba89ac46100",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      },
+      "src/tools/travel-between-images/components/VideoGenerationModal.tsx": {
+        "content_hash": "33184ab3e08105c8",
+        "reviewed_at": "2026-02-16T16:41:21+00:00",
+        "finding_count": 0
+      }
+    }
+  }
 }

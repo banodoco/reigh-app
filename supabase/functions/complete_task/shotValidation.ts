@@ -7,7 +7,7 @@
 
 interface ShotValidationResult {
   needsUpdate: boolean;
-  updatedParams: Record<string, any>;
+  updatedParams: Record<string, unknown>;
 }
 
 // ===== SHOT VALIDATION =====
@@ -15,7 +15,7 @@ interface ShotValidationResult {
 /**
  * Extract shot_id from task params based on tool_type
  */
-function extractShotIdByToolType(params: any, toolType: string | null): any {
+function extractShotIdByToolType(params: unknown, toolType: string | null): unknown {
   if (toolType === 'travel-between-images') {
     // For travel-between-images tasks, try multiple possible locations
     return params?.originalParams?.orchestrator_details?.shot_id ||
@@ -34,7 +34,7 @@ function extractShotIdByToolType(params: any, toolType: string | null): any {
  * Remove invalid shot_id from params based on tool_type
  * @returns Updated params with shot_id removed from appropriate locations
  */
-function removeShotIdByToolType(params: Record<string, any>, toolType: string | null): Record<string, any> {
+function removeShotIdByToolType(params: Record<string, unknown>, toolType: string | null): Record<string, unknown> {
   const updatedParams = JSON.parse(JSON.stringify(params)); // Deep clone
 
   if (toolType === 'travel-between-images') {
@@ -65,7 +65,7 @@ function removeShotIdByToolType(params: Record<string, any>, toolType: string | 
  * Convert shot_id from various formats to string
  * Handles JSONB objects that may wrap the UUID
  */
-function normalizeToString(value: any): string {
+function normalizeToString(value: unknown): string {
   if (typeof value === 'string') {
     return value;
   } else if (typeof value === 'object' && value !== null) {
@@ -93,8 +93,8 @@ function isValidUuid(str: string): boolean {
  * @returns Updated params if changes needed, or original params if valid
  */
 export async function validateAndCleanupShotId(
-  supabase: any,
-  params: Record<string, any>,
+  supabase: unknown,
+  params: Record<string, unknown>,
   toolType: string | null
 ): Promise<ShotValidationResult> {
   // Extract shot_id based on tool_type

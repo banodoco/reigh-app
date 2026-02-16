@@ -22,7 +22,7 @@ interface StorageResult {
  * Returns the public URLs for the main file and thumbnail
  */
 export async function handleStorageOperations(
-  supabase: any,
+  supabase: unknown,
   parsedRequest: ParsedRequest,
   userId: string,
   isServiceRole: boolean
@@ -50,7 +50,7 @@ export async function handleStorageOperations(
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(MEDIA_BUCKET)
-      .upload(objectPath, parsedRequest.fileData as any, {
+      .upload(objectPath, parsedRequest.fileData as unknown, {
         contentType: effectiveContentType,
         upsert: true
       });
@@ -81,7 +81,7 @@ export async function handleStorageOperations(
  * Handle thumbnail upload or generation
  */
 async function handleThumbnail(
-  supabase: any,
+  supabase: unknown,
   parsedRequest: ParsedRequest,
   userId: string,
   taskId: string,
@@ -94,7 +94,7 @@ async function handleThumbnail(
       const thumbnailPath = storagePaths.taskThumbnail(userId, taskId, parsedRequest.thumbnailFilename);
       const { error: thumbnailUploadError } = await supabase.storage
         .from(MEDIA_BUCKET)
-        .upload(thumbnailPath, parsedRequest.thumbnailData as any, {
+        .upload(thumbnailPath, parsedRequest.thumbnailData as unknown, {
           contentType: parsedRequest.thumbnailContentType || getContentType(parsedRequest.thumbnailFilename),
           upsert: true
         });
@@ -131,7 +131,7 @@ async function handleThumbnail(
  * @see https://supabase.com/docs/guides/storage/serving/image-transformations
  */
 function generateThumbnail(
-  supabase: any,
+  supabase: unknown,
   _sourceBytes: Uint8Array,
   _userId: string,
   _taskId: string,
@@ -154,6 +154,7 @@ function generateThumbnail(
         return data.publicUrl;
       }
     } catch (err) {
+      // Transform URL generation is best-effort; fall back to the main image URL below.
     }
   }
 
@@ -166,7 +167,7 @@ function generateThumbnail(
  * Verify that a file exists in storage (for MODE 4)
  */
 export async function verifyFileExists(
-  supabase: any,
+  supabase: unknown,
   storagePath: string
 ): Promise<{ exists: boolean; publicUrl?: string }> {
   try {
@@ -185,7 +186,7 @@ export async function verifyFileExists(
  * Clean up uploaded file (e.g., on DB error)
  */
 export async function cleanupFile(
-  supabase: any,
+  supabase: unknown,
   objectPath: string
 ): Promise<void> {
   try {
@@ -194,4 +195,3 @@ export async function cleanupFile(
     console.error(`[Storage] Failed to cleanup file:`, error);
   }
 }
-

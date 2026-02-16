@@ -47,7 +47,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: 'v1',
       variants,
       fallbackUrl: 'https://example.com/fallback.png',
-      media: media as any,
+      media: media as unknown,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -68,7 +68,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: 'nonexistent',
       variants: [],
       fallbackUrl: 'https://example.com/fallback.png',
-      media: media as any,
+      media: media as unknown,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -89,7 +89,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [makeVariant('v1', 'https://example.com/variant.png')],
       fallbackUrl: 'https://example.com/fallback.png',
-      media: media as any,
+      media: media as unknown,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -110,7 +110,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: '',
-      media: media as any,
+      media: media as unknown,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -126,7 +126,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: 'https://example.com/img.png',
-      media: media as any,
+      media: media as unknown,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -144,7 +144,7 @@ describe('handleLightboxDownload', () => {
         intendedVariantId: null,
         variants: [],
         fallbackUrl: 'https://example.com/img.png',
-        media: media as any,
+        media: media as unknown,
         isVideo: false,
         setIsDownloading: mockSetIsDownloading,
       })
@@ -163,7 +163,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: 'https://example.com/img.png',
-      media: media as any,
+      media: media as unknown,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -184,7 +184,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: 'https://example.com/video.mp4',
-      media: media as any,
+      media: media as unknown,
       isVideo: true,
       setIsDownloading: mockSetIsDownloading,
     });

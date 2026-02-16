@@ -238,7 +238,7 @@ describe('generateTaskId', () => {
 
 describe('processBatchResults', () => {
   it('returns fulfilled results', () => {
-    const results: PromiseSettledResult<any>[] = [
+    const results: PromiseSettledResult<unknown>[] = [
       { status: 'fulfilled', value: { task_id: 't1', status: 'pending' } },
       { status: 'fulfilled', value: { task_id: 't2', status: 'pending' } },
     ];
@@ -250,7 +250,7 @@ describe('processBatchResults', () => {
   });
 
   it('throws when all fail', () => {
-    const results: PromiseSettledResult<any>[] = [
+    const results: PromiseSettledResult<unknown>[] = [
       { status: 'rejected', reason: new Error('fail 1') },
       { status: 'rejected', reason: new Error('fail 2') },
     ];
@@ -258,7 +258,7 @@ describe('processBatchResults', () => {
   });
 
   it('returns only fulfilled when some fail', () => {
-    const results: PromiseSettledResult<any>[] = [
+    const results: PromiseSettledResult<unknown>[] = [
       { status: 'fulfilled', value: { task_id: 't1', status: 'pending' } },
       { status: 'rejected', reason: new Error('fail') },
     ];

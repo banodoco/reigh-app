@@ -122,7 +122,7 @@ describe('useCreateShotWithImage', () => {
   it('returns shot data on success', async () => {
     const { result } = renderHookWithProviders(() => useCreateShotWithImage());
 
-    let mutateResult: any;
+    let mutateResult: unknown;
     await act(async () => {
       mutateResult = await result.current.mutateAsync({
         projectId: 'proj-1',
@@ -173,7 +173,7 @@ describe('useHandleExternalImageDrop', () => {
       useHandleExternalImageDrop()
     );
 
-    let mutateResult: any;
+    let mutateResult: unknown;
     await act(async () => {
       mutateResult = await result.current.mutateAsync({
         imageFiles: [new File(['data'], 'test.jpg', { type: 'image/jpeg' })],

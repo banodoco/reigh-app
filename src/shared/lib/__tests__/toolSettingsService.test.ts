@@ -147,7 +147,7 @@ describe('toolSettingsService', () => {
       await fetchToolSettingsSupabase('test-tool', {});
 
       // from() should be called for 'users' but not 'projects' or 'shots'
-      const fromCalls = mockFrom.mock.calls.map((c: any) => c[0]);
+      const fromCalls = mockFrom.mock.calls.map((c: unknown) => c[0]);
       expect(fromCalls).toContain('users');
       // We can't easily verify projects wasn't called since the mock pattern
       // is shared, but the code uses Promise.resolve for missing context

@@ -9,12 +9,12 @@ import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travel
 
 export interface TimelineMediaContextValue {
   // Structure video — legacy single-video
-  structureVideoPath?: string | null;
-  structureVideoMetadata?: VideoMetadata | null;
-  structureVideoTreatment?: 'adjust' | 'clip';
-  structureVideoMotionStrength?: number;
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
-  onStructureVideoChange?: (
+  primaryStructureVideoPath?: string | null;
+  primaryStructureVideoMetadata?: VideoMetadata | null;
+  primaryStructureVideoTreatment?: 'adjust' | 'clip';
+  primaryStructureVideoMotionStrength?: number;
+  primaryStructureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
+  onPrimaryStructureVideoInputChange?: (
     videoPath: string | null,
     metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',

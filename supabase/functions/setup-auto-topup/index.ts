@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function jsonResponse(body: any, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -51,7 +51,7 @@ serve(async (req) => {
   }
 
   // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
@@ -102,7 +102,7 @@ serve(async (req) => {
 
   try {
     // ─── 3. Update user auto-top-up preferences ─────────────────────
-    const updateData: any = {
+    const updateData: unknown = {
       auto_topup_enabled: autoTopupEnabled,
     };
 

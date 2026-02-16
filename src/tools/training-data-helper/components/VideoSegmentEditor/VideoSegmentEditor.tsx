@@ -181,7 +181,11 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
         case ' ': e.preventDefault(); e.stopPropagation(); playback.togglePlayPause(); break;
         case 's': case 'S': case '5':
           e.preventDefault(); e.stopPropagation();
-          segmentStartTime === null ? handleStartSegment() : handleEndSegment();
+          if (segmentStartTime === null) {
+            handleStartSegment();
+          } else {
+            handleEndSegment();
+          }
           break;
         case 'Enter':
           e.preventDefault(); e.stopPropagation();

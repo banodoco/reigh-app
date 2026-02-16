@@ -151,8 +151,8 @@ describe('writeSegmentOverrides', () => {
       { segmentOverrides: { prompt: 'old', numFrames: 61 } },
       { prompt: 'new' },
     );
-    expect((result.segmentOverrides as any).prompt).toBe('new');
-    expect((result.segmentOverrides as any).numFrames).toBe(61); // preserved
+    expect((result.segmentOverrides as unknown).prompt).toBe('new');
+    expect((result.segmentOverrides as unknown).numFrames).toBe(61); // preserved
   });
 
   it('preserves other metadata fields', () => {
@@ -181,7 +181,7 @@ describe('writeSegmentOverrides', () => {
       loras: [],
     };
     const result = writeSegmentOverrides(null, overrides);
-    const so = result.segmentOverrides as any;
+    const so = result.segmentOverrides as unknown;
     expect(so.prompt).toBe('p');
     expect(so.negativePrompt).toBe('np');
     expect(so.motionMode).toBe('basic');

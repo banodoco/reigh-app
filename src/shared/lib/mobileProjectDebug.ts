@@ -17,6 +17,7 @@
  */
 
 import { handleError } from '@/shared/lib/errorHandler';
+import { getNetworkStatusManager } from '@/shared/lib/NetworkStatusManager';
 
 // All window globals are typed centrally in src/types/browser-extensions.d.ts
 
@@ -42,7 +43,6 @@ window.checkProjectState = () => {
   
   // Use centralized NetworkStatusManager if available
   try {
-    const { getNetworkStatusManager } = require('@/shared/lib/NetworkStatusManager');
     const manager = getNetworkStatusManager();
     const status = manager.getStatus();
     console.log('- Network Status (NetworkStatusManager):', status.isOnline ? 'Online' : 'Offline');

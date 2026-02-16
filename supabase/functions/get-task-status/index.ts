@@ -4,8 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge function: get-task-status
@@ -37,7 +36,7 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  let requestBody: any = {};
+  let requestBody: unknown = {};
   try {
     const bodyText = await req.text();
     if (bodyText) {
@@ -72,7 +71,7 @@ serve(async (req) => {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Internal server error', { task_id: taskId, error: error?.message });
     await logger.flush();
     return new Response(`Internal server error: ${error?.message}`, { status: 500 });

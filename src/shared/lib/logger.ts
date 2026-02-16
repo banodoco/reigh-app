@@ -1,3 +1,5 @@
+import { debugConfig } from './debugConfig';
+
 // Lightweight logging helper that can be enabled/disabled via Vite env
 // Usage:
 //   import { log, time, timeEnd } from '@/shared/lib/logger';
@@ -184,27 +186,17 @@ if (typeof window !== 'undefined') {
 
 export function log(tag: string, ...args: unknown[]): void {
   if (!shouldLog()) return;
-  // eslint-disable-next-line no-console
+   
   addToBuffer('INFO', tag, args);
 }
 
 
 // Dedicated onRender callback for React Profiler so callers don't need to re-implement it.
 export function reactProfilerOnRender(...rawArgs: unknown[]): void {
-  // Import debugConfig dynamically to avoid circular dependencies
-  try {
-    const { debugConfig } = require('./debugConfig');
-    if (!debugConfig.isEnabled('reactProfiler')) {
-      return; // Skip logging if ReactProfiler debugging is disabled
-    }
-  } catch {
-    // Fallback to environment variable if debugConfig is not available
-    const flag = getEnvFlag('VITE_DEBUG_REACT_PROFILER');
-    if (flag !== 'true' && flag !== '1') {
-      return;
-    }
+  if (!debugConfig.isEnabled('reactProfiler')) {
+    return; // Skip logging if ReactProfiler debugging is disabled
   }
-  
+
   const [id, phase, actualDuration, baseDuration, startTime, commitTime, interactions] = rawArgs;
   log('ReactProfiler', {
     id,

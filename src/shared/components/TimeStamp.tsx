@@ -50,9 +50,6 @@ export const TimeStamp: React.FC<TimeStampProps> = ({
   
   // Debug logging for timestamp updates (development only)
   
-  // Early return AFTER all hooks are called
-  if (!date) return null;
-
   const positionClasses = {
     'top-left': 'top-1.5 left-1.5',
     'top-right': 'top-1.5 right-1.5',
@@ -71,6 +68,10 @@ export const TimeStamp: React.FC<TimeStampProps> = ({
 
   // Format time with live updates - triggers recalculation when updateTrigger changes
   const formattedTime = React.useMemo(() => {
+    if (!date) {
+      return null;
+    }
+
     if (isMobile && showOnHover && !isHovered) {
       return null; // Skip formatting until hovered
     }
@@ -84,7 +85,10 @@ export const TimeStamp: React.FC<TimeStampProps> = ({
       .replace(" hour", " hr")
       .replace(" seconds", " secs")
       .replace(" second", " sec");
-  }, [date.getTime(), isMobile, showOnHover, isHovered, updateTrigger]);
+  }, [date?.getTime(), isMobile, showOnHover, isHovered, updateTrigger]);
+
+  // Early return AFTER all hooks are called
+  if (!date) return null;
 
   // On mobile, don't render until we have the formatted time or it's always shown
   if (isMobile && showOnHover && formattedTime === null) {

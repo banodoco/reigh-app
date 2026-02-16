@@ -95,18 +95,6 @@ export function usePersistentToolState<T extends Record<string, unknown>>(
   options: UsePersistentToolStateOptions = {}
 ): UsePersistentToolStateResult {
   const { debounceMs = 500, scope = 'project', enabled = true, defaults: explicitDefaults } = options;
-  
-  // Fast-path: if persistence is disabled, provide a noop implementation so the UI can render immediately.
-  if (!enabled) {
-    const noop = () => {};
-    return {
-      ready: true,
-      isSaving: false,
-      saveError: undefined,
-      hasUserInteracted: false,
-      markAsInteracted: noop,
-    } as UsePersistentToolStateResult;
-  }
 
   // Obtain current settings and mutation helpers
   const {
@@ -145,6 +133,10 @@ export function usePersistentToolState<T extends Record<string, unknown>>(
 
   // Hydrate local state from persisted settings
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     if (!isLoadingSettings && !hasHydratedRef.current && entityKey) {
       // Use an empty object if settings could not be fetched (e.g. first time or API failure)
       const effectiveSettings: Partial<T> = (settings as Partial<T>) || {};
@@ -198,13 +190,18 @@ export function usePersistentToolState<T extends Record<string, unknown>>(
 
   // Function to mark that user has interacted
   const markAsInteracted = useCallback(() => {
+    if (!enabled) {
+      return;
+    }
     userHasInteractedRef.current = true;
     setHasUserInteracted(true);
-  }, []);
+  }, [enabled]);
+
+  const noopMarkAsInteracted = useCallback(() => {}, []);
 
   // Save settings with debouncing and deep comparison
   useEffect(() => {
-    if (!entityKey || !settings || !hasHydratedRef.current || !userHasInteractedRef.current) {
+    if (!enabled || !entityKey || !settings || !hasHydratedRef.current || !userHasInteractedRef.current) {
       return;
     }
 
@@ -256,10 +253,10 @@ export function usePersistentToolState<T extends Record<string, unknown>>(
   ]);
 
   return {
-    ready,
-    isSaving: isUpdating,
-    saveError,
-    hasUserInteracted,
-    markAsInteracted
+    ready: enabled ? ready : true,
+    isSaving: enabled ? isUpdating : false,
+    saveError: enabled ? saveError : undefined,
+    hasUserInteracted: enabled ? hasUserInteracted : false,
+    markAsInteracted: enabled ? markAsInteracted : noopMarkAsInteracted,
   };
-} 
+}

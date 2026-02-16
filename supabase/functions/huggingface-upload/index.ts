@@ -1,13 +1,12 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-// @ts-ignore - HuggingFace Hub types
+// @ts-expect-error - HuggingFace Hub package typings are not fully compatible in edge runtime context
 import { whoAmI, createRepo, uploadFile } from "https://esm.sh/@huggingface/hub@0.18.2";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -277,7 +276,7 @@ serve(async (req) => {
         credentials: { accessToken: hfToken },
       });
       logger.info('Repository created', { repoId });
-    } catch (repoError: any) {
+    } catch (repoError: unknown) {
       if (!repoError.message?.toLowerCase().includes("already exists")) {
         logger.error('Repo creation error', { error: repoError.message });
         throw repoError;
@@ -369,7 +368,7 @@ serve(async (req) => {
 
         uploadedVideoPaths.push(targetPath);
         logger.info('Video uploaded', { targetPath });
-      } catch (videoUploadError: any) {
+      } catch (videoUploadError: unknown) {
         logger.error('Video upload error', { error: videoUploadError.message });
         // Continue with other videos
       }
@@ -423,7 +422,7 @@ serve(async (req) => {
       videoUrls,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Unexpected error', { error: error.message });
     await logger.flush();
     return createResponse({

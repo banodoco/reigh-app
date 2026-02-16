@@ -75,12 +75,12 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
 }) => {
   // Structure video + audio props from context (provided by ShotImagesEditor)
   const {
-    structureVideoPath,
-    structureVideoMetadata,
-    structureVideoTreatment = 'adjust',
-    structureVideoMotionStrength = 1.0,
-    structureVideoType = 'flow',
-    onStructureVideoChange,
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment = 'adjust',
+    primaryStructureVideoMotionStrength = 1.0,
+    primaryStructureVideoType = 'flow',
+    onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
     cachedHasStructureVideo,
@@ -196,12 +196,12 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     isUploadingImage,
     maxFrameLimit,
     structureVideos,
-    structureVideoType,
-    structureVideoTreatment,
-    structureVideoMotionStrength,
+    primaryStructureVideoType,
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
     onAddStructureVideo,
     onUpdateStructureVideo,
-    onStructureVideoChange,
+    onPrimaryStructureVideoInputChange,
     hasExistingTrailingVideo,
   });
 
@@ -274,7 +274,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     <div className="w-full overflow-x-hidden relative">
       <div className="relative">
         {/* Top controls overlay */}
-        {shotId && (projectId || readOnly) && onStructureVideoChange && (structureVideoPath || !readOnly) && (
+        {shotId && (projectId || readOnly) && onPrimaryStructureVideoInputChange && (primaryStructureVideoPath || !readOnly) && (
           <div
             className="absolute left-0 z-30 flex items-end justify-between pointer-events-none px-8"
             style={{ width: "100%", maxWidth: "100vw", top: zoomLevel > 1 ? '0.98875rem' : '1rem' }}
@@ -292,20 +292,20 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               <AddAudioButton projectId={projectId} shotId={shotId} onAudioChange={onAudioChange} />
             )}
 
-            {(structureVideos ? true : !structureVideoPath) && (
+            {(structureVideos ? true : !primaryStructureVideoPath) && (
               <GuidanceVideoControls
                 shotId={shotId}
                 projectId={projectId}
                 readOnly={readOnly}
                 hasNoImages={hasNoImages}
-                structureVideoType={structureVideoType}
-                structureVideoTreatment={structureVideoTreatment}
-                structureVideoMotionStrength={structureVideoMotionStrength}
+                primaryStructureVideoType={primaryStructureVideoType}
+                primaryStructureVideoTreatment={primaryStructureVideoTreatment}
+                primaryStructureVideoMotionStrength={primaryStructureVideoMotionStrength}
                 structureVideos={structureVideos}
                 fullMax={fullMax}
                 onAddStructureVideo={onAddStructureVideo}
                 onUpdateStructureVideo={onUpdateStructureVideo}
-                onStructureVideoChange={onStructureVideoChange}
+                onPrimaryStructureVideoInputChange={onPrimaryStructureVideoInputChange}
                 onShowVideoBrowser={() => setShowVideoBrowser(true)}
                 isUploadingStructureVideo={isUploadingStructureVideo}
                 setIsUploadingStructureVideo={setIsUploadingStructureVideo}
@@ -397,15 +397,15 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 timelineFrameCount={images.length}
                 readOnly={readOnly}
               />
-            ) : onStructureVideoChange && (
-              structureVideoPath ? (
+            ) : onPrimaryStructureVideoInputChange && (
+              primaryStructureVideoPath ? (
                 <GuidanceVideoStrip
-                  videoUrl={structureVideoPath}
-                  videoMetadata={structureVideoMetadata || null}
-                  treatment={structureVideoTreatment}
-                  onTreatmentChange={(treatment) => onStructureVideoChange(structureVideoPath, structureVideoMetadata, treatment, structureVideoMotionStrength, structureVideoType)}
-                  onRemove={() => onStructureVideoChange(null, null, 'adjust', 1.0, 'flow')}
-                  onMetadataExtracted={(metadata) => onStructureVideoChange(structureVideoPath, metadata, structureVideoTreatment, structureVideoMotionStrength, structureVideoType)}
+                  videoUrl={primaryStructureVideoPath}
+                  videoMetadata={primaryStructureVideoMetadata || null}
+                  treatment={primaryStructureVideoTreatment}
+                  onTreatmentChange={(treatment) => onPrimaryStructureVideoInputChange(primaryStructureVideoPath, primaryStructureVideoMetadata, treatment, primaryStructureVideoMotionStrength, primaryStructureVideoType)}
+                  onRemove={() => onPrimaryStructureVideoInputChange(null, null, 'adjust', 1.0, 'flow')}
+                  onMetadataExtracted={(metadata) => onPrimaryStructureVideoInputChange(primaryStructureVideoPath, metadata, primaryStructureVideoTreatment, primaryStructureVideoMotionStrength, primaryStructureVideoType)}
                   fullMin={fullMin}
                   fullMax={fullMax}
                   fullRange={fullRange}
@@ -425,9 +425,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                   shotId={shotId}
                   projectId={projectId}
                   onVideoUploaded={(videoUrl, metadata) => {
-                    if (videoUrl && metadata) onStructureVideoChange(videoUrl, metadata, structureVideoTreatment, structureVideoMotionStrength, structureVideoType);
+                    if (videoUrl && metadata) onPrimaryStructureVideoInputChange(videoUrl, metadata, primaryStructureVideoTreatment, primaryStructureVideoMotionStrength, primaryStructureVideoType);
                   }}
-                  currentVideoUrl={structureVideoPath}
+                  currentVideoUrl={primaryStructureVideoPath}
                   compact={false}
                   zoomLevel={zoomLevel}
                   onZoomIn={handleZoomInToCenter}
@@ -453,7 +453,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 containerWidth={containerWidth}
                 zoomLevel={zoomLevel}
                 readOnly={readOnly}
-                compact={!!structureVideoPath}
+                compact={!!primaryStructureVideoPath}
               />
             </div>
           )}

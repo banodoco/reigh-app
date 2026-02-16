@@ -142,8 +142,7 @@ export function useLastUsedEditSettings({
       try {
         localStorage.setItem(STORAGE_KEY_PROJECT(projectId), JSON.stringify(merged));
         localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(merged));
-      } catch (e) {
-      }
+      } catch (e) { /* intentionally ignored */ }
     }
   }, [isDbLoading, dbSettings, projectId]);
 
@@ -167,8 +166,7 @@ export function useLastUsedEditSettings({
         localStorage.setItem(STORAGE_KEY_PROJECT(projectId), JSON.stringify(merged));
       }
       localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(merged));
-    } catch (e) {
-    }
+    } catch (e) { /* intentionally ignored */ }
 
     // 2. Update database (cross-device sync)
     // Save at user level only - "last used" is a personal preference, not project-specific

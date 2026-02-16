@@ -21,12 +21,12 @@ vi.mock('@/shared/lib/errorHandler', () => ({
 }));
 
 vi.mock('../timelineFrameCalculators', () => ({
-  findGeneration: vi.fn((gens: any[], id: string) =>
-    gens.find((sg: any) => sg.generation_id === id || sg.id === id) || null
+  findGeneration: vi.fn((gens: unknown[], id: string) =>
+    gens.find((sg: unknown) => sg.generation_id === id || sg.id === id) || null
   ),
   calculateDistributedFrames: vi.fn(() => []),
-  deduplicateUpdates: vi.fn((_updates: any) => new Map()),
-  buildAndNormalizeFinalPositions: vi.fn((_updates: any) => new Map()),
+  deduplicateUpdates: vi.fn((_updates: unknown) => new Map()),
+  buildAndNormalizeFinalPositions: vi.fn((_updates: unknown) => new Map()),
 }));
 
 import { useTimelineFrameUpdates } from '../useTimelineFrameUpdates';
@@ -48,7 +48,7 @@ describe('useTimelineFrameUpdates', () => {
       useTimelineFrameUpdates({
         shotId: 'shot-1',
         projectId: 'proj-1',
-        shotGenerations: mockShotGenerations as any,
+        shotGenerations: mockShotGenerations as unknown,
         syncShotData: mockSyncShotData,
       })
     );
@@ -63,7 +63,7 @@ describe('useTimelineFrameUpdates', () => {
       useTimelineFrameUpdates({
         shotId: null,
         projectId: 'proj-1',
-        shotGenerations: mockShotGenerations as any,
+        shotGenerations: mockShotGenerations as unknown,
         syncShotData: mockSyncShotData,
       })
     );
@@ -80,7 +80,7 @@ describe('useTimelineFrameUpdates', () => {
       useTimelineFrameUpdates({
         shotId: 'shot-1',
         projectId: 'proj-1',
-        shotGenerations: mockShotGenerations as any,
+        shotGenerations: mockShotGenerations as unknown,
         syncShotData: mockSyncShotData,
       })
     );
@@ -98,7 +98,7 @@ describe('useTimelineFrameUpdates', () => {
       useTimelineFrameUpdates({
         shotId: 'shot-1',
         projectId: 'proj-1',
-        shotGenerations: mockShotGenerations as any,
+        shotGenerations: mockShotGenerations as unknown,
         syncShotData: mockSyncShotData,
       })
     );
@@ -115,7 +115,7 @@ describe('useTimelineFrameUpdates', () => {
       useTimelineFrameUpdates({
         shotId: null,
         projectId: 'proj-1',
-        shotGenerations: mockShotGenerations as any,
+        shotGenerations: mockShotGenerations as unknown,
         syncShotData: mockSyncShotData,
       })
     );

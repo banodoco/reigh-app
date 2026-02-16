@@ -19,7 +19,7 @@ class MockImage {
   }
 }
 
-// @ts-ignore
+// @ts-expect-error Test overrides global Image constructor with a mock implementation.
 globalThis.Image = MockImage;
 
 describe('PreloadQueue', () => {

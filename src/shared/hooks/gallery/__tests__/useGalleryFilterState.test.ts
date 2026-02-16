@@ -316,7 +316,7 @@ describe('useGalleryFilterState', () => {
 
     it('caps expected count at 60', async () => {
       const { useShots } = await import('@/shared/contexts/ShotsContext');
-      (useShots as any).mockReturnValue({
+      (useShots as unknown).mockReturnValue({
         shots: [],
         allImagesCount: 200,
         noShotImagesCount: 150,

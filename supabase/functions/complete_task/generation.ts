@@ -36,13 +36,13 @@ import { TASK_TYPES } from './constants.ts';
  * Child order: child_order OR segment_index OR join_index
  */
 export async function createGenerationFromTask(
-  supabase: any,
+  supabase: unknown,
   taskId: string,
-  taskData: any,
+  taskData: unknown,
   publicUrl: string,
   thumbnailUrl: string | null | undefined,
-  logger?: any
-): Promise<any> {
+  logger?: unknown
+): Promise<unknown> {
   const params = taskData.params || {};
 
   // Skip orchestration tasks (they coordinate, don't produce output)
@@ -107,7 +107,7 @@ export async function createGenerationFromTask(
       isSingleItem,
     };
 
-    let result: any = null;
+    let result: unknown = null;
 
     // 3. VARIANT ON CHILD: child_generation_id present → update existing child
     if (childGenerationId) {
@@ -147,14 +147,14 @@ export async function createGenerationFromTask(
  * Handle regeneration case - task already has a generation, create new variant
  */
 async function handleRegeneration(
-  supabase: any,
+  supabase: unknown,
   taskId: string,
-  taskData: any,
-  existingGeneration: any,
+  taskData: unknown,
+  existingGeneration: unknown,
   publicUrl: string,
   thumbnailUrl: string | null | undefined,
-  logger?: any
-): Promise<any> {
+  logger?: unknown
+): Promise<unknown> {
   logger?.info("Existing generation found - creating regenerated variant", {
     task_id: taskId,
     existing_generation_id: existingGeneration.id,

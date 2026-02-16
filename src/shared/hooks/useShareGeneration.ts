@@ -289,8 +289,7 @@ export function useShareGeneration(
             };
 
           }
-        } catch (shotFetchError) {
-        }
+        } catch (shotFetchError) { /* intentionally ignored */ }
       }
 
       // Augment task data with cached_shot_data field

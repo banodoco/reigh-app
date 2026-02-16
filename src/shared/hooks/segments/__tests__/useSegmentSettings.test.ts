@@ -141,7 +141,7 @@ describe('useSegmentSettings', () => {
 
   it('builds shot defaults from shot video settings', async () => {
     const { useShotVideoSettings } = await import('../useShotVideoSettings');
-    (useShotVideoSettings as any).mockReturnValue({
+    (useShotVideoSettings as unknown).mockReturnValue({
       data: {
         prompt: 'shot prompt',
         negativePrompt: 'shot neg',
@@ -203,7 +203,7 @@ describe('useSegmentSettings', () => {
 
   it('exposes enhanced prompt from pair metadata', async () => {
     const { usePairMetadata } = await import('../usePairMetadata');
-    (usePairMetadata as any).mockReturnValue({
+    (usePairMetadata as unknown).mockReturnValue({
       data: {
         enhanced_prompt: '  enhanced text  ',
         base_prompt_for_enhancement: 'base text',
@@ -230,7 +230,7 @@ describe('useSegmentSettings', () => {
 
   it('returns undefined enhancedPrompt when not present', async () => {
     const { usePairMetadata } = await import('../usePairMetadata');
-    (usePairMetadata as any).mockReturnValue({
+    (usePairMetadata as unknown).mockReturnValue({
       data: {},
       isLoading: false,
     });
@@ -251,7 +251,7 @@ describe('useSegmentSettings', () => {
 
   it('converts shot settings to legacy ShotBatchSettings', async () => {
     const { useShotVideoSettings } = await import('../useShotVideoSettings');
-    (useShotVideoSettings as any).mockReturnValue({
+    (useShotVideoSettings as unknown).mockReturnValue({
       data: {
         prompt: 'test',
         negativePrompt: 'neg',
@@ -282,7 +282,7 @@ describe('useSegmentSettings', () => {
 
   it('returns null shotBatchSettings when no shot settings', async () => {
     const { useShotVideoSettings } = await import('../useShotVideoSettings');
-    (useShotVideoSettings as any).mockReturnValue({
+    (useShotVideoSettings as unknown).mockReturnValue({
       data: null,
       isLoading: false,
     });

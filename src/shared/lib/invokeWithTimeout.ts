@@ -29,7 +29,7 @@ export async function invokeWithTimeout<T = unknown>(functionName: string, optio
   });
 
   const tid = setTimeout(() => {
-    try { controller.abort(); } catch {}
+    try { controller.abort(); } catch { /* intentionally ignored */ }
   }, timeoutMs);
 
   try {

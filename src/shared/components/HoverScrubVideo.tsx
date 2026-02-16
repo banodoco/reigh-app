@@ -173,8 +173,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     if (videoRef.current && preloadProp === 'none' && videoRef.current.readyState < 2) {
       try {
         videoRef.current.load();
-      } catch {
-      }
+      } catch { /* intentionally ignored */ }
     }
 
     // Delegate to the hook's handler for actual scrubbing
@@ -199,8 +198,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     if (videoRef.current && videoRef.current.readyState === 0) {
       try {
         videoRef.current.load();
-      } catch {
-      }
+      } catch { /* intentionally ignored */ }
     }
 
     // Delegate to the hook's handler
@@ -250,7 +248,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     // IMPORTANT: Skip this if we already have a poster to avoid "weird reset" flashes
     if (!disableScrubbing && videoRef.current.currentTime === 0 && !poster) {
       videoRef.current.currentTime = 0.001;
-    } else if (disableScrubbing || poster) {
     }
   }, [isMobile, disableScrubbing, thumbnailMode, poster, scrubbing.videoProps]);
 

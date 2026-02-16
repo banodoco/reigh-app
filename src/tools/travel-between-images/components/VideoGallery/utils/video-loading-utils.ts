@@ -13,7 +13,7 @@ export const determineVideoPhase = (
   let phase = 'INITIAL';
   let readyToShow = false;
   
-  if (hasThumbnail && thumbnailLoaded && !videoPosterLoaded) {
+  if (hasThumbnail && thumbnailLoaded && !videoPosterLoaded && !shouldLoad) {
     phase = 'THUMBNAIL_READY';
     readyToShow = true;
   } else if (!hasThumbnail && !shouldLoad) {

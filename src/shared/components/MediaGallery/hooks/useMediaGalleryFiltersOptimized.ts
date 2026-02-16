@@ -88,7 +88,7 @@ export const useMediaGalleryFiltersOptimized = ({
 }: UseMediaGalleryFiltersOptimizedProps) => {
   const isControlled = controlledFilters !== undefined;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const mergedDefaults = useMemo((): GalleryFilterState => ({
     ...DEFAULT_GALLERY_FILTERS,
     ...defaultFilters,

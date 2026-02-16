@@ -80,7 +80,7 @@ const VideoTravelToolPage: React.FC = () => {
     if (projectUISettings?.shotSortMode && projectUISettings.shotSortMode !== shotSortMode) {
       setShotSortModeState(projectUISettings.shotSortMode);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync on external changes, not local state
+     
   }, [projectUISettings?.shotSortMode]);
 
   // Hash-based deep linking (extracts hash, resolves project, manages grace period)
@@ -144,7 +144,7 @@ const VideoTravelToolPage: React.FC = () => {
     if (!viaShotClick && !hasHashShotId && currentShotId) {
       setCurrentShotId(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // --- Render ---

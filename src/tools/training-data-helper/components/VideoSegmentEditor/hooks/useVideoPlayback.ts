@@ -132,7 +132,6 @@ export function useVideoPlayback() {
       }
 
       const originalTime = video.currentTime;
-      let timeoutId: NodeJS.Timeout;
 
       const onSeeked = () => {
         video.removeEventListener('seeked', onSeeked);
@@ -157,7 +156,7 @@ export function useVideoPlayback() {
         resolve(null);
       };
 
-      timeoutId = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         video.removeEventListener('seeked', onSeeked);
         video.removeEventListener('error', onError);
         video.currentTime = originalTime;

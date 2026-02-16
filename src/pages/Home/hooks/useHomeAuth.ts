@@ -23,7 +23,7 @@ export function useHomeAuth() {
           const refreshToken = hashParams.get('refresh_token');
 
           if (accessToken && refreshToken) {
-            try { localStorage.setItem('oauthInProgress', 'true'); } catch {}
+            try { localStorage.setItem('oauthInProgress', 'true'); } catch { /* intentionally ignored */ }
 
             const { data, error } = await supabase.auth.setSession({
               access_token: accessToken,
@@ -32,7 +32,7 @@ export function useHomeAuth() {
 
             if (error) {
               handleError(error, { context: 'HomePage', showToast: false });
-              try { localStorage.removeItem('oauthInProgress'); } catch {}
+              try { localStorage.removeItem('oauthInProgress'); } catch { /* intentionally ignored */ }
             } else if (data.session) {
               setSession(data.session);
             }
@@ -111,19 +111,17 @@ export function useHomeAuth() {
                     p_session_id: referralSessionId,
                     p_fingerprint: referralFingerprint,
                   });
-                } catch (err) {
-                } finally {
+                } catch(err) { /* intentionally ignored */ } finally {
                   try {
                     localStorage.removeItem('referralCode');
                     localStorage.removeItem('referralSessionId');
                     localStorage.removeItem('referralFingerprint');
                     localStorage.removeItem('referralTimestamp');
-                  } catch {}
+                  } catch { /* intentionally ignored */ }
                 }
               })();
             }
-          } catch (e) {
-          }
+          } catch(e) { /* intentionally ignored */ }
           localStorage.removeItem('oauthInProgress');
           navigate('/tools');
         } else if (!isHomePath) {

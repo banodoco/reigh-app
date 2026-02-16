@@ -76,8 +76,7 @@ export function useEditModePersistence() {
         .update({ params: updatedParams })
         .eq('id', generationId);
 
-    } catch (err) {
-    }
+    } catch (err) { /* intentionally ignored */ }
   }, []);
 
   return {

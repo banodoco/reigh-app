@@ -53,7 +53,7 @@ describe('invokeWithTimeout', () => {
   });
 
   it('uses default 20s timeout', async () => {
-    mockInvoke.mockImplementation((_name: string, opts: any) => {
+    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
       return new Promise((_resolve, reject) => {
         if (opts?.signal) {
           opts.signal.addEventListener('abort', () => {
@@ -76,7 +76,7 @@ describe('invokeWithTimeout', () => {
   });
 
   it('uses custom timeout', async () => {
-    mockInvoke.mockImplementation((_name: string, opts: any) => {
+    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
       return new Promise((_resolve, reject) => {
         if (opts?.signal) {
           opts.signal.addEventListener('abort', () => {
@@ -132,7 +132,7 @@ describe('invokeWithTimeout', () => {
   });
 
   it('throws timeout message including function name', async () => {
-    mockInvoke.mockImplementation((_name: string, opts: any) => {
+    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
       return new Promise((_resolve, reject) => {
         if (opts?.signal) {
           opts.signal.addEventListener('abort', () => {
@@ -175,7 +175,7 @@ describe('invokeWithTimeout', () => {
   it('respects an external abort signal', async () => {
     const externalController = new AbortController();
 
-    mockInvoke.mockImplementation((_name: string, opts: any) => {
+    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
       return new Promise((_resolve, reject) => {
         if (opts?.signal) {
           opts.signal.addEventListener('abort', () => {

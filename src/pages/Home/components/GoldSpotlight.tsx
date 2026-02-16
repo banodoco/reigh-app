@@ -48,7 +48,7 @@ export const GoldSpotlight: React.FC = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [goldTrail.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [goldTrail.length > 0]);  
 
   return (
     <div

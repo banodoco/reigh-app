@@ -145,7 +145,7 @@ export default function HomePage() {
 
   const handleDiscordSignIn = async () => {
     try {
-      try { localStorage.setItem('oauthInProgress', 'true'); } catch {}
+      try { localStorage.setItem('oauthInProgress', 'true'); } catch { /* intentionally ignored */ }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {

@@ -36,7 +36,7 @@ describe('preloadImages', () => {
   });
 
   it('does nothing for empty image list', async () => {
-    await preloadImages([], mockQueue as any, mockConfig);
+    await preloadImages([], mockQueue as unknown, mockConfig);
     expect(mockQueue.add).not.toHaveBeenCalled();
   });
 
@@ -44,7 +44,7 @@ describe('preloadImages', () => {
     vi.mocked(hasLoadedImage).mockReturnValue(true);
 
     const images: PreloadableImage[] = [{ id: 'img-1', url: 'https://example.com/img.jpg' }];
-    await preloadImages(images, mockQueue as any, mockConfig);
+    await preloadImages(images, mockQueue as unknown, mockConfig);
 
     expect(mockQueue.add).not.toHaveBeenCalled();
   });
@@ -57,7 +57,7 @@ describe('preloadImages', () => {
       { id: 'img-2', url: 'https://example.com/img2.jpg' },
     ];
 
-    await preloadImages(images, mockQueue as any, mockConfig);
+    await preloadImages(images, mockQueue as unknown, mockConfig);
 
     expect(mockQueue.add).toHaveBeenCalledTimes(2);
   });
@@ -70,7 +70,7 @@ describe('preloadImages', () => {
       { id: 'img-1', url: 'https://example.com/full.jpg', thumbUrl: 'https://example.com/thumb.jpg' },
     ];
 
-    await preloadImages(images, mockQueue as any, thumbnailConfig);
+    await preloadImages(images, mockQueue as unknown, thumbnailConfig);
 
     expect(mockQueue.add).toHaveBeenCalledWith('https://example.com/thumb.jpg', expect.any(Number));
   });
@@ -83,7 +83,7 @@ describe('preloadImages', () => {
       { id: 'img-1', url: 'https://example.com/full.jpg' },
     ];
 
-    await preloadImages(images, mockQueue as any, thumbnailConfig);
+    await preloadImages(images, mockQueue as unknown, thumbnailConfig);
 
     expect(mockQueue.add).toHaveBeenCalledWith('https://example.com/full.jpg', expect.any(Number));
   });
@@ -98,7 +98,7 @@ describe('preloadImages', () => {
       { id: 'img-3', url: 'https://example.com/3.jpg' },
     ];
 
-    await preloadImages(images, mockQueue as any, limitedConfig);
+    await preloadImages(images, mockQueue as unknown, limitedConfig);
 
     expect(mockQueue.add).toHaveBeenCalledTimes(2);
   });
@@ -110,7 +110,7 @@ describe('preloadImages', () => {
       { id: 'img-1', url: 'https://example.com/img.jpg' },
     ];
 
-    await preloadImages(images, mockQueue as any, mockConfig);
+    await preloadImages(images, mockQueue as unknown, mockConfig);
 
     expect(setImageLoadStatus).toHaveBeenCalled();
     expect(markImageLoaded).toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe('preloadImages', () => {
       { id: 'img-1' }, // no url
     ];
 
-    await preloadImages(images, mockQueue as any, mockConfig);
+    await preloadImages(images, mockQueue as unknown, mockConfig);
 
     expect(mockQueue.add).not.toHaveBeenCalled();
   });
@@ -135,7 +135,7 @@ describe('preloadImages', () => {
       { id: 'img-1', url: 'https://example.com/output_joined_frame.jpg' },
     ];
 
-    await preloadImages(images, mockQueue as any, mockConfig);
+    await preloadImages(images, mockQueue as unknown, mockConfig);
 
     expect(mockQueue.add).not.toHaveBeenCalled();
   });
@@ -149,6 +149,6 @@ describe('preloadImages', () => {
     ];
 
     // Should not throw
-    await expect(preloadImages(images, mockQueue as any, mockConfig)).resolves.not.toThrow();
+    await expect(preloadImages(images, mockQueue as unknown, mockConfig)).resolves.not.toThrow();
   });
 });

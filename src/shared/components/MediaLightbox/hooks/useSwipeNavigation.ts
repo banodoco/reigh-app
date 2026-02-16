@@ -216,7 +216,7 @@ export function useSwipeNavigation({
         setIsSwiping(false);
         try {
           (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-        } catch {}
+        } catch { /* intentionally ignored */ }
         return;
       }
     }
@@ -264,7 +264,7 @@ export function useSwipeNavigation({
     // Release pointer capture
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch { /* intentionally ignored */ }
     
     // Reset state
     swipeStateRef.current = null;
@@ -277,7 +277,7 @@ export function useSwipeNavigation({
     // Release pointer capture
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch { /* intentionally ignored */ }
     
     swipeStateRef.current = null;
     setSwipeOffset(0);

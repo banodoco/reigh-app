@@ -37,8 +37,7 @@ export function useHeroVideo(isMobile: boolean) {
           try {
             video.muted = true;
             await video.play();
-          } catch (err) {
-          }
+          } catch (err) { /* intentionally ignored */ }
           document.removeEventListener('touchstart', playOnInteraction);
           document.removeEventListener('click', playOnInteraction);
         };

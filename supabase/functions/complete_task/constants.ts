@@ -2,7 +2,7 @@
  * Constants for complete_task edge function
  */
 
-const TASK_TYPES = {
+export const TASK_TYPES = {
   TRAVEL_SEGMENT: 'travel_segment',
   JOIN_CLIPS_SEGMENT: 'join_clips_segment',
   INDIVIDUAL_TRAVEL_SEGMENT: 'individual_travel_segment',
@@ -10,17 +10,17 @@ const TASK_TYPES = {
   TRAVEL_STITCH: 'travel_stitch',
 } as const;
 
-type TaskType = typeof TASK_TYPES[keyof typeof TASK_TYPES];
+export type TaskType = typeof TASK_TYPES[keyof typeof TASK_TYPES];
 
-const TOOL_TYPES = {
+export const TOOL_TYPES = {
   TRAVEL_BETWEEN_IMAGES: 'travel-between-images',
 } as const;
 
 // ToolType was unused — removed
 
-const VARIANT_TYPE_DEFAULT = 'edit' as const;
+export const VARIANT_TYPE_DEFAULT = 'edit' as const;
 
-interface SegmentTypeConfig {
+export interface SegmentTypeConfig {
   segmentType: TaskType;
   /** Final step tasks (e.g. join_final_stitch) complete the orchestrator directly — no sibling counting. */
   isFinalStep?: boolean;
@@ -30,7 +30,7 @@ interface SegmentTypeConfig {
   waitForFinalStepType?: TaskType;
 }
 
-const SEGMENT_TYPE_CONFIG: Record<string, SegmentTypeConfig> = {
+export const SEGMENT_TYPE_CONFIG: Record<string, SegmentTypeConfig> = {
   [TASK_TYPES.TRAVEL_SEGMENT]: {
     segmentType: TASK_TYPES.TRAVEL_SEGMENT,
   },

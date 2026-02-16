@@ -34,7 +34,7 @@ function createMockCanvas(width: number, height: number, pixelData?: Uint8Clampe
 }
 
 // Mock document.createElement to return mock canvases
-let mockCreatedCanvases: any[] = [];
+let mockCreatedCanvases: unknown[] = [];
 
 beforeEach(() => {
   mockCreatedCanvases = [];
@@ -121,7 +121,7 @@ describe('generateMaskFromCanvas', () => {
             width: 2,
             height: 1,
           }),
-          putImageData: vi.fn((_imgData: any) => {
+          putImageData: vi.fn((_imgData: unknown) => {
             // Capture what was written
           }),
           clearRect: vi.fn(),

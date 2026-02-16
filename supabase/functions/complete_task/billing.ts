@@ -22,7 +22,7 @@ export { triggerCostCalculation };
  * @param taskId - The task ID to calculate cost for
  */
 export async function triggerCostCalculationIfNotSubTask(
-  supabase: any,
+  supabase: unknown,
   supabaseUrl: string,
   serviceKey: string,
   taskId: string

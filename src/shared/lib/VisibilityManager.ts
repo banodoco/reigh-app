@@ -97,7 +97,7 @@ class VisibilityManagerImpl {
     // Maintain backward compatibility with existing code that uses __VIS_CHANGE_AT__
     try {
       window.__VIS_CHANGE_AT__ = this.state.lastVisibilityChangeAt;
-    } catch {}
+    } catch { /* intentionally ignored */ }
   }
 
   private handleVisibilityChange(event: Event) {

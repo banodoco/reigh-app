@@ -245,8 +245,7 @@ export function useReferenceUpload(props: UseReferenceUploadProps): UseReference
             }
           }))
         );
-      } catch (e) {
-      }
+      } catch (e) { /* intentionally ignored */ }
 
       // Read from cache after optimistic update
       const currentData = extractSettingsFromCache<ProjectImageSettings>(
@@ -303,8 +302,7 @@ export function useReferenceUpload(props: UseReferenceUploadProps): UseReference
           queryClient.setQueryData(queryKeys.settings.tool('project-image-settings', selectedProjectId, undefined), (prev: unknown) =>
             updateSettingsCache<ProjectImageSettings>(prev, { selectedReferenceIdByShot: optimisticUpdate })
           );
-        } catch (e) {
-        }
+        } catch (e) { /* intentionally ignored */ }
 
         await updateProjectImageSettings('project', {
           selectedReferenceIdByShot: optimisticUpdate

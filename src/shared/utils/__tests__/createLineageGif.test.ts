@@ -52,17 +52,17 @@ class MockImage {
     setTimeout(() => this.onload?.(), 0);
   }
 }
-// @ts-ignore
+// @ts-expect-error Test replaces global Image with a lightweight mock.
 globalThis.Image = MockImage;
 
 vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-  if (tag === 'canvas') return mockCanvas as any;
+  if (tag === 'canvas') return mockCanvas as unknown;
   if (tag === 'a') {
     return {
       href: '',
       download: '',
       click: vi.fn(),
-    } as any;
+    } as unknown;
   }
   return document.createElement(tag);
 });
@@ -99,7 +99,7 @@ describe('createLineageGif', () => {
     );
 
     // Should have loading and encoding progress
-    const stages = onProgress.mock.calls.map((c: any[]) => c[0].stage);
+    const stages = onProgress.mock.calls.map((c: unknown[]) => c[0].stage);
     expect(stages).toContain('loading');
     expect(stages).toContain('encoding');
     expect(stages).toContain('complete');
@@ -148,9 +148,9 @@ describe('createLineageGif', () => {
 describe('downloadBlob', () => {
   it('creates and clicks a download link', () => {
     const mockAnchor = { href: '', download: '', click: vi.fn() };
-    vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as any);
-    vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockAnchor as any);
-    vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockAnchor as any);
+    vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as unknown);
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockAnchor as unknown);
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockAnchor as unknown);
 
     const blob = new Blob(['test'], { type: 'image/gif' });
     downloadBlob(blob, 'test.gif');

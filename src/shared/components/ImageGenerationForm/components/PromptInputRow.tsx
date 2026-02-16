@@ -49,7 +49,7 @@ export const PromptInputRow: React.FC<PromptInputRowProps> = React.memo(({
         setLastParentUpdate(promptEntry.fullPrompt);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- promptEntry.id is stable and only used for logging
+   
   }, [promptEntry.fullPrompt, isEditingFullPrompt, lastParentUpdate]);
 
   // Close edit mode when another prompt becomes active

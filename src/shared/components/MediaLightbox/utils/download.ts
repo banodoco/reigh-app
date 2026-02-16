@@ -170,7 +170,7 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
     setTimeout(() => {
       try {
         URL.revokeObjectURL(objectUrl);
-      } catch {}
+      } catch { /* intentionally ignored */ }
     }, 10000);
 
   } catch (error: unknown) {
@@ -194,12 +194,12 @@ export const downloadMedia = async (url: string, mediaId: string, isVideo: boole
           document.body.removeChild(link);
         }
       }, 1500);
-    } catch {}
+    } catch { /* intentionally ignored */ }
 
     // Fallback 2: window.open (some browsers block programmatic downloads)
     try {
       window.open(url, '_blank');
-    } catch {}
+    } catch { /* intentionally ignored */ }
   }
 };
 

@@ -692,8 +692,46 @@ export const InlineSegmentVideo: React.FC<InlineSegmentVideoProps> = ({
 }) => {
   const layoutProps = useLayoutProps(layout, compact, isMobile, leftPercent, widthPercent, heightClass);
 
+  const isPlaceholder = slot.type === 'placeholder';
+  const child = slot.type === 'child' ? slot.child : null;
+  const generationId = child?.id ?? null;
+
+  // Variant badge data (only relevant for child slots)
+  const { getBadgeData } = useVariantBadges(
+    generationId ? [generationId] : [],
+    true
+  );
+  const badgeData = generationId ? getBadgeData(generationId) : undefined;
+
+  const { markAllViewed } = useMarkVariantViewed();
+  const handleMarkAllVariantsViewed = useCallback(() => {
+    if (generationId) {
+      markAllViewed(generationId);
+    }
+  }, [generationId, markAllViewed]);
+
+  // Check if recently created (show NEW for segments created in last 10 minutes)
+  const RECENTLY_CREATED_THRESHOLD_MS = 10 * 60 * 1000;
+  const isRecentlyCreated = useMemo(() => {
+    if (!child) {
+      return false;
+    }
+
+    const createdAt = child.created_at || child.createdAt;
+    if (!createdAt) return false;
+    const createdTime = new Date(createdAt).getTime();
+    const cutoff = Date.now() - RECENTLY_CREATED_THRESHOLD_MS;
+    return createdTime > cutoff;
+  }, [child?.created_at, child?.createdAt]);
+
+  // Show NEW badge if: has unviewed variants OR is recently created with no variants yet
+  const hasUnviewedFromBadge = badgeData?.hasUnviewedVariants && (badgeData?.unviewedVariantCount || 0) > 0;
+  const isNewWithNoVariants = isRecentlyCreated && (badgeData?.derivedCount || 0) === 0;
+  const showNewBadge = !!(hasUnviewedFromBadge || isNewWithNoVariants);
+  const unviewedCount = hasUnviewedFromBadge ? (badgeData?.unviewedVariantCount || 0) : (isNewWithNoVariants ? 1 : 0);
+
   // --- Placeholder slot: no child generation exists yet ---
-  if (slot.type === 'placeholder') {
+  if (isPlaceholder) {
     return (
       <SegmentPlaceholder
         layoutProps={layoutProps}
@@ -705,41 +743,8 @@ export const InlineSegmentVideo: React.FC<InlineSegmentVideoProps> = ({
     );
   }
 
-  // --- Child slot: generation exists ---
-  const child = slot.child;
-  const hasOutput = !!child.location;
-
-  // Variant badge data (only relevant for child slots)
-  const generationId = child.id;
-  const { getBadgeData } = useVariantBadges(
-    [generationId],
-    true
-  );
-  const badgeData = getBadgeData(generationId);
-
-  const { markAllViewed } = useMarkVariantViewed();
-  const handleMarkAllVariantsViewed = useCallback(() => {
-    markAllViewed(generationId);
-  }, [generationId, markAllViewed]);
-
-  // Check if recently created (show NEW for segments created in last 10 minutes)
-  const RECENTLY_CREATED_THRESHOLD_MS = 10 * 60 * 1000;
-  const isRecentlyCreated = useMemo(() => {
-    const createdAt = child.created_at || child.createdAt;
-    if (!createdAt) return false;
-    const createdTime = new Date(createdAt).getTime();
-    const cutoff = Date.now() - RECENTLY_CREATED_THRESHOLD_MS;
-    return createdTime > cutoff;
-  }, [child.created_at, child.createdAt]);
-
-  // Show NEW badge if: has unviewed variants OR is recently created with no variants yet
-  const hasUnviewedFromBadge = badgeData?.hasUnviewedVariants && (badgeData?.unviewedVariantCount || 0) > 0;
-  const isNewWithNoVariants = isRecentlyCreated && (badgeData?.derivedCount || 0) === 0;
-  const showNewBadge = !!(hasUnviewedFromBadge || isNewWithNoVariants);
-  const unviewedCount = hasUnviewedFromBadge ? (badgeData?.unviewedVariantCount || 0) : (isNewWithNoVariants ? 1 : 0);
-
   // Child exists but has no output yet
-  if (!hasOutput) {
+  if (!child || !child.location) {
     return (
       <SegmentProcessing
         layoutProps={layoutProps}

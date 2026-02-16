@@ -98,13 +98,13 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
     projectAspectRatio,
     defaultPrompt = '',
     defaultNegativePrompt = '',
-    structureVideoPath,
-    structureVideoMetadata,
-    structureVideoTreatment = 'adjust',
-    structureVideoMotionStrength = 1.0,
-    structureVideoType = 'flow',
-    uni3cEndPercent = 0.1,
-    onStructureVideoChange,
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment = 'adjust',
+    primaryStructureVideoMotionStrength = 1.0,
+    primaryStructureVideoType = 'flow',
+    primaryStructureVideoUni3cEndPercent = 0.1,
+    onPrimaryStructureVideoInputChange,
     onUni3cEndPercentChange,
     structureVideos,
     isStructureVideoLoading,
@@ -438,12 +438,12 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
   // ==========================================================================
 
   const timelineMediaValue = useMemo<TimelineMediaContextValue>(() => ({
-    structureVideoPath,
-    structureVideoMetadata,
-    structureVideoTreatment,
-    structureVideoMotionStrength,
-    structureVideoType,
-    onStructureVideoChange,
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType,
+    onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
     cachedHasStructureVideo,
@@ -454,12 +454,12 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
     audioMetadata,
     onAudioChange,
   }), [
-    structureVideoPath,
-    structureVideoMetadata,
-    structureVideoTreatment,
-    structureVideoMotionStrength,
-    structureVideoType,
-    onStructureVideoChange,
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType,
+    onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
     cachedHasStructureVideo,
@@ -551,7 +551,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
               <>
                 <div className="mb-4"><SectionHeader title="Input Images" theme="blue" /></div>
                 {skeleton}
-                {selectedShotId && projectId && onStructureVideoChange && (
+                {selectedShotId && projectId && onPrimaryStructureVideoInputChange && (
                   <>
                     <div className="mb-4 mt-6"><SectionHeader title="Camera Guidance Video" theme="green" /></div>
                     <div className="w-full sm:w-2/3 md:w-1/2 lg:w-1/3 p-4 border rounded-lg bg-muted/20">
@@ -673,13 +673,13 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
                 onClearPendingImageToOpen={handleClearPendingImageToOpen}
                 navigateWithTransition={navigateWithTransition}
                 projectAspectRatio={projectAspectRatio}
-                structureVideoPath={structureVideoPath}
-                structureVideoMetadata={structureVideoMetadata}
-                structureVideoTreatment={structureVideoTreatment}
-                structureVideoMotionStrength={structureVideoMotionStrength}
-                structureVideoType={structureVideoType}
-                uni3cEndPercent={uni3cEndPercent}
-                onStructureVideoChange={onStructureVideoChange}
+                primaryStructureVideoPath={primaryStructureVideoPath}
+                primaryStructureVideoMetadata={primaryStructureVideoMetadata}
+                primaryStructureVideoTreatment={primaryStructureVideoTreatment}
+                primaryStructureVideoMotionStrength={primaryStructureVideoMotionStrength}
+                primaryStructureVideoType={primaryStructureVideoType}
+                primaryStructureVideoUni3cEndPercent={primaryStructureVideoUni3cEndPercent}
+                onPrimaryStructureVideoInputChange={onPrimaryStructureVideoInputChange}
                 onUni3cEndPercentChange={onUni3cEndPercentChange}
                 unpositionedGenerationsCount={unpositionedGenerationsCount}
                 onOpenUnpositionedPane={onOpenUnpositionedPane}

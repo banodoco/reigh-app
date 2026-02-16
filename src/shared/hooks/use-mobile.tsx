@@ -135,13 +135,6 @@ export function useIsTablet() {
   return isTablet;
 }
 
-/** Phone only (isMobile && !isTablet) — hides advanced UI that tablets can show */
-function _useIsPhone() {
-  const isMobile = useIsMobile();
-  const isTablet = useIsTablet();
-  return isMobile && !isTablet;
-}
-
 /** Touch-capable device (phones, tablets, touch laptops) */
 export function useIsTouchDevice() {
   const [isTouchDevice, setIsTouchDevice] = React.useState<boolean>(() => computeIsTouchDevice());
@@ -231,9 +224,9 @@ export function useDeviceInfo(): DeviceInfo {
   const isPhone = isMobile && !isTablet;
 
   const mobileColumns = React.useMemo(() => {
-    if (!isMobile) return 6 as 6;
+    if (!isMobile) return 6 as const;
     if (isTablet) return (orientation === 'portrait' ? 3 : 4) as 3 | 4;
-    return 2 as 2;
+    return 2 as const;
   }, [isMobile, isTablet, orientation]);
 
   return {

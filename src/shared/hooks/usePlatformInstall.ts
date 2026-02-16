@@ -203,8 +203,6 @@ export function usePlatformInstall(): PlatformInstallState {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    let timeoutId: ReturnType<typeof setTimeout>;
-    
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
@@ -221,13 +219,10 @@ export function usePlatformInstall(): PlatformInstallState {
       setIsAppInstalled(true);
       if (timeoutId) clearTimeout(timeoutId);
     };
-    
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-    
+
     // Set a timeout - if beforeinstallprompt doesn't fire within 3 seconds,
     // the PWA is likely already installed or not supported
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setPromptTimedOut(true);
       
       // Try to detect if app is installed using getInstalledRelatedApps (Chrome 80+)
@@ -243,6 +238,9 @@ export function usePlatformInstall(): PlatformInstallState {
         });
       }
     }, 3000);
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
     
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -468,5 +466,4 @@ export function usePlatformInstall(): PlatformInstallState {
     triggerInstall,
   };
 }
-
 

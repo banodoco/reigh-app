@@ -199,6 +199,18 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
     return padding;
   }, [projectAspectRatio]);
 
+  // Adjacent page preloading - uses new unified hook when filters are provided
+  // Falls back to legacy callback approach if generationFilters not provided
+  useAdjacentPagePreloader({
+    projectId: selectedProjectId || null,
+    currentPage: isServerPagination ? (serverPage ?? 1) : page + 1, // Convert to 1-indexed
+    itemsPerPage,
+    filters: generationFilters,
+    totalItems: totalFilteredItems,
+    enabled: enableAdjacentPagePreloading && !!generationFilters, // Only enable if filters provided
+    paused: isLightboxOpen,
+  });
+
   // Show full skeleton gallery when loading new data
   if (isLoading) {
     // Match the gap classes used in the actual grid
@@ -217,18 +229,6 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
       </div>
     );
   }
-
-  // Adjacent page preloading - uses new unified hook when filters are provided
-  // Falls back to legacy callback approach if generationFilters not provided
-  useAdjacentPagePreloader({
-    projectId: selectedProjectId || null,
-    currentPage: isServerPagination ? (serverPage ?? 1) : page + 1, // Convert to 1-indexed
-    itemsPerPage,
-    filters: generationFilters,
-    totalItems: totalFilteredItems,
-    enabled: enableAdjacentPagePreloading && !!generationFilters, // Only enable if filters provided
-    paused: isLightboxOpen,
-  });
 
   return (
     <>

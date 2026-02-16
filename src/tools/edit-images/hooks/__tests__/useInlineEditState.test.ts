@@ -213,7 +213,7 @@ const mockMedia = {
   params: {},
   starred: false,
   created_at: '2025-01-01T00:00:00Z',
-} as any;
+} as unknown;
 
 describe('useInlineEditState', () => {
   beforeEach(() => {

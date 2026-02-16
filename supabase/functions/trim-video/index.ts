@@ -70,7 +70,7 @@ async function waitForPrediction(
   predictionId: string, 
   apiToken: string,
   maxWaitMs: number = 300000 // 5 minutes max
-): Promise<any> {
+): Promise<unknown> {
   const startTime = Date.now();
   
   while (Date.now() - startTime < maxWaitMs) {

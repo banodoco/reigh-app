@@ -5,8 +5,7 @@ import { authenticateRequest, verifyTaskOwnership, getTaskUserId } from "../_sha
 import { storagePaths, MEDIA_BUCKET } from "../_shared/storagePaths.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
+declare const Deno: { env: { get: (key: string) => string | undefined } };
 
 /**
  * Edge function: generate-upload-url
@@ -56,7 +55,7 @@ serve(async (req) => {
   }
 
   // Parse request body
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch (e) {
@@ -149,7 +148,7 @@ serve(async (req) => {
       return new Response(`Failed to create signed upload URL: ${signedError?.message}`, { status: 500 });
     }
 
-    const response: any = {
+    const response: unknown = {
       upload_url: signedData.signedUrl,
       storage_path: taskStoragePath,
       token: signedData.token,
@@ -185,7 +184,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.critical("Unexpected error", { error: error?.message });
     await logger.flush();
     return new Response(`Internal error: ${error?.message}`, { status: 500 });

@@ -60,7 +60,7 @@ describe('useHuggingFaceUpload', () => {
 
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: any;
+    let uploadResult: unknown;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },
@@ -75,7 +75,7 @@ describe('useHuggingFaceUpload', () => {
   it('returns error when no file provided', async () => {
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: any;
+    let uploadResult: unknown;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         {},
@@ -90,7 +90,7 @@ describe('useHuggingFaceUpload', () => {
   it('handles successful single-stage upload', async () => {
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: any;
+    let uploadResult: unknown;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },
@@ -111,7 +111,7 @@ describe('useHuggingFaceUpload', () => {
 
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: any;
+    let uploadResult: unknown;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },
@@ -128,7 +128,7 @@ describe('useHuggingFaceUpload', () => {
 
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: any;
+    let uploadResult: unknown;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },

@@ -86,7 +86,7 @@ describe('preloadPosterImages', () => {
         setTimeout(() => this.onload?.(), 0);
       }
     }
-    // @ts-ignore
+    // @ts-expect-error Test assigns a mocked Image constructor.
     globalThis.Image = TestImage;
 
     await preloadPosterImages(['https://example.com/poster.jpg'], alreadyPreloaded);
@@ -172,7 +172,7 @@ describe('buildInitialClipsFromSettings', () => {
         { url: 'clip2.mp4', posterUrl: 'poster2.jpg' },
       ],
       transitionPrompts: [{ clipIndex: 1, prompt: 'transition prompt' }],
-    } as any;
+    } as unknown;
 
     const result = buildInitialClipsFromSettings(settings);
 
@@ -189,7 +189,7 @@ describe('buildInitialClipsFromSettings', () => {
       endingVideoUrl: 'end.mp4',
       endingVideoPosterUrl: 'end-poster.jpg',
       clips: [],
-    } as any;
+    } as unknown;
 
     const result = buildInitialClipsFromSettings(settings);
 
@@ -200,7 +200,7 @@ describe('buildInitialClipsFromSettings', () => {
   });
 
   it('returns empty arrays for settings with no clips', () => {
-    const settings = { clips: [] } as any;
+    const settings = { clips: [] } as unknown;
     const result = buildInitialClipsFromSettings(settings);
     expect(result.clips).toHaveLength(0);
     expect(result.transitionPrompts).toHaveLength(0);
@@ -212,7 +212,7 @@ describe('buildInitialClipsFromSettings', () => {
       endingVideoUrl: 'end.mp4',
       prompt: 'smooth transition',
       clips: [],
-    } as any;
+    } as unknown;
 
     const result = buildInitialClipsFromSettings(settings);
     expect(result.transitionPrompts).toHaveLength(1);

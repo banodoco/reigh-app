@@ -124,7 +124,7 @@ describe('getTimelineDimensions', () => {
 
   it('ignores null pending frames', () => {
     const positions = new Map([['a', 0], ['b', 50]]);
-    const result = getTimelineDimensions(positions, [null, undefined as any, 80]);
+    const result = getTimelineDimensions(positions, [null, undefined as unknown, 80]);
     expect(result.fullMax).toBe(80);
   });
 

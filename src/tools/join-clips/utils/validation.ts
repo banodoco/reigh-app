@@ -92,17 +92,20 @@ function getMinFramesRequired(
   const gapFromSecond = Math.floor(gapFrames / 2);
 
   switch (position) {
-    case 'first':
+    case 'first': {
       const firstEnd = contextFrames + gapFromFirst;
       return { fromStart: 0, fromEnd: firstEnd, total: minRequired };
-    case 'last':
+    }
+    case 'last': {
       const lastStart = contextFrames + gapFromSecond;
       return { fromStart: lastStart, fromEnd: 0, total: minRequired };
-    case 'middle':
+    }
+    case 'middle': {
       const midStart = contextFrames + gapFromSecond;
       const midEnd = contextFrames + gapFromFirst;
       // Middle clips need frames for TWO transitions
       return { fromStart: midStart, fromEnd: midEnd, total: minRequired * 2 };
+    }
   }
 }
 
@@ -201,7 +204,6 @@ export function validateClipsForJoin(
     minClipFramesRequired,
   };
 }
-
 
 
 

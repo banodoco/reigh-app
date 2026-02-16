@@ -121,6 +121,19 @@ interface VideoLightboxProps {
 // ============================================================================
 
 export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
+  const isSegmentSlotMode = !!props.segmentSlotMode;
+  const hasSegmentVideo = isSegmentSlotMode && !!props.segmentSlotMode?.segmentVideo;
+  const isFormOnlyMode = isSegmentSlotMode && !hasSegmentVideo;
+
+  if (!props.media && !isFormOnlyMode) {
+    console.error('[VideoLightbox] ❌ No media prop provided and not in form-only mode!');
+    return null;
+  }
+
+  return <VideoLightboxContent {...props} />;
+};
+
+const VideoLightboxContent: React.FC<VideoLightboxProps> = (props) => {
   const {
     media,
     onClose,
@@ -176,12 +189,6 @@ export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
   const isSegmentSlotMode = !!segmentSlotMode;
   const hasSegmentVideo = isSegmentSlotMode && !!segmentSlotMode.segmentVideo;
   const isFormOnlyMode = isSegmentSlotMode && !hasSegmentVideo;
-
-  // Safety check - media is required unless we're in form-only mode
-  if (!media && !isFormOnlyMode) {
-    console.error('[VideoLightbox] ❌ No media prop provided and not in form-only mode!');
-    return null;
-  }
 
   // Navigation in segment slot mode
   const hasNext = isSegmentSlotMode

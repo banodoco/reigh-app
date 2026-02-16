@@ -237,7 +237,7 @@ const AppInternalContent = () => {
 
 function App() {
   React.useEffect(() => {
-    try { getNetworkStatusManager(); } catch {}
+    try { getNetworkStatusManager(); } catch { /* intentionally ignored */ }
   }, []);
 
   return (

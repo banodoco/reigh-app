@@ -57,7 +57,7 @@ vi.mock('../useTrainingDataUpload', () => ({
 }));
 
 vi.mock('../transforms', () => ({
-  transformVideo: (v: any) => ({
+  transformVideo: (v: unknown) => ({
     id: v.id,
     originalFilename: v.original_filename || 'test.mp4',
     storageLocation: v.storage_location || 'path/test.mp4',
@@ -68,7 +68,7 @@ vi.mock('../transforms', () => ({
     userId: v.user_id || 'user-1',
     batchId: v.batch_id || 'batch-1',
   }),
-  transformSegment: (s: any) => ({
+  transformSegment: (s: unknown) => ({
     id: s.id,
     trainingDataId: s.training_data_id,
     startTime: s.start_time,
