@@ -10,5 +10,9 @@
   "zone_overrides": {},
   "review_dimensions": [],
   "large_files_threshold": 0,
-  "props_threshold": 0
+  "props_threshold": 0,
+  "languages": {},
+  "ignore_metadata": {},
+  "finding_noise_budget": 10,
+  "finding_noise_global_budget": 0
 }

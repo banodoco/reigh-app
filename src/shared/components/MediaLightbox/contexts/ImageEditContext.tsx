@@ -9,9 +9,8 @@
  * The split reduces re-renders: canvas components don't re-render when the user
  * types in a prompt field, and form components don't re-render on brush strokes.
  *
- * For backward compatibility, ImageEditState and useImageEditSafe() still exist
- * and return the full merged state. Components should migrate to the specific
- * sub-context hooks (useImageEditCanvasSafe, useImageEditFormSafe,
+ * ImageEditState still exists as a composed type. Components should use the
+ * specific sub-context hooks (useImageEditCanvasSafe, useImageEditFormSafe,
  * useImageEditStatusSafe) for optimal performance.
  */
 
@@ -212,22 +211,3 @@ export const ImageEditProvider: React.FC<ImageEditProviderProps> = ({
     </ImageEditCanvasProvider>
   );
 };
-
-// ============================================================================
-// Backward-compatible Hook
-// ============================================================================
-
-/**
- * Returns the full merged image edit state.
- *
- * For better performance, prefer the specific sub-context hooks:
- * - useImageEditCanvasSafe() — mode, brush, annotation, canvas, reposition
- * - useImageEditFormSafe() — prompts, strengths, LoRA, model, settings
- * - useImageEditStatusSafe() — generation loading/success flags
- */
-export function useImageEditSafe(): ImageEditState {
-  const canvas = useImageEditCanvasSafe();
-  const form = useImageEditFormSafe();
-  const status = useImageEditStatusSafe();
-  return { ...canvas, ...form, ...status };
-}

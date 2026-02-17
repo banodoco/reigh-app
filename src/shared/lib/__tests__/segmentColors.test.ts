@@ -2,36 +2,58 @@ import { describe, it, expect } from 'vitest';
 import { SEGMENT_OVERLAY_COLORS, getSegmentFormColor } from '../segmentColors';
 
 describe('SEGMENT_OVERLAY_COLORS', () => {
-  it('has 5 color entries', () => {
-    expect(SEGMENT_OVERLAY_COLORS).toHaveLength(5);
-  });
+  it('defines the expected ordered overlay palette', () => {
+    expect(SEGMENT_OVERLAY_COLORS).toEqual([
+      { bg: 'bg-primary/40', text: 'text-primary' },
+      { bg: 'bg-blue-500/40', text: 'text-blue-400' },
+      { bg: 'bg-green-500/40', text: 'text-green-400' },
+      { bg: 'bg-orange-500/40', text: 'text-orange-400' },
+      { bg: 'bg-purple-500/40', text: 'text-purple-400' },
+    ]);
 
-  it('each entry has bg and text', () => {
     for (const color of SEGMENT_OVERLAY_COLORS) {
-      expect(color.bg).toBeTruthy();
-      expect(color.text).toBeTruthy();
+      expect(color.bg).toContain('/40');
+      expect(color.text.startsWith('text-')).toBe(true);
     }
   });
 });
 
 describe('getSegmentFormColor', () => {
-  it('returns first color for index 0', () => {
-    const color = getSegmentFormColor(0);
-    expect(color.bg).toBeTruthy();
-    expect(color.bgMuted).toBeTruthy();
-    expect(color.text).toBeTruthy();
-    expect(color.border).toBeTruthy();
+  it('maps each index to the expected form color tuple', () => {
+    expect(getSegmentFormColor(0)).toEqual({
+      bg: 'bg-primary',
+      bgMuted: 'bg-primary/20',
+      text: 'text-primary',
+      border: 'border-primary',
+    });
+    expect(getSegmentFormColor(1)).toEqual({
+      bg: 'bg-blue-500',
+      bgMuted: 'bg-blue-500/20',
+      text: 'text-blue-500',
+      border: 'border-blue-500',
+    });
+    expect(getSegmentFormColor(2)).toEqual({
+      bg: 'bg-green-500',
+      bgMuted: 'bg-green-500/20',
+      text: 'text-green-500',
+      border: 'border-green-500',
+    });
+    expect(getSegmentFormColor(3)).toEqual({
+      bg: 'bg-orange-500',
+      bgMuted: 'bg-orange-500/20',
+      text: 'text-orange-500',
+      border: 'border-orange-500',
+    });
+    expect(getSegmentFormColor(4)).toEqual({
+      bg: 'bg-purple-500',
+      bgMuted: 'bg-purple-500/20',
+      text: 'text-purple-500',
+      border: 'border-purple-500',
+    });
   });
 
-  it('wraps around for indices beyond array length', () => {
-    const color0 = getSegmentFormColor(0);
-    const color5 = getSegmentFormColor(5);
-    expect(color5).toEqual(color0); // 5 % 5 = 0
-  });
-
-  it('returns different colors for different indices', () => {
-    const color0 = getSegmentFormColor(0);
-    const color1 = getSegmentFormColor(1);
-    expect(color0.bg).not.toBe(color1.bg);
+  it('wraps by modulo for out-of-range positive indices', () => {
+    expect(getSegmentFormColor(5)).toEqual(getSegmentFormColor(0));
+    expect(getSegmentFormColor(11)).toEqual(getSegmentFormColor(1));
   });
 });

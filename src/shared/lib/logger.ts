@@ -27,7 +27,26 @@ import { debugConfig } from './debugConfig';
 
 const FLUSH_INTERVAL_MS = 10000; // Flush every 10 seconds
 const FLUSH_BUFFER_SIZE = 100;   // Flush when buffer hits this size
-const SESSION_ID = `browser-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+function generateSessionId(): string {
+  const timestamp = Date.now();
+  const runtimeCrypto = globalThis.crypto;
+
+  if (runtimeCrypto?.randomUUID) {
+    return `browser-${timestamp}-${runtimeCrypto.randomUUID().slice(0, 8)}`;
+  }
+
+  if (runtimeCrypto?.getRandomValues) {
+    const randomBytes = new Uint8Array(4);
+    runtimeCrypto.getRandomValues(randomBytes);
+    const randomHex = Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `browser-${timestamp}-${randomHex}`;
+  }
+
+  return `browser-${timestamp}-no-crypto`;
+}
+
+const SESSION_ID = generateSessionId();
 
 // Store original console methods BEFORE any interception
 const originalConsole = {

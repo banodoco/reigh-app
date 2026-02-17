@@ -1,18 +1,83 @@
 {
-  "command": "status",
+  "command": "scan",
   "overall_score": 97.0,
   "objective_score": 100.0,
   "strict_score": 97.0,
+  "prev_overall_score": 97.0,
+  "prev_objective_score": 100.0,
+  "prev_strict_score": 97.0,
+  "delta_comparable": true,
+  "delta_comparable_reason": null,
+  "profile": "full",
+  "noise_budget": 10,
+  "noise_global_budget": 0,
+  "hidden_by_detector": {},
+  "hidden_total": 0,
+  "diff": {
+    "new": 0,
+    "auto_resolved": 0,
+    "reopened": 0,
+    "total_current": 1109,
+    "suspect_detectors": [],
+    "chronic_reopeners": [],
+    "skipped_other_lang": 0,
+    "skipped_out_of_scope": 0,
+    "ignored": 0,
+    "ignore_patterns": 1,
+    "ignored_by_detector": {},
+    "ignored_by_tier": {},
+    "raw_findings": 1109,
+    "suppressed_pct": 0.0
+  },
+  "stats": {
+    "total": 5933,
+    "open": 0,
+    "fixed": 4241,
+    "auto_resolved": 356,
+    "wontfix": 0,
+    "false_positive": 1336,
+    "by_tier": {
+      "1": {
+        "open": 0,
+        "fixed": 63,
+        "auto_resolved": 27,
+        "wontfix": 0,
+        "false_positive": 0
+      },
+      "2": {
+        "open": 0,
+        "fixed": 38,
+        "auto_resolved": 112,
+        "wontfix": 0,
+        "false_positive": 108
+      },
+      "3": {
+        "open": 0,
+        "fixed": 4140,
+        "auto_resolved": 88,
+        "wontfix": 0,
+        "false_positive": 1124
+      },
+      "4": {
+        "open": 0,
+        "fixed": 0,
+        "auto_resolved": 129,
+        "wontfix": 0,
+        "false_positive": 104
+      }
+    }
+  },
+  "warnings": [],
   "dimension_scores": {
     "File health": {
       "score": 100.0,
       "strict": 100.0,
-      "checks": 1000,
+      "checks": 950,
       "issues": 0,
       "tier": 3,
       "detectors": {
         "structural": {
-          "potential": 1000,
+          "potential": 950,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
@@ -22,24 +87,24 @@
     "Code quality": {
       "score": 100.0,
       "strict": 100.0,
-      "checks": 10900,
+      "checks": 10604,
       "issues": 0,
       "tier": 3,
       "detectors": {
         "unused": {
-          "potential": 1000,
+          "potential": 950,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "logs": {
-          "potential": 1000,
+          "potential": 950,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "exports": {
-          "potential": 1499,
+          "potential": 1492,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
@@ -51,13 +116,13 @@
           "weighted_failures": 0.0
         },
         "props": {
-          "potential": 571,
+          "potential": 565,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "smells": {
-          "potential": 1000,
+          "potential": 950,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
@@ -69,43 +134,43 @@
           "weighted_failures": 0.0
         },
         "orphaned": {
-          "potential": 993,
+          "potential": 944,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "flat_dirs": {
-          "potential": 242,
+          "potential": 209,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "naming": {
-          "potential": 191,
+          "potential": 189,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "facade": {
-          "potential": 993,
+          "potential": 944,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "patterns": {
-          "potential": 7,
+          "potential": 6,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "single_use": {
-          "potential": 153,
+          "potential": 148,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "coupling": {
-          "potential": 3018,
+          "potential": 3024,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
@@ -115,12 +180,12 @@
     "Duplication": {
       "score": 100.0,
       "strict": 100.0,
-      "checks": 1934,
+      "checks": 1872,
       "issues": 0,
       "tier": 3,
       "detectors": {
         "dupes": {
-          "potential": 1934,
+          "potential": 1872,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
@@ -130,18 +195,18 @@
     "Test health": {
       "score": 100.0,
       "strict": 100.0,
-      "checks": 13083,
+      "checks": 12341,
       "issues": 0,
       "tier": 4,
       "detectors": {
         "test_coverage": {
-          "potential": 12242,
+          "potential": 11516,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "subjective_review": {
-          "potential": 841,
+          "potential": 825,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
@@ -151,18 +216,18 @@
     "Security": {
       "score": 100.0,
       "strict": 100.0,
-      "checks": 1993,
+      "checks": 1894,
       "issues": 0,
       "tier": 4,
       "detectors": {
         "security": {
-          "potential": 1000,
+          "potential": 950,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
         },
         "cycles": {
-          "potential": 993,
+          "potential": 944,
           "pass_rate": 1.0,
           "issues": 0,
           "weighted_failures": 0.0
@@ -275,122 +340,37 @@
       }
     }
   },
-  "stats": {
-    "total": 6075,
-    "open": 0,
-    "fixed": 4290,
-    "auto_resolved": 308,
-    "wontfix": 0,
-    "false_positive": 1477,
-    "by_tier": {
-      "1": {
-        "open": 0,
-        "fixed": 92,
-        "auto_resolved": 28,
-        "wontfix": 0,
-        "false_positive": 0
-      },
-      "2": {
-        "open": 0,
-        "fixed": 58,
-        "auto_resolved": 89,
-        "wontfix": 0,
-        "false_positive": 113
-      },
-      "3": {
-        "open": 0,
-        "fixed": 4140,
-        "auto_resolved": 134,
-        "wontfix": 0,
-        "false_positive": 1244
-      },
-      "4": {
-        "open": 0,
-        "fixed": 0,
-        "auto_resolved": 57,
-        "wontfix": 0,
-        "false_positive": 120
-      }
-    }
-  },
-  "scan_count": 85,
-  "last_scan": "2026-02-16T17:00:28+00:00",
-  "by_tier": {
-    "1": {
-      "open": 0,
-      "fixed": 92,
-      "auto_resolved": 28,
-      "wontfix": 0,
-      "false_positive": 0
-    },
-    "2": {
-      "open": 0,
-      "fixed": 58,
-      "auto_resolved": 89,
-      "wontfix": 0,
-      "false_positive": 113
-    },
-    "3": {
-      "open": 0,
-      "fixed": 4140,
-      "auto_resolved": 134,
-      "wontfix": 0,
-      "false_positive": 1244
-    },
-    "4": {
-      "open": 0,
-      "fixed": 0,
-      "auto_resolved": 57,
-      "wontfix": 0,
-      "false_positive": 120
-    }
-  },
-  "ignores": [
-    "exports::supabase/functions/_shared/http.ts::jsonResponse"
-  ],
-  "suppression": {
-    "last_ignored": 1,
-    "last_raw_findings": 1314,
-    "last_suppressed_pct": 0.1,
-    "last_ignore_patterns": 1,
-    "recent_scans": 5,
-    "recent_ignored": 4,
-    "recent_raw_findings": 6473,
-    "recent_suppressed_pct": 0.1
-  },
   "potentials": {
     "typescript": {
-      "logs": 1000,
-      "unused": 1000,
-      "exports": 1499,
+      "logs": 950,
+      "unused": 950,
+      "exports": 1492,
       "deprecated": 35,
-      "structural": 1000,
-      "flat_dirs": 242,
-      "props": 571,
-      "single_use": 153,
-      "coupling": 3018,
-      "cycles": 993,
-      "orphaned": 993,
-      "patterns": 7,
-      "naming": 191,
-      "facade": 993,
-      "test_coverage": 12242,
-      "smells": 1000,
+      "structural": 950,
+      "flat_dirs": 209,
+      "props": 565,
+      "single_use": 148,
+      "coupling": 3024,
+      "cycles": 944,
+      "orphaned": 944,
+      "patterns": 6,
+      "naming": 189,
+      "facade": 944,
+      "test_coverage": 11516,
+      "smells": 950,
       "react": 198,
-      "security": 1000,
-      "subjective_review": 841,
-      "dupes": 1934
+      "security": 950,
+      "subjective_review": 825,
+      "dupes": 1872
     }
   },
-  "codebase_metrics": {
-    "typescript": {
-      "total_files": 1263,
-      "total_loc": 235494,
-      "total_directories": 242
-    }
+  "zone_distribution": {
+    "production": 950,
+    "test": 258,
+    "generated": 3
   },
   "narrative": {
-    "phase": "stagnation",
+    "phase": "maintenance",
     "headline": "All T1 and T2 items cleared!",
     "dimensions": {
       "lowest_dimensions": [
@@ -445,41 +425,6 @@
           "name": "Security",
           "strict": 100.0,
           "stuck_scans": 5
-        },
-        {
-          "name": "Naming Quality",
-          "strict": 87.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Error Consistency",
-          "strict": 88.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Abstraction Fit",
-          "strict": 87.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Logic Clarity",
-          "strict": 88.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "AI Generated Debt",
-          "strict": 90.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Type Safety",
-          "strict": 88.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Contracts",
-          "strict": 87.0,
-          "stuck_scans": 5
         }
       ]
     },
@@ -494,7 +439,7 @@
       },
       "lanes": {},
       "can_parallelize": false,
-      "hint": "Try a different dimension to break the plateau."
+      "hint": "Maintenance mode \u2014 address new findings as they appear."
     },
     "tools": {
       "fixers": [],
@@ -523,12 +468,19 @@
       "trend": "stable"
     },
     "milestone": "All T1 and T2 items cleared!",
-    "reminders": [],
+    "reminders": [
+      {
+        "type": "report_scores",
+        "message": "ALWAYS share ALL scores with the user: overall, objective, and strict, plus every dimension score (lenient + strict), including subjective dimensions. The goal is to maximize strict scores.",
+        "command": null,
+        "no_decay": true
+      }
+    ],
     "reminder_history": {
       "auto_fixers_available": 3,
       "dry_run_first": 3,
       "zone_classification": 3,
-      "report_scores": 63,
+      "report_scores": 72,
       "feedback_nudge": 3,
       "stagnant_nudge": 10,
       "wontfix_growing": 1,
@@ -555,13 +507,13 @@
     "ignore": [
       "exports::supabase/functions/_shared/http.ts::jsonResponse"
     ],
+    "ignore_metadata": {},
     "zone_overrides": {},
     "review_dimensions": [],
     "large_files_threshold": 0,
     "props_threshold": 0,
     "finding_noise_budget": 10,
     "finding_noise_global_budget": 0,
-    "csharp_corroboration_min_signals": 2,
-    "csharp_high_fanout_threshold": 5
+    "languages": {}
   }
 }

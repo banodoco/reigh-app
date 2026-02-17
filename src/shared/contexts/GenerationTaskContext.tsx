@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { GenerationRow } from '@/types/shots';
 import type { Task } from '@/types/tasks';
@@ -72,16 +72,4 @@ export function GenerationTaskProvider({
       {children}
     </GenerationTaskContext.Provider>
   );
-}
-
-// ================================================================
-// HOOKS FOR USING THE CONTEXT
-// ================================================================
-
-export function useGenerationTaskContext() {
-  const context = useContext(GenerationTaskContext);
-  if (!context) {
-    throw new Error('useGenerationTaskContext must be used within a GenerationTaskProvider');
-  }
-  return context;
 }

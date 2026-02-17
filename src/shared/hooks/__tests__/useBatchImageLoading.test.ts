@@ -1,52 +1,68 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
+const { mockUseProgressiveImage, mockIsProgressiveLoadingEnabled, mockGetDisplayUrl } = vi.hoisted(() => ({
+  mockUseProgressiveImage: vi.fn(),
+  mockIsProgressiveLoadingEnabled: vi.fn(() => true),
+  mockGetDisplayUrl: vi.fn((url: string) => `display:${url}`),
+}));
+
 vi.mock('@/shared/hooks/useProgressiveImage', () => ({
-  useProgressiveImage: vi.fn((_thumb: string | null, _full: string, _opts: unknown) => ({
-    src: _thumb || _full,
-    isThumbShowing: !!_thumb,
-    isFullLoaded: !_thumb,
-    ref: vi.fn(),
-  })),
+  useProgressiveImage: mockUseProgressiveImage,
 }));
 
 vi.mock('@/shared/settings/progressiveLoading', () => ({
-  isProgressiveLoadingEnabled: vi.fn(() => true),
+  isProgressiveLoadingEnabled: mockIsProgressiveLoadingEnabled,
 }));
 
 vi.mock('@/shared/lib/utils', () => ({
-  getDisplayUrl: vi.fn((url: string) => url),
+  getDisplayUrl: mockGetDisplayUrl,
 }));
 
 import { useBatchImageLoading } from '../useBatchImageLoading';
+import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
+import { getDisplayUrl } from '@/shared/lib/utils';
 
 describe('useBatchImageLoading', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isProgressiveLoadingEnabled).mockReturnValue(true);
+    vi.mocked(getDisplayUrl).mockImplementation((url: string) => `display:${url}`);
+    vi.mocked(useProgressiveImage).mockReturnValue({
+      src: 'progressive.jpg',
+      isThumbShowing: true,
+      isFullLoaded: false,
+      ref: vi.fn(),
+    });
   });
 
-  it('returns display image URL', () => {
+  it('uses progressive source when enabled and available', () => {
     const { result } = renderHook(() =>
       useBatchImageLoading({
         thumbUrl: 'thumb.jpg',
         imageUrl: 'full.jpg',
       })
     );
-    expect(result.current.displayImageUrl).toBeTruthy();
-  });
 
-  it('provides progressive ref callback', () => {
-    const { result } = renderHook(() =>
-      useBatchImageLoading({
-        thumbUrl: 'thumb.jpg',
-        imageUrl: 'full.jpg',
+    expect(useProgressiveImage).toHaveBeenCalledWith(
+      'thumb.jpg',
+      'full.jpg',
+      expect.objectContaining({
+        priority: false,
+        lazy: true,
+        enabled: true,
+        crossfadeMs: 200,
       })
     );
+    expect(result.current.displayImageUrl).toBe('progressive.jpg');
+    expect(result.current.isThumbShowing).toBe(true);
+    expect(result.current.isFullLoaded).toBe(false);
     expect(typeof result.current.progressiveRef).toBe('function');
+    expect(getDisplayUrl).not.toHaveBeenCalled();
   });
 
-  it('falls back to thumbUrl when progressive loading is disabled and thumbUrl is set', () => {
+  it('falls back to thumb URL when progressive loading is disabled', () => {
     vi.mocked(isProgressiveLoadingEnabled).mockReturnValue(false);
     const { result } = renderHook(() =>
       useBatchImageLoading({
@@ -54,29 +70,50 @@ describe('useBatchImageLoading', () => {
         imageUrl: 'full.jpg',
       })
     );
-    // When progressive is disabled, displayImageUrl = getDisplayUrl(thumbUrl || imageUrl)
-    // thumbUrl takes priority since it's truthy
-    expect(result.current.displayImageUrl).toBe('thumb.jpg');
-  });
 
-  it('falls back to thumbUrl when no progressive src and no full URL', () => {
-    vi.mocked(isProgressiveLoadingEnabled).mockReturnValue(false);
-    const { result } = renderHook(() =>
-      useBatchImageLoading({
-        thumbUrl: 'thumb.jpg',
-        imageUrl: 'full.jpg',
-      })
+    expect(useProgressiveImage).toHaveBeenCalledWith(
+      null,
+      'full.jpg',
+      expect.objectContaining({ enabled: false })
     );
-    expect(result.current.displayImageUrl).toBeTruthy();
+    expect(getDisplayUrl).toHaveBeenCalledWith('thumb.jpg');
+    expect(result.current.displayImageUrl).toBe('display:thumb.jpg');
   });
 
-  it('handles null thumbUrl', () => {
+  it('falls back to full URL when thumb URL is null', () => {
+    vi.mocked(isProgressiveLoadingEnabled).mockReturnValue(false);
     const { result } = renderHook(() =>
       useBatchImageLoading({
         thumbUrl: null,
         imageUrl: 'full.jpg',
       })
     );
-    expect(result.current.displayImageUrl).toBeTruthy();
+
+    expect(getDisplayUrl).toHaveBeenCalledWith('full.jpg');
+    expect(result.current.displayImageUrl).toBe('display:full.jpg');
+  });
+
+  it('disables progressive loading when shouldLoad is false', () => {
+    vi.mocked(useProgressiveImage).mockReturnValue({
+      src: null,
+      isThumbShowing: false,
+      isFullLoaded: false,
+      ref: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useBatchImageLoading({
+        thumbUrl: 'thumb.jpg',
+        imageUrl: 'full.jpg',
+        shouldLoad: false,
+      })
+    );
+
+    expect(useProgressiveImage).toHaveBeenCalledWith(
+      'thumb.jpg',
+      'full.jpg',
+      expect.objectContaining({ enabled: false })
+    );
+    expect(result.current.displayImageUrl).toBe('display:thumb.jpg');
   });
 });
