@@ -24,6 +24,8 @@ export const useEnhancedShotImageReorder = (
     moveItemsToMidpoint?: (draggedItemIds: string[], newStartIndex: number, allItems: Array<{ id: string; timeline_frame: number | null }>) => Promise<void>;
   }
 ) => {
+  const REORDER_LOG_PREFIX = '[BatchReorder]';
+
   // Use parent hook functions if provided, otherwise create own instance
   const coreHook = useTimelineCore(parentHook ? null : shotId);
 
@@ -85,6 +87,14 @@ export const useEnhancedShotImageReorder = (
       const currentImages = getImagesForMode('batch');
       // img.id is shot_generations.id - unique per entry
       const currentOrder = currentImages.map(img => img.id);
+      const desiredOrder = [...orderedShotImageEntryIds];
+
+      console.debug(`${REORDER_LOG_PREFIX} reorder requested`, {
+        shotId,
+        draggedItemId,
+        currentOrder: currentOrder.map((id) => id.slice(0, 8)),
+        desiredOrder: desiredOrder.map((id) => id.slice(0, 8)),
+      });
       
       // Detect item move for midpoint logic
       // If draggedItemId is provided, use it directly (most reliable)
@@ -236,15 +246,17 @@ export const useEnhancedShotImageReorder = (
           }
           
           // Find the shot_generation data to get timeline_frame values
-          const currentShotGen = shotGenerations.find(shotGen => shotGen.generation_id === currentImg.id);
-          const targetShotGen = shotGenerations.find(shotGen => shotGen.generation_id === targetImg.id);
+          // currentImg.id / targetImg.id are shot_generations.id values
+          const currentShotGen = shotGenerations.find(shotGen => shotGen.id === currentImg.id);
+          const targetShotGen = shotGenerations.find(shotGen => shotGen.id === targetImg.id);
           
           if (currentShotGen && targetShotGen) {
+            const generationId = getGenerationId(currentImg) ?? currentImg.id;
             changes.push({
               oldPos,
               newPos,
               id, // shot_generations.id
-              generationId: getGenerationId(currentImg),
+              generationId,
               currentTimelineFrame: currentShotGen.timeline_frame || 0,
               targetTimelineFrame: targetShotGen.timeline_frame || 0
             });
@@ -253,6 +265,13 @@ export const useEnhancedShotImageReorder = (
       }
 
       if (changes.length === 0) {
+        if (currentOrder.some((id, index) => desiredOrder[index] !== id)) {
+          console.warn(`${REORDER_LOG_PREFIX} no changes detected despite order mismatch`, {
+            shotId,
+            currentOrder: currentOrder.map((id) => id.slice(0, 8)),
+            desiredOrder: desiredOrder.map((id) => id.slice(0, 8)),
+          });
+        }
         return;
       }
 
@@ -275,17 +294,30 @@ export const useEnhancedShotImageReorder = (
       }
       
       const { swapSequence, noChangesNeeded } = reorderAnalysis;
+      console.debug(`${REORDER_LOG_PREFIX} analysis complete`, {
+        shotId,
+        noChangesNeeded,
+        swapCount: swapSequence.length,
+      });
       
       // Execute the swap sequence
       if (!noChangesNeeded && swapSequence.length > 0) {
         
         for (let i = 0; i < swapSequence.length; i++) {
           const swap = swapSequence[i];
+          console.debug(`${REORDER_LOG_PREFIX} executing swap`, {
+            shotId,
+            step: i + 1,
+            total: swapSequence.length,
+            shotGenIdA: swap.shotGenIdA.slice(0, 8),
+            shotGenIdB: swap.shotGenIdB.slice(0, 8),
+          });
           
           await exchangePositionsNoReload(swap.shotGenIdA, swap.shotGenIdB);
         }
         
         await loadPositions({ reason: 'reorder' });
+        console.debug(`${REORDER_LOG_PREFIX} reload complete`, { shotId });
       }
 
       // Reordering completed successfully - no toast needed for smooth UX

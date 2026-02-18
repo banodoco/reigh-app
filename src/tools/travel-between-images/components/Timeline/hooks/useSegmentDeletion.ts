@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { handleError } from '@/shared/lib/errorHandler';
 
 export function useSegmentDeletion() {
+  const SEGMENT_DELETE_LOG_PREFIX = '[SegmentDelete]';
   const queryClient = useQueryClient();
   const [deletingSegmentId, setDeletingSegmentId] = useState<string | null>(null);
 
@@ -27,6 +28,7 @@ export function useSegmentDeletion() {
 
       const pairShotGenId = beforeData.pair_shot_generation_id || getPairShotGenIdFromParams(beforeData.params as Record<string, unknown> | null);
       const parentId = beforeData.parent_generation_id;
+      const childrenQueryKey = parentId ? queryKeys.segments.children(parentId) : null;
 
       let idsToDelete = [generationId];
       if (pairShotGenId && parentId) {
@@ -42,11 +44,25 @@ export function useSegmentDeletion() {
           .map(child => child.id);
       }
 
+      console.debug(`${SEGMENT_DELETE_LOG_PREFIX} deleting segment group`, {
+        generationId: generationId.slice(0, 8),
+        parentId: parentId?.slice(0, 8) ?? null,
+        pairShotGenId: pairShotGenId?.slice(0, 8) ?? null,
+        idsToDelete: idsToDelete.map((id) => id.slice(0, 8)),
+      });
+
       const { error: deleteError } = await supabase
         .from('generations')
         .delete()
         .in('id', idsToDelete);
       if (deleteError) throw new Error(`Failed to delete: ${deleteError.message}`);
+
+      if (childrenQueryKey) {
+        queryClient.setQueryData(childrenQueryKey, (oldData: unknown) => {
+          if (!Array.isArray(oldData)) return oldData;
+          return (oldData as Array<{ id: string }>).filter((item) => !idsToDelete.includes(item.id));
+        });
+      }
 
       // Optimistic cache update
       queryClient.setQueriesData(
@@ -56,6 +72,11 @@ export function useSegmentDeletion() {
           return (oldData as Array<{ id: string }>).filter((item) => !idsToDelete.includes(item.id));
         }
       );
+
+      console.debug(`${SEGMENT_DELETE_LOG_PREFIX} optimistic cache update applied`, {
+        parentId: parentId?.slice(0, 8) ?? null,
+        queryKey: childrenQueryKey,
+      });
 
       await queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === queryKeys.segments.childrenAll[0],
