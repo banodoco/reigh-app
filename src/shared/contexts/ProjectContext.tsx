@@ -1,5 +1,6 @@
 import { createContext, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { Project } from '@/types/project';
+import { useRenderLogger } from '@/shared/lib/debugRendering';
 import { useAuth } from './AuthContext';
 import { useUserSettings } from './UserSettingsContext';
 import { useProjectSelection } from '@/shared/hooks/useProjectSelection';
@@ -15,6 +16,7 @@ interface ProjectUpdate {
 interface ProjectContextType {
   projects: Project[];
   selectedProjectId: string | null;
+  project: Project | null;
   setSelectedProjectId: (projectId: string | null) => void;
   isLoadingProjects: boolean;
   fetchProjects: () => Promise<void>;
@@ -32,6 +34,7 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { userId } = useAuth();
+  useRenderLogger('ProjectProvider', { userId });
   const { userSettings: userPreferences, isLoadingSettings: isLoadingPreferences, updateUserSettings } = useUserSettings();
 
   // ── Selection: owns selectedProjectId, localStorage persistence, cross-device sync ──
@@ -44,6 +47,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
 
   // ── CRUD: owns projects list, loading flags, fetch/create/update/delete ──
   const crud = useProjectCRUD({
+    userId: userId ?? null,
     selectedProjectId: selection.selectedProjectId,
     onProjectsLoaded: selection.handleProjectsLoaded,
     onProjectCreated: selection.handleProjectCreated,
@@ -56,7 +60,6 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
     userId: userId ?? null,
     selectedProjectId: selection.selectedProjectId,
     isLoadingProjects: crud.isLoadingProjects,
-    isLoadingPreferences,
     projects: crud.projects,
     fetchProjects: crud.fetchProjects,
     applyCrossDeviceSync: selection.applyCrossDeviceSync,
@@ -68,7 +71,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.__PROJECT_CONTEXT__ = {
-        selectedProjectId: selection.selectedProjectId,
+        selectedProjectId: selection.selectedProjectId ?? undefined,
         projects: crud.projects,
       };
     }
@@ -79,6 +82,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
     (): ProjectContextType => ({
       projects: crud.projects || [],
       selectedProjectId: selection.selectedProjectId,
+      project: (crud.projects || []).find((item) => item.id === selection.selectedProjectId) ?? null,
       setSelectedProjectId: selection.setSelectedProjectId,
       isLoadingProjects: crud.isLoadingProjects,
       fetchProjects: crud.fetchProjects,

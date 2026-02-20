@@ -1,6 +1,7 @@
 import React, { useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import {
   resolveGenerationMode,
@@ -53,6 +54,13 @@ class ProjectGenerationModesCache {
 // Global cache instance that persists across component remounts
 const globalProjectGenerationModesCache = new ProjectGenerationModesCache();
 
+function toSettingsRecord(value: Json | null | undefined): Record<string, unknown> | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
 /**
  * Fetch all shot generation modes for a project
  */
@@ -85,12 +93,12 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
   }
 
   const toolId = TOOL_IDS.TRAVEL_BETWEEN_IMAGES;
-  const userToolSettings = extractToolSettings(userResult.data?.settings, toolId);
-  const projectToolSettings = extractToolSettings(projectResult.data?.settings, toolId);
+  const userToolSettings = extractToolSettings(toSettingsRecord(userResult.data?.settings), toolId);
+  const projectToolSettings = extractToolSettings(toSettingsRecord(projectResult.data?.settings), toolId);
 
   const modes = new Map<string, GenerationModeNormalized>();
   (shotsResult.data || []).forEach((shot) => {
-    const shotToolSettings = extractToolSettings(shot.settings, toolId);
+    const shotToolSettings = extractToolSettings(toSettingsRecord(shot.settings), toolId);
 
     // Use shared resolution logic (priority: shot → project → user → defaults)
     // defaults to 'timeline' via normalizeGenerationMode
@@ -119,7 +127,7 @@ export function useProjectGenerationModesCache(projectId: string | null, options
   const queryClient = useQueryClient();
   
   // 🎯 SMART POLLING: Use DataFreshnessManager for intelligent polling decisions
-  const smartPollingConfig = useSmartPollingConfig(['project-generation-modes', projectId]);
+  const smartPollingConfig = useSmartPollingConfig(['project-generation-modes', projectId ?? '__no-project__']);
   
   // Query to fetch all shot generation modes for the project
   const { data: projectModes, isLoading, error, refetch } = useQuery<Map<string, GenerationModeNormalized>>({
@@ -187,7 +195,7 @@ export function useProjectGenerationModesCache(projectId: string | null, options
   
   // Debug function to log cache state
   const logCacheState = useCallback((): void => {
-  }, [projectId, getAllShotModes]);
+  }, []);
   
   // Optimistically update a single shot's mode in cache
   const updateShotMode = useCallback((shotId: string | null, mode: GenerationModeNormalized) => {
@@ -234,4 +242,3 @@ export function useProjectGenerationModesCache(projectId: string | null, options
     logCacheState
   };
 }
-

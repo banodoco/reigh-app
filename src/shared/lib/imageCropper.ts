@@ -1,4 +1,4 @@
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface ProjectCropResult {
   croppedFile: File;
@@ -118,7 +118,7 @@ export const cropImageToProjectAspectRatio = async (
               try {
                 const dataUrl = canvas.toDataURL(outputMime, quality);
                 blob = await (await fetch(dataUrl)).blob();
-              } catch (err) {
+              } catch {
                 reject(new Error("Failed to create blob from canvas"));
                 return;
               }

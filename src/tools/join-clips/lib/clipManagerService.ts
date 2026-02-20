@@ -13,7 +13,7 @@ import { extractVideoMetadataFromUrl } from '@/shared/lib/videoUploader';
 import { uploadVideoToStorage } from '@/shared/lib/videoUploader';
 import { uploadBlobToStorage } from '@/shared/lib/imageUploader';
 import { extractVideoPosterFrame, extractVideoFinalFrame } from '@/shared/utils/videoPosterExtractor';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { VideoClip, TransitionPrompt } from '../types';
 

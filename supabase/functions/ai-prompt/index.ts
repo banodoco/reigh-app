@@ -48,7 +48,7 @@ serve(async (req) => {
   let body: Record<string, unknown>;
   try {
     body = await req.json();
-  } catch (_) {
+  } catch {
     return jsonResponse({ error: "Invalid JSON payload" }, 400);
   }
 
@@ -192,7 +192,7 @@ Summary:` }],
         // Enhance a single segment prompt using OpenAI GPT-5 Mini
         // Uses motion-focused prompt template for video transitions
         const prompt = String(body.prompt ?? "");
-        const temperature = Number(body.temperature ?? 0.7);
+        const _temperature = Number(body.temperature ?? 0.7);
 
         if (!prompt.trim()) {
           return jsonResponse({ error: "prompt is required" }, 400);

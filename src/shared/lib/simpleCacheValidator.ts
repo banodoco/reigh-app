@@ -11,11 +11,21 @@
  * ```
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+
+type CacheDebugWindow = Window & {
+  validateImageCache?: () => void;
+  startCacheWatch?: () => void;
+  stopCacheWatch?: () => void;
+  showCacheStats?: () => void;
+  showCacheHelp?: () => void;
+};
 
 // Make available globally in development
-if (typeof window !== 'undefined' && import.meta.env.DEV) {
-  (window as unknown).validateImageCache = () => {
+if (typeof window !== 'undefined' && Boolean((import.meta as ImportMeta & { env?: Record<string, unknown> }).env?.DEV)) {
+  const debugWindow = window as CacheDebugWindow;
+
+  debugWindow.validateImageCache = () => {
     console.group('🗂️ Image Cache Validation');
     
     try {
@@ -70,7 +80,7 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
     console.groupEnd();
   };
   
-  (window as unknown).startCacheWatch = () => {
+  debugWindow.startCacheWatch = () => {
     let lastMediaCount = 0;
     
     const monitor = () => {
@@ -82,7 +92,7 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
         if (currentMediaCount !== lastMediaCount) {
           lastMediaCount = currentMediaCount;
         }
-      } catch (e) {
+      } catch {
         // Silent fail
       }
     };
@@ -92,13 +102,13 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
     console.log('📱 Navigate between pages to see cache behavior');
     console.log('⏹️ Run stopCacheWatch() to stop monitoring');
     
-    (window as unknown).stopCacheWatch = () => {
+    debugWindow.stopCacheWatch = () => {
       clearInterval(intervalId);
       console.log('⏹️ Cache monitoring stopped');
     };
   };
   
-  (window as unknown).showCacheStats = () => {
+  debugWindow.showCacheStats = () => {
     const images = document.querySelectorAll('img[src*="supabase.co/storage"]');
     const videos = document.querySelectorAll('video[src*="supabase.co/storage"]');
     
@@ -111,7 +121,7 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
   };
   
   // Also add a helpful function to show what to look for
-  (window as unknown).showCacheHelp = () => {
+  debugWindow.showCacheHelp = () => {
     console.group('🔍 Cache Validation Help');
     console.log('The cache cleanup happens automatically. To validate it:');
     console.log('');

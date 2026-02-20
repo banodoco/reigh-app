@@ -12,7 +12,7 @@ logger.warn = (msg, options) => {
 };
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }: { mode: string }) => {
+export default defineConfig(({ mode: _mode }: { mode: string }) => {
   const port = process.env.PORT ? parseInt(process.env.PORT) : 2222;
 
   return {

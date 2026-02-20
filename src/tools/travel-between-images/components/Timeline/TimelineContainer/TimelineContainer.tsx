@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from '../constants';
 
 // Timeline sub-components (existing)
@@ -33,6 +33,12 @@ import { usePairSettingsHandler } from '../hooks/usePairSettingsHandler';
 import type { TimelineContainerProps } from './types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useTimelineMedia } from '../TimelineMediaContext';
+
+function getEnhancedPromptFromMetadata(metadata: unknown): string {
+  if (!metadata || typeof metadata !== 'object') return '';
+  const value = (metadata as { enhanced_prompt?: unknown }).enhanced_prompt;
+  return typeof value === 'string' ? value : '';
+}
 
 const TimelineContainer: React.FC<TimelineContainerProps> = ({
   shotId,
@@ -122,6 +128,10 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     return findTrailingVideoInfo(videoOutputs, lastImageShotGenId);
   }, [videoOutputs, framePositions, images.length]);
 
+  // Async trailing video URL — lifted before orchestrator so fullMax can expand via hasAnyTrailingVideo
+  const [callbackTrailingVideoUrl, setCallbackTrailingVideoUrl] = useState<string | null>(null);
+  const hasAnyTrailingVideo = hasExistingTrailingVideo || !!callbackTrailingVideoUrl;
+
   // --- Orchestrator hook (all state, effects, and handlers) ---
   const {
     timelineRef,
@@ -202,19 +212,20 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     onAddStructureVideo,
     onUpdateStructureVideo,
     onPrimaryStructureVideoInputChange,
-    hasExistingTrailingVideo,
+    hasExistingTrailingVideo: hasAnyTrailingVideo,
   });
 
   // --- Post-orchestrator trailing endpoint (needs currentPositions) ---
   const {
     trailingVideoUrl,
     handleExtractFinalFrame,
-    setTrailingVideoUrl,
     imagePositions,
   } = useTrailingEndpoint({
     currentPositions,
     trailingEndFrame,
     computedTrailingVideoUrl,
+    callbackTrailingVideoUrl,
+    setCallbackTrailingVideoUrl,
     onFileDrop,
   });
 
@@ -358,12 +369,13 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 selectedParentId={selectedOutputId}
                 onSegmentFrameCountChange={onSegmentFrameCountChange}
                 lastImageId={lastEntry?.[0]}
-                trailingSegmentMode={lastEntry && trailingEndFrame !== undefined ? (() => {
+                trailingSegmentMode={lastEntry && (trailingEndFrame !== undefined || hasAnyTrailingVideo) ? (() => {
                   const [imageId, imageFrame] = lastEntry;
-                  const trailingDuration = trailingEndFrame - imageFrame;
+                  const resolvedEndFrame = trailingEndFrame ?? (imageFrame + (isMultiImage ? 17 : 49));
+                  const trailingDuration = resolvedEndFrame - imageFrame;
                   const effectiveImageId = pendingIsLast ? PENDING_POSITION_KEY : imageId;
                   const effectiveImageFrame = pendingIsLast ? activePendingFrame! : imageFrame;
-                  const effectiveEndFrame = pendingIsLast ? activePendingFrame! + trailingDuration : trailingEndFrame;
+                  const effectiveEndFrame = pendingIsLast ? activePendingFrame! + trailingDuration : resolvedEndFrame;
                   return { imageId: effectiveImageId, imageFrame: effectiveImageFrame, endFrame: effectiveEndFrame };
                 })() : undefined}
                 isMultiImage={isMultiImage}
@@ -374,7 +386,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 onRemoveTrailingSegment={isMultiImage && trailingEndFrame !== undefined ? () => {
                   handleTrailingEndFrameChange(undefined);
                 } : undefined}
-                onTrailingVideoInfo={setTrailingVideoUrl}
+                onTrailingVideoInfo={setCallbackTrailingVideoUrl}
               />
             );
           })()}
@@ -403,7 +415,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                   videoUrl={primaryStructureVideoPath}
                   videoMetadata={primaryStructureVideoMetadata || null}
                   treatment={primaryStructureVideoTreatment}
-                  onTreatmentChange={(treatment) => onPrimaryStructureVideoInputChange(primaryStructureVideoPath, primaryStructureVideoMetadata, treatment, primaryStructureVideoMotionStrength, primaryStructureVideoType)}
+                  onTreatmentChange={(treatment) => onPrimaryStructureVideoInputChange(primaryStructureVideoPath, primaryStructureVideoMetadata ?? null, treatment, primaryStructureVideoMotionStrength, primaryStructureVideoType)}
                   onRemove={() => onPrimaryStructureVideoInputChange(null, null, 'adjust', 1.0, 'flow')}
                   onMetadataExtracted={(metadata) => onPrimaryStructureVideoInputChange(primaryStructureVideoPath, metadata, primaryStructureVideoTreatment, primaryStructureVideoMotionStrength, primaryStructureVideoType)}
                   fullMin={fullMin}
@@ -423,11 +435,11 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               ) : !readOnly ? (
                 <GuidanceVideoUploader
                   shotId={shotId}
-                  projectId={projectId}
+                  projectId={projectId ?? ''}
                   onVideoUploaded={(videoUrl, metadata) => {
                     if (videoUrl && metadata) onPrimaryStructureVideoInputChange(videoUrl, metadata, primaryStructureVideoTreatment, primaryStructureVideoMotionStrength, primaryStructureVideoType);
                   }}
-                  currentVideoUrl={primaryStructureVideoPath}
+                  currentVideoUrl={primaryStructureVideoPath ?? null}
                   compact={false}
                   zoomLevel={zoomLevel}
                   onZoomIn={handleZoomInToCenter}
@@ -546,7 +558,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               const pairPromptData = pairPrompts?.[index];
               const pairPromptFromMetadata = pairPromptData?.prompt || '';
               const pairNegativePromptFromMetadata = pairPromptData?.negativePrompt || '';
-              const actualEnhancedPrompt = startImage?.metadata?.enhanced_prompt || '';
+              const actualEnhancedPrompt = getEnhancedPromptFromMetadata(startImage?.metadata);
 
               return (
                 <PairRegion
@@ -567,16 +579,18 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                       ...pairData,
                       startImage: startImage ? {
                         id: startImage.id,
+                        generationId: startImage.generation_id || undefined,
+                        primaryVariantId: startImage.primary_variant_id || undefined,
                         url: startImage.imageUrl || startImage.thumbUrl,
                         thumbUrl: startImage.thumbUrl,
-                        timeline_frame: startImage.timeline_frame ?? 0,
                         position: index + 1
                       } : null,
                       endImage: endImage ? {
                         id: endImage.id,
+                        generationId: endImage.generation_id || undefined,
+                        primaryVariantId: endImage.primary_variant_id || undefined,
                         url: endImage.imageUrl || endImage.thumbUrl,
                         thumbUrl: endImage.thumbUrl,
-                        timeline_frame: endImage.timeline_frame ?? 0,
                         position: index + 2
                       } : null
                     });
@@ -609,7 +623,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               const isMultiImage = images.length > 1;
               const hasTrailingSegment = trailingEndFrame !== undefined;
 
-              if (isMultiImage && !hasTrailingSegment && !hasExistingTrailingVideo) {
+              if (isMultiImage && !hasTrailingSegment && !hasAnyTrailingVideo) {
                 return null;
               }
 
@@ -731,8 +745,8 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                   onDelete={onImageDelete}
                   onDuplicate={handleDuplicateInterceptor}
                   onInpaintClick={handleInpaintClick ? () => handleInpaintClick(idx) : undefined}
-                  duplicatingImageId={duplicatingImageId}
-                  duplicateSuccessImageId={duplicateSuccessImageId}
+                  duplicatingImageId={duplicatingImageId ?? undefined}
+                  duplicateSuccessImageId={duplicateSuccessImageId ?? undefined}
                   projectAspectRatio={projectAspectRatio}
                   readOnly={readOnly}
                   onPrefetch={!isMobile ? () => {

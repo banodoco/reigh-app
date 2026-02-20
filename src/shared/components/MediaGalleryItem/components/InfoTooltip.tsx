@@ -12,7 +12,7 @@ import type { Task } from "@/types/tasks";
 
 interface InfoTooltipProps {
   image: GeneratedImageWithMetadata;
-  taskData: Task | null;
+  taskData: Task | null | undefined;
   inputImages: string[];
   shouldShowMetadata: boolean;
   shouldShowTaskDetails: boolean;
@@ -54,7 +54,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
           <>
             {shouldShowTaskDetails ? (
               <GenerationDetails
-                task={taskData}
+                task={taskData ?? undefined}
                 inputImages={inputImages}
                 variant="hover"
                 isMobile={false}

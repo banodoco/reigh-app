@@ -4,7 +4,18 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/shared/lib/utils"
 
-const Select = SelectPrimitive.Root
+type SelectRootProps = Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>, 'onValueChange'> & {
+  onValueChange?: (...args: any[]) => void;
+};
+
+const Select = ({ onValueChange, ...props }: SelectRootProps) => (
+  <SelectPrimitive.Root
+    {...props}
+    onValueChange={(...args) => {
+      onValueChange?.(...args);
+    }}
+  />
+)
 
 const SelectGroup = SelectPrimitive.Group
 

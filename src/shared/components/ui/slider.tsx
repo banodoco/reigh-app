@@ -2,8 +2,9 @@ import * as React from "react"
 import { Slider as SliderPrimitive } from "@base-ui-components/react/slider"
 import { cn } from "@/shared/lib/utils"
 
-interface SliderProps extends Omit<React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>, "children"> {
+interface SliderProps extends Omit<React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>, "children" | "onValueChange"> {
   variant?: "primary" | "secondary";
+  onValueChange?: (...args: any[]) => void;
   className?: string;
 }
 

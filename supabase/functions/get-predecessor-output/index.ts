@@ -51,7 +51,7 @@ serve(async (req) => {
   let body: unknown;
   try {
     body = await req.json();
-  } catch (e) {
+  } catch {
     logger.error("Invalid JSON body");
     await logger.flush();
     return new Response("Invalid JSON body", { status: 400 });

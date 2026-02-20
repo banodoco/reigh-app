@@ -19,10 +19,12 @@
  */
 
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
-import { GenerationRow, GenerationMetadata } from '@/types/shots';
+import type { GenerationRow, GenerationMetadata } from '@/types/generations';
 import { supabase } from '@/integrations/supabase/client';
-import { stripQueryParameters } from '@/shared/lib/utils';
+import { stripQueryParameters } from '@/shared/lib/mediaUrl';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { ServerError } from '@/shared/lib/errors';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /**
  * Result type for calculateDerivedCounts
@@ -34,6 +36,14 @@ export interface DerivedCountsResult {
   hasUnviewedVariants: Record<string, boolean>;
   /** Count of unviewed variants per generation */
   unviewedVariantCounts: Record<string, number>;
+}
+
+function createEmptyDerivedCountsResult(): DerivedCountsResult {
+  return {
+    derivedCounts: {},
+    hasUnviewedVariants: {},
+    unviewedVariantCounts: {},
+  };
 }
 
 /**
@@ -50,13 +60,11 @@ export interface DerivedCountsResult {
 export async function calculateDerivedCounts(
   generationIds: string[]
 ): Promise<DerivedCountsResult> {
-  const derivedCounts: Record<string, number> = {};
-  const hasUnviewedVariants: Record<string, boolean> = {};
-  const unviewedVariantCounts: Record<string, number> = {};
-
   if (generationIds.length === 0) {
-    return { derivedCounts, hasUnviewedVariants, unviewedVariantCounts };
+    return createEmptyDerivedCountsResult();
   }
+
+  const { derivedCounts, hasUnviewedVariants, unviewedVariantCounts } = createEmptyDerivedCountsResult();
 
   // Only count from generation_variants table (actual variants)
   // Note: We intentionally don't count based_on generations here - those are
@@ -66,19 +74,40 @@ export async function calculateDerivedCounts(
     .select('generation_id, viewed_at')
     .in('generation_id', generationIds);
 
-  if (!variantCountsError && variantCountsData) {
-    variantCountsData.forEach((item: { generation_id: string; viewed_at: string | null }) => {
+  if (variantCountsError) {
+    throw new ServerError('Failed to load variant badge counts', {
+      context: { generationIdsCount: generationIds.length },
+      cause: variantCountsError,
+    });
+  }
+
+  if (variantCountsData) {
+    for (const item of variantCountsData as Array<{ generation_id: string; viewed_at: string | null }>) {
       const genId = item.generation_id;
       derivedCounts[genId] = (derivedCounts[genId] || 0) + 1;
-      // If any variant has viewed_at === null, mark as having unviewed variants and count them
       if (item.viewed_at === null) {
         hasUnviewedVariants[genId] = true;
         unviewedVariantCounts[genId] = (unviewedVariantCounts[genId] || 0) + 1;
       }
-    });
+    }
   }
 
   return { derivedCounts, hasUnviewedVariants, unviewedVariantCounts };
+}
+
+/**
+ * Fail-open variant of calculateDerivedCounts for non-critical UI surfaces.
+ * Keeps badge rendering resilient when counts query intermittently fails.
+ */
+export async function calculateDerivedCountsSafe(
+  generationIds: string[]
+): Promise<DerivedCountsResult> {
+  try {
+    return await calculateDerivedCounts(generationIds);
+  } catch (error) {
+    handleError(error, { context: 'generationTransformers.calculateDerivedCountsSafe', showToast: false });
+    return createEmptyDerivedCountsResult();
+  }
 }
 
 /**

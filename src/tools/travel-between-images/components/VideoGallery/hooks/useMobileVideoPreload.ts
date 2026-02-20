@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GenerationRow } from '@/types/shots';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 
 // TypeScript declaration for global mobile video preload map
 declare global {
@@ -73,7 +73,7 @@ export function useMobileVideoPreload(
     preloadVideo.dataset.cleanupTimeoutId = timeoutId.toString();
 
     return cleanup;
-  }, [isMobile, isMobilePreloading, video.id, video.location, video.imageUrl]);
+  }, [isMobile, isMobilePreloading, video.location, video.imageUrl]);
 
   // Cleanup preload video on unmount or video change
   useEffect(() => {
@@ -89,7 +89,7 @@ export function useMobileVideoPreload(
         preloadVideoRef.current = null;
       }
     };
-  }, [video.id]);
+  }, [video.location, video.imageUrl]);
 
   // Create stable preload handler for this video item
   const handleMobilePreload = React.useCallback(() => {

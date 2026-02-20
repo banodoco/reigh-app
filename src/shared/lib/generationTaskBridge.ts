@@ -2,8 +2,8 @@ import { useMutation, QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/types/shots';
 import { Task } from '@/types/tasks';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 // ================================================================
 // CENTRALIZED GENERATION ↔ TASK INTEGRATION PATTERNS
@@ -131,12 +131,12 @@ export async function preloadGenerationTaskMappings(
       
       // Cache the mappings
       mappings.forEach((taskId, generationId) => {
-        queryClient.setQueryData(queryKeys.tasks.generationMapping(generationId), { taskId });
+        queryClient.setQueryData(taskQueryKeys.generationMapping(generationId), { taskId });
 
         // Optionally preload full task data
         if (preloadFullTaskData && taskId) {
           queryClient.prefetchQuery({
-            queryKey: [...queryKeys.tasks.all, 'single', taskId],
+            queryKey: [...taskQueryKeys.all, 'single', taskId],
             queryFn: async () => {
               const { data, error } = await supabase
                 .from('tasks')
@@ -178,11 +178,11 @@ export function enhanceGenerationsWithTaskData(
 ): (GenerationRow & { taskId?: string | null; taskData?: Task | null })[] {
   return generations.map(generation => {
     // Try to get cached task mapping
-    const cachedMapping = queryClient.getQueryData<{ taskId: string | null }>(queryKeys.tasks.generationMapping(generation.id));
+    const cachedMapping = queryClient.getQueryData<{ taskId: string | null }>(taskQueryKeys.generationMapping(generation.id));
     const taskId = cachedMapping?.taskId || null;
 
     // Try to get cached task data
-    const taskData = taskId ? queryClient.getQueryData<Task>([...queryKeys.tasks.all, 'single', taskId]) : null;
+    const taskData = taskId ? queryClient.getQueryData<Task>([...taskQueryKeys.all, 'single', taskId]) : null;
     
     return {
       ...generation,

@@ -43,7 +43,12 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
     setIsTogglingStar(true);
     const nextStarred = !localStarred;
     setLocalStarred(nextStarred);
-    const targetId = getGenerationId(image);
+    const targetId = getGenerationId(image) ?? image.id;
+    if (!targetId) {
+      setIsTogglingStar(false);
+      setLocalStarred(!nextStarred);
+      return;
+    }
     try {
       if (onToggleStar) {
         onToggleStar(targetId, nextStarred);
@@ -58,7 +63,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           }
         );
       }
-    } catch (_) {
+    } catch {
       setIsTogglingStar(false);
       setLocalStarred(!nextStarred);
     }

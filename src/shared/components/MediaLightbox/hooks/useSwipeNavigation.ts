@@ -188,7 +188,7 @@ export function useSwipeNavigation({
     // Capture the pointer for reliable tracking outside the element
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch (err) {
+    } catch {
       // setPointerCapture may fail in some edge cases
     }
   }, [disabled]);
@@ -295,4 +295,3 @@ export function useSwipeNavigation({
     isSwiping,
   };
 }
-

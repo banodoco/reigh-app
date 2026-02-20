@@ -84,7 +84,7 @@ export async function createLineageGif(
         total: imageUrls.length,
         message: `Loading images ${i + 1}/${imageUrls.length}`,
       });
-    } catch (err) {
+    } catch {
       // Skip failed images
     }
   }
@@ -155,10 +155,11 @@ export async function createLineageGif(
     // Get image data
     const imageData = ctx.getImageData(0, 0, width, height);
     const { data } = imageData;
+    const rgbaPixels = new Uint8Array(data);
 
     // gifenc expects RGBA data directly from canvas
-    const palette = quantize(data, 256, { format: 'rgba4444' });
-    const indexedPixels = applyPalette(data, palette, 'rgba4444');
+    const palette = quantize(rgbaPixels, 256, { format: 'rgba4444' });
+    const indexedPixels = applyPalette(rgbaPixels, palette);
 
     // Add frame with specified delay (gifenc uses centiseconds)
     gif.writeFrame(indexedPixels, width, height, {

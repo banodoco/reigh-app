@@ -15,7 +15,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { DerivedCountsResult } from '@/shared/lib/generationTransformers';
 import { queryKeys } from '@/shared/lib/queryKeys';
 

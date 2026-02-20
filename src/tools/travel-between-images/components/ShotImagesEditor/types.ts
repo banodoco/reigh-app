@@ -4,7 +4,6 @@
 
 import type { GenerationRow, Shot } from "@/types/shots";
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
-import type { PairData } from "../Timeline/TimelineContainer";
 import type { StructureVideoConfigWithMetadata } from "@/shared/lib/tasks/travelBetweenImages";
 
 // =============================================================================
@@ -169,68 +168,6 @@ export interface PreviewTogetherDialogProps {
   projectAspectRatio?: string;
   audioUrl?: string | null;
 }
-
-// =============================================================================
-// Segment Slot Types
-// =============================================================================
-
-interface SegmentSlotState {
-  segmentSlotLightboxIndex: number | null;
-  activePairData: PairData | null;
-  pendingImageToOpen: string | null;
-  isLightboxTransitioning: boolean;
-  deletingSegmentId: string | null;
-}
-
-// =============================================================================
-// Stable Callback Dependencies
-// =============================================================================
-
-interface StableCallbackDeps {
-  loadPositions: (options?: { silent?: boolean }) => Promise<void>;
-  pairDataByIndex: Map<number, PairData>;
-  setSegmentSlotLightboxIndex: (index: number | null) => void;
-  setActivePairData: (data: PairData | null) => void;
-  shotGenerations: GenerationRow[];
-  clearEnhancedPrompt: (shotGenerationId: string) => Promise<void>;
-  onCreateShot?: (name: string) => Promise<string>;
-}
-
-// =============================================================================
-// Hook Return Types
-// =============================================================================
-
-interface UsePreviewStateReturn {
-  isPreviewTogetherOpen: boolean;
-  setIsPreviewTogetherOpen: (open: boolean) => void;
-  currentPreviewIndex: number;
-  setCurrentPreviewIndex: (index: number | ((prev: number) => number)) => void;
-  previewIsPlaying: boolean;
-  setPreviewIsPlaying: (playing: boolean | ((prev: boolean) => boolean)) => void;
-  previewCurrentTime: number;
-  setPreviewCurrentTime: (time: number) => void;
-  previewDuration: number;
-  setPreviewDuration: (duration: number) => void;
-  isPreviewVideoLoading: boolean;
-  setIsPreviewVideoLoading: (loading: boolean) => void;
-  // Audio sync
-  segmentDurations: number[];
-  setSegmentDurations: (durations: number[]) => void;
-  segmentOffsets: number[];
-  setSegmentOffsets: (offsets: number[]) => void;
-  isAudioEnabled: boolean;
-  setIsAudioEnabled: (enabled: boolean) => void;
-  // Crossfade
-  crossfadeProgress: number;
-  setCrossfadeProgress: (progress: number) => void;
-  // Dual video
-  activeVideoSlot: 'A' | 'B';
-  setActiveVideoSlot: (slot: 'A' | 'B') => void;
-  preloadedIndex: number | null;
-  setPreloadedIndex: (index: number | null) => void;
-}
-
-// UseLightboxTransitionReturn is defined in ./hooks/useLightboxTransition.ts
 
 // Re-export PairData for convenience
 export type { PairData } from "../Timeline/TimelineContainer";

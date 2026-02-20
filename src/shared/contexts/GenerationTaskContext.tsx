@@ -50,7 +50,7 @@ export function GenerationTaskProvider({
         delayBetweenBatches: preloadDelay,
         preloadFullTaskData: true, // Preload full task data for better UX
       });
-    } catch (_error) {
+    } catch {
       // Best effort preloading: the main UI can still function without prefetched task data.
     }
   }, [queryClient, isPreloadingEnabled, preloadBatchSize, preloadDelay]);

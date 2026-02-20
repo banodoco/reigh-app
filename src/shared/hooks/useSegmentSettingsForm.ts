@@ -154,17 +154,71 @@ interface UseSegmentSettingsFormReturn {
   saveEnhancePromptEnabled: (enabled: boolean) => Promise<boolean>;
 }
 
-export function useSegmentSettingsForm(
-  options: UseSegmentSettingsFormOptions
-): UseSegmentSettingsFormReturn {
+interface UseEnhancePromptToggleInput {
+  enhancePromptEnabled: boolean | undefined;
+  saveEnhancePromptEnabled: (enabled: boolean) => Promise<boolean>;
+}
+
+interface SegmentSettingsFormPropsInput {
+  settings: ReturnType<typeof useSegmentSettings>['settings'];
+  updateSettings: ReturnType<typeof useSegmentSettings>['updateSettings'];
+  hasOverride: ReturnType<typeof useSegmentSettings>['hasOverride'];
+  shotDefaults: ReturnType<typeof useSegmentSettings>['shotDefaults'];
+  isDirty: ReturnType<typeof useSegmentSettings>['isDirty'];
+  resetSettings: ReturnType<typeof useSegmentSettings>['resetSettings'];
+  saveAsShotDefaults: ReturnType<typeof useSegmentSettings>['saveAsShotDefaults'];
+  saveFieldAsDefault: ReturnType<typeof useSegmentSettings>['saveFieldAsDefault'];
+  enhancedPrompt: ReturnType<typeof useSegmentSettings>['enhancedPrompt'];
+  basePromptForEnhancement: ReturnType<typeof useSegmentSettings>['basePromptForEnhancement'];
+  clearEnhancedPrompt: ReturnType<typeof useSegmentSettings>['clearEnhancedPrompt'];
+  effectiveEnhanceEnabled: boolean;
+  handleEnhancePromptChange: (enabled: boolean) => void;
+  options: UseSegmentSettingsFormOptions;
+}
+
+function useEnhancePromptToggle({
+  enhancePromptEnabled,
+  saveEnhancePromptEnabled,
+}: UseEnhancePromptToggleInput): {
+  effectiveEnhanceEnabled: boolean;
+  enhancePromptRef: React.MutableRefObject<boolean>;
+  handleEnhancePromptChange: (enabled: boolean) => void;
+} {
+  const effectiveEnhanceEnabled = enhancePromptEnabled ?? false;
+  const enhancePromptRef = useRef(effectiveEnhanceEnabled);
+  enhancePromptRef.current = effectiveEnhanceEnabled;
+
+  const handleEnhancePromptChange = useCallback((enabled: boolean) => {
+    enhancePromptRef.current = enabled;
+    saveEnhancePromptEnabled(enabled);
+  }, [saveEnhancePromptEnabled]);
+
+  return {
+    effectiveEnhanceEnabled,
+    enhancePromptRef,
+    handleEnhancePromptChange,
+  };
+}
+
+function useBuiltSegmentSettingsFormProps(input: SegmentSettingsFormPropsInput) {
   const {
-    // useSegmentSettings options
-    pairShotGenerationId,
-    shotId,
-    defaults,
-    structureVideoDefaults,
-    onUpdateStructureVideoDefaults,
-    // Form display options
+    settings,
+    updateSettings,
+    hasOverride,
+    shotDefaults,
+    isDirty,
+    resetSettings,
+    saveAsShotDefaults,
+    saveFieldAsDefault,
+    enhancedPrompt,
+    basePromptForEnhancement,
+    clearEnhancedPrompt,
+    effectiveEnhanceEnabled,
+    handleEnhancePromptChange,
+    options,
+  } = input;
+
+  const {
     segmentIndex,
     startImageUrl,
     endImageUrl,
@@ -176,86 +230,32 @@ export function useSegmentSettingsForm(
     queryKeyPrefix,
     maxFrames,
     structureVideoType,
+    structureVideoDefaults,
     structureVideoUrl,
     structureVideoFrameRange,
-    // Per-segment structure video management
     isTimelineMode,
     onAddSegmentStructureVideo,
     onUpdateSegmentStructureVideo,
     onRemoveSegmentStructureVideo,
-    // Navigation
     startImageShotGenerationId,
     endImageShotGenerationId,
     onNavigateToImage,
   } = options;
 
-  // Get all segment settings data
-  const {
-    settings,
-    updateSettings,
-    saveSettings,
-    resetSettings,
-    saveAsShotDefaults,
-    saveFieldAsDefault,
-    getSettingsForTaskCreation,
-    isLoading,
-    isDirty,
-    hasOverride,
-    shotDefaults,
-    enhancedPrompt,
-    basePromptForEnhancement,
-    clearEnhancedPrompt,
-    enhancePromptEnabled,
-    saveEnhancePromptEnabled,
-  } = useSegmentSettings({
-    pairShotGenerationId,
-    shotId,
-    defaults,
-    structureVideoDefaults,
-    onUpdateStructureVideoDefaults,
-  });
-
-  // Enhance prompt toggle: compute effective value (persisted ?? false)
-  const effectiveEnhanceEnabled = enhancePromptEnabled ?? false;
-
-  // Ref for synchronous access in submit handlers (avoids stale closure when user
-  // toggles and immediately submits before React re-renders with new persisted value)
-  const enhancePromptRef = useRef(effectiveEnhanceEnabled);
-  // Keep ref in sync with computed value on each render
-  enhancePromptRef.current = effectiveEnhanceEnabled;
-
-  // Handler that updates ref synchronously AND persists to DB
-  const handleEnhancePromptChange = useCallback((enabled: boolean) => {
-    enhancePromptRef.current = enabled; // Synchronous update for submit handlers
-    saveEnhancePromptEnabled(enabled); // Persist to DB (async, but ref is already updated)
-  }, [saveEnhancePromptEnabled]);
-
-  // Build form props that can be spread onto SegmentSettingsForm
-  const formProps = useMemo(() => ({
-    // Core controlled form props
+  return useMemo(() => ({
     settings,
     onChange: updateSettings,
-
-    // Override indicators
     hasOverride,
     shotDefaults,
     isDirty,
-
-    // Actions
     onRestoreDefaults: resetSettings,
     onSaveAsShotDefaults: saveAsShotDefaults,
     onSaveFieldAsDefault: saveFieldAsDefault,
-
-    // Enhanced prompt (AI-generated, stored separately)
     enhancedPrompt,
     basePromptForEnhancement,
     onClearEnhancedPrompt: clearEnhancedPrompt,
-
-    // Enhance prompt toggle (controlled by hook)
     enhancePromptEnabled: effectiveEnhanceEnabled,
     onEnhancePromptChange: handleEnhancePromptChange,
-
-    // Display context
     segmentIndex,
     startImageUrl,
     endImageUrl,
@@ -266,20 +266,14 @@ export function useSegmentSettingsForm(
     showHeader,
     queryKeyPrefix,
     maxFrames,
-
-    // Structure video
     structureVideoType,
-    structureVideoDefaults,
+    structureVideoDefaults: structureVideoDefaults ?? undefined,
     structureVideoUrl,
     structureVideoFrameRange,
-
-    // Per-segment structure video management
     isTimelineMode,
     onAddSegmentStructureVideo,
     onUpdateSegmentStructureVideo,
     onRemoveSegmentStructureVideo,
-
-    // Navigation to constituent images
     startImageShotGenerationId,
     endImageShotGenerationId,
     onNavigateToImage,
@@ -319,6 +313,70 @@ export function useSegmentSettingsForm(
     endImageShotGenerationId,
     onNavigateToImage,
   ]);
+}
+
+export function useSegmentSettingsForm(
+  options: UseSegmentSettingsFormOptions
+): UseSegmentSettingsFormReturn {
+  const {
+    pairShotGenerationId,
+    shotId,
+    defaults,
+    structureVideoDefaults,
+    onUpdateStructureVideoDefaults,
+  } = options;
+
+  // Get all segment settings data
+  const {
+    settings,
+    updateSettings,
+    saveSettings,
+    resetSettings,
+    saveAsShotDefaults,
+    saveFieldAsDefault,
+    getSettingsForTaskCreation,
+    isLoading,
+    isDirty,
+    hasOverride,
+    shotDefaults,
+    enhancedPrompt,
+    basePromptForEnhancement,
+    clearEnhancedPrompt,
+    enhancePromptEnabled,
+    saveEnhancePromptEnabled,
+  } = useSegmentSettings({
+    pairShotGenerationId,
+    shotId,
+    defaults,
+    structureVideoDefaults,
+    onUpdateStructureVideoDefaults,
+  });
+
+  const {
+    effectiveEnhanceEnabled,
+    enhancePromptRef,
+    handleEnhancePromptChange,
+  } = useEnhancePromptToggle({
+    enhancePromptEnabled,
+    saveEnhancePromptEnabled,
+  });
+
+  const formProps = useBuiltSegmentSettingsFormProps({
+    settings,
+    updateSettings,
+    hasOverride,
+    shotDefaults,
+    isDirty,
+    resetSettings,
+    saveAsShotDefaults,
+    saveFieldAsDefault,
+    enhancedPrompt,
+    basePromptForEnhancement,
+    clearEnhancedPrompt,
+    effectiveEnhanceEnabled,
+    handleEnhancePromptChange,
+    options,
+  });
 
   return {
     formProps,

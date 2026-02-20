@@ -4,7 +4,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useToast } from '@/shared/hooks/use-toast';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { parseTaskParams } from '@/shared/lib/taskTypeUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
@@ -12,6 +12,8 @@ import { GenerationRow } from '@/types/shots';
 import { isSegmentVideoTask, extractPairShotGenerationId, checkSegmentConnection } from '../utils/task-utils';
 import { getTaskVariantId } from '../utils/getTaskVariantId';
 import { travelShotUrl } from '@/shared/lib/toolConstants';
+
+type ActionEvent = React.MouseEvent | React.TouchEvent;
 
 interface UseTaskNavigationOptions {
   task: Task;
@@ -46,9 +48,9 @@ interface UseTaskNavigationOptions {
 
 interface UseTaskNavigationReturn {
   handleCheckProgress: () => Promise<void>;
-  handleViewVideo: (e: React.MouseEvent) => Promise<void>;
-  handleViewImage: (e: React.MouseEvent) => void;
-  handleVisitShot: (e: React.MouseEvent) => void;
+  handleViewVideo: (e: ActionEvent) => Promise<void>;
+  handleViewImage: (e: ActionEvent) => void;
+  handleVisitShot: (e: ActionEvent) => void;
   handleMobileTap: (e: React.MouseEvent) => void;
   progressPercent: number | null;
 }
@@ -199,7 +201,7 @@ export function useTaskNavigation({
   // handleVisitShot
   // ---------------------------------------------------------------------------
   const handleVisitShot = useCallback(
-    (e: React.MouseEvent) => {
+    (e: ActionEvent) => {
       e.stopPropagation();
       e.preventDefault();
       if (!shotId) return;
@@ -214,7 +216,7 @@ export function useTaskNavigation({
   // handleViewVideo
   // ---------------------------------------------------------------------------
   const handleViewVideo = useCallback(
-    async (e: React.MouseEvent) => {
+    async (e: ActionEvent) => {
       e.stopPropagation();
       e.preventDefault();
       setIsHoveringTaskItem(false);
@@ -263,7 +265,7 @@ export function useTaskNavigation({
   // handleViewImage
   // ---------------------------------------------------------------------------
   const handleViewImage = useCallback(
-    (e: React.MouseEvent) => {
+    (e: ActionEvent) => {
       e.stopPropagation();
       e.preventDefault();
       setIsHoveringTaskItem(false);

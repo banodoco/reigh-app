@@ -127,14 +127,16 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
 
         // Get generation IDs - check multiple locations (individual params, top-level, orchestrator arrays)
         const orchGenIds = (orchDetails.input_image_generation_ids || []) as string[];
-        const startGenId = individualParams.start_image_generation_id
-          || params?.start_image_generation_id
-          || orchGenIds[childOrder]
-          || null;
-        const endGenId = individualParams.end_image_generation_id
-          || params?.end_image_generation_id
-          || orchGenIds[childOrder + 1]
-          || null;
+        const startGenId = [
+          individualParams.start_image_generation_id,
+          params?.start_image_generation_id,
+          orchGenIds[childOrder],
+        ].find((value): value is string => typeof value === 'string') ?? null;
+        const endGenId = [
+          individualParams.end_image_generation_id,
+          params?.end_image_generation_id,
+          orchGenIds[childOrder + 1],
+        ].find((value): value is string => typeof value === 'string') ?? null;
 
         return {
           segmentId: child.id,
@@ -150,7 +152,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   // Check for recent source image changes (shows warning for 5 minutes after change)
   const { hasRecentMismatch } = useSourceImageChanges(segmentSourceInfo, !readOnly);
 
-  const handleMouseEnter = useCallback((generationId: string | undefined) => {
+  const handleMouseEnter = useCallback((generationId: string | null | undefined) => {
     if (!isMobile && generationId) {
       prefetchTaskData(generationId);
     }
@@ -218,12 +220,14 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
               image={image}
               isSelected={desktopSelected}
               isDragDisabled={isMobile}
-              onClick={isMobile ? undefined : (e) => {
-                onItemClick(imageKey, e);
+              onClick={(e) => {
+                if (!isMobile) {
+                  onItemClick(imageKey, e);
+                }
               }}
               onDelete={() => onDelete(image.id)}
               onDuplicate={onDuplicate}
-              timeline_frame={actualTimelineFrame}
+              timeline_frame={actualTimelineFrame ?? undefined}
               displayTimeSeconds={displayTimeSeconds}
               onDoubleClick={isMobile ? () => {} : () => onItemDoubleClick(index)}
               onInpaintClick={isMobile ? undefined : () => onInpaintClick(index)}
@@ -431,4 +435,3 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
     </div>
   );
 };
-

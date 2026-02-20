@@ -39,6 +39,9 @@ const toggleGroupItemVariants = cva(
         default: "h-10 px-3",
         sm: "h-9 px-2.5 text-sm",
         lg: "h-11 px-5",
+        "retro-sm": "h-9 px-3 text-sm",
+        "retro-default": "h-10 px-4 text-base",
+        "retro-lg": "h-11 px-5 text-lg",
       },
     },
     defaultVariants: {

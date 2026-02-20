@@ -29,8 +29,8 @@ import { useShots } from '@/shared/contexts/ShotsContext';
 import { inheritSettingsForNewShot } from '@/shared/lib/shotSettingsInheritance';
 import { GenerationRow, Shot } from '@/types/shots';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 
 // ============================================================================
 // TYPES
@@ -142,95 +142,315 @@ export interface UseShotCreationReturn {
   clearLastCreated: () => void;
 }
 
-// ============================================================================
-// HOOK IMPLEMENTATION
-// ============================================================================
+interface GenerationPreviewInput {
+  imageUrl?: string;
+  thumbUrl?: string;
+  type?: string | null;
+  location?: string | null;
+}
 
-export function useShotCreation(): UseShotCreationReturn {
-  const { selectedProjectId } = useProject();
-  const { shots } = useShots();
-  const { setLastAffectedShotId } = useLastAffectedShot();
-  const queryClient = useQueryClient();
-  
-  // Mutations
-  const createShotMutation = useCreateShot();
-  const createShotWithImageMutation = useCreateShotWithImage();
-  const handleExternalImageDropMutation = useHandleExternalImageDrop();
-  
-  // State
-  const [isCreating, setIsCreating] = useState(false);
-  const [lastCreatedShot, setLastCreatedShot] = useState<{ id: string; name: string } | null>(null);
-  
-  const clearLastCreated = useCallback(() => {
-    setLastCreatedShot(null);
-  }, []);
-  
-  /**
-   * Generate automatic shot name based on current shot count
-   */
-  const generateShotName = useCallback(() => {
-    const count = shots?.length ?? 0;
-    return `Shot ${count + 1}`;
-  }, [shots]);
-  
-  /**
-   * Apply post-creation side effects
-   */
-  const applyPostCreationEffects = useCallback((
-    result: ShotCreationResult,
-    options: CreateShotOptions
-  ) => {
+interface AtomicCreateResult {
+  shotId: string;
+  shotName: string;
+  shotGenerationId: string;
+}
+
+interface CreateShotMutationResult {
+  shot?: Shot;
+}
+
+interface ExternalDropResult {
+  shotId: string;
+  generationIds?: string[];
+}
+
+interface CreateShotWithGenerationPathInput {
+  selectedProjectId: string;
+  shotName: string;
+  generationId: string;
+  generationPreview?: GenerationPreviewInput;
+  shots: Shot[] | undefined;
+  queryClient: ReturnType<typeof useQueryClient>;
+  createShotWithImage: (input: {
+    projectId: string;
+    shotName: string;
+    generationId: string;
+  }) => Promise<AtomicCreateResult>;
+}
+
+interface CreateShotWithFilesPathInput {
+  selectedProjectId: string;
+  shotName: string;
+  files: File[];
+  aspectRatio?: string;
+  shots: Shot[] | undefined;
+  onProgress?: (fileIndex: number, fileProgress: number, overallProgress: number) => void;
+  createShot: (input: {
+    name: string;
+    projectId: string;
+    aspectRatio?: string;
+    shouldSelectAfterCreation: boolean;
+  }) => Promise<CreateShotMutationResult>;
+  uploadToShot: (input: {
+    imageFiles: File[];
+    targetShotId: string | null;
+    currentProjectQueryKey: string;
+    currentShotCount: number;
+    onProgress?: (fileIndex: number, fileProgress: number, overallProgress: number) => void;
+  }) => Promise<ExternalDropResult | null>;
+}
+
+interface CreateEmptyShotPathInput {
+  selectedProjectId: string;
+  shotName: string;
+  aspectRatio?: string;
+  createShot: (input: {
+    name: string;
+    projectId: string;
+    aspectRatio?: string;
+    shouldSelectAfterCreation: boolean;
+  }) => Promise<CreateShotMutationResult>;
+}
+
+interface UseCreateShotActionInput {
+  selectedProjectId: string | null;
+  shots: Shot[] | undefined;
+  queryClient: ReturnType<typeof useQueryClient>;
+  setIsCreating: React.Dispatch<React.SetStateAction<boolean>>;
+  generateShotName: () => string;
+  applyPostCreationEffects: (result: ShotCreationResult, options: CreateShotOptions) => void;
+  createShotMutation: CreateShotWithFilesPathInput['createShot'];
+  createShotWithImageMutation: CreateShotWithGenerationPathInput['createShotWithImage'];
+  handleExternalImageDropMutation: CreateShotWithFilesPathInput['uploadToShot'];
+}
+
+function applyAtomicShotCacheUpdate(input: {
+  selectedProjectId: string;
+  shotId: string;
+  shotName: string;
+  shotGenerationId: string;
+  generationId: string;
+  generationPreview?: GenerationPreviewInput;
+  shots: Shot[] | undefined;
+  queryClient: ReturnType<typeof useQueryClient>;
+}): void {
+  const {
+    selectedProjectId,
+    shotId,
+    shotName,
+    shotGenerationId,
+    generationId,
+    generationPreview,
+    shots,
+    queryClient,
+  } = input;
+
+  const updateShotCache = (oldShots: Shot[] = []) => {
+    if (oldShots.some((shot) => shot.id === shotId)) {
+      return oldShots;
+    }
+
+    const maxPosition = oldShots.reduce((max, shot) => {
+      const position = typeof shot.position === 'number' ? shot.position : 0;
+      return Math.max(max, position);
+    }, 0);
+
+    const optimisticImage: GenerationRow = {
+      id: shotGenerationId,
+      generation_id: generationId,
+      imageUrl: generationPreview?.imageUrl,
+      thumbUrl: generationPreview?.thumbUrl,
+      type: generationPreview?.type ?? undefined,
+      location: generationPreview?.location ?? generationPreview?.imageUrl ?? undefined,
+      timeline_frame: 0,
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+    };
+
+    const newShot: Shot = {
+      id: shotId,
+      name: shotName,
+      images: [optimisticImage],
+      project_id: selectedProjectId,
+      position: maxPosition + 1,
+      created_at: new Date().toISOString(),
+    };
+
+    return [...oldShots, newShot];
+  };
+
+  queryClient.setQueryData<Shot[]>(shotQueryKeys.list(selectedProjectId, 0), updateShotCache);
+  queryClient.setQueryData<Shot[]>(shotQueryKeys.list(selectedProjectId, 5), updateShotCache);
+  queryClient.setQueryData<Shot[]>([...shotQueryKeys.all, selectedProjectId], updateShotCache);
+  queryClient.setQueryData(shotQueryKeys.detail(shotId), (old: Shot | undefined) => old ?? ({
+    id: shotId,
+    name: shotName,
+    images: [],
+    project_id: selectedProjectId,
+    position: (shots?.reduce((max, shot) => Math.max(max, shot.position || 0), 0) ?? 0) + 1,
+    created_at: new Date().toISOString(),
+  } as Shot));
+}
+
+async function createShotWithGenerationPath(input: CreateShotWithGenerationPathInput): Promise<ShotCreationResult> {
+  const {
+    selectedProjectId,
+    shotName,
+    generationId,
+    generationPreview,
+    shots,
+    queryClient,
+    createShotWithImage,
+  } = input;
+
+  const rpcResult = await createShotWithImage({
+    projectId: selectedProjectId,
+    shotName,
+    generationId,
+  });
+
+  applyAtomicShotCacheUpdate({
+    selectedProjectId,
+    shotId: rpcResult.shotId,
+    shotName: rpcResult.shotName || shotName,
+    shotGenerationId: rpcResult.shotGenerationId,
+    generationId,
+    generationPreview,
+    shots,
+    queryClient,
+  });
+
+  return {
+    shotId: rpcResult.shotId,
+    shotName: rpcResult.shotName,
+    generationIds: [generationId],
+  };
+}
+
+async function createShotWithFilesPath(input: CreateShotWithFilesPathInput): Promise<ShotCreationResult> {
+  const {
+    selectedProjectId,
+    shotName,
+    files,
+    aspectRatio,
+    shots,
+    onProgress,
+    createShot,
+    uploadToShot,
+  } = input;
+
+  const created = await createShot({
+    name: shotName,
+    projectId: selectedProjectId,
+    aspectRatio: aspectRatio || undefined,
+    shouldSelectAfterCreation: false,
+  });
+
+  const newShotId = created?.shot?.id;
+  if (!newShotId) {
+    throw new Error('Shot creation failed - no ID returned');
+  }
+
+  const uploadResult = await uploadToShot({
+    imageFiles: files,
+    targetShotId: newShotId,
+    currentProjectQueryKey: selectedProjectId,
+    currentShotCount: shots?.length ?? 0,
+    onProgress,
+  });
+
+  if (!uploadResult?.shotId) {
+    throw new Error('File upload failed - no images processed');
+  }
+
+  return {
+    shotId: newShotId,
+    shotName: created.shot?.name || shotName,
+    shot: created.shot,
+    generationIds: uploadResult.generationIds,
+  };
+}
+
+async function createEmptyShotPath(input: CreateEmptyShotPathInput): Promise<ShotCreationResult> {
+  const { selectedProjectId, shotName, aspectRatio, createShot } = input;
+
+  const createResult = await createShot({
+    name: shotName,
+    projectId: selectedProjectId,
+    aspectRatio: aspectRatio || undefined,
+    shouldSelectAfterCreation: false,
+  });
+
+  if (!createResult?.shot?.id) {
+    throw new Error('Shot creation failed - no ID returned');
+  }
+
+  return {
+    shotId: createResult.shot.id,
+    shotName: createResult.shot.name || shotName,
+    shot: createResult.shot,
+  };
+}
+
+function dispatchShotSkeletonEvent(imageCount: number): void {
+  window.dispatchEvent(new CustomEvent('shot-pending-create', {
+    detail: { imageCount },
+  }));
+}
+
+function clearShotSkeletonEvent(): void {
+  window.dispatchEvent(new CustomEvent('shot-pending-create-clear'));
+}
+
+function useShotCreationPostEffects(params: {
+  selectedProjectId: string | null;
+  shots: Shot[] | undefined;
+  setLastAffectedShotId: (shotId: string) => void;
+  setLastCreatedShot: React.Dispatch<React.SetStateAction<{ id: string; name: string } | null>>;
+}) {
+  const { selectedProjectId, shots, setLastAffectedShotId, setLastCreatedShot } = params;
+
+  return useCallback((result: ShotCreationResult, options: CreateShotOptions) => {
     const {
       inheritSettings = true,
       updateLastAffected = true,
     } = options;
-    
-    // 1. Update last affected shot
+
     if (updateLastAffected) {
       setLastAffectedShotId(result.shotId);
     }
-    
-    // 2. Apply settings inheritance (background, don't await)
+
     if (inheritSettings && selectedProjectId) {
       inheritSettingsForNewShot({
         newShotId: result.shotId,
         projectId: selectedProjectId,
-        shots: shots || [],
+        shots: (shots || []) as Array<{ id: string; name: string; created_at?: string; settings?: Record<string, unknown> }>,
       });
     }
-    
-    // 3. Update last created shot state
+
     setLastCreatedShot({ id: result.shotId, name: result.shotName });
-    
-  }, [selectedProjectId, shots, setLastAffectedShotId]);
-  
-  /**
-   * Dispatch optimistic skeleton event
-   */
-  const dispatchSkeletonEvent = useCallback((imageCount: number = 1) => {
-    window.dispatchEvent(new CustomEvent('shot-pending-create', {
-      detail: { imageCount }
-    }));
-  }, []);
-  
-  /**
-   * Clear optimistic skeleton event on error
-   */
-  const clearSkeletonEvent = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('shot-pending-create-clear'));
-  }, []);
-  
-  /**
-   * Main shot creation function
-   */
-  const createShot = useCallback(async (
-    options: CreateShotOptions = {}
-  ): Promise<ShotCreationResult | null> => {
+  }, [selectedProjectId, shots, setLastAffectedShotId, setLastCreatedShot]);
+}
+
+function useCreateShotAction(input: UseCreateShotActionInput): UseShotCreationReturn['createShot'] {
+  const {
+    selectedProjectId,
+    shots,
+    queryClient,
+    setIsCreating,
+    generateShotName,
+    applyPostCreationEffects,
+    createShotMutation,
+    createShotWithImageMutation,
+    handleExternalImageDropMutation,
+  } = input;
+
+  return useCallback(async (options: CreateShotOptions = {}): Promise<ShotCreationResult | null> => {
     if (!selectedProjectId) {
       toast.error('No project selected');
       return null;
     }
-    
+
     const {
       name,
       generationId,
@@ -240,195 +460,121 @@ export function useShotCreation(): UseShotCreationReturn {
       dispatchSkeletonEvents = true,
       onProgress,
     } = options;
-    
     const shotName = name || generateShotName();
-    
-    // Dispatch skeleton event before starting
-    if (dispatchSkeletonEvents) {
-      const imageCount = files?.length || (generationId ? 1 : 0);
-      if (imageCount > 0) {
-        dispatchSkeletonEvent(imageCount);
-      }
+    const imageCount = files?.length || (generationId ? 1 : 0);
+
+    if (dispatchSkeletonEvents && imageCount > 0) {
+      dispatchShotSkeletonEvent(imageCount);
     }
-    
+
     setIsCreating(true);
-    
+
     try {
       let result: ShotCreationResult;
-      
-      // ========================================
-      // PATH 1: Shot with Generation (Atomic RPC)
-      // ========================================
       if (generationId && !files?.length) {
-        
-        const rpcResult = await createShotWithImageMutation.mutateAsync({
-          projectId: selectedProjectId,
+        result = await createShotWithGenerationPath({
+          selectedProjectId,
           shotName,
           generationId,
+          generationPreview,
+          shots,
+          queryClient,
+          createShotWithImage: createShotWithImageMutation,
         });
-
-        // Optimistic cache update:
-        // The atomic RPC doesn't (currently) insert into the heavy `useListShots` cache,
-        // which makes the UI feel slow while it waits for a full shots refetch.
-        // Patch the shots cache immediately so:
-        // - the new shot appears right away
-        // - the pending skeleton transfers to the real shot card
-        // - selectors can resolve the new shot name immediately
-        if (rpcResult?.shotId) {
-          const newShotId = rpcResult.shotId;
-          const newShotName = rpcResult.shotName || shotName;
-          const shotGenerationId = rpcResult.shotGenerationId;
-
-          const updateShotCache = (oldShots: Shot[] = []) => {
-            if (oldShots.some(s => s.id === newShotId)) return oldShots;
-
-            const maxPosition = oldShots.reduce((max, s) => {
-              const pos = typeof s.position === 'number' ? s.position : 0;
-              return Math.max(max, pos);
-            }, 0);
-
-            const optimisticImage: GenerationRow | null = shotGenerationId ? {
-              id: shotGenerationId,
-              generation_id: generationId,
-              imageUrl: generationPreview?.imageUrl,
-              thumbUrl: generationPreview?.thumbUrl,
-              type: generationPreview?.type ?? undefined,
-              location: generationPreview?.location ?? generationPreview?.imageUrl ?? undefined,
-              timeline_frame: 0,
-              createdAt: new Date().toISOString(),
-              isOptimistic: true,
-            } : null;
-
-            const newShot: Shot = {
-              id: newShotId,
-              name: newShotName,
-              images: optimisticImage ? [optimisticImage] : [],
-              project_id: selectedProjectId,
-              position: maxPosition + 1,
-              created_at: new Date().toISOString(),
-            };
-
-            return [...oldShots, newShot];
-          };
-
-          // Keep the common cache variants in sync (ShotsContext uses maxImagesPerShot=0)
-          queryClient.setQueryData<Shot[]>(queryKeys.shots.list(selectedProjectId, 0), updateShotCache);
-          queryClient.setQueryData<Shot[]>(queryKeys.shots.list(selectedProjectId, 5), updateShotCache);
-          queryClient.setQueryData<Shot[]>([...queryKeys.shots.all, selectedProjectId], updateShotCache);
-          queryClient.setQueryData(queryKeys.shots.detail(newShotId), (old: Shot | undefined) => old ?? ({
-            id: newShotId,
-            name: newShotName,
-            images: [],
-            project_id: selectedProjectId,
-            position: (shots?.reduce((max, s) => Math.max(max, s.position || 0), 0) ?? 0) + 1,
-            created_at: new Date().toISOString(),
-          } as Shot));
-        }
-        
-        result = {
-          shotId: rpcResult.shotId,
-          shotName: rpcResult.shotName,
-          generationIds: [generationId],
-        };
-      }
-      // ========================================
-      // PATH 2: Shot with Files (Upload Flow)
-      // ========================================
-      else if (files?.length) {
-
-        // 1) Create the shot first so we can preserve the caller-provided name
-        const created = await createShotMutation.mutateAsync({
-          name: shotName,
-          projectId: selectedProjectId,
-          aspectRatio: aspectRatio || undefined,
-          shouldSelectAfterCreation: false,
-        });
-
-        const newShotId = created?.shot?.id;
-        if (!newShotId) {
-          throw new Error('Shot creation failed - no ID returned');
-        }
-
-        // 2) Upload and add files to that shot (cropping logic remains inside this mutation)
-        const uploadResult = await handleExternalImageDropMutation.mutateAsync({
-          imageFiles: files,
-          targetShotId: newShotId, // Add to newly created shot
-          currentProjectQueryKey: selectedProjectId,
-          currentShotCount: shots?.length ?? 0,
+      } else if (files?.length) {
+        result = await createShotWithFilesPath({
+          selectedProjectId,
+          shotName,
+          files,
+          aspectRatio,
+          shots,
           onProgress,
+          createShot: createShotMutation,
+          uploadToShot: handleExternalImageDropMutation,
         });
-
-        if (!uploadResult?.shotId) {
-          // Note: this mutation can return null if no files were successfully processed
-          throw new Error('File upload failed - no images processed');
-        }
-
-        result = {
-          shotId: newShotId,
-          shotName: created.shot.name || shotName,
-          shot: created.shot,
-          generationIds: uploadResult.generationIds,
-        };
-      }
-      // ========================================
-      // PATH 3: Empty Shot
-      // ========================================
-      else {
-        
-        const createResult = await createShotMutation.mutateAsync({
-          name: shotName,
-          projectId: selectedProjectId,
-          aspectRatio: aspectRatio || undefined,
-          shouldSelectAfterCreation: false,
+      } else {
+        result = await createEmptyShotPath({
+          selectedProjectId,
+          shotName,
+          aspectRatio,
+          createShot: createShotMutation,
         });
-        
-        if (!createResult?.shot?.id) {
-          throw new Error('Shot creation failed - no ID returned');
-        }
-        
-        result = {
-          shotId: createResult.shot.id,
-          shotName: createResult.shot.name || shotName,
-          shot: createResult.shot,
-        };
       }
-      
-      // Apply post-creation effects
+
       applyPostCreationEffects(result, options);
-      
-      // Call custom success handler if provided
       options.onSuccess?.(result);
-      
       return result;
-      
     } catch (error) {
-      // Clear skeleton on error
       if (dispatchSkeletonEvents) {
-        clearSkeletonEvent();
+        clearShotSkeletonEvent();
       }
 
       handleError(error, {
         context: 'useShotCreation',
-        toastTitle: 'Failed to create shot'
+        toastTitle: 'Failed to create shot',
       });
       return null;
-      
     } finally {
       setIsCreating(false);
     }
   }, [
     selectedProjectId,
     shots,
+    queryClient,
+    setIsCreating,
     generateShotName,
+    applyPostCreationEffects,
     createShotMutation,
     createShotWithImageMutation,
     handleExternalImageDropMutation,
-    applyPostCreationEffects,
-    dispatchSkeletonEvent,
-    clearSkeletonEvent,
-    queryClient,
   ]);
-  
+}
+
+// ============================================================================
+// HOOK IMPLEMENTATION
+// ============================================================================
+
+export function useShotCreation(): UseShotCreationReturn {
+  const { selectedProjectId } = useProject();
+  const { shots } = useShots();
+  const { setLastAffectedShotId } = useLastAffectedShot();
+  const queryClient = useQueryClient();
+
+  const createShotMutation = useCreateShot();
+  const createShotWithImageMutation = useCreateShotWithImage();
+  const handleExternalImageDropMutation = useHandleExternalImageDrop();
+
+  const [isCreating, setIsCreating] = useState(false);
+  const [lastCreatedShot, setLastCreatedShot] = useState<{ id: string; name: string } | null>(null);
+
+  const clearLastCreated = useCallback(() => {
+    setLastCreatedShot(null);
+  }, []);
+
+  const generateShotName = useCallback(() => {
+    const count = shots?.length ?? 0;
+    return `Shot ${count + 1}`;
+  }, [shots]);
+
+  const applyPostCreationEffects = useShotCreationPostEffects({
+    selectedProjectId,
+    shots,
+    setLastAffectedShotId,
+    setLastCreatedShot,
+  });
+
+  const createShot = useCreateShotAction({
+    selectedProjectId,
+    shots,
+    queryClient,
+    setIsCreating,
+    generateShotName,
+    applyPostCreationEffects,
+    createShotMutation: createShotMutation.mutateAsync,
+    createShotWithImageMutation: createShotWithImageMutation.mutateAsync,
+    handleExternalImageDropMutation: handleExternalImageDropMutation.mutateAsync,
+  });
+
   return {
     createShot,
     isCreating,

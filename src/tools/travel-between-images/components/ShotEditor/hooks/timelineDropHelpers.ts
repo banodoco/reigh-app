@@ -3,7 +3,7 @@
  * Extracted from useGenerationActions for better maintainability
  */
 
-import { handleError } from "@/shared/lib/errorHandler";
+import { handleError } from "@/shared/lib/errorHandling/handleError";
 import { Shot } from "@/types/shots";
 import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
 import { parseRatio } from '@/shared/lib/aspectRatios';
@@ -32,16 +32,6 @@ interface ShotGenerationRecord {
   id: string;
   generation_id: string;
   timeline_frame: number | null;
-}
-
-interface GenerationData {
-  id?: string;
-  type?: string;
-  location?: string;
-}
-
-interface ShotGenerationWithGeneration extends ShotGenerationRecord {
-  generations?: GenerationData | GenerationData[] | null;
 }
 
 interface PositionUpdateResult {
@@ -263,12 +253,16 @@ const verifyPositionUpdates = async (
   generationIds: string[]
 ): Promise<void> => {
   
-  const { data: verifyData, error: verifyError } = await supabase
+  const { error: verifyError } = await supabase
     .from('shot_generations')
     .select('id, generation_id, timeline_frame')
     .eq('shot_id', shotId)
     .in('generation_id', generationIds);
-  
+
+  if (verifyError) {
+    handleError(verifyError, { context: 'AddImagesDebug', showToast: false });
+    throw verifyError;
+  }
 };
 
 /**
@@ -313,4 +307,3 @@ export const persistTimelinePositions = async (
     throw dbError;
   }
 };
-

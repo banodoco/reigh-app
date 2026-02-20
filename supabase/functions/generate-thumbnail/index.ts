@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { storagePaths, generateThumbnailFilename, MEDIA_BUCKET } from '../_shared/storagePaths.ts'
 import { SystemLogger } from "../_shared/systemLogger.ts"
+import { authenticateRequest } from "../_shared/auth.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,21 +44,25 @@ serve(async (req) => {
     })
   }
 
-  // Verify service role authentication - this function should only be called internally
-  const authHeader = req.headers.get("Authorization")
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== serviceKey) {
-    return new Response(JSON.stringify({ error: "Unauthorized - service role required" }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
   // Initialize Supabase client and logger early so logger is available in catch
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
   const logger = new SystemLogger(supabase, 'generate-thumbnail')
+
+  const auth = await authenticateRequest(req, supabase, "[GENERATE-THUMBNAIL]")
+  if (!auth.success) {
+    return new Response(JSON.stringify({ error: auth.error || "Authentication failed" }), {
+      status: auth.statusCode || 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+  if (!auth.isServiceRole) {
+    return new Response(JSON.stringify({ error: "Unauthorized - service role required" }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
 
   try {
     // Parse request body
@@ -116,7 +121,7 @@ serve(async (req) => {
 
     // Upload thumbnail to Supabase Storage
     logger.info('Uploading thumbnail', { thumbnailPath })
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(MEDIA_BUCKET)
       .upload(thumbnailPath, thumbnailBlob, {
         contentType: 'image/jpeg',

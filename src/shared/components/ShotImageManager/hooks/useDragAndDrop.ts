@@ -74,7 +74,7 @@ export function useDragAndDrop({
       setSelectedIds([]);
       setLastSelectedIndex(null);
     }
-  }, [selectedIds, images, setSelectedIds, setLastSelectedIndex]);
+  }, [selectedIds, setSelectedIds, setLastSelectedIndex, onDragStateChange]);
   
   const handleDragEnd = useCallback((event: DragEndEvent) => {
 
@@ -167,7 +167,17 @@ export function useDragAndDrop({
     onImageReorder(reorderedIds, selectedIds.length > 1 ? undefined : draggedItemId);
     setSelectedIds([]);
     setLastSelectedIndex(null);
-  }, [selectedIds, images, onImageReorder, setSelectedIds, setLastSelectedIndex, setOptimisticOrder, setIsOptimisticUpdate, setReconciliationId]);
+  }, [
+    selectedIds,
+    images,
+    onImageReorder,
+    setSelectedIds,
+    setLastSelectedIndex,
+    setOptimisticOrder,
+    setIsOptimisticUpdate,
+    setReconciliationId,
+    onDragStateChange,
+  ]);
   
   // img.id is shot_generations.id - unique per entry
   const activeImage = activeId ? images.find((img) => img.id === activeId) : null;
@@ -180,4 +190,3 @@ export function useDragAndDrop({
     activeImage
   };
 }
-

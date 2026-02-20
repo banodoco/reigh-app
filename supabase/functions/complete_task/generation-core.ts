@@ -8,7 +8,7 @@
 /**
  * Helper to safely extract value from array by index
  */
-export function extractFromArray(arr: unknown[], index: number): unknown | undefined {
+function _extractFromArray(arr: unknown[], index: number): unknown | undefined {
   if (Array.isArray(arr) && index >= 0 && index < arr.length) {
     return arr[index];
   }

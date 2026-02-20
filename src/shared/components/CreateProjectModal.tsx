@@ -4,7 +4,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { getRandomDummyName } from '../lib/dummyNames';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';

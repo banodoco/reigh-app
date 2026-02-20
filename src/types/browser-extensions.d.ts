@@ -34,8 +34,14 @@ declare global {
     // ── Debug-only globals (gate behind import.meta.env.DEV) ────────────
     /** [debug] React Query client reference — diagnostics only */
     __REACT_QUERY_CLIENT__?: import('@tanstack/react-query').QueryClient;
-    /** [debug] WebSocket instance map for realtime instrumentation */
-    __SUPABASE_WEBSOCKET_INSTANCES__?: Map<string, WebSocket>;
+    /** [debug] Tracked WebSocket instances for realtime instrumentation */
+    __SUPABASE_WEBSOCKET_INSTANCES__?: Array<{
+      wsId: number;
+      url: string;
+      protocols?: string | string[];
+      createdAt: number;
+      websocketRef: WebSocket;
+    }>;
     /** [debug] Mobile project-context debug log entries */
     __projectDebugLog?: Array<{ timestamp: string; isMobile: boolean; projectsCount: number; selectedProjectId: string; isLoadingProjects: boolean; userAgent: string }>;
     /** [debug] DataFreshnessManager singleton for console diagnostics */
@@ -47,7 +53,7 @@ declare global {
     /** [debug] ReconnectScheduler singleton for console diagnostics */
     __RECONNECT_SCHEDULER__?: import('../integrations/supabase/reconnect/ReconnectScheduler').ReconnectScheduler;
     /** [debug] Mobile project debug utilities */
-    debugMobile?: () => void;
+    debugMobile?: () => Record<string, unknown>;
     enableProjectDebug?: () => void;
     disableProjectDebug?: () => void;
     checkProjectState?: () => void;

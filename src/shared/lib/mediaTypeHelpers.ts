@@ -1,19 +1,11 @@
 /**
- * Media item that may have generation_id (from variants) or just id
- */
-interface MediaWithGenerationId {
-  id: string;
-  generation_id?: string;
-}
-
-/**
  * Loose type for objects that might have generation_id and/or id.
  * Use this when dealing with untyped or loosely-typed media objects.
  */
 interface MaybeHasGenerationId {
   generation_id?: string | null;
   id?: string | null;
-  metadata?: { generation_id?: string | null };
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -31,18 +23,21 @@ export function getGenerationId(
   media: MaybeHasGenerationId | null | undefined
 ): string | null {
   if (!media) return null;
-  return media.generation_id || media.metadata?.generation_id || media.id || null;
+  const metadataGenerationId = typeof media.metadata?.generation_id === 'string'
+    ? media.metadata.generation_id
+    : null;
+  return media.generation_id || metadataGenerationId || media.id || null;
 }
 
 /**
  * Media item with various URL properties (normalized across sources)
  */
 interface MediaWithUrls {
-  location?: string;
-  url?: string;
-  thumbnail_url?: string;
-  thumbUrl?: string;
-  imageUrl?: string;
+  location?: string | null;
+  url?: string | null;
+  thumbnail_url?: string | null;
+  thumbUrl?: string | null;
+  imageUrl?: string | null;
 }
 
 /**
@@ -50,7 +45,7 @@ interface MediaWithUrls {
  */
 export function getMediaUrl(media: MediaWithUrls | null | undefined): string | undefined {
   if (!media) return undefined;
-  return media.location || media.url || media.imageUrl;
+  return media.location || media.url || media.imageUrl || undefined;
 }
 
 /**
@@ -58,7 +53,7 @@ export function getMediaUrl(media: MediaWithUrls | null | undefined): string | u
  */
 export function getThumbnailUrl(media: MediaWithUrls | null | undefined): string | undefined {
   if (!media) return undefined;
-  return media.thumbnail_url || media.thumbUrl;
+  return media.thumbnail_url || media.thumbUrl || undefined;
 }
 
 /**

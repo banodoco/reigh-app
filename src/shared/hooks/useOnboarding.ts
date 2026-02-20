@@ -1,24 +1,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /**
  * Hook to check if user has completed onboarding and show modal if not
  */
 export function useOnboarding() {
   const [showModal, setShowModal] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
     const checkOnboardingStatus = async () => {
-      if (isChecking) {
-        return;
-      }
-
-      setIsChecking(true);
-
       try {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -52,8 +45,6 @@ export function useOnboarding() {
 
       } catch (error) {
         handleError(error, { context: 'useOnboarding', showToast: false });
-      } finally {
-        setIsChecking(false);
       }
     };
 

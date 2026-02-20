@@ -343,10 +343,11 @@ export async function createChildGenerationRecord(
         shotId,
       });
     } catch (logError) {
-      console.warn("[SegmentMaster] Failed to write segment master state log", {
-        task_id: taskId,
-        generation_id: newGeneration.id,
-        error: logError instanceof Error ? logError.message : String(logError),
+      console.warn('Failed to log segment master state', {
+        taskId,
+        generationId: newGeneration.id,
+        segmentIndex: childOrder,
+        error: logError,
       });
     }
   }
@@ -398,7 +399,7 @@ function logSegmentMasterState(params: {
   const divider = '═'.repeat(80);
   const sectionDivider = '─'.repeat(60);
 
-  const { taskId, generationId, segmentIndex, parentGenerationId, orchDetails, segmentParams, shotId } = params;
+  const { segmentIndex, orchDetails, segmentParams } = params;
 
   console.log(`\n${divider}`);
   console.log(divider);
@@ -407,24 +408,24 @@ function logSegmentMasterState(params: {
   console.log(`\n${TAG} SEGMENT DATA (Index ${segmentIndex})`);
   console.log(sectionDivider);
 
-  const basePrompt = segmentParams?.prompt || extractFromArray(orchDetails?.base_prompts_expanded, segmentIndex) || orchDetails?.base_prompt || '';
-  const negativePrompt = segmentParams?.negative_prompt || extractFromArray(orchDetails?.negative_prompts_expanded, segmentIndex) || '';
-  const enhancedPrompt = extractFromArray(orchDetails?.enhanced_prompts_expanded, segmentIndex) || '';
+  const _basePrompt = segmentParams?.prompt || extractFromArray(orchDetails?.base_prompts_expanded, segmentIndex) || orchDetails?.base_prompt || '';
+  const _negativePrompt = segmentParams?.negative_prompt || extractFromArray(orchDetails?.negative_prompts_expanded, segmentIndex) || '';
+  const _enhancedPrompt = extractFromArray(orchDetails?.enhanced_prompts_expanded, segmentIndex) || '';
 
   // SECTION 2: INPUT IMAGES
   console.log(`\n${TAG} INPUT IMAGES`);
   console.log(sectionDivider);
 
   const inputImages = orchDetails?.input_image_paths_resolved || [];
-  const inputGenIds = orchDetails?.input_image_generation_ids || [];
+  const _inputGenIds = orchDetails?.input_image_generation_ids || [];
   const pairShotGenIds = orchDetails?.pair_shot_generation_ids || [];
 
   const startIdx = segmentIndex;
   const endIdx = segmentIndex + 1;
 
-  const startImageUrl = inputImages[startIdx] || '(unknown)';
-  const endImageUrl = inputImages[endIdx] || '(unknown)';
-  const pairShotGenId = pairShotGenIds[segmentIndex] || '(none)';
+  const _startImageUrl = inputImages[startIdx] || '(unknown)';
+  const _endImageUrl = inputImages[endIdx] || '(unknown)';
+  const _pairShotGenId = pairShotGenIds[segmentIndex] || '(none)';
 
   // SECTION 3: STRUCTURE VIDEOS
   console.log(`\n${TAG} STRUCTURE VIDEOS`);
@@ -441,17 +442,17 @@ function logSegmentMasterState(params: {
   const segEndFrame = segStartFrame + (segmentFramesExpanded[segmentIndex] || 0);
 
   if (structureVideos.length > 0) {
-    let foundAffecting = false;
-    structureVideos.forEach((sv: unknown, idx: number) => {
+    let _foundAffecting = false;
+    structureVideos.forEach((sv: unknown, _idx: number) => {
       const svStart = sv.start_frame || 0;
       const svEnd = sv.end_frame || 0;
       if (svStart < segEndFrame && svEnd > segStartFrame) {
-        foundAffecting = true;
-        const pathShort = sv.path?.length > 40 ? '...' + sv.path.slice(-37) : (sv.path || '(unknown)');
+        _foundAffecting = true;
+        const _pathShort = sv.path?.length > 40 ? '...' + sv.path.slice(-37) : (sv.path || '(unknown)');
       }
     });
   } else if (legacyStructurePath) {
-    const pathShort = legacyStructurePath.length > 40 ? '...' + legacyStructurePath.slice(-37) : legacyStructurePath;
+    const _pathShort = legacyStructurePath.length > 40 ? '...' + legacyStructurePath.slice(-37) : legacyStructurePath;
   }
 
   // SECTION 4: MODEL & SETTINGS
@@ -461,8 +462,8 @@ function logSegmentMasterState(params: {
   const additionalLoras = orchDetails?.additional_loras;
   const phaseConfig = orchDetails?.phase_config;
   if (additionalLoras && Object.keys(additionalLoras).length > 0) {
-    Object.entries(additionalLoras).forEach(([path, strength]) => {
-      const pathShort = path.split('/').pop() || path;
+    Object.entries(additionalLoras).forEach(([path, _strength]) => {
+      const _pathShort = path.split('/').pop() || path;
     });
   } else if (phaseConfig?.phases) {
     const uniqueLoras = new Set<string>();

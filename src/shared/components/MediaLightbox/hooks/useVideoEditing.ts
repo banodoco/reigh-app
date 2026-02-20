@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { GenerationRow } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
@@ -511,7 +511,9 @@ export const useVideoEditing = ({
       setTimeout(() => setGenerateSuccess(false), 1500);
       
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
+      if (selectedProjectId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
+      }
     },
     onError: (error) => {
       handleError(error, { context: 'VideoEdit', toastTitle: 'Failed to create regeneration task' });
@@ -585,4 +587,3 @@ export const useVideoEditing = ({
     handleExitVideoEditMode,
   };
 };
-

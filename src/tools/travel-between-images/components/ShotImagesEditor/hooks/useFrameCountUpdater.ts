@@ -4,10 +4,24 @@
  */
 
 import { useCallback, type RefObject } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { GenerationRow } from '@/types/shots';
+import {
+  runSerializedTimelineWrite,
+  runTimelineWriteWithTimeout,
+} from '@/shared/lib/timelineWriteQueue';
+import { queryKeys } from '@/shared/lib/queryKeys';
+import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
+
+function shortId(id: string | null | undefined): string | null {
+  return id ? id.slice(0, 8) : null;
+}
+const log = (...args: Parameters<typeof console.log>) => console.log(...args);
 
 interface UseFrameCountUpdaterProps {
+  /** Current shot id (used to serialize timeline writes) */
+  shotId: string | null;
   /** Shot generations (images) */
   shotGenerations: GenerationRow[];
   /** Current generation mode */
@@ -38,18 +52,62 @@ interface UseFrameCountUpdaterReturn {
  * When exceeding maxFrameLimit, compresses subsequent pairs proportionally.
  */
 export function useFrameCountUpdater({
+  shotId,
   shotGenerations,
   generationMode,
   maxFrameLimit,
   loadPositions,
   trailingFrameUpdateRef,
 }: UseFrameCountUpdaterProps): UseFrameCountUpdaterReturn {
+  const SEGMENT_FRAME_LOG_PREFIX = '[SegmentFramePersist]';
+  const queryClient = useQueryClient();
+
+  const logQueuePhase = useCallback((
+    phase: 'queued' | 'start' | 'end',
+    meta: {
+      shotId: string;
+      operation: string;
+      waitMs: number;
+      durationMs: number;
+      queueDepth: number;
+    },
+  ) => {
+    if (phase === 'queued') {
+      log(`${SEGMENT_FRAME_LOG_PREFIX} write queue queued`, {
+        shotId: shortId(meta.shotId),
+        operation: meta.operation,
+        waitMs: meta.waitMs,
+        durationMs: meta.durationMs,
+        queueDepth: meta.queueDepth,
+      });
+      return;
+    }
+
+    if (phase === 'start') {
+      log(`${SEGMENT_FRAME_LOG_PREFIX} write queue start`, {
+        shotId: shortId(meta.shotId),
+        operation: meta.operation,
+        waitMs: meta.waitMs,
+        queueDepth: meta.queueDepth,
+      });
+      return;
+    }
+
+    log(`${SEGMENT_FRAME_LOG_PREFIX} write queue end`, {
+      shotId: shortId(meta.shotId),
+      operation: meta.operation,
+      waitMs: meta.waitMs,
+      durationMs: meta.durationMs,
+      queueDepth: meta.queueDepth,
+    });
+  }, []);
+
   const updatePairFrameCount = useCallback(async (
     pairShotGenerationId: string,
     newFrameCount: number
   ) => {
     // Only works in timeline mode
-    if (!shotGenerations?.length || generationMode !== 'timeline') {
+    if (!shotId || !shotGenerations?.length || generationMode !== 'timeline') {
       return;
     }
 
@@ -83,37 +141,72 @@ export function useFrameCountUpdater({
       }
 
       // Fallback: direct DB write + reload (used when position system not connected, e.g. batch mode)
-      const { data: current, error: fetchError } = await supabase
-        .from('shot_generations')
-        .select('metadata')
-        .eq('id', pairShotGenerationId)
-        .single();
+      await runSerializedTimelineWrite(
+        shotId,
+        'segment-trailing-frame-update',
+        async () => {
 
-      if (fetchError) {
-        console.error('[useFrameCountUpdater] Error fetching metadata:', fetchError);
-        return;
-      }
+          const current = await runTimelineWriteWithTimeout(
+            'segment-trailing-fetch-metadata',
+            async () => {
+              const { data, error } = await supabase
+                .from('shot_generations')
+                .select('metadata')
+                .eq('id', pairShotGenerationId)
+                .single();
+              if (error) throw error;
+              return data;
+            },
+            {
+              onTimeout: ({ pendingMs, timeoutMs }) => {
+                log(`${SEGMENT_FRAME_LOG_PREFIX} trailing metadata fetch timed out`, {
+                  shotId: shortId(shotId),
+                  pairShotGenerationId: shortId(pairShotGenerationId),
+                  timeoutMs,
+                  pendingMs,
+                });
+              },
+            },
+          );
 
-      const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
+          const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
 
-      const { error: updateError } = await supabase
-        .from('shot_generations')
-        .update({
-          metadata: {
-            ...currentMetadata,
-            end_frame: newEndFrame,
-          },
-        })
-        .eq('id', pairShotGenerationId);
+          await runTimelineWriteWithTimeout(
+            'segment-trailing-update-metadata',
+            async (signal) => {
+              const { error } = await supabase
+                .from('shot_generations')
+                .update({
+                  metadata: {
+                    ...currentMetadata,
+                    end_frame: newEndFrame,
+                  },
+                })
+                .eq('id', pairShotGenerationId)
+                .abortSignal(signal);
+              if (error) throw error;
+            },
+            {
+              onTimeout: ({ pendingMs, timeoutMs }) => {
+                log(`${SEGMENT_FRAME_LOG_PREFIX} trailing metadata update timed out`, {
+                  shotId: shortId(shotId),
+                  pairShotGenerationId: shortId(pairShotGenerationId),
+                  newEndFrame,
+                  timeoutMs,
+                  pendingMs,
+                });
+              },
+            },
+          );
 
-      if (updateError) {
-        console.error('[useFrameCountUpdater] Error updating end_frame:', updateError);
-        return;
-      }
+        },
+        logQueuePhase,
+      );
 
       if (loadPositions) {
         await loadPositions({ silent: true, reason: 'end-frame-update' });
       }
+      queryClient.refetchQueries({ queryKey: queryKeys.segments.liveTimeline(shotId) });
 
       return { finalFrameCount: effectiveNewFrameCount };
     }
@@ -179,20 +272,52 @@ export function useFrameCountUpdater({
     }
 
     // Apply updates to database
-    await Promise.all(updates.map(update =>
-      supabase
-        .from('shot_generations')
-        .update({ timeline_frame: update.newFrame })
-        .eq('id', update.id)
-    ));
+    await runSerializedTimelineWrite(
+      shotId,
+      'segment-pair-frame-update',
+      async () => {
+        await persistTimelineFrameBatch({
+          shotId,
+          updates: updates.map((update) => ({
+            shotGenerationId: update.id,
+            timelineFrame: update.newFrame,
+            metadata: {
+              user_positioned: true,
+              drag_source: 'segment-frame-count',
+            },
+          })),
+          operationLabel: 'segment-pair-frame-update',
+          timeoutOperationName: 'segment-pair-frame-rpc',
+          logPrefix: SEGMENT_FRAME_LOG_PREFIX,
+          log: (message, payload) => {
+            log(message, {
+              ...payload,
+              pairShotGenerationId: shortId(pairShotGenerationId),
+            });
+          },
+        });
+
+      },
+      logQueuePhase,
+    );
 
     // Refresh data
     if (loadPositions) {
       await loadPositions({ silent: true, reason: 'frame-count-update' });
     }
+    queryClient.refetchQueries({ queryKey: queryKeys.segments.liveTimeline(shotId) });
 
     return { finalFrameCount };
-  }, [shotGenerations, generationMode, loadPositions, maxFrameLimit, trailingFrameUpdateRef]);
+  }, [
+    shotId,
+    shotGenerations,
+    generationMode,
+    loadPositions,
+    maxFrameLimit,
+    trailingFrameUpdateRef,
+    logQueuePhase,
+    queryClient,
+  ]);
 
   return { updatePairFrameCount };
 }

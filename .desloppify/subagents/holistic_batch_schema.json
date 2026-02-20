@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["batch", "assessments", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "batch": {"type": "string", "minLength": 1},
+    "assessments": {
+      "type": "object",
+      "additionalProperties": {"type": "number", "minimum": 0, "maximum": 100}
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "dimension",
+          "identifier",
+          "summary",
+          "related_files",
+          "evidence",
+          "suggestion",
+          "reasoning",
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {"type": "string", "minLength": 1},
+          "identifier": {"type": "string", "minLength": 1},
+          "summary": {"type": "string", "minLength": 1},
+          "related_files": {
+            "type": "array",
+            "minItems": 2,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "suggestion": {"type": "string", "minLength": 1},
+          "reasoning": {"type": "string", "minLength": 1},
+          "confidence": {"type": "string", "enum": ["high", "medium", "low"]}
+        }
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_ROUTES } from '@/shared/lib/toolConstants';
 import { GenerationRow } from '@/types/shots';
 
@@ -62,7 +62,7 @@ export function useJoinClips({
       if (!pendingClips.some(clip => clip.generationId === media.id)) {
         const newClip = {
           videoUrl,
-          thumbnailUrl,
+          thumbnailUrl: thumbnailUrl ?? undefined,
           generationId: media.id,
           timestamp: Date.now(),
         };

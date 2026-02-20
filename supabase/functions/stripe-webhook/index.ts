@@ -80,6 +80,19 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
+  // Accept either service-role authorization (internal calls) or Stripe signature auth.
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const authHeader = req.headers.get('Authorization');
+  const hasServiceRoleAuth = Boolean(
+    serviceRoleKey &&
+    authHeader?.startsWith('Bearer ') &&
+    authHeader.slice(7) === serviceRoleKey
+  );
+  const hasStripeSignatureAuth = Boolean(req.headers.get('stripe-signature'));
+  if (!hasServiceRoleAuth && !hasStripeSignatureAuth) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
   // Create Supabase admin client and logger early
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',

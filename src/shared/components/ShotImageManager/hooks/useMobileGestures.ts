@@ -1,7 +1,7 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef } from 'react';
 import { GenerationRow } from '@/types/shots';
 import { DOUBLE_TAP_THRESHOLD } from '../constants';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface UseMobileGesturesProps {
   currentImages: GenerationRow[];
@@ -20,16 +20,6 @@ export function useMobileGestures({
 }: UseMobileGesturesProps) {
   const lastTouchTimeRef = useRef<number>(0);
   const lastTappedImageIdRef = useRef<string | null>(null);
-  const doubleTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (doubleTapTimeoutRef.current) {
-        clearTimeout(doubleTapTimeoutRef.current);
-      }
-    };
-  }, []);
   
   // Mobile double-tap detection
   const handleMobileTap = useCallback((id: string, index: number) => {
@@ -123,4 +113,3 @@ export function useMobileGestures({
     handleMobileMoveHere
   };
 }
-

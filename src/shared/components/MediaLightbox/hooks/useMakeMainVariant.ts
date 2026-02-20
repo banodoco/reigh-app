@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidation';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
@@ -48,7 +48,7 @@ interface UseMakeMainVariantReturn {
 export function useMakeMainVariant({
   media,
   sourceGenerationData,
-  canMakeMainVariantFromChild,
+  canMakeMainVariantFromChild: _canMakeMainVariantFromChild,
   canMakeMainVariantFromVariant,
   activeVariant,
   setPrimaryVariant,
@@ -116,7 +116,7 @@ export function useMakeMainVariant({
       // Use selectedShotId if available (most likely current context), else fall back to shotId.
       await invalidateVariantChange(queryClient, {
         generationId: parentGenId,
-        shotId: selectedShotId || shotId,
+        shotId: selectedShotId || shotId || undefined,
         reason: 'child-promoted-to-primary',
       });
 
@@ -131,7 +131,6 @@ export function useMakeMainVariant({
     sourceGenerationData,
     media,
     onClose,
-    canMakeMainVariantFromChild,
     canMakeMainVariantFromVariant,
     activeVariant,
     setPrimaryVariant,

@@ -1,234 +1,70 @@
 import React, { useContext } from 'react';
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { handleError } from '@/shared/lib/errorHandler';
-import { TooltipProvider } from "@/shared/components/ui/tooltip";
-import { Toaster as Sonner } from "@/shared/components/ui/sonner";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay } from '@dnd-kit/core';
+import { TooltipProvider } from '@/shared/components/ui/tooltip';
+import { Toaster as Sonner } from '@/shared/components/ui/sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { useHandleExternalImageDrop, useAddImageToShot } from "@/shared/hooks/useShots";
-import { useShotCreation } from "@/shared/hooks/useShotCreation";
+import { useHandleExternalImageDrop, useAddImageToShot } from '@/shared/hooks/useShots';
+import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useShots } from '@/shared/contexts/ShotsContext';
-import { NEW_GROUP_DROPPABLE_ID } from '@/shared/lib/dragDrop';
-import { LastAffectedShotProvider, LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
-import { AppRoutes } from "./routes";
-import { AuthProvider } from "@/shared/contexts/AuthContext";
-import { AuthGate } from "@/shared/components/AuthGate";
-import { UserSettingsProvider } from "@/shared/contexts/UserSettingsContext";
-import { ProjectProvider, useProject } from "@/shared/contexts/ProjectContext";
-import { RealtimeProvider } from '@/shared/providers/RealtimeProvider';
-// Removed RealtimeBoundary - using surgical observer restoration instead
-import { PanesProvider } from '@/shared/contexts/PanesContext';
-import { CurrentShotProvider } from '@/shared/contexts/CurrentShotContext';
-import { ToolPageHeaderProvider } from '@/shared/contexts/ToolPageHeaderContext';
-import { ShotsProvider } from '@/shared/contexts/ShotsContext';
-import { GenerationTaskProvider } from '@/shared/contexts/GenerationTaskContext';
-import { IncomingTasksProvider } from '@/shared/contexts/IncomingTasksContext';
-// [MobileStallFix] Import debug utilities for console debugging
-import '@/shared/lib/mobileProjectDebug';
+import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
+import { AppRoutes } from '@/app/routes';
+import { useProject } from '@/shared/contexts/ProjectContext';
+import { AppProviders } from '@/app/providers/AppProviders';
+import { useAppDndOverlay } from '@/app/hooks/useAppDndOverlay';
+import { useAppExternalDrop } from '@/app/hooks/useAppExternalDrop';
 import { getNetworkStatusManager } from '@/shared/lib/NetworkStatusManager';
-// Initialize task type config cache early
-import { TaskTypeConfigInitializer } from '@/shared/components/TaskTypeConfigInitializer';
 
-const STALE_TIME_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_QUERY_RETRY_DELAY_MS = 3000;
-const MUTATION_RETRY_DELAY_MS = 1500;
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Mobile-optimized retry strategy for network reliability
-      retry: (failureCount, error) => {
-        // Don't retry auth errors or client errors (4xx)
-        if (error?.message?.includes('unauthorized') || error?.message?.includes('forbidden')) {
-          return false;
-        }
-        // Retry up to 2 times for network errors (reduced from default 3 for faster UX)
-        return failureCount < 2;
-      },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, MAX_QUERY_RETRY_DELAY_MS),
-      // Ensure queries don't refetch on window focus by default
-      refetchOnWindowFocus: false,
-      // Prevent stale time issues
-      staleTime: STALE_TIME_MS,
-      // Enable network mode for better mobile handling
-      networkMode: 'online',
-    },
-    mutations: {
-      // Enable retries for mutations on mobile to handle network hiccups
-      retry: (failureCount, error) => {
-        // Don't retry auth/permission errors
-        if (error?.message?.includes('unauthorized') || error?.message?.includes('forbidden')) {
-          return false;
-        }
-        // Retry once for network errors
-        return failureCount < 1;
-      },
-      retryDelay: MUTATION_RETRY_DELAY_MS,
-      networkMode: 'online',
-    },
-  },
-});
-
-// InvalidationRouter removed - DataFreshnessManager handles all invalidation logic now
-
-// New inner component that uses the context
-const AppInternalContent = () => {
+const AppInternalContent: React.FC = () => {
   const { selectedProjectId } = useProject();
-  // Initialize legacy WebSocket only if legacy listeners are enabled (temporary)
-  // Note: provider now owns channels; this is gated to prevent double-subscribe
-  // import at top remains; we keep this minimal for fallback
-
   const context = useContext(LastAffectedShotContext);
-  if (!context) throw new Error("useLastAffectedShot must be used within a LastAffectedShotProvider");
+  if (!context) {
+    throw new Error('useLastAffectedShot must be used within a LastAffectedShotProvider');
+  }
   const { setLastAffectedShotId } = context;
-
   const { shots: shotsFromHook } = useShots();
+  const { createShot } = useShotCreation();
+  const addImageToShotMutation = useAddImageToShot();
+  const handleExternalImageDropMutation = useHandleExternalImageDrop();
+  const { handleDragStart, handleDragCancel, finalizeDropAnimation, overlayContent } = useAppDndOverlay();
+
+  const handleDragEnd = useAppExternalDrop({
+    selectedProjectId,
+    currentShotsCount: shotsFromHook?.length || 0,
+    setLastAffectedShotId,
+    createShot,
+    addImageToShotMutation,
+    handleExternalImageDropMutation,
+    onDropHandled: finalizeDropAnimation,
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+      activationConstraint: { distance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
-  const { createShot } = useShotCreation();
-  const addImageToShotMutation = useAddImageToShot();
-  const handleExternalImageDropMutation = useHandleExternalImageDrop();
-
-  const [activeDragData, setActiveDragData] = React.useState<Record<string, unknown> | null>(null);
-  const [dropAnimation, setDropAnimation] = React.useState(false);
-
-  const getDisplayUrl = (relativePath: string | undefined): string => {
-    if (!relativePath) return '';
-    if (relativePath.startsWith('http') || relativePath.startsWith('blob:')) {
-      return relativePath;
-    }
-    const baseUrl = import.meta.env.VITE_API_TARGET_URL || window.location.origin;
-    const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const cleanRelative = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-    return `${cleanBase}/${cleanRelative}`;
-  };
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    setActiveDragData(active?.data?.current || null);
-    setDropAnimation(false);
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!selectedProjectId) {
-      return;
-    }
-
-    if (!over) {
-      return;
-    }
-
-    const draggableItem = active.data.current;
-    const droppableZone = over.data.current;
-
-    if (!draggableItem || !droppableZone) {
-      console.warn('Drag and drop data missing', { active, over });
-      return;
-    }
-
-    const generationId = draggableItem.generationId;
-    const imageUrl = draggableItem.imageUrl;
-    const thumbUrl = draggableItem.thumbUrl;
-    const isExternalFile = draggableItem.isExternalFile;
-    const externalFile = draggableItem.externalFile;
-
-    if (isExternalFile && externalFile) {
-      if (droppableZone.type === 'new-group-zone' || droppableZone.type === 'shot-group') {
-        const targetShotId = droppableZone.type === 'shot-group' ? droppableZone.shotId : null;
-        const currentShotsCount = shotsFromHook?.length || 0;
-        
-        const result = await handleExternalImageDropMutation.mutateAsync({
-            imageFiles: [externalFile], 
-            targetShotId, 
-            currentProjectQueryKey: selectedProjectId, 
-            currentShotCount: currentShotsCount
-        });
-
-        if (result && result.shotId) {
-            setLastAffectedShotId(result.shotId);
-        }
-        return;
-      }
-    }
-
-    if (!generationId) {
-      console.warn('generationId missing from draggable item', draggableItem);
-      return;
-    }
-
-    console.log(`Attempting to process drop: generationId=${generationId}, droppableType=${droppableZone.type}, droppableId=${over.id}, shotId=${droppableZone.shotId}`);
-
-    try {
-      if (droppableZone.type === 'shot-group') {
-        const shotId = droppableZone.shotId;
-        if (!shotId) {
-          console.warn('shotId missing from shot-group droppable', droppableZone);
-          return;
-        }
-        await addImageToShotMutation.mutateAsync({ 
-          shot_id: shotId, 
-          generation_id: generationId,
-          imageUrl: imageUrl,
-          thumbUrl: thumbUrl,
-          project_id: selectedProjectId,
-        });
-        setLastAffectedShotId(shotId);
-
-      } else if (over.id === NEW_GROUP_DROPPABLE_ID && droppableZone.type === 'new-group-zone') {
-        // Use unified shot creation - handles inheritance, events, lastAffected automatically
-        const result = await createShot({
-          generationId,
-          generationPreview: { imageUrl, thumbUrl },
-        });
-        if (!result) {
-          throw new Error('Failed to create new shot.');
-        }
-      }
-    } catch (error) {
-      handleError(error, { context: 'App', showToast: false });
-    }
-
-    // trigger shrink/fade animation then remove overlay
-    setDropAnimation(true);
-    setTimeout(() => {
-      setActiveDragData(null);
-      setDropAnimation(false);
-    }, 300);
-  };
-
   return (
     <TooltipProvider>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
+        onDragEnd={handleDragEnd}
+      >
         <AppRoutes />
-        <DragOverlay zIndex={10000} style={{ pointerEvents: 'none' }}>
-          {activeDragData && activeDragData.imageUrl ? (
-            (() => {
-              const url = getDisplayUrl(activeDragData.imageUrl);
-              const isVideo = url.match(/\.(webm|mp4|mov)$/i);
-              return (
-                <div className={dropAnimation ? 'animate-scale-fade' : ''} style={{ zIndex: 10000 }}>
-                  {isVideo ? (
-                    <video src={url} style={{ maxWidth: '200px', maxHeight: '200px' }} playsInline muted />
-                  ) : (
-                    <img src={url} style={{ maxWidth: '200px', maxHeight: '200px' }} alt="drag preview" />
-                  )}
-                </div>
-              );
-            })()
-          ) : null}
-        </DragOverlay>
+        <DragOverlay zIndex={10000} style={{ pointerEvents: 'none' }}>{overlayContent}</DragOverlay>
         <Sonner />
       </DndContext>
     </TooltipProvider>
@@ -237,38 +73,17 @@ const AppInternalContent = () => {
 
 function App() {
   React.useEffect(() => {
-    try { getNetworkStatusManager(); } catch { /* intentionally ignored */ }
+    try {
+      getNetworkStatusManager();
+    } catch {
+      // Intentionally ignored, manager can fail safely in test environments.
+    }
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TaskTypeConfigInitializer />
-      <AuthProvider>
-        <AuthGate>
-          <UserSettingsProvider>
-            <ProjectProvider>
-              <RealtimeProvider>
-                <ShotsProvider>
-                  <GenerationTaskProvider>
-                    <IncomingTasksProvider>
-                      <PanesProvider>
-                        <LastAffectedShotProvider>
-                          <CurrentShotProvider>
-                            <ToolPageHeaderProvider>
-                              <AppInternalContent />
-                            </ToolPageHeaderProvider>
-                          </CurrentShotProvider>
-                        </LastAffectedShotProvider>
-                      </PanesProvider>
-                    </IncomingTasksProvider>
-                  </GenerationTaskProvider>
-                </ShotsProvider>
-              </RealtimeProvider>
-            </ProjectProvider>
-          </UserSettingsProvider>
-        </AuthGate>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AppProviders>
+      <AppInternalContent />
+    </AppProviders>
   );
 }
 

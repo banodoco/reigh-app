@@ -36,7 +36,7 @@ export const SelectedPresetCard: React.FC<SelectedPresetCardProps> = ({
         .single();
 
       if (error) throw error;
-      return data as { id: string; metadata: PresetMetadata };
+      return data as unknown as { id: string; metadata: PresetMetadata };
     },
     enabled: shouldFetch,
   });

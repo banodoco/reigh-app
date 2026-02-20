@@ -214,6 +214,10 @@
     --shadow-header: 0 0% 0%;              /* Pure black — light-mode header icons */
     --shadow-header-dark: 60 6% 33%;       /* Dark olive — dark-mode header icons */
     --shadow-header-hover: 45 33% 55%;     /* Muted gold — dark-mode header hover */
+    --hero-retro-bg: 195 12% 26%;
+    --hero-retro-border: 180 10% 57%;
+    --hero-retro-text: 45 14% 82%;
+    --hero-retro-light: 45 22% 91%;
 
     /* Visualization stripe colors (join-clips transition preview) */
     --viz-yellow: 48 96% 47%;              /* Tailwind yellow-500 — generated frames */
@@ -253,6 +257,11 @@
     /* Muted/subtle - cooler for contrast with green */
     --muted: 200 10% 20%;                   /* Blue-gray muted - lighter for contrast */
     --muted-foreground: 200 8% 58%;
+
+    --hero-retro-bg: 195 12% 26%;
+    --hero-retro-border: 180 10% 57%;
+    --hero-retro-text: 45 14% 82%;
+    --hero-retro-light: 45 22% 91%;
     
     /* Accent - subtle forest highlight */
     --accent: 150 15% 25%;                  /* Forest green hover */

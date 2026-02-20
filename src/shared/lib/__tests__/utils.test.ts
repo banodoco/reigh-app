@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { cropFilename, dataURLtoFile, getDisplayUrl, stripQueryParameters, formatTime } from '../utils';
+import { describe, it, expect } from 'vitest';
+import { cropFilename, formatTime } from '../utils';
 
 describe('cropFilename', () => {
   it('returns short filenames unchanged', () => {
@@ -28,89 +28,6 @@ describe('cropFilename', () => {
   it('uses default maxLength of 24', () => {
     const shortName = 'short.txt';
     expect(cropFilename(shortName)).toBe(shortName);
-  });
-});
-
-describe('dataURLtoFile', () => {
-  it('converts a valid data URL to a File', () => {
-    const dataUrl = 'data:text/plain;base64,SGVsbG8=';
-    const file = dataURLtoFile(dataUrl, 'test.txt');
-    expect(file).toBeInstanceOf(File);
-    expect(file!.name).toBe('test.txt');
-    expect(file!.type).toBe('text/plain');
-  });
-
-  it('uses custom MIME type when provided', () => {
-    const dataUrl = 'data:text/plain;base64,SGVsbG8=';
-    const file = dataURLtoFile(dataUrl, 'test.bin', 'application/octet-stream');
-    expect(file!.type).toBe('application/octet-stream');
-  });
-
-  it('returns null for invalid data URL', () => {
-    expect(dataURLtoFile('not-a-data-url', 'test.txt')).toBeNull();
-  });
-
-  it('falls back to application/octet-stream when MIME not in URL', () => {
-    const dataUrl = 'data:;base64,SGVsbG8=';
-    const file = dataURLtoFile(dataUrl, 'test.bin');
-    expect(file).toBeInstanceOf(File);
-    expect(file!.type).toBe('application/octet-stream');
-  });
-});
-
-describe('getDisplayUrl', () => {
-  beforeEach(() => {
-    vi.stubGlobal('import', { meta: { env: {} } });
-  });
-
-  it('returns placeholder for null/undefined', () => {
-    expect(getDisplayUrl(null)).toBe('/placeholder.svg');
-    expect(getDisplayUrl(undefined)).toBe('/placeholder.svg');
-    expect(getDisplayUrl('')).toBe('/placeholder.svg');
-  });
-
-  it('returns full URLs unchanged', () => {
-    expect(getDisplayUrl('https://example.com/img.png')).toBe('https://example.com/img.png');
-    expect(getDisplayUrl('http://example.com/img.png')).toBe('http://example.com/img.png');
-  });
-
-  it('returns blob URLs unchanged', () => {
-    expect(getDisplayUrl('blob:http://localhost/abc')).toBe('blob:http://localhost/abc');
-  });
-
-  it('returns data URLs unchanged', () => {
-    expect(getDisplayUrl('data:image/png;base64,abc')).toBe('data:image/png;base64,abc');
-  });
-
-  it('adds cache-busting for forceRefresh on full URLs', () => {
-    const result = getDisplayUrl('https://example.com/img.png', true);
-    expect(result).toMatch(/https:\/\/example\.com\/img\.png\?t=\d+/);
-  });
-
-  it('does not double-add cache-busting if already present', () => {
-    const result = getDisplayUrl('https://example.com/img.png?t=123', true);
-    expect(result).toBe('https://example.com/img.png?t=123');
-  });
-
-  it('adds cache-busting for flipped_ relative paths', () => {
-    // flipped_ cache-busting only applies to relative paths (full URLs return early)
-    const result = getDisplayUrl('/storage/flipped_img.png');
-    expect(result).toMatch(/flipped_img\.png.*t=\d+/);
-  });
-});
-
-describe('stripQueryParameters', () => {
-  it('returns empty string for null/undefined', () => {
-    expect(stripQueryParameters(null)).toBe('');
-    expect(stripQueryParameters(undefined)).toBe('');
-  });
-
-  it('returns URL unchanged if no params', () => {
-    expect(stripQueryParameters('https://example.com/file.png')).toBe('https://example.com/file.png');
-  });
-
-  it('strips query parameters', () => {
-    expect(stripQueryParameters('https://example.com/file.png?token=abc&v=1')).toBe('https://example.com/file.png');
   });
 });
 

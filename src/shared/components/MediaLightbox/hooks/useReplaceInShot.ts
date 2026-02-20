@@ -6,7 +6,7 @@
  */
 
 import { useCallback } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UseReplaceInShotProps {

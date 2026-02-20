@@ -1,19 +1,20 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { GenerationRow } from '@/types/shots';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { useToast } from '@/shared/hooks/use-toast';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import type { GeneratedImageWithMetadata, DisplayableMetadata } from '../types';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 interface UseMediaGalleryActionsProps {
   onDelete?: (id: string) => void;
-  onApplySettings?: (metadata: DisplayableMetadata) => void;
-  onAddToLastShot?: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToLastShotWithoutPosition?: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onApplySettings?: (metadata: DisplayableMetadata | undefined) => void;
+  onAddToLastShot?: AddToShotHandler;
+  onAddToLastShotWithoutPosition?: AddToShotHandler;
   onToggleStar?: (id: string, starred: boolean) => void;
-  activeLightboxMedia: GenerationRow | null;
-  setActiveLightboxMedia: (media: GenerationRow | null) => void;
+  activeLightboxMedia: GeneratedImageWithMetadata | null;
+  setActiveLightboxMedia: (media: GeneratedImageWithMetadata | null) => void;
   setAutoEnterEditMode: (value: boolean) => void;
   markOptimisticDeleted: (imageId: string) => void;
   markOptimisticDeletedWithBackfill: (imageId: string) => void;
@@ -33,7 +34,6 @@ interface UseMediaGalleryActionsProps {
   setSelectedShotIdLocal: (shotId: string) => void;
   // New props for robust backfill
   totalCount?: number;
-  offset?: number;
   optimisticDeletedCount: number;
   onPageBoundsExceeded?: (newLastPage: number) => void;
 }
@@ -71,7 +71,6 @@ export const useMediaGalleryActions = ({
   setIsDownloadingStarred,
   setSelectedShotIdLocal,
   totalCount,
-  offset = 0,
   onPageBoundsExceeded,
 }: UseMediaGalleryActionsProps): UseMediaGalleryActionsReturn => {
 
@@ -175,36 +174,29 @@ export const useMediaGalleryActions = ({
     onDelete,
     activeLightboxMedia,
     setActiveLightboxMedia,
-    toast,
     isServerPagination,
     serverPage,
     onBackfillRequest,
     itemsPerPage,
     setIsBackfillLoading,
     totalCount,
-    offset,
     onPageBoundsExceeded
   ]);
 
   const handleOpenLightbox = useCallback((image: GeneratedImageWithMetadata, autoEnterEditMode = false) => {
+    const generationId = getGenerationId(image);
 
-    // Map GeneratedImageWithMetadata to GenerationRow for the lightbox
-    const mediaRow: GenerationRow = {
-      id: image.id,
-      imageUrl: image.url,
-      location: image.url,
-      type: image.isVideo ? 'video_travel_output' : 'single_image',
-      createdAt: image.createdAt || new Date().toISOString(),
+    setActiveLightboxMedia({
+      ...image,
+      generation_id: image.generation_id ?? generationId ?? undefined,
+      location: image.location ?? image.url,
+      type: image.type ?? (image.isVideo ? 'video_travel_output' : 'single_image'),
       metadata: {
         ...image.metadata,
         __autoEnterEditMode: autoEnterEditMode,
         based_on: image.based_on,
       },
-      thumbUrl: image.isVideo ? image.url : undefined,
-      based_on: image.based_on,
-    } as GenerationRow;
-
-    setActiveLightboxMedia(mediaRow);
+    });
     setAutoEnterEditMode(autoEnterEditMode);
   }, [setActiveLightboxMedia, setAutoEnterEditMode]);
 

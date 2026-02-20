@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
 import { GenerationRow } from '@/types/shots';
 import { extractTaskParentGenerationId } from '../utils/task-utils';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 interface UseVideoGenerationsOptions {
   task: Task;
@@ -40,7 +40,7 @@ export function useVideoGenerations({
 
   // Fetch video generations
   const { data: videoGenerations, isLoading: isLoadingVideoGen } = useQuery({
-    queryKey: [...queryKeys.generations.videoForTask(task.id), task.outputLocation],
+    queryKey: [...generationQueryKeys.videoForTask(task.id), task.outputLocation],
     queryFn: async () => {
 
       if (!isVideoTask || task.status !== 'Complete') {
@@ -48,7 +48,10 @@ export function useVideoGenerations({
       }
 
       // For individual_travel_segment tasks with child_generation_id, fetch that generation directly
-      const childGenerationId = taskParams.parsed?.child_generation_id;
+      const childGenerationId =
+        typeof taskParams.parsed?.child_generation_id === 'string'
+          ? taskParams.parsed.child_generation_id
+          : null;
       if (task.taskType === 'individual_travel_segment' && childGenerationId) {
         const { data: childGen, error: childError } = await supabase
           .from('generations')
@@ -180,17 +183,17 @@ export function useVideoGenerations({
         _variant_is_primary: genRecord._variant_is_primary as boolean | undefined,
       } as GenerationRow;
     });
-  }, [videoGenerations, taskParams.parsed, task.taskType]);
+  }, [videoGenerations, taskParams.parsed]);
 
   // Trigger fetch (for click before hover)
   const ensureFetch = useCallback(() => {
     setShouldFetchVideo(true);
-  }, [task.id]);
+  }, []);
 
   const triggerOpen = useCallback(() => {
     setShouldFetchVideo(true);
     setWaitingForVideoToOpen(true);
-  }, [task.id, isVideoTask, task.status]);
+  }, []);
 
   const clearWaiting = () => {
     setWaitingForVideoToOpen(false);
@@ -206,4 +209,3 @@ export function useVideoGenerations({
     clearWaiting,
   };
 }
-

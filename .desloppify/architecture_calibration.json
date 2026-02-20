@@ -1,0 +1,51 @@
+{
+  "assessments": {
+    "cross_module_architecture": 70,
+    "initialization_coupling": 72,
+    "convention_outlier": 74,
+    "dependency_health": 75,
+    "test_strategy": 73,
+    "api_surface_coherence": 70,
+    "authorization_consistency": 78,
+    "incomplete_migration": 58,
+    "package_organization": 74
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "media_identity_contracts_still_fragmented",
+      "summary": "Media identity semantics still vary across generation, shot, and timeline boundaries",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useShotActions.ts",
+        "src/tools/travel-between-images/hooks/useVideoTravelAddToShot.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts"
+      ],
+      "evidence": [
+        "Generation and shot flows still coordinate with multiple ID forms (`id`, `generation_id`, shot-entry IDs) that require adapters across neighboring modules.",
+        "Review queue history repeatedly flags callback and identity-shape drift in add-to-shot and timeline-adjacent surfaces."
+      ],
+      "suggestion": "Introduce one canonical media identity type at the shared boundary and add narrow adapters only at persistence/API edges, then migrate module signatures to that type incrementally.",
+      "reasoning": "A stable identity contract removes adapter churn and reduces integration defects across gallery, timeline, and shot-management seams.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_travel_settings_residue",
+      "summary": "Legacy travel/segment migration markers remain on active code paths",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/hooks/useSegmentSettingsForm.ts",
+        "src/tools/travel-between-images/hooks/useSegmentOutputsForShot.ts"
+      ],
+      "evidence": [
+        "Migration signals still show concentrated deprecated markers in travel-between-images and segment settings pathways.",
+        "Compatibility layers remain in active runtime paths instead of being fully isolated at ingress/egress boundaries."
+      ],
+      "suggestion": "Consolidate migration behavior behind a single compatibility adapter and retire duplicated legacy branches after converting active callers in the travel + segment settings flow.",
+      "reasoning": "Reducing migration residue lowers branching complexity and prevents drift between old and new task/settings shapes.",
+      "confidence": "high"
+    }
+  ]
+}

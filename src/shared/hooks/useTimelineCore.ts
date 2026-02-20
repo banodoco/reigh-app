@@ -11,21 +11,34 @@
  * - Data: Uses useShotImages for the canonical data source
  * - Derived: Provides filtered/sorted positioned items via useMemo
  * - Operations: Uses atomic RPCs (delete_and_normalize, unposition_and_normalize, reorder_normalized)
- * - Pair Data: Includes pair prompt access with migration from old format
+ * - Pair Data: Reads/writes pair prompt overrides via metadata.segmentOverrides
  */
 
 import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { GenerationRow } from '@/types/shots';
-import { handleError } from '@/shared/lib/errorHandler';
+import type { GenerationRow } from '@/types/shots';
+import type { Json } from '@/integrations/supabase/types';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useShotImages } from '@/shared/hooks/useShotImages';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { readSegmentOverrides, writeSegmentOverrides } from '@/shared/utils/settingsMigration';
 import { calculateNextAvailableFrame, extractExistingFrames, DEFAULT_FRAME_SPACING } from '@/shared/utils/timelinePositionCalculator';
-import type { PhaseConfig } from '@/shared/types/phaseConfig';
+import type { SegmentOverrides } from '@/shared/types/segmentSettings';
+import {
+  runSerializedTimelineWrite,
+  runTimelineWriteWithTimeout,
+} from '@/shared/lib/timelineWriteQueue';
+import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
+
+const TIMELINE_CORE_LOG_PREFIX = '[TimelineCorePersist]';
+const log = (...args: Parameters<typeof console.log>) => console.log(...args);
+
+function shortId(id: string | null | undefined): string | null {
+  return id ? id.slice(0, 8) : null;
+}
 
 // ============================================================================
 // Types
@@ -34,19 +47,6 @@ import type { PhaseConfig } from '@/shared/types/phaseConfig';
 interface PairPrompts {
   prompt: string;
   negativePrompt: string;
-}
-
-export interface SegmentOverrides {
-  prompt?: string;
-  negativePrompt?: string;
-  motionMode?: 'basic' | 'advanced';
-  amountOfMotion?: number;
-  phaseConfig?: PhaseConfig;
-  selectedPhasePresetId?: string | null;
-  loras?: Array<{ path: string; strength: number; id?: string; name?: string }>;
-  numFrames?: number;
-  randomSeed?: boolean;
-  seed?: number;
 }
 
 // Legacy types - exported for backward compatibility during migration
@@ -77,16 +77,6 @@ export interface PositionMetadata {
   drag_session_id?: string;
   segmentOverrides?: SegmentOverrides;
   enhanced_prompt?: string;
-  /** @deprecated Use segmentOverrides.prompt instead */
-  pair_prompt?: string;
-  /** @deprecated Use segmentOverrides.negativePrompt instead */
-  pair_negative_prompt?: string;
-  /** @deprecated Use segmentOverrides.phaseConfig instead */
-  pair_phase_config?: PhaseConfig;
-  /** @deprecated Use segmentOverrides.loras instead */
-  pair_loras?: Array<{ path: string; strength: number; id?: string; name?: string }>;
-  /** @deprecated Use segmentOverrides.motionMode and segmentOverrides.amountOfMotion instead */
-  pair_motion_settings?: { motionMode?: 'basic' | 'advanced'; amountOfMotion?: number };
 }
 
 interface TimelineCoreResult {
@@ -130,112 +120,197 @@ interface TimelineCoreResult {
 // Hook Implementation
 // ============================================================================
 
-export function useTimelineCore(shotId: string | null): TimelineCoreResult {
-  const queryClient = useQueryClient();
-  const invalidateGenerations = useInvalidateGenerations();
+type InvalidateGenerationsFn = ReturnType<typeof useInvalidateGenerations>;
 
-  // ============================================================================
-  // Data Layer - Single source of truth
-  // ============================================================================
+interface TimelinePositionOperations {
+  updatePosition: TimelineCoreResult['updatePosition'];
+  commitPositions: TimelineCoreResult['commitPositions'];
+  reorder: TimelineCoreResult['reorder'];
+  normalize: TimelineCoreResult['normalize'];
+}
 
-  const {
-    data: generations,
-    isLoading,
-    error,
-    refetch,
-  } = useShotImages(shotId);
+interface TimelineItemOperations {
+  deleteItem: TimelineCoreResult['deleteItem'];
+  unpositionItem: TimelineCoreResult['unpositionItem'];
+  addItem: TimelineCoreResult['addItem'];
+}
 
-  // Derived: Positioned items (on timeline, non-video, valid location)
+interface TimelinePairOperations {
+  pairPrompts: TimelineCoreResult['pairPrompts'];
+  updatePairPrompts: TimelineCoreResult['updatePairPrompts'];
+  updatePairPromptsByIndex: TimelineCoreResult['updatePairPromptsByIndex'];
+  getSegmentOverrides: TimelineCoreResult['getSegmentOverrides'];
+  updateSegmentOverrides: TimelineCoreResult['updateSegmentOverrides'];
+}
+
+interface TimelineEnhancedPromptOperations {
+  getEnhancedPrompt: TimelineCoreResult['getEnhancedPrompt'];
+  clearEnhancedPrompt: TimelineCoreResult['clearEnhancedPrompt'];
+  clearAllEnhancedPrompts: TimelineCoreResult['clearAllEnhancedPrompts'];
+}
+
+function hasValidLocation(generation: GenerationRow): boolean {
+  const location = generation.imageUrl || generation.location;
+  return !!location && location !== '/placeholder.svg';
+}
+
+function useTimelineDerivedItems(generations: GenerationRow[] | undefined) {
   const positionedItems = useMemo(() => {
     if (!generations) return [];
 
     return generations
-      .filter((g) => {
-        const location = g.imageUrl || g.location;
-        const hasValidLocation = location && location !== '/placeholder.svg';
-        return (
-          g.timeline_frame != null &&
-          g.timeline_frame >= 0 &&
-          !isVideoGeneration(g) &&
-          hasValidLocation
-        );
-      })
+      .filter(
+        (generation) =>
+          generation.timeline_frame != null
+          && generation.timeline_frame >= 0
+          && !isVideoGeneration(generation)
+          && hasValidLocation(generation)
+      )
       .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
   }, [generations]);
 
-  // Derived: Unpositioned items (not on timeline, non-video, valid location)
   const unpositionedItems = useMemo(() => {
     if (!generations) return [];
 
-    return generations.filter((g) => {
-      const location = g.imageUrl || g.location;
-      const hasValidLocation = location && location !== '/placeholder.svg';
-      return g.timeline_frame == null && !isVideoGeneration(g) && hasValidLocation;
-    });
+    return generations.filter(
+      (generation) =>
+        generation.timeline_frame == null
+        && !isVideoGeneration(generation)
+        && hasValidLocation(generation)
+    );
   }, [generations]);
 
-  // ============================================================================
-  // Position Operations
-  // ============================================================================
+  return { positionedItems, unpositionedItems };
+}
 
-  // Update single position (for drag preview - no normalization)
-  const updatePosition = useCallback(
-    async (shotGenerationId: string, newFrame: number) => {
+function useTimelinePositionOperations(
+  shotId: string | null,
+  positionedItems: GenerationRow[],
+  invalidateGenerations: InvalidateGenerationsFn
+): TimelinePositionOperations {
+  const logQueuePhase = useCallback((
+    phase: 'queued' | 'start' | 'end',
+    meta: {
+      shotId: string;
+      operation: string;
+      waitMs: number;
+      durationMs: number;
+      queueDepth: number;
+    },
+  ) => {
+    if (phase === 'queued') {
+      log(`${TIMELINE_CORE_LOG_PREFIX} write queue queued`, {
+        shotId: shortId(meta.shotId),
+        operation: meta.operation,
+        waitMs: meta.waitMs,
+        durationMs: meta.durationMs,
+        queueDepth: meta.queueDepth,
+      });
+      return;
+    }
+
+    if (phase === 'start') {
+      log(`${TIMELINE_CORE_LOG_PREFIX} write queue start`, {
+        shotId: shortId(meta.shotId),
+        operation: meta.operation,
+        waitMs: meta.waitMs,
+        queueDepth: meta.queueDepth,
+      });
+      return;
+    }
+
+    log(`${TIMELINE_CORE_LOG_PREFIX} write queue end`, {
+      shotId: shortId(meta.shotId),
+      operation: meta.operation,
+      waitMs: meta.waitMs,
+      durationMs: meta.durationMs,
+      queueDepth: meta.queueDepth,
+    });
+  }, []);
+
+  const updatePosition = useCallback<TimelineCoreResult['updatePosition']>(
+    async (shotGenerationId, newFrame) => {
       if (!shotId) return;
 
-      try {
-        const { error } = await supabase
-          .from('shot_generations')
-          .update({
-            timeline_frame: newFrame,
-            metadata: { user_positioned: true },
-          })
-          .eq('id', shotGenerationId);
+      await runSerializedTimelineWrite(
+        shotId,
+        'timeline-core-update-position',
+        async () => {
+          try {
+            await runTimelineWriteWithTimeout(
+              'timeline-core-update-position-write',
+              async (signal) => {
+                const { error } = await supabase
+                  .from('shot_generations')
+                  .update({
+                    timeline_frame: newFrame,
+                    metadata: { user_positioned: true },
+                  })
+                  .eq('id', shotGenerationId)
+                  .abortSignal(signal);
 
-        if (error) throw error;
-
-        // Invalidate to refresh data
-        invalidateGenerations(shotId, { reason: 'position-update', scope: 'images' });
-      } catch (err) {
-        handleError(err, { context: 'useTimelineCore.updatePosition', toastTitle: 'Failed to update position' });
-        throw err;
-      }
+                if (error) {
+                  throw error;
+                }
+              },
+              {
+                onTimeout: ({ timeoutMs, pendingMs }) => {
+                  log(`${TIMELINE_CORE_LOG_PREFIX} single update timed out`, {
+                    shotId: shortId(shotId),
+                    shotGenerationId: shortId(shotGenerationId),
+                    newFrame,
+                    timeoutMs,
+                    pendingMs,
+                  });
+                },
+              },
+            );
+            invalidateGenerations(shotId, { reason: 'position-update', scope: 'images' });
+          } catch (err) {
+            throw handleError(err, { context: 'useTimelineCore.updatePosition', toastTitle: 'Failed to update position' });
+          }
+        },
+        logQueuePhase,
+      );
     },
-    [shotId, invalidateGenerations]
+    [shotId, invalidateGenerations, logQueuePhase]
   );
 
-  // Commit multiple position updates with normalization
-  const commitPositions = useCallback(
-    async (updates: Array<{ shotGenerationId: string; newFrame: number }>) => {
+  const commitPositions = useCallback<TimelineCoreResult['commitPositions']>(
+    async (updates) => {
       if (!shotId || updates.length === 0) return;
 
-      try {
-        // Use batch_update_timeline_frames RPC for atomic update
-        const rpcUpdates = updates.map((u) => ({
-          shot_generation_id: u.shotGenerationId,
-          timeline_frame: u.newFrame,
-          metadata: { user_positioned: true },
-        }));
+      await runSerializedTimelineWrite(
+        shotId,
+        'timeline-core-commit-positions',
+        async () => {
+          try {
+            await persistTimelineFrameBatch({
+              shotId,
+              updates: updates.map((update) => ({
+                shotGenerationId: update.shotGenerationId,
+                timelineFrame: update.newFrame,
+                metadata: { user_positioned: true },
+              })),
+              operationLabel: 'timeline-core-commit-positions',
+              timeoutOperationName: 'timeline-core-commit-positions-rpc',
+              logPrefix: TIMELINE_CORE_LOG_PREFIX,
+              log,
+            });
 
-        const { error } = await supabase.rpc('batch_update_timeline_frames', {
-          p_updates: rpcUpdates,
-        });
-
-        if (error) throw error;
-
-        // Invalidate to refresh data
-        invalidateGenerations(shotId, { reason: 'positions-commit', scope: 'all' });
-      } catch (err) {
-        handleError(err, { context: 'useTimelineCore.commitPositions', toastTitle: 'Failed to update positions' });
-        throw err;
-      }
+            invalidateGenerations(shotId, { reason: 'positions-commit', scope: 'all' });
+          } catch (err) {
+            throw handleError(err, { context: 'useTimelineCore.commitPositions', toastTitle: 'Failed to update positions' });
+          }
+        },
+        logQueuePhase,
+      );
     },
-    [shotId, invalidateGenerations]
+    [shotId, invalidateGenerations, logQueuePhase]
   );
 
-  // Reorder items with normalized positioning (0, 50, 100, ...)
-  const reorder = useCallback(
-    async (newOrder: string[]) => {
+  const reorder = useCallback<TimelineCoreResult['reorder']>(
+    async (newOrder) => {
       if (!shotId || newOrder.length === 0) return;
 
       try {
@@ -245,82 +320,89 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
         });
 
         if (error) throw error;
-
-        // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'reorder', scope: 'all' });
       } catch (err) {
-        handleError(err, { context: 'useTimelineCore.reorder', toastTitle: 'Failed to reorder items' });
-        throw err;
+        throw handleError(err, { context: 'useTimelineCore.reorder', toastTitle: 'Failed to reorder items' });
       }
     },
     [shotId, invalidateGenerations]
   );
 
-  // ============================================================================
-  // Item Operations
-  // ============================================================================
+  const normalize = useCallback<TimelineCoreResult['normalize']>(async () => {
+    if (!shotId || positionedItems.length === 0) return;
 
-  // Delete item and normalize remaining positions
-  const deleteItem = useCallback(
-    async (shotGenerationId: string) => {
+    try {
+      const currentOrder = positionedItems
+        .map((generation) => generation.shotImageEntryId)
+        .filter(Boolean) as string[];
+      const { error } = await supabase.rpc('reorder_normalized', {
+        p_shot_id: shotId,
+        p_new_order: currentOrder,
+      });
+
+      if (error) throw error;
+      invalidateGenerations(shotId, { reason: 'normalize', scope: 'all' });
+    } catch (err) {
+      throw handleError(err, {
+        context: 'useTimelineCore.normalize',
+        toastTitle: 'Failed to normalize timeline',
+      });
+    }
+  }, [shotId, positionedItems, invalidateGenerations]);
+
+  return { updatePosition, commitPositions, reorder, normalize };
+}
+
+function useTimelineItemOperations(
+  shotId: string | null,
+  positionedItems: GenerationRow[],
+  invalidateGenerations: InvalidateGenerationsFn
+): TimelineItemOperations {
+  const deleteItem = useCallback<TimelineCoreResult['deleteItem']>(
+    async (shotGenerationId) => {
       if (!shotId) return;
 
       try {
-        // Use delete_and_normalize RPC for atomic delete + normalize
         const { error } = await supabase.rpc('delete_and_normalize', {
           p_shot_id: shotId,
           p_shot_generation_id: shotGenerationId,
         });
 
         if (error) throw error;
-
-        // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'delete-item', scope: 'all', includeShots: true });
       } catch (err) {
-        handleError(err, { context: 'useTimelineCore.deleteItem', toastTitle: 'Failed to delete item' });
-        throw err;
+        throw handleError(err, { context: 'useTimelineCore.deleteItem', toastTitle: 'Failed to delete item' });
       }
     },
     [shotId, invalidateGenerations]
   );
 
-  // Unposition item (set timeline_frame = NULL) and normalize remaining
-  const unpositionItem = useCallback(
-    async (shotGenerationId: string) => {
+  const unpositionItem = useCallback<TimelineCoreResult['unpositionItem']>(
+    async (shotGenerationId) => {
       if (!shotId) return;
 
       try {
-        // Use unposition_and_normalize RPC for atomic unposition + normalize
         const { error } = await supabase.rpc('unposition_and_normalize', {
           p_shot_id: shotId,
           p_shot_generation_id: shotGenerationId,
         });
 
         if (error) throw error;
-
-        // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'unposition-item', scope: 'all' });
       } catch (err) {
-        handleError(err, { context: 'useTimelineCore.unpositionItem', toastTitle: 'Failed to remove from timeline' });
-        throw err;
+        throw handleError(err, { context: 'useTimelineCore.unpositionItem', toastTitle: 'Failed to remove from timeline' });
       }
     },
     [shotId, invalidateGenerations]
   );
 
-  // Add new item at next available position
-  const addItem = useCallback(
-    async (generationId: string, options?: { timelineFrame?: number }): Promise<string | null> => {
+  const addItem = useCallback<TimelineCoreResult['addItem']>(
+    async (generationId, options) => {
       if (!shotId) return null;
 
-      // Calculate next available frame if not provided
-      let nextFrame: number;
-      if (options?.timelineFrame !== undefined) {
-        nextFrame = options.timelineFrame;
-      } else {
-        const existingFrames = extractExistingFrames(positionedItems);
-        nextFrame = calculateNextAvailableFrame(existingFrames);
-      }
+      const nextFrame = options?.timelineFrame !== undefined
+        ? options.timelineFrame
+        : calculateNextAvailableFrame(extractExistingFrames(positionedItems));
 
       try {
         const { data, error } = await supabase
@@ -339,113 +421,92 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
           .single();
 
         if (error) throw error;
-
-        // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'add-item', scope: 'all' });
-
         return data?.id || null;
       } catch (err) {
-        handleError(err, { context: 'useTimelineCore.addItem', toastTitle: 'Failed to add item to timeline' });
-        throw err;
+        throw handleError(err, { context: 'useTimelineCore.addItem', toastTitle: 'Failed to add item to timeline' });
       }
     },
     [shotId, positionedItems, invalidateGenerations]
   );
 
-  // ============================================================================
-  // Pair Data Operations
-  // ============================================================================
+  return { deleteItem, unpositionItem, addItem };
+}
 
-  // Get pair prompts as a reactive value
-  const pairPrompts = useMemo((): Record<number, PairPrompts> => {
+function useTimelinePairOperations(
+  shotId: string | null,
+  positionedItems: GenerationRow[],
+  invalidateGenerations: InvalidateGenerationsFn,
+  queryClient: ReturnType<typeof useQueryClient>
+): TimelinePairOperations {
+  const pairPrompts = useMemo<TimelineCoreResult['pairPrompts']>(() => {
     if (positionedItems.length === 0) return {};
 
-    const result: Record<number, PairPrompts> = {};
-
-    // Each pair is represented by its first item (index in the sorted array)
-    for (let i = 0; i < positionedItems.length - 1; i++) {
-      const firstItem = positionedItems[i];
-      // Use migration utility to read from new or old format
+    const promptsByPair: Record<number, PairPrompts> = {};
+    for (let index = 0; index < positionedItems.length - 1; index += 1) {
+      const firstItem = positionedItems[index];
       const overrides = readSegmentOverrides(firstItem.metadata as Record<string, unknown> | null);
 
       if (overrides.prompt || overrides.negativePrompt) {
-        result[i] = {
+        promptsByPair[index] = {
           prompt: overrides.prompt || '',
           negativePrompt: overrides.negativePrompt || '',
         };
       }
     }
 
-    return result;
+    return promptsByPair;
   }, [positionedItems]);
 
-  // Update pair prompts by shot_generation_id
-  const updatePairPrompts = useCallback(
-    async (shotGenerationId: string, prompt: string, negativePrompt: string) => {
+  const updatePairPrompts = useCallback<TimelineCoreResult['updatePairPrompts']>(
+    async (shotGenerationId, prompt, negativePrompt) => {
       if (!shotId) return;
 
       try {
-        // Get current metadata
-        const item = positionedItems.find((g) => g.shotImageEntryId === shotGenerationId);
+        const item = positionedItems.find((generation) => generation.shotImageEntryId === shotGenerationId);
         if (!item) {
           throw new Error(`Item ${shotGenerationId} not found`);
         }
 
-        // Use migration utility to write in new format while preserving other data
         const currentOverrides = readSegmentOverrides(item.metadata as Record<string, unknown> | null);
         const updatedMetadata = writeSegmentOverrides(item.metadata as Record<string, unknown> | null, {
           ...currentOverrides,
           prompt,
           negativePrompt,
         });
-
         const { error } = await supabase
           .from('shot_generations')
-          .update({ metadata: updatedMetadata })
+          .update({ metadata: updatedMetadata as unknown as Json })
           .eq('id', shotGenerationId);
 
         if (error) throw error;
-
-        // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'update-pair-prompts', scope: 'metadata' });
         queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(shotGenerationId) });
       } catch (err) {
-        console.error('[useTimelineCore.updatePairPrompts] Error:', err);
-        throw err;
+        throw handleError(err, {
+          context: 'useTimelineCore.updatePairPrompts',
+          toastTitle: 'Failed to update pair prompts',
+          showToast: false,
+        });
       }
     },
     [shotId, positionedItems, invalidateGenerations, queryClient]
   );
 
-  // Update pair prompts by pair index
-  const updatePairPromptsByIndex = useCallback(
-    async (pairIndex: number, prompt: string, negativePrompt: string) => {
-      if (pairIndex >= positionedItems.length - 1) {
-        console.error('[useTimelineCore.updatePairPromptsByIndex] Invalid pair index:', pairIndex);
-        return;
-      }
+  const updatePairPromptsByIndex = useCallback<TimelineCoreResult['updatePairPromptsByIndex']>(
+    async (pairIndex, prompt, negativePrompt) => {
+      if (pairIndex >= positionedItems.length - 1) return;
 
       const firstItem = positionedItems[pairIndex];
-      if (!firstItem.shotImageEntryId) {
-        console.error('[useTimelineCore.updatePairPromptsByIndex] No shotImageEntryId for item');
-        return;
-      }
-
+      if (!firstItem.shotImageEntryId) return;
       await updatePairPrompts(firstItem.shotImageEntryId, prompt, negativePrompt);
     },
     [positionedItems, updatePairPrompts]
   );
 
-  // ============================================================================
-  // Segment Overrides Operations
-  // ============================================================================
-
-  // Get segment overrides for a pair index
-  const getSegmentOverrides = useCallback(
-    (pairIndex: number): SegmentOverrides => {
-      if (pairIndex >= positionedItems.length - 1) {
-        return {};
-      }
+  const getSegmentOverrides = useCallback<TimelineCoreResult['getSegmentOverrides']>(
+    (pairIndex) => {
+      if (pairIndex >= positionedItems.length - 1) return {};
 
       const firstItem = positionedItems[pairIndex];
       return readSegmentOverrides(firstItem.metadata as Record<string, unknown> | null);
@@ -453,9 +514,8 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
     [positionedItems]
   );
 
-  // Update segment overrides for a pair index
-  const updateSegmentOverrides = useCallback(
-    async (pairIndex: number, overrides: Partial<SegmentOverrides>) => {
+  const updateSegmentOverrides = useCallback<TimelineCoreResult['updateSegmentOverrides']>(
+    async (pairIndex, overrides) => {
       if (!shotId || pairIndex >= positionedItems.length - 1) return;
 
       const firstItem = positionedItems[pairIndex];
@@ -467,47 +527,56 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
           ...currentOverrides,
           ...overrides,
         });
-
         const { error } = await supabase
           .from('shot_generations')
-          .update({ metadata: updatedMetadata })
+          .update({ metadata: updatedMetadata as unknown as Json })
           .eq('id', firstItem.shotImageEntryId);
 
         if (error) throw error;
-
-        // Invalidate to refresh data
         invalidateGenerations(shotId, { reason: 'update-segment-overrides', scope: 'metadata' });
       } catch (err) {
-        console.error('[useTimelineCore.updateSegmentOverrides] Error:', err);
-        throw err;
+        throw handleError(err, {
+          context: 'useTimelineCore.updateSegmentOverrides',
+          toastTitle: 'Failed to update segment overrides',
+          showToast: false,
+        });
       }
     },
     [shotId, positionedItems, invalidateGenerations]
   );
 
-  // ============================================================================
-  // Enhanced Prompt Operations
-  // ============================================================================
+  return {
+    pairPrompts,
+    updatePairPrompts,
+    updatePairPromptsByIndex,
+    getSegmentOverrides,
+    updateSegmentOverrides,
+  };
+}
 
-  // Get enhanced prompt for a shot_generation
-  const getEnhancedPrompt = useCallback(
-    (shotGenerationId: string): string | undefined => {
-      const item = positionedItems.find((g) => g.shotImageEntryId === shotGenerationId);
+function useTimelineEnhancedPromptOperations(
+  shotId: string | null,
+  positionedItems: GenerationRow[],
+  invalidateGenerations: InvalidateGenerationsFn,
+  queryClient: ReturnType<typeof useQueryClient>
+): TimelineEnhancedPromptOperations {
+  const getEnhancedPrompt = useCallback<TimelineCoreResult['getEnhancedPrompt']>(
+    (shotGenerationId) => {
+      const item = positionedItems.find((generation) => generation.shotImageEntryId === shotGenerationId);
       if (!item?.metadata) return undefined;
 
       const metadata = item.metadata as Record<string, unknown>;
-      return metadata.enhanced_prompt || metadata.segmentOverrides?.enhanced_prompt;
+      return metadata.enhanced_prompt as string | undefined;
     },
     [positionedItems]
   );
 
-  // Clear enhanced prompt for a shot_generation
-  const clearEnhancedPrompt = useCallback(
-    async (shotGenerationId: string) => {
+  const clearEnhancedPrompt = useCallback<TimelineCoreResult['clearEnhancedPrompt']>(
+    async (shotGenerationId) => {
       if (!shotId) return;
 
       try {
-        const item = positionedItems.find((g) => g.shotImageEntryId === shotGenerationId);
+        const item = positionedItems.find((generation) => generation.shotImageEntryId === shotGenerationId);
         if (!item) return;
 
         const currentMetadata = (item.metadata as Record<string, unknown>) || {};
@@ -516,140 +585,131 @@ export function useTimelineCore(shotId: string | null): TimelineCoreResult {
           enhanced_prompt: '',
         };
 
-        // Optimistic update: immediately update the cache
         queryClient.setQueryData<GenerationRow[]>(
           queryKeys.generations.byShot(shotId),
-          (oldData) => {
-            if (!oldData) return oldData;
-            return oldData.map((row) =>
-              row.id === shotGenerationId
-                ? { ...row, metadata: updatedMetadata }
-                : row
-            );
-          }
+          (oldData) => oldData?.map((row) =>
+            row.id === shotGenerationId
+              ? { ...row, metadata: updatedMetadata }
+              : row
+          )
         );
 
-        // Then persist to database
         const { error } = await supabase
           .from('shot_generations')
           .update({ metadata: updatedMetadata })
           .eq('id', shotGenerationId);
 
         if (error) {
-          // Revert optimistic update on error
           invalidateGenerations(shotId, { reason: 'clear-enhanced-prompt-error', scope: 'metadata' });
           throw error;
         }
 
-        // Background refetch to ensure consistency
         invalidateGenerations(shotId, { reason: 'clear-enhanced-prompt', scope: 'metadata' });
       } catch (err) {
-        console.error('[useTimelineCore.clearEnhancedPrompt] Error:', err);
-        throw err;
+        throw handleError(err, {
+          context: 'useTimelineCore.clearEnhancedPrompt',
+          showToast: false,
+        });
       }
     },
     [shotId, positionedItems, invalidateGenerations, queryClient]
   );
 
-  // Clear all enhanced prompts for the shot
-  const clearAllEnhancedPrompts = useCallback(async () => {
+  const clearAllEnhancedPrompts = useCallback<TimelineCoreResult['clearAllEnhancedPrompts']>(async () => {
     if (!shotId) return;
 
     try {
-      // Get all shot_generations with enhanced prompts
-      const itemsWithEnhancedPrompts = positionedItems.filter((g) => {
-        const metadata = g.metadata as Record<string, unknown>;
-        return metadata?.enhanced_prompt;
+      const itemsWithEnhancedPrompt = positionedItems.filter((generation) => {
+        const metadata = generation.metadata as Record<string, unknown>;
+        return !!metadata?.enhanced_prompt;
       });
 
-      if (itemsWithEnhancedPrompts.length === 0) return;
+      if (itemsWithEnhancedPrompt.length === 0) return;
 
-      // Update each one to clear enhanced_prompt
-      for (const item of itemsWithEnhancedPrompts) {
+      for (const item of itemsWithEnhancedPrompt) {
         if (!item.shotImageEntryId) continue;
 
         const currentMetadata = (item.metadata as Record<string, unknown>) || {};
-        const updatedMetadata = {
-          ...currentMetadata,
-          enhanced_prompt: '',
-        };
-
         await supabase
           .from('shot_generations')
-          .update({ metadata: updatedMetadata })
+          .update({
+            metadata: {
+              ...currentMetadata,
+              enhanced_prompt: '',
+            },
+          })
           .eq('id', item.shotImageEntryId);
       }
 
       invalidateGenerations(shotId, { reason: 'clear-all-enhanced-prompts', scope: 'metadata' });
     } catch (err) {
-      console.error('[useTimelineCore.clearAllEnhancedPrompts] Error:', err);
-      throw err;
-    }
-  }, [shotId, positionedItems, invalidateGenerations]);
-
-  // ============================================================================
-  // Manual Operations
-  // ============================================================================
-
-  // Manual normalize (rarely needed - operations normalize automatically)
-  const normalize = useCallback(async () => {
-    if (!shotId || positionedItems.length === 0) return;
-
-    try {
-      // Get current positions and call reorder_normalized to re-normalize
-      const currentOrder = positionedItems.map((g) => g.shotImageEntryId).filter(Boolean) as string[];
-
-      const { error } = await supabase.rpc('reorder_normalized', {
-        p_shot_id: shotId,
-        p_new_order: currentOrder,
+      throw handleError(err, {
+        context: 'useTimelineCore.clearAllEnhancedPrompts',
+        showToast: false,
       });
-
-      if (error) throw error;
-
-      invalidateGenerations(shotId, { reason: 'normalize', scope: 'all' });
-    } catch (err) {
-      console.error('[useTimelineCore.normalize] Error:', err);
-      throw err;
     }
   }, [shotId, positionedItems, invalidateGenerations]);
-
-  // ============================================================================
-  // Return
-  // ============================================================================
 
   return {
-    // Data
+    getEnhancedPrompt,
+    clearEnhancedPrompt,
+    clearAllEnhancedPrompts,
+  };
+}
+
+export function useTimelineCore(shotId: string | null): TimelineCoreResult {
+  const queryClient = useQueryClient();
+  const invalidateGenerations = useInvalidateGenerations();
+  const {
+    data: generations,
+    isLoading,
+    error,
+    refetch,
+  } = useShotImages(shotId);
+  const { positionedItems, unpositionedItems } = useTimelineDerivedItems(generations);
+  const { updatePosition, commitPositions, reorder, normalize } = useTimelinePositionOperations(
+    shotId,
+    positionedItems,
+    invalidateGenerations
+  );
+  const { deleteItem, unpositionItem, addItem } = useTimelineItemOperations(
+    shotId,
+    positionedItems,
+    invalidateGenerations
+  );
+  const {
+    pairPrompts,
+    updatePairPrompts,
+    updatePairPromptsByIndex,
+    getSegmentOverrides,
+    updateSegmentOverrides,
+  } = useTimelinePairOperations(shotId, positionedItems, invalidateGenerations, queryClient);
+  const {
+    getEnhancedPrompt,
+    clearEnhancedPrompt,
+    clearAllEnhancedPrompts,
+  } = useTimelineEnhancedPromptOperations(shotId, positionedItems, invalidateGenerations, queryClient);
+
+  return {
     generations,
     positionedItems,
     unpositionedItems,
     isLoading,
     error: error || null,
-
-    // Position operations
     updatePosition,
     commitPositions,
     reorder,
-
-    // Item operations
     deleteItem,
     unpositionItem,
     addItem,
-
-    // Pair data
     pairPrompts,
     updatePairPrompts,
     updatePairPromptsByIndex,
-
-    // Segment overrides
     getSegmentOverrides,
     updateSegmentOverrides,
-
-    // Enhanced prompts
     getEnhancedPrompt,
     clearEnhancedPrompt,
     clearAllEnhancedPrompts,
-
-    // Manual operations
     normalize,
     refetch: () => refetch(),
   };

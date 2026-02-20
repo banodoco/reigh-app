@@ -1,6 +1,7 @@
 import { __WS_INSTRUMENTATION_ENABLED__, __CORRUPTION_TRACE_ENABLED__ } from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /** Shape of a Phoenix channel message received over WebSocket */
 interface PhoenixMessage {
@@ -21,6 +22,7 @@ interface InstrumentedWindow extends Window {
     websocketRef: WebSocket;
   }>;
   __REALTIME_SNAPSHOT__?: Record<string, unknown>;
+  WebSocket: typeof WebSocket;
 }
 
 export function installWindowOnlyInstrumentation() {
@@ -54,10 +56,14 @@ function installWindowOnlyInstrumentationLegacy() {
 
       const SUPABASE_JS_KNOWN_ERROR_LINE = 2372;
       if (source && source.includes('supabase-js.js') && lineno === SUPABASE_JS_KNOWN_ERROR_LINE) {
-        console.error('[RealtimeCorruptionTrace] SUPABASE ERROR CAPTURED!', {
-          ...errorInfo,
-          realtimeSnapshot: captureRealtimeSnapshot(),
-          corruptionTimeline: [...__CORRUPTION_TIMELINE__]
+        handleError(new Error('[RealtimeCorruptionTrace] Supabase error captured'), {
+          context: 'WindowInstrumentation',
+          showToast: false,
+          logData: {
+            ...errorInfo,
+            realtimeSnapshot: captureRealtimeSnapshot(),
+            corruptionTimeline: [...__CORRUPTION_TIMELINE__],
+          },
         });
         addCorruptionEvent('SUPABASE_ERROR_2372', errorInfo);
       } else if (message && (String(message).includes('supabase') || String(message).includes('realtime') || String(message).includes('websocket'))) {
@@ -79,7 +85,7 @@ function installWindowOnlyInstrumentationLegacy() {
         addCorruptionEvent('UNHANDLED_REJECTION', rejectionInfo);
       }
 
-      if (originalOnUnhandledRejection) return originalOnUnhandledRejection.call(this, event);
+      if (originalOnUnhandledRejection) return originalOnUnhandledRejection.call(window, event);
     };
   }
 
@@ -93,7 +99,6 @@ function installWindowOnlyInstrumentationLegacy() {
   const OriginalWS = window.WebSocket;
 
   let wsCreationCount = 0;
-  let wsDestroyedCount = 0;
 
   instrumentedWindow.WebSocket = function(url: string, protocols?: string | string[]) {
     wsCreationCount++;
@@ -140,10 +145,6 @@ function installWindowOnlyInstrumentationLegacy() {
           // Ignore instrumentation parse failures so realtime flow remains unaffected.
         }
       }
-    });
-
-    ws.addEventListener('close', () => {
-      wsDestroyedCount++;
     });
 
     return ws as WebSocket;

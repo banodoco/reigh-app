@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandler";
+import { handleError } from "@/shared/lib/errorHandling/handleError";
 import { pixelToFrame } from "../utils/timeline-utils";
 import { TIMELINE_PADDING_OFFSET } from "../constants";
 import { 

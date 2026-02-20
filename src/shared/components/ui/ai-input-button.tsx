@@ -8,7 +8,7 @@ import { useVoiceRecording } from "@/shared/hooks/use-voice-recording"
 import { useIsMobile } from "@/shared/hooks/use-mobile"
 import { supabase } from "@/integrations/supabase/client"
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
-import { handleError } from "@/shared/lib/errorHandler"
+import { handleError } from "@/shared/lib/errorHandling/handleError"
 import { getErrorMessage } from "@/shared/lib/errorUtils"
 
 type TextProcessingState = "idle" | "open" | "processing" | "success"
@@ -166,8 +166,6 @@ export const AIInputButton = React.forwardRef<
           return <Square className="h-3 w-3 fill-current" />
         case "processing":
           return <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        case "success":
-          return <Check className="h-3.5 w-3.5" />
         default:
           return <Mic className="h-3.5 w-3.5" />
       }
@@ -190,8 +188,6 @@ export const AIInputButton = React.forwardRef<
           return "Stop recording"
         case "processing":
           return "Processing..."
-        case "success":
-          return "Voice input applied!"
         default:
           return hasExistingContent 
             ? "Voice input to create/edit prompt" 
@@ -209,9 +205,6 @@ export const AIInputButton = React.forwardRef<
     if (mode === "voice") {
       if (voiceState === "recording") {
         return "bg-red-500 text-white hover:bg-red-600"
-      }
-      if (voiceState === "success") {
-        return "bg-green-500 text-white hover:bg-green-600"
       }
     } else {
       if (textState === "open" || textState === "processing") {
@@ -478,4 +471,3 @@ export const AIInputButton = React.forwardRef<
 })
 
 AIInputButton.displayName = "AIInputButton"
-

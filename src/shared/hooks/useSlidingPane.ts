@@ -67,7 +67,7 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
       setIsOpen(false);
     }
      
-  }, [location.pathname]);
+  }, [location.pathname, isSmallMobile, setIsOpen]);
 
   // Lock body scroll when pane is open on small phones (both temporary and locked states)
   // When locked, Layout.tsx handles creating a scrollable main content area instead
@@ -89,7 +89,7 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
         document.body.style.touchAction = originalTouchAction;
       };
     }
-  }, [isSmallMobile, isOpen]);
+  }, [isSmallMobile, isOpen, setIsOpen]);
 
   // Click outside handler for small phones (only when not locked)
   // We now use BOTH touchstart and pointerdown to ensure we capture
@@ -135,7 +135,7 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
       document.removeEventListener('touchstart', handleClickOutside, true);
       document.removeEventListener('pointerdown', handleClickOutside, true);
     };
-  }, [isSmallMobile, isOpen, isLocked, additionalRefs]);
+  }, [isSmallMobile, isOpen, isLocked, additionalRefs, setIsOpen]);
 
   // Close on dragstart anywhere (small phones)
   useEffect(() => {
@@ -149,7 +149,7 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
 
     document.addEventListener('dragstart', handleDragStart);
     return () => document.removeEventListener('dragstart', handleDragStart);
-  }, [isSmallMobile, isOpen]);
+  }, [isSmallMobile, isOpen, setIsOpen]);
 
   // Exclusive pane coordination on small phones
   // When another pane opens, this one should close (locking the other will handle unlocking this via PanesContext)
@@ -169,7 +169,7 @@ export const useSlidingPane = ({ side, isLocked, onToggleLock, additionalRefs, p
 
     window.addEventListener('mobilePaneOpen', handleMobilePaneOpen as EventListener);
     return () => window.removeEventListener('mobilePaneOpen', handleMobilePaneOpen as EventListener);
-  }, [isSmallMobile, side, isLocked]);
+  }, [isSmallMobile, side, isLocked, setIsOpen]);
 
   const openPane = () => {
     if (leaveTimeoutRef.current) {

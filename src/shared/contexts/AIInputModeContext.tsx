@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useUserUIState } from "@/shared/hooks/useUserUIState"
 
-export type AIInputMode = "voice" | "text" | "none"
+export type AIInputMode = "voice" | "text"
 
 interface AIInputModeContextValue {
   mode: AIInputMode
@@ -44,4 +44,3 @@ export function useAIInputMode() {
   }
   return context
 }
-

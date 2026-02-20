@@ -130,7 +130,7 @@ export const AdjacentSegmentNavigation: React.FC<AdjacentSegmentNavigationProps>
     }
 
     return (
-      <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCard>
         <HoverCardTrigger asChild>
           {button}
         </HoverCardTrigger>

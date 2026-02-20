@@ -137,7 +137,7 @@ export const MyLorasTab: React.FC<MyLorasTabProps> = ({
             <div className="flex gap-2">
               <Select
                 value={formState.addForm.base_model}
-                onValueChange={(value) => formState.handleFormChange('base_model', value)}
+                onValueChange={(value) => formState.handleFormChange('base_model', value ?? '')}
               >
                 <SelectTrigger variant="retro" className={formState.supportsMultiStage ? "flex-1" : "w-full"}>
                   <SelectValue placeholder="Select Base Model" />
@@ -151,7 +151,11 @@ export const MyLorasTab: React.FC<MyLorasTabProps> = ({
               {formState.supportsMultiStage && (
                 <Select
                   value={formState.loraMode}
-                  onValueChange={(value: 'single' | 'multi') => formState.setLoraMode(value)}
+                  onValueChange={(value) => {
+                    if (value === 'single' || value === 'multi') {
+                      formState.setLoraMode(value);
+                    }
+                  }}
                 >
                   <SelectTrigger variant="retro" className="w-[180px]">
                     <SelectValue />

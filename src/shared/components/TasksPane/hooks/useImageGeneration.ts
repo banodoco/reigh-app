@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
 import { GenerationRow } from '@/types/shots';
 import { extractSourceGenerationId } from '../utils/task-utils';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 interface UseImageGenerationOptions {
   task: Task;
@@ -28,7 +28,7 @@ export function useImageGeneration({
 
   // Fetch generation data - checks both generations and generation_variants tables
   const { data: generationResult, isLoading: isLoadingGeneration, error: generationError } = useQuery({
-    queryKey: [...queryKeys.generations.forTask(task.id), task.outputLocation],
+    queryKey: [...generationQueryKeys.forTask(task.id), task.outputLocation],
     queryFn: async () => {
       if (!task.outputLocation) return null;
 
@@ -128,7 +128,11 @@ export function useImageGeneration({
     if (!hasGeneratedImage || !actualGeneration) return null;
     
     const gen = actualGeneration as Record<string, unknown>;
-    const basedOnValue = (gen.based_on as string | null) || (actualGeneration.metadata as Record<string, unknown> | undefined)?.based_on as string | null || null;
+    const metadata = ((gen.metadata as Record<string, unknown> | null | undefined) ?? {}) as Record<string, unknown>;
+    const basedOnValue =
+      (typeof gen.based_on === 'string' ? gen.based_on : null) ||
+      (typeof metadata.based_on === 'string' ? metadata.based_on : null) ||
+      null;
 
     // Transform shot associations
     const shotGenerations = (gen.shot_generations as Array<{ shot_id: string; timeline_frame: number | null }>) || [];
@@ -143,17 +147,20 @@ export function useImageGeneration({
       position: sg.timeline_frame,
     }));
 
-    const imageUrl = actualGeneration.location || (gen.thumbnail_url as string | undefined);
-    const thumbUrl = (gen.thumbnail_url as string | undefined) || actualGeneration.location;
+    const location = typeof actualGeneration.location === 'string' ? actualGeneration.location : null;
+    const thumbnailUrl = typeof gen.thumbnail_url === 'string' ? gen.thumbnail_url : undefined;
+    const imageUrl = location ?? thumbnailUrl;
+    const thumbUrl = thumbnailUrl ?? location ?? undefined;
+    const createdAt = (gen.created_at as string | undefined) || new Date().toISOString();
 
     return {
       id: actualGeneration.id,
-      location: actualGeneration.location,
+      location,
       imageUrl,
       thumbUrl,
-      type: actualGeneration.type || 'image',
-      createdAt: (gen.created_at as string | undefined) || actualGeneration.createdAt,
-      metadata: actualGeneration.metadata || {},
+      type: (actualGeneration.type ?? 'image') as string,
+      createdAt,
+      metadata,
       based_on: basedOnValue,
       sourceGenerationId: basedOnValue,
       parent_generation_id: (gen.parent_generation_id as string | undefined) || undefined,
@@ -177,4 +184,3 @@ export function useImageGeneration({
     variantId: generationResult?.variantId || null,
   };
 }
-

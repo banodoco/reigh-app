@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { GenerationRow } from '@/types/shots';
 import { createImageUpscaleTask } from '@/shared/lib/tasks/imageUpscale';
 import { getGenerationId, getMediaUrl } from '@/shared/lib/mediaTypeHelpers';
@@ -102,8 +102,8 @@ export const useUpscale = ({
     } catch (error) {
       handleError(error, { context: 'useUpscale', toastTitle: 'Failed to create enhance task' });
     } finally {
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });
       removeIncomingTask(incomingTaskId);
       setIsUpscaling(false);
     }

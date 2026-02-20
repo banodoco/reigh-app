@@ -102,19 +102,16 @@ const PairPromptIndicatorComponent: React.FC<PairPromptIndicatorProps> = ({
                 {hasMotionOverride && (
                   <Clapperboard
                     className="h-2.5 w-2.5 text-amber-500 dark:text-amber-400"
-                    title="Motion override"
                   />
                 )}
                 {hasLoraOverride && (
                   <Palette
                     className="h-2.5 w-2.5 text-violet-500 dark:text-violet-400"
-                    title="LoRA override"
                   />
                 )}
                 {hasAdvancedOverride && (
                   <Settings2
                     className="h-2.5 w-2.5 text-cyan-500 dark:text-cyan-400"
-                    title="Advanced override"
                   />
                 )}
               </div>
@@ -204,4 +201,3 @@ export const PairPromptIndicator = React.memo(
     );
   }
 );
-

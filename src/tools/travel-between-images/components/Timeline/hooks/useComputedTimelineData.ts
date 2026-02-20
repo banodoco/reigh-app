@@ -23,11 +23,12 @@ interface UseComputedTimelineDataReturn {
 export function useComputedTimelineData({
   currentPositions,
   images,
-  shotId,
+  shotId: _shotId,
   containerWidth,
   fullRange,
   zoomLevel,
 }: UseComputedTimelineDataProps): UseComputedTimelineDataReturn {
+  void _shotId;
   const pairInfo = getPairInfo(currentPositions);
 
   // Image-only positions (excluding trailing endpoint key)
@@ -45,7 +46,7 @@ export function useComputedTimelineData({
       posMap.set(shotGenId, index);
     });
     return posMap;
-  }, [imageOnlyPositions, shotId]);
+  }, [imageOnlyPositions]);
 
   // Compute full pair data for each pair index
   const pairDataByIndex = useMemo(() => {

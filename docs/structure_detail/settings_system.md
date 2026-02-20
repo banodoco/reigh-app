@@ -13,7 +13,7 @@ Single system for persisting and resolving tool/UI settings across shots, projec
 | New-shot inheritance | `src/shared/lib/shotSettingsInheritance.ts` |
 | Low-level DB hook | `src/shared/hooks/useToolSettings.ts` |
 | Auto-save hook (recommended) | `src/shared/hooks/useAutoSaveSettings.ts` |
-| Bind-to-useState hook | `src/shared/hooks/usePersistentToolState.ts` |
+| Bind-to-useState adapter | `src/shared/hooks/usePersistentToolState.ts` |
 | Generic persistent state | `src/shared/hooks/usePersistentState.ts` |
 | User UI preferences | `src/shared/hooks/useUserUIState.ts` |
 
@@ -37,9 +37,15 @@ Need to persist settings?
 | One-off write to a specific scope | `useToolSettings` | Low-level `update('shot', {...})` / `update('project', {...})` |
 
 **Key differences:**
-- `useAutoSaveSettings` vs `usePersistentToolState`: Auto-save owns its state; PersistentToolState binds to your `useState` and requires `markAsInteracted()` before saving.
+- `useAutoSaveSettings` vs `usePersistentToolState`: Auto-save owns its state; PersistentToolState is an adapter that binds to existing `useState` and requires `markAsInteracted()` before saving.
 - `useAutoSaveSettings` vs `useToolSettings`: Auto-save adds debounce, dirty tracking, entity-change flushing. ToolSettings is the raw read/write layer.
 - `useUserUIState` vs the rest: Writes to `users.settings.ui` only; the others write to project/shot/user settings keyed by tool ID.
+
+### Migration Direction
+
+- New settings persistence should default to `useAutoSaveSettings`.
+- `usePersistentToolState` should be used only for legacy components that already own many local `useState` fields and need an interaction guard.
+- Tool-specific hooks should prefer `useAutoSaveSettings` operations (`updateField`, `updateFields`, `saveImmediate`) over direct low-level write helpers unless a boundary requires manual scope control.
 
 ## Cascade Resolution
 

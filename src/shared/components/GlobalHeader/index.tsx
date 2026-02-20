@@ -1,82 +1,33 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import { cn } from '@/shared/lib/utils';
-import { useIsTablet } from '@/shared/hooks/use-mobile';
-import { useTextCase } from '@/shared/hooks/useTextCase';
-import { usePanes } from '@/shared/contexts/PanesContext';
-import { useProjectContextDebug } from '@/shared/hooks/useProjectContextDebug';
-import { useProject } from '@/shared/contexts/ProjectContext';
 import { CreateProjectModal } from '@/shared/components/CreateProjectModal';
 import { ProjectSettingsModal } from '@/shared/components/ProjectSettingsModal';
 import { ReferralModal } from '@/shared/components/ReferralModal';
-
-import { useGlobalHeaderAuth } from './useGlobalHeaderAuth';
+import { useGlobalHeaderController } from './GlobalHeaderController';
 
 import { GlobalHeaderDesktop } from './GlobalHeaderDesktop';
 import { GlobalHeaderMobile } from './GlobalHeaderMobile';
 import type { GlobalHeaderProps } from './types';
 
 export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ contentOffsetRight = 0, contentOffsetLeft = 0, onOpenSettings }) => {
-  const { projects, selectedProjectId } = useProject();
-  const isTablet = useIsTablet();
-  useTextCase(); // Initialize text case styling on app load
-  const { isGenerationsPaneLocked } = usePanes();
-
-  // [MobileStallFix] Enable debug monitoring
-  useProjectContextDebug();
-
-  // Auth state (session, username, referral stats)
-  const { session, referralStats } = useGlobalHeaderAuth();
-
-  // Brand flash (Mobile Safari :hover fix)
-  const [isBrandFlash, setIsBrandFlash] = useState(false);
-  const brandFlashTimeoutRef = useRef<number | null>(null);
-
-  const triggerBrandFlash = useCallback(() => {
-    setIsBrandFlash(true);
-    if (brandFlashTimeoutRef.current != null) window.clearTimeout(brandFlashTimeoutRef.current);
-    brandFlashTimeoutRef.current = window.setTimeout(() => setIsBrandFlash(false), 220);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (brandFlashTimeoutRef.current != null) window.clearTimeout(brandFlashTimeoutRef.current);
-    };
-  }, []);
-
-  // Sticky header on desktop/tablet, scrolling header only on phones
-  const [isWideViewport, setIsWideViewport] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
-  );
-
-  useEffect(() => {
-    const handleResize = () => setIsWideViewport(window.innerWidth >= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Wide viewport OR tablet = sticky header, UNLESS GenerationsPane is locked
-  const shouldHaveStickyHeader = (isWideViewport || isTablet) && !isGenerationsPaneLocked;
-
-  // Modal state
-  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
-  const [isProjectSettingsModalOpen, setIsProjectSettingsModalOpen] = useState(false);
-  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
-  const [createProjectInitialName, setCreateProjectInitialName] = useState<string | undefined>(undefined);
-
-  const handleOpenCreateProject = useCallback((initialName?: string) => {
-    setCreateProjectInitialName(initialName);
-    setIsCreateProjectModalOpen(true);
-  }, []);
-
-  const handleOpenProjectSettings = useCallback(() => {
-    setIsProjectSettingsModalOpen(true);
-  }, []);
-
-  const handleOpenReferralModal = useCallback(() => {
-    setIsReferralModalOpen(true);
-  }, []);
-
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const {
+    session,
+    referralStats,
+    isBrandFlash,
+    triggerBrandFlash,
+    shouldHaveStickyHeader,
+    selectedProject,
+    isCreateProjectModalOpen,
+    handleCreateProjectModalOpenChange,
+    createProjectInitialName,
+    isProjectSettingsModalOpen,
+    setIsProjectSettingsModalOpen,
+    isReferralModalOpen,
+    setIsReferralModalOpen,
+    handleOpenCreateProject,
+    handleOpenProjectSettings,
+    handleOpenReferralModal,
+  } = useGlobalHeaderController();
 
   return (
     <>
@@ -144,10 +95,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ contentOffsetRight =
 
       <CreateProjectModal
         isOpen={isCreateProjectModalOpen}
-        onOpenChange={(open) => {
-          setIsCreateProjectModalOpen(open);
-          if (!open) setCreateProjectInitialName(undefined);
-        }}
+        onOpenChange={handleCreateProjectModalOpenChange}
         initialName={createProjectInitialName}
       />
       {selectedProject && (

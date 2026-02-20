@@ -92,7 +92,7 @@ export const useMediaGalleryFiltersOptimized = ({
   const mergedDefaults = useMemo((): GalleryFilterState => ({
     ...DEFAULT_GALLERY_FILTERS,
     ...defaultFilters,
-  }), []);
+  }), [defaultFilters]);
 
   // Reducer owns filter values (uncontrolled) and isSearchOpen (both modes)
   const [internalState, dispatch] = useReducer(internalReducer, {

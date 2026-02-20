@@ -1,10 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
-import vitestConfig from '../../vitest.config';
-
-// Keep test config in the dependency graph so static analyzers classify it as in-use.
-void vitestConfig;
 
 // Automatic DOM cleanup after each test
 afterEach(() => {

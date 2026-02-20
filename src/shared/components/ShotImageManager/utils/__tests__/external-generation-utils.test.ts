@@ -40,11 +40,16 @@ describe('transformExternalGeneration', () => {
     ];
 
     const result = transformExternalGeneration(baseData, shotGens);
+    const withAssociations = result as {
+      shot_id?: string;
+      position?: number | null;
+      all_shot_associations?: Array<{ shot_id: string; timeline_frame: number | null; position: number | null }>;
+    };
 
     expect(result.timeline_frame).toBe(42);
-    expect((result as Record<string, unknown>).shot_id).toBe('shot-1');
-    expect((result as Record<string, unknown>).position).toBe(42);
-    expect((result as Record<string, unknown>).all_shot_associations).toEqual([
+    expect(withAssociations.shot_id).toBe('shot-1');
+    expect(withAssociations.position).toBe(42);
+    expect(withAssociations.all_shot_associations).toEqual([
       { shot_id: 'shot-1', timeline_frame: 42, position: 42 },
     ]);
   });
@@ -56,10 +61,13 @@ describe('transformExternalGeneration', () => {
     ];
 
     const result = transformExternalGeneration(baseData, shotGens);
+    const withAssociations = result as {
+      all_shot_associations?: Array<{ shot_id: string; timeline_frame: number | null; position: number | null }>;
+    };
 
     // Uses first shot_generation for primary fields
     expect(result.timeline_frame).toBe(10);
-    expect((result as Record<string, unknown>).all_shot_associations).toHaveLength(2);
+    expect(withAssociations.all_shot_associations).toHaveLength(2);
   });
 
   it('handles null timeline_frame in shot_generations', () => {

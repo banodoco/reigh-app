@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface QuickCreateSuccessState {
   isSuccessful: boolean;

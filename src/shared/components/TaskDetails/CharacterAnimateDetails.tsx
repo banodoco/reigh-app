@@ -15,16 +15,16 @@ export const CharacterAnimateDetails: React.FC<TaskDetailsProps> = ({
   const config = getVariantConfig(variant, isMobile, inputImages.length);
   const [videoLoaded, setVideoLoaded] = useState(false);
 
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
-  const orchestratorDetails = parsedParams?.orchestrator_details;
-  const orchestratorPayload = parsedParams?.full_orchestrator_payload;
+  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
+  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, any> | undefined;
+  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, any> | undefined;
 
   // Extract character animate data
-  const mode = parsedParams?.mode || orchestratorDetails?.mode || orchestratorPayload?.mode;
-  const characterImageUrl = parsedParams?.character_image_url || orchestratorDetails?.character_image_url || orchestratorPayload?.character_image_url;
-  const motionVideoUrl = parsedParams?.motion_video_url || orchestratorDetails?.motion_video_url || orchestratorPayload?.motion_video_url;
-  const prompt = parsedParams?.prompt || orchestratorDetails?.prompt || orchestratorPayload?.prompt;
-  const resolution = parsedParams?.resolution || orchestratorDetails?.resolution || orchestratorPayload?.resolution;
+  const mode = (parsedParams?.mode || orchestratorDetails?.mode || orchestratorPayload?.mode) as string | undefined;
+  const characterImageUrl = (parsedParams?.character_image_url || orchestratorDetails?.character_image_url || orchestratorPayload?.character_image_url) as string | undefined;
+  const motionVideoUrl = (parsedParams?.motion_video_url || orchestratorDetails?.motion_video_url || orchestratorPayload?.motion_video_url) as string | undefined;
+  const prompt = (parsedParams?.prompt || orchestratorDetails?.prompt || orchestratorPayload?.prompt) as string | undefined;
+  const resolution = (parsedParams?.resolution || orchestratorDetails?.resolution || orchestratorPayload?.resolution) as string | undefined;
 
   return (
     <div className={`p-3 bg-muted/30 rounded-lg border space-y-3 ${variant === 'panel' ? '' : variant === 'modal' && isMobile ? 'w-full' : 'w-[360px]'}`}>

@@ -22,7 +22,7 @@ export interface TrainingDataVideo {
   createdAt: string;
   updatedAt: string | null;
   userId: string;
-  batchId: string;
+  batchId: string | null;
 }
 
 export interface TrainingDataSegment {

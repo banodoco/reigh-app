@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Github, MessageCircle, Plus, Download, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Github, MessageCircle, Plus } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { usePlatformInstall } from '@/shared/hooks/usePlatformInstall';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { InstallInstructionsModal } from './InstallInstructionsModal';
 import { GoldSpotlight } from './GoldSpotlight';
+import { HeroCtaContent } from './HeroCtaContent';
 import { useHeroAnimation } from '../hooks/useHeroAnimation';
 import type { Session } from '@supabase/supabase-js';
 
@@ -15,10 +16,10 @@ const BANODOCO_URL = 'http://banodoco.ai/';
 
 // Retro theme color tokens (inline for hydration safety - see comment on retroButtonInlineStyles)
 const RETRO_THEME = {
-  bg: '#3a4a4a',
-  border: '#8a9a9a',
-  text: '#d8d4cb',
-  light: '#ecede3',
+  bg: 'hsl(var(--hero-retro-bg))',
+  border: 'hsl(var(--hero-retro-border))',
+  text: 'hsl(var(--hero-retro-text))',
+  light: 'hsl(var(--hero-retro-light))',
 } as const;
 
 interface ExampleStyle {
@@ -39,67 +40,6 @@ interface HeroSectionProps {
   currentExample: ExampleStyle;
   isPaneOpen?: boolean;
 }
-
-// Animated CTA button content that smoothly transitions between states
-interface CTAContentProps {
-  icon: 'download' | 'plus' | 'external' | 'discord' | null;
-  text: string;
-}
-
-const CTAContent: React.FC<CTAContentProps> = ({ icon, text }) => {
-  const [displayedIcon, setDisplayedIcon] = useState(icon);
-  const [displayedText, setDisplayedText] = useState(text);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const prevIconRef = useRef(icon);
-  const prevTextRef = useRef(text);
-
-  useEffect(() => {
-    // Only animate if the content actually changed
-    if (icon !== prevIconRef.current || text !== prevTextRef.current) {
-      setIsTransitioning(true);
-
-      // After fade out, update content
-      const updateTimer = setTimeout(() => {
-        setDisplayedIcon(icon);
-        setDisplayedText(text);
-      }, 150);
-
-      // After content update, fade back in
-      const fadeInTimer = setTimeout(() => {
-        setIsTransitioning(false);
-      }, 180);
-
-      prevIconRef.current = icon;
-      prevTextRef.current = text;
-
-      return () => {
-        clearTimeout(updateTimer);
-        clearTimeout(fadeInTimer);
-      };
-    }
-  }, [icon, text]);
-
-  return (
-    <>
-      <div
-        className={`transition-all duration-150 ${
-          isTransitioning ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-        }`}
-      >
-        {displayedIcon === 'download' && <Download className="w-5 h-5" />}
-        {displayedIcon === 'plus' && <Plus className="w-5 h-5" />}
-        {displayedIcon === 'external' && <ExternalLink className="w-5 h-5" />}
-      </div>
-      <span
-        className={`transition-all duration-150 ${
-          isTransitioning ? 'opacity-0 translate-y-1' : 'opacity-100 translate-y-0'
-        }`}
-      >
-        {displayedText}
-      </span>
-    </>
-  );
-};
 
 // Force dark mode styles for retro button to prevent white flash during hydration/theme switch
 // Using inline styles for colors to guarantee they're present during re-renders, Tailwind classes for layout/behavior
@@ -353,7 +293,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       }
                     }}
                   >
-                    <CTAContent
+                    <HeroCtaContent
                       icon={platformInstall.showInstallCTA ? platformInstall.ctaIcon : null}
                       text={platformInstall.showInstallCTA ? platformInstall.ctaText : 'go to tools'}
                     />
@@ -398,7 +338,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       }
                     }}
                   >
-                    <CTAContent
+                    <HeroCtaContent
                       icon={platformInstall.showInstallCTA ? platformInstall.ctaIcon : null}
                       text={platformInstall.showInstallCTA ? platformInstall.ctaText : 'sign in with Discord'}
                     />

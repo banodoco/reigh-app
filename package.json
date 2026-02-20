@@ -21,12 +21,18 @@
     "bun:build": "bun run build",
     "bun:preview": "bun run preview",
     "bun:install": "bun install",
-    "test": "vitest run",
-    "test:edge": "vitest run --config vitest.edge.config.ts",
-    "test:edge:smoke": "vitest run --config vitest.edge.config.ts --testNamePattern=\"Smoke\"",
-    "test:watch": "vitest",
+    "test": "npm run check:no-smoke-tests && vitest run",
+    "test:edge": "npm run test:edge:unit && npm run test:edge:smoke",
+    "test:edge:unit": "vitest run --config vitest.edge.config.ts",
+    "test:edge:smoke": "vitest run --config vitest.edge.smoke.config.ts --testNamePattern=\"Smoke\"",
+    "test:watch": "npm run check:no-smoke-tests && vitest",
     "test:coverage": "vitest run --coverage",
-    "check:edge-budget": "node scripts/edge/quality-budget.mjs --check"
+    "check:edge-budget": "node scripts/edge/quality-budget.mjs --check",
+    "check:no-smoke-tests": "node scripts/quality/check-no-smoke-tests.mjs",
+    "lint:strict-islands": "eslint src/app src/integrations/supabase/bootstrap src/shared/lib/debugPolling.ts src/shared/lib/mobileProjectDebug.ts src/shared/components/MediaGallery/hooks/useMediaGalleryDebugTools.ts src/shared/components/MediaLightbox/hooks/useVideoLightboxEnvironment.ts src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorModel.ts src/shared/lib/tasks/travelBetweenImages supabase/functions/create-task --ext ts,tsx --max-warnings 0",
+    "typecheck:strict-islands": "tsc -p tsconfig.strict-islands.json --noEmit",
+    "typecheck:strict-probe": "npm run typecheck:strict-islands",
+    "quality:check": "npm run check:no-smoke-tests && npm run lint && npm run typecheck:strict-probe"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",
@@ -79,5 +85,6 @@
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1",
     "vitest": "^4.0.18"
-  }
+  },
+  "packageManager": "pnpm@10.27.0+sha512.72d699da16b1179c14ba9e64dc71c9a40988cbdc65c264cb0e489db7de917f20dcf4d64d8723625f2969ba52d4b7e2a1170682d9ac2a5dcaeaab732b7e16f04a"
 }

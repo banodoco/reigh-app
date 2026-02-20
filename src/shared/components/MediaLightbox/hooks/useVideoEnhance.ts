@@ -4,10 +4,12 @@ import {
   createVideoEnhanceTask,
   type VideoEnhanceTaskParams,
 } from '@/shared/lib/tasks/videoEnhance';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import type { VideoEnhanceSettings } from './useGenerationEditSettings';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
+
+export type { VideoEnhanceSettings } from './useGenerationEditSettings';
 
 interface UseVideoEnhanceProps {
   projectId: string | undefined;
@@ -131,8 +133,8 @@ export function useVideoEnhance({
     } catch (error) {
       handleError(error, { context: 'useVideoEnhance', toastTitle: 'Failed to create video enhancement task' });
     } finally {
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });
       removeIncomingTask(incomingTaskId);
       setIsGenerating(false);
     }

@@ -28,8 +28,8 @@ describe('findGeneration', () => {
     expect(findGeneration(shotGenerations, 'sg-2')).toEqual(shotGenerations[1]);
   });
 
-  it('finds by generation_id', () => {
-    expect(findGeneration(shotGenerations, 'gen-3')).toEqual(shotGenerations[2]);
+  it('does not match generation_id aliases', () => {
+    expect(findGeneration(shotGenerations, 'gen-3')).toBeUndefined();
   });
 
   it('returns undefined for non-existent key', () => {

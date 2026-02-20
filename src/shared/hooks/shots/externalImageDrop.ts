@@ -1,0 +1,407 @@
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+import { toast } from '@/shared/components/ui/sonner';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import {
+  generateClientThumbnail,
+  uploadImageWithThumbnail,
+} from '@/shared/lib/clientThumbnailGenerator';
+import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
+import { parseRatio } from '@/shared/lib/aspectRatios';
+import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
+
+export interface ExternalImageDropVariables {
+  imageFiles: File[];
+  targetShotId: string | null;
+  currentProjectQueryKey: string | null;
+  currentShotCount: number;
+  skipAutoPosition?: boolean;
+  positions?: number[];
+  onProgress?: (fileIndex: number, fileProgress: number, overallProgress: number) => void;
+  skipOptimistic?: boolean;
+}
+
+interface CropConfig {
+  shouldCrop: boolean;
+  targetAspectRatio: number | null;
+  aspectRatioSource: 'none' | 'shot' | 'project';
+}
+
+interface ProcessDroppedImagesInput {
+  variables: ExternalImageDropVariables;
+  projectId: string;
+  createShot: (input: {
+    name: string;
+    projectId: string;
+    shouldSelectAfterCreation: boolean;
+  }) => Promise<{ shot?: { id?: string } } | null | undefined>;
+  addImageToShot: (input: {
+    shot_id: string;
+    generation_id: string;
+    project_id: string;
+    imageUrl?: string;
+    thumbUrl?: string;
+    timelineFrame?: number;
+    skipOptimistic?: boolean;
+  }) => Promise<unknown>;
+  addImageToShotWithoutPosition: (input: {
+    shot_id: string;
+    generation_id: string;
+    project_id: string;
+    imageUrl?: string;
+    thumbUrl?: string;
+  }) => Promise<unknown>;
+  createGeneration?: typeof createGenerationForUploadedImage;
+}
+
+const buildProgressHandler = (
+  onProgress: ExternalImageDropVariables['onProgress'],
+  fileIndex: number,
+  totalFiles: number,
+) =>
+  onProgress
+    ? (progress: number) => {
+        const overallProgress = Math.round(((fileIndex + progress / 100) / totalFiles) * 100);
+        onProgress(fileIndex, progress, overallProgress);
+      }
+    : undefined;
+
+const createGenerationForUploadedImage = async (
+  imageUrl: string,
+  fileName: string,
+  fileType: string,
+  fileSize: number,
+  projectId: string,
+  thumbnailUrl?: string,
+): Promise<Database['public']['Tables']['generations']['Row']> => {
+  const generationParams = {
+    source: 'upload',
+    original_filename: fileName,
+    file_type: fileType,
+    file_size: fileSize,
+  };
+
+  const { data, error } = await supabase
+    .from('generations')
+    .insert({
+      project_id: projectId,
+      type: 'image',
+      location: imageUrl,
+      thumbnail_url: thumbnailUrl || imageUrl,
+      params: generationParams,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  await supabase.from('generation_variants').insert({
+    generation_id: data.id,
+    location: imageUrl,
+    thumbnail_url: thumbnailUrl || imageUrl,
+    is_primary: true,
+    variant_type: VARIANT_TYPE.ORIGINAL,
+    name: 'Original',
+    params: generationParams,
+  });
+
+  return data;
+};
+
+async function getCropConfig(projectId: string, shotId: string | null): Promise<CropConfig> {
+  const config: CropConfig = {
+    shouldCrop: true,
+    targetAspectRatio: null,
+    aspectRatioSource: 'none',
+  };
+
+  try {
+    const { data: projectData } = await supabase
+      .from('projects')
+      .select('aspect_ratio, settings')
+      .eq('id', projectId)
+      .single();
+
+    let shotAspectRatio: string | null = null;
+    if (shotId) {
+      const { data: shotData } = await supabase
+        .from('shots')
+        .select('aspect_ratio')
+        .eq('id', shotId)
+        .single();
+      shotAspectRatio = shotData?.aspect_ratio || null;
+    }
+
+    const uploadSettings = (projectData?.settings as Record<string, unknown> | null)?.upload as Record<string, unknown> | undefined;
+    const cropToProjectSize = uploadSettings?.cropToProjectSize;
+    config.shouldCrop = typeof cropToProjectSize === 'boolean' ? cropToProjectSize : true;
+
+    const effectiveRatioStr = shotAspectRatio || projectData?.aspect_ratio || null;
+    if (effectiveRatioStr) {
+      config.targetAspectRatio = parseRatio(effectiveRatioStr);
+      config.aspectRatioSource = shotAspectRatio ? 'shot' : 'project';
+    }
+  } catch (error) {
+    handleError(error, { context: 'useShotCreation:aspectRatio', showToast: false });
+  }
+
+  return config;
+}
+
+async function cropFilesIfNeeded(imageFiles: File[], config: CropConfig): Promise<File[]> {
+  const { shouldCrop, targetAspectRatio } = config;
+  if (!shouldCrop || !targetAspectRatio || Number.isNaN(targetAspectRatio)) {
+    return imageFiles;
+  }
+
+  try {
+    const cropPromises = imageFiles.map(async (file) => {
+      try {
+        if (!file.type.startsWith('image/')) {
+          return file;
+        }
+
+        const result = await cropImageToProjectAspectRatio(file, targetAspectRatio);
+        return result?.croppedFile || file;
+      } catch (error) {
+        handleError(error, { context: `useShotCreation:crop:${file.name}`, showToast: false });
+        return file;
+      }
+    });
+
+    return await Promise.all(cropPromises);
+  } catch (error) {
+    handleError(error, { context: 'useShotCreation:batchCrop', showToast: false });
+    return imageFiles;
+  }
+}
+
+async function ensureTargetShotId(
+  targetShotId: string | null,
+  currentShotCount: number,
+  projectId: string,
+  createShot: ProcessDroppedImagesInput['createShot'],
+): Promise<string | null> {
+  if (targetShotId) {
+    return targetShotId;
+  }
+
+  const newShotName = `Shot ${currentShotCount + 1}`;
+  const result = await createShot({
+    name: newShotName,
+    projectId,
+    shouldSelectAfterCreation: true,
+  });
+
+  if (!result?.shot?.id) {
+    toast.error('Failed to create new shot.');
+    return null;
+  }
+
+  return result.shot.id;
+}
+
+async function uploadImageWithFallback(
+  imageFile: File,
+  fileIndex: number,
+  totalFiles: number,
+  onProgress?: ExternalImageDropVariables['onProgress'],
+): Promise<{ imageUrl: string; thumbnailUrl: string }> {
+  const progressHandler = buildProgressHandler(onProgress, fileIndex, totalFiles);
+  let imageUrl = '';
+  let thumbnailUrl = '';
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    const thumbnailResult = await generateClientThumbnail(imageFile, 300, 0.8);
+    const uploadResult = await uploadImageWithThumbnail(
+      imageFile,
+      thumbnailResult.thumbnailBlob,
+      session.user.id,
+      progressHandler,
+    );
+    imageUrl = uploadResult.imageUrl;
+    thumbnailUrl = uploadResult.thumbnailUrl;
+  } catch (error) {
+    handleError(error, { context: `useShotCreation:thumbnail:${imageFile.name}`, showToast: false });
+    imageUrl = await uploadImageToStorage(imageFile, 3, progressHandler);
+    thumbnailUrl = imageUrl;
+  }
+
+  return { imageUrl, thumbnailUrl };
+}
+
+async function attachGenerationToShot(input: {
+  shotId: string;
+  generation: Database['public']['Tables']['generations']['Row'];
+  projectId: string;
+  thumbnailUrl: string;
+  fileIndex: number;
+  variables: ExternalImageDropVariables;
+  addImageToShot: ProcessDroppedImagesInput['addImageToShot'];
+  addImageToShotWithoutPosition: ProcessDroppedImagesInput['addImageToShotWithoutPosition'];
+}): Promise<void> {
+  const {
+    shotId,
+    generation,
+    projectId,
+    thumbnailUrl,
+    fileIndex,
+    variables,
+    addImageToShot,
+    addImageToShotWithoutPosition,
+  } = input;
+
+  const { positions, skipAutoPosition, skipOptimistic } = variables;
+  const explicitPosition = positions && positions.length > fileIndex ? positions[fileIndex] : undefined;
+  const baseInput = {
+    shot_id: shotId,
+    generation_id: generation.id as string,
+    project_id: projectId,
+    imageUrl: generation.location || undefined,
+    thumbUrl: thumbnailUrl || generation.location || undefined,
+  };
+
+  if (explicitPosition !== undefined) {
+    await addImageToShot({
+      ...baseInput,
+      timelineFrame: explicitPosition,
+      skipOptimistic,
+    });
+    return;
+  }
+
+  if (skipAutoPosition) {
+    await addImageToShotWithoutPosition(baseInput);
+    return;
+  }
+
+  await addImageToShot({
+    ...baseInput,
+    skipOptimistic,
+  });
+}
+
+async function processSingleDroppedImage(input: {
+  imageFile: File;
+  fileIndex: number;
+  totalFiles: number;
+  shotId: string;
+  projectId: string;
+  variables: ExternalImageDropVariables;
+  addImageToShot: ProcessDroppedImagesInput['addImageToShot'];
+  addImageToShotWithoutPosition: ProcessDroppedImagesInput['addImageToShotWithoutPosition'];
+  createGeneration: typeof createGenerationForUploadedImage;
+}): Promise<string | null> {
+  const {
+    imageFile,
+    fileIndex,
+    totalFiles,
+    shotId,
+    projectId,
+    variables,
+    addImageToShot,
+    addImageToShotWithoutPosition,
+    createGeneration,
+  } = input;
+
+  const { imageUrl, thumbnailUrl } = await uploadImageWithFallback(
+    imageFile,
+    fileIndex,
+    totalFiles,
+    variables.onProgress,
+  );
+
+  if (!imageUrl) {
+    toast.error(`Failed to upload image ${imageFile.name} to storage.`);
+    return null;
+  }
+
+  let generation: Database['public']['Tables']['generations']['Row'];
+  try {
+    generation = await createGeneration(
+      imageUrl,
+      imageFile.name,
+      imageFile.type,
+      imageFile.size,
+      projectId,
+      thumbnailUrl,
+    );
+  } catch (error) {
+    toast.error(`Failed to create generation data for ${imageFile.name}: ${(error as Error).message}`);
+    return null;
+  }
+
+  if (!generation?.id) {
+    toast.error(`Failed to create generation record for ${imageFile.name}.`);
+    return null;
+  }
+
+  await attachGenerationToShot({
+    shotId,
+    generation,
+    projectId,
+    thumbnailUrl,
+    fileIndex,
+    variables,
+    addImageToShot,
+    addImageToShotWithoutPosition,
+  });
+
+  return generation.id as string;
+}
+
+export async function processDroppedImages(
+  input: ProcessDroppedImagesInput,
+): Promise<{ shotId: string; generationIds: string[] } | null> {
+  const {
+    variables,
+    projectId,
+    createShot,
+    addImageToShot,
+    addImageToShotWithoutPosition,
+    createGeneration = createGenerationForUploadedImage,
+  } = input;
+  const { imageFiles, targetShotId, currentShotCount } = variables;
+
+  const cropConfig = await getCropConfig(projectId, targetShotId);
+  const processedFiles = await cropFilesIfNeeded(imageFiles, cropConfig);
+  const shotId = await ensureTargetShotId(targetShotId, currentShotCount, projectId, createShot);
+  if (!shotId) {
+    return null;
+  }
+
+  const generationIds: string[] = [];
+  for (let fileIndex = 0; fileIndex < processedFiles.length; fileIndex++) {
+    const imageFile = processedFiles[fileIndex];
+    try {
+      const generationId = await processSingleDroppedImage({
+        imageFile,
+        fileIndex,
+        totalFiles: processedFiles.length,
+        shotId,
+        projectId,
+        variables,
+        addImageToShot,
+        addImageToShotWithoutPosition,
+        createGeneration,
+      });
+      if (generationId) {
+        generationIds.push(generationId);
+      }
+    } catch (error) {
+      handleError(error, { context: 'useShotCreation', toastTitle: `Failed to process file ${imageFile.name}` });
+    }
+  }
+
+  return generationIds.length > 0 ? { shotId, generationIds } : null;
+}

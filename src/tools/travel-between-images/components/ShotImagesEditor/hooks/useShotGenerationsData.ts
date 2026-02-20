@@ -33,28 +33,22 @@ export interface UseShotGenerationsDataReturn {
   error: string;
   /** Update a single timeline frame position */
   updateTimelineFrame: (id: string, frame: number) => Promise<void>;
-  /** Exchange positions between two items */
-  exchangePositions: (genIdA: string, genIdB: string) => Promise<void>;
-  /** Exchange positions without reloading */
-  exchangePositionsNoReload: (shotGenIdA: string, shotGenIdB: string) => Promise<void>;
   /** Batch exchange positions */
-  batchExchangePositions: (updates: Array<{ id: string; position: number }>) => Promise<void>;
+  batchExchangePositions: (updates: Array<{ shotGenerationId: string; newFrame: number }>) => Promise<void>;
+  /** Move one or more items to midpoint-distributed positions (batch reorder path) */
+  moveItemsToMidpoint?: (
+    draggedItemIds: string[],
+    newStartIndex: number,
+    allItems: Array<{ id: string; timeline_frame: number | null }>
+  ) => Promise<void>;
   /** Delete an item */
-  deleteItem: (shotGenerationId: string) => Promise<void>;
+  deleteItem?: (shotGenerationId: string) => Promise<void>;
   /** Reload positions */
   loadPositions: (options?: { silent?: boolean }) => Promise<void>;
-  /** Update pair prompts by shot_generation.id */
-  updatePairPrompts: (id: string, prompt: string, negativePrompt: string) => Promise<void>;
-  /** Update pair prompts by index */
-  updatePairPromptsByIndex: (index: number, prompt: string, negativePrompt: string) => Promise<void>;
   /** Clear enhanced prompt for a shot_generation */
   clearEnhancedPrompt: (shotGenerationId: string) => Promise<void>;
-  /** Clear all enhanced prompts */
-  clearAllEnhancedPrompts: () => Promise<void>;
   /** Get images filtered for a specific mode */
   getImagesForMode: (mode: 'batch' | 'timeline' | 'by-pair') => GenerationRow[];
-  /** Add item */
-  addItem: (item: GenerationRow) => void;
   /** Whether we've ever had data (prevents unmounting during refetches) */
   hasEverHadData: boolean;
 }
@@ -68,6 +62,24 @@ export interface UseShotGenerationsDataProps {
   generationMode: 'batch' | 'timeline' | 'by-pair';
   /** Optional preloaded images (bypasses database queries) */
   preloadedImages?: GenerationRow[];
+}
+
+interface TimelineDataSource {
+  shotGenerations: GenerationRow[];
+  pairPrompts: Record<string, { prompt: string; negativePrompt: string }>;
+  isLoading: boolean;
+  error: string;
+  updateTimelineFrame: (id: string, frame: number) => Promise<void>;
+  batchExchangePositions: (updates: Array<{ shotGenerationId: string; newFrame: number }>) => Promise<void>;
+  moveItemsToMidpoint?: (
+    draggedItemIds: string[],
+    newStartIndex: number,
+    allItems: Array<{ id: string; timeline_frame: number | null }>
+  ) => Promise<void>;
+  deleteItem?: (shotGenerationId: string) => Promise<void>;
+  loadPositions: (options?: { silent?: boolean }) => Promise<void>;
+  clearEnhancedPrompt: (shotGenerationId: string) => Promise<void>;
+  getImagesForMode: (mode: 'batch' | 'timeline' | 'by-pair') => GenerationRow[];
 }
 
 export function useShotGenerationsData({
@@ -87,69 +99,47 @@ export function useShotGenerationsData({
   });
 
   // Choose data source based on whether we have preloaded images
-  const hookData = useMemo(() => {
+  const hookData = useMemo<TimelineDataSource>(() => {
     if (preloadedImages) {
       return {
-        shotGenerations: utilsData.shotGenerations,
-        pairPrompts: utilsData.pairPrompts,
+        shotGenerations: preloadedImages,
+        pairPrompts: utilsData.pairPrompts as Record<string, { prompt: string; negativePrompt: string }>,
         isLoading: utilsData.isLoading,
         error: utilsData.error ? utilsData.error.message : '',
         updateTimelineFrame: utilsData.updateTimelineFrame,
         batchExchangePositions: utilsData.batchExchangePositions,
-        loadPositions: utilsData.loadPositions,
-        updatePairPrompts: utilsData.updatePairPrompts,
+        moveItemsToMidpoint: utilsData.moveItemsToMidpoint,
+        loadPositions: async (options) => {
+          await utilsData.loadPositions({ silent: options?.silent });
+        },
         clearEnhancedPrompt: utilsData.clearEnhancedPrompt,
-        initializeTimelineFrames: utilsData.initializeTimelineFrames,
         getImagesForMode: () => {
           // BOTH modes show only positioned non-video images
           return preloadedImages
             .filter(img => isPositioned(img) && !isVideoGeneration(img))
             .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
         },
-        exchangePositions: async () => {},
-        exchangePositionsNoReload: async () => {},
-        deleteItem: coreHookData.deleteItem,
-        updatePairPromptsByIndex: coreHookData.updatePairPromptsByIndex,
-        clearAllEnhancedPrompts: coreHookData.clearAllEnhancedPrompts,
-        isPersistingPositions: false,
-        setIsPersistingPositions: () => {},
-        getPositionsForMode: () => new Map(),
-        addItem: coreHookData.addItem,
-        applyTimelineFrames: async () => {},
-        getPairPrompts: () => utilsData.pairPrompts,
-        moveItemsToMidpoint: utilsData.moveItemsToMidpoint,
       };
     }
 
     return {
       shotGenerations: coreHookData.positionedItems,
-      pairPrompts: coreHookData.pairPrompts,
+      pairPrompts: coreHookData.pairPrompts as Record<string, { prompt: string; negativePrompt: string }>,
       isLoading: coreHookData.isLoading,
       error: coreHookData.error?.message || '',
-      updateTimelineFrame: coreHookData.updatePosition,
-      batchExchangePositions: coreHookData.commitPositions,
-      loadPositions: coreHookData.refetch,
-      updatePairPrompts: coreHookData.updatePairPrompts,
-      clearEnhancedPrompt: coreHookData.clearEnhancedPrompt,
-      initializeTimelineFrames: async () => {},
+      updateTimelineFrame: utilsData.updateTimelineFrame,
+      batchExchangePositions: utilsData.batchExchangePositions,
+      moveItemsToMidpoint: utilsData.moveItemsToMidpoint,
+      loadPositions: async (options) => {
+        await utilsData.loadPositions({ silent: options?.silent });
+      },
+      clearEnhancedPrompt: utilsData.clearEnhancedPrompt,
       getImagesForMode: () => coreHookData.positionedItems,
-      exchangePositions: async () => {},
-      exchangePositionsNoReload: async () => {},
       deleteItem: coreHookData.deleteItem,
-      updatePairPromptsByIndex: coreHookData.updatePairPromptsByIndex,
-      clearAllEnhancedPrompts: coreHookData.clearAllEnhancedPrompts,
-      isPersistingPositions: false,
-      setIsPersistingPositions: () => {},
-      getPositionsForMode: () => new Map(),
-      addItem: coreHookData.addItem,
-      applyTimelineFrames: async () => {},
-      getPairPrompts: () => coreHookData.pairPrompts,
-      moveItemsToMidpoint: undefined,
     };
   }, [preloadedImages, utilsData, coreHookData]);
 
-  // Use preloaded images if provided, otherwise use database images
-  const shotGenerations = preloadedImages || hookData.shotGenerations;
+  const shotGenerations = hookData.shotGenerations;
 
   // Memoize shotGenerations to prevent reference changes
   const memoizedShotGenerations = useMemo(() => shotGenerations, [shotGenerations]);
@@ -163,12 +153,14 @@ export function useShotGenerationsData({
   // Reset when shot changes
   useEffect(() => {
     hasEverHadDataRef.current = memoizedShotGenerations.length > 0;
-  }, [selectedShotId]);
+  }, [selectedShotId, memoizedShotGenerations.length]);
+
+  const { getImagesForMode } = hookData;
 
   // Memoize images for the current mode
   const images = useMemo(() => {
-    return hookData.getImagesForMode(generationMode);
-  }, [hookData.getImagesForMode, generationMode]);
+    return getImagesForMode(generationMode);
+  }, [getImagesForMode, generationMode]);
 
   // Extract generation IDs for variant badge fetching
   const generationIds = useMemo(() =>
@@ -187,6 +179,7 @@ export function useShotGenerationsData({
     }
     return images.map((img): GenerationWithBadges => {
       const generationId = getGenerationId(img);
+      if (!generationId) return img;
       const badgeData = getBadgeData(generationId);
       return {
         ...img,
@@ -205,17 +198,12 @@ export function useShotGenerationsData({
     isLoading: hookData.isLoading,
     error: hookData.error,
     updateTimelineFrame: hookData.updateTimelineFrame,
-    exchangePositions: hookData.exchangePositions,
-    exchangePositionsNoReload: hookData.exchangePositionsNoReload,
     batchExchangePositions: hookData.batchExchangePositions,
+    moveItemsToMidpoint: hookData.moveItemsToMidpoint,
     deleteItem: hookData.deleteItem,
     loadPositions: hookData.loadPositions,
-    updatePairPrompts: hookData.updatePairPrompts,
-    updatePairPromptsByIndex: hookData.updatePairPromptsByIndex,
     clearEnhancedPrompt: hookData.clearEnhancedPrompt,
-    clearAllEnhancedPrompts: hookData.clearAllEnhancedPrompts,
     getImagesForMode: hookData.getImagesForMode,
-    addItem: hookData.addItem,
     hasEverHadData: hasEverHadDataRef.current,
   };
 }

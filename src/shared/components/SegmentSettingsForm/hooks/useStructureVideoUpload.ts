@@ -9,9 +9,10 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { uploadVideoToStorage, extractVideoMetadata } from '@/shared/lib/videoUploader';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { extractVideoMetadata, uploadVideoToStorage } from '@/shared/lib/videoUploader';
 import { supabase } from '@/integrations/supabase/client';
 import { useCreateResource, type Resource, type StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
@@ -20,131 +21,169 @@ import type { SegmentSettings } from '../../segmentSettingsUtils';
 
 const MAX_UPLOAD_SIZE_MB = 200;
 const BYTES_PER_KB = 1024;
+const VALID_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 interface UseStructureVideoUploadOptions {
-  /** Frame range for the segment (required for creating structure video config) */
   structureVideoFrameRange?: {
     segmentStart: number;
     segmentEnd: number;
     videoTotalFrames: number;
     videoFps: number;
   };
-  /** Current settings (for default values) */
   settings: SegmentSettings;
-  /** Shot-level structure video defaults */
   structureVideoDefaults?: {
     motionStrength: number;
     treatment: 'adjust' | 'clip';
     uni3cEndPercent: number;
   };
-  /** Callback when a structure video is added */
   onAddSegmentStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
 }
 
 interface UseStructureVideoUploadReturn {
-  // State
   isUploadingVideo: boolean;
   uploadProgress: number;
   pendingVideoUrl: string | null;
   showVideoBrowser: boolean;
-
-  // Actions
   setShowVideoBrowser: (show: boolean) => void;
   handleFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleVideoResourceSelect: (resource: Resource) => void;
   handleVideoPreviewLoaded: () => void;
   clearPendingVideo: () => void;
-
-  // Refs for file inputs
   fileInputRef: React.RefObject<HTMLInputElement>;
   addFileInputRef: React.RefObject<HTMLInputElement>;
-
-  // Computed
   isVideoLoading: boolean;
 }
 
-export function useStructureVideoUpload(
-  options: UseStructureVideoUploadOptions
-): UseStructureVideoUploadReturn {
+interface SharedStructureVideoConfigInput {
+  frameRange: NonNullable<UseStructureVideoUploadOptions['structureVideoFrameRange']>;
+  settings: SegmentSettings;
+  structureVideoDefaults?: UseStructureVideoUploadOptions['structureVideoDefaults'];
+}
+
+function buildStructureVideoConfig(input: {
+  path: string;
+  metadata: StructureVideoConfigWithMetadata['metadata'];
+  resourceId: string;
+  shared: SharedStructureVideoConfigInput;
+}): StructureVideoConfigWithMetadata {
+  const { frameRange, settings, structureVideoDefaults } = input.shared;
+
+  return {
+    path: input.path,
+    start_frame: frameRange.segmentStart,
+    end_frame: frameRange.segmentEnd,
+    treatment: settings.structureTreatment ?? structureVideoDefaults?.treatment ?? 'adjust',
+    motion_strength: settings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2,
+    structure_type: 'uni3c',
+    uni3c_end_percent: settings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
+    metadata: input.metadata,
+    resource_id: input.resourceId,
+  };
+}
+
+function clearFileInputs(
+  fileInputRef: React.RefObject<HTMLInputElement>,
+  addFileInputRef: React.RefObject<HTMLInputElement>
+): void {
+  if (fileInputRef.current) {
+    fileInputRef.current.value = '';
+  }
+  if (addFileInputRef.current) {
+    addFileInputRef.current.value = '';
+  }
+}
+
+function isInvalidVideoFile(file: File): boolean {
+  if (!VALID_VIDEO_TYPES.includes(file.type)) {
+    toast.error('Invalid file type. Please upload an MP4, WebM, or MOV file.');
+    return true;
+  }
+
+  const fileSizeMB = file.size / (BYTES_PER_KB * BYTES_PER_KB);
+  if (fileSizeMB > MAX_UPLOAD_SIZE_MB) {
+    toast.error(`File too large. Maximum size is ${MAX_UPLOAD_SIZE_MB}MB`);
+    return true;
+  }
+
+  return false;
+}
+
+function useVideoResourceSelectionHandler(input: {
+  onAddSegmentStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
+  structureVideoFrameRange?: UseStructureVideoUploadOptions['structureVideoFrameRange'];
+  settings: SegmentSettings;
+  structureVideoDefaults?: UseStructureVideoUploadOptions['structureVideoDefaults'];
+  setPendingVideoUrl: Dispatch<SetStateAction<string | null>>;
+  setShowVideoBrowser: Dispatch<SetStateAction<boolean>>;
+}): (resource: Resource) => void {
   const {
+    onAddSegmentStructureVideo,
     structureVideoFrameRange,
     settings,
     structureVideoDefaults,
-    onAddSegmentStructureVideo,
-  } = options;
+    setPendingVideoUrl,
+    setShowVideoBrowser,
+  } = input;
 
-  // UI state
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [pendingVideoUrl, setPendingVideoUrl] = useState<string | null>(null);
-  const [showVideoBrowser, setShowVideoBrowser] = useState(false);
-
-  // File input refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const addFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Resource creation hook for video upload
-  const createResource = useCreateResource();
-
-  // Privacy defaults for new resources
-  const { value: privacyDefaults } = useUserUIState('privacyDefaults', {
-    resourcesPublic: true,
-    generationsPublic: false,
-  });
-
-  // Show loading state when uploading OR waiting for frames to be captured
-  const isVideoLoading = isUploadingVideo || !!pendingVideoUrl;
-
-  // Callback when StructureVideoPreview finishes capturing all frames
-  const handleVideoPreviewLoaded = useCallback(() => {
-    setPendingVideoUrl(null);
-  }, []);
-
-  // Clear pending state (e.g., when video is removed)
-  const clearPendingVideo = useCallback(() => {
-    setPendingVideoUrl(null);
-  }, []);
-
-  // Handle selecting a video from the browser
-  const handleVideoResourceSelect = useCallback((resource: Resource) => {
-    if (!onAddSegmentStructureVideo || !structureVideoFrameRange) return;
-
-    const metadata = resource.metadata as StructureVideoMetadata;
-
-    const newVideo: StructureVideoConfigWithMetadata = {
-      path: metadata.videoUrl,
-      start_frame: structureVideoFrameRange.segmentStart,
-      end_frame: structureVideoFrameRange.segmentEnd,
-      treatment: settings.structureTreatment ?? structureVideoDefaults?.treatment ?? 'adjust',
-      motion_strength: settings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2,
-      structure_type: 'uni3c', // Default to uni3c for new uploads
-      uni3c_end_percent: settings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
-      metadata: metadata.videoMetadata ?? null,
-      resource_id: resource.id,
-    };
-
-    // Set pending state to show loading until props update
-    setPendingVideoUrl(metadata.videoUrl);
-    onAddSegmentStructureVideo(newVideo);
-    setShowVideoBrowser(false);
-  }, [onAddSegmentStructureVideo, structureVideoFrameRange, settings, structureVideoDefaults]);
-
-  // Process uploaded video file
-  const processVideoFile = useCallback(async (file: File) => {
-    if (!onAddSegmentStructureVideo || !structureVideoFrameRange) return;
-
-    // Validate file type
-    const validTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Invalid file type. Please upload an MP4, WebM, or MOV file.');
+  return useCallback((resource: Resource) => {
+    if (!onAddSegmentStructureVideo || !structureVideoFrameRange) {
       return;
     }
 
-    // Validate file size
-    const maxSizeMB = MAX_UPLOAD_SIZE_MB;
-    const fileSizeMB = file.size / (BYTES_PER_KB * BYTES_PER_KB);
-    if (fileSizeMB > maxSizeMB) {
-      toast.error(`File too large. Maximum size is ${maxSizeMB}MB`);
+    const metadata = resource.metadata as StructureVideoMetadata;
+    const newVideo = buildStructureVideoConfig({
+      path: metadata.videoUrl,
+      metadata: metadata.videoMetadata ?? null,
+      resourceId: resource.id,
+      shared: {
+        frameRange: structureVideoFrameRange,
+        settings,
+        structureVideoDefaults,
+      },
+    });
+
+    setPendingVideoUrl(metadata.videoUrl);
+    onAddSegmentStructureVideo(newVideo);
+    setShowVideoBrowser(false);
+  }, [
+    onAddSegmentStructureVideo,
+    setPendingVideoUrl,
+    setShowVideoBrowser,
+    settings,
+    structureVideoDefaults,
+    structureVideoFrameRange,
+  ]);
+}
+
+function useVideoFileUploadProcessor(input: {
+  onAddSegmentStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
+  structureVideoFrameRange?: UseStructureVideoUploadOptions['structureVideoFrameRange'];
+  settings: SegmentSettings;
+  structureVideoDefaults?: UseStructureVideoUploadOptions['structureVideoDefaults'];
+  resourcesPublic: boolean;
+  createResource: ReturnType<typeof useCreateResource>;
+  setIsUploadingVideo: Dispatch<SetStateAction<boolean>>;
+  setUploadProgress: Dispatch<SetStateAction<number>>;
+  setPendingVideoUrl: Dispatch<SetStateAction<string | null>>;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  addFileInputRef: React.RefObject<HTMLInputElement>;
+}) {
+  const {
+    onAddSegmentStructureVideo,
+    structureVideoFrameRange,
+    settings,
+    structureVideoDefaults,
+    resourcesPublic,
+    createResource,
+    setIsUploadingVideo,
+    setUploadProgress,
+    setPendingVideoUrl,
+    fileInputRef,
+    addFileInputRef,
+  } = input;
+
+  const processVideoFile = useCallback(async (file: File) => {
+    if (!onAddSegmentStructureVideo || !structureVideoFrameRange || isInvalidVideoFile(file)) {
       return;
     }
 
@@ -152,32 +191,29 @@ export function useStructureVideoUpload(
       setIsUploadingVideo(true);
       setUploadProgress(0);
 
-      // Extract metadata
       const metadata = await extractVideoMetadata(file);
       setUploadProgress(25);
 
-      // Upload to storage
       const { data: { user } } = await supabase.auth.getUser();
       const videoUrl = await uploadVideoToStorage(
         file,
-        '', // projectId - will use default bucket path
-        '', // shotId
-        (progress) => setUploadProgress(25 + (progress * 0.65))
+        '',
+        '',
+        (progress) => setUploadProgress(25 + progress * 0.65)
       );
       setUploadProgress(90);
 
-      // Create resource for reuse
       const now = new Date().toISOString();
       const resourceMetadata: StructureVideoMetadata = {
         name: `Guidance Video ${new Date().toLocaleString()}`,
-        videoUrl: videoUrl,
+        videoUrl,
         thumbnailUrl: null,
         videoMetadata: metadata,
         created_by: {
           is_you: true,
           username: user?.email || 'user',
         },
-        is_public: privacyDefaults.resourcesPublic,
+        is_public: resourcesPublic,
         createdAt: now,
       };
 
@@ -187,38 +223,96 @@ export function useStructureVideoUpload(
       });
       setUploadProgress(100);
 
-      // Create the structure video config
-      const newVideo: StructureVideoConfigWithMetadata = {
+      const newVideo = buildStructureVideoConfig({
         path: videoUrl,
-        start_frame: structureVideoFrameRange.segmentStart,
-        end_frame: structureVideoFrameRange.segmentEnd,
-        treatment: settings.structureTreatment ?? structureVideoDefaults?.treatment ?? 'adjust',
-        motion_strength: settings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2,
-        structure_type: 'uni3c',
-        uni3c_end_percent: settings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
-        metadata: metadata,
-        resource_id: resource.id,
-      };
+        metadata,
+        resourceId: resource.id,
+        shared: {
+          frameRange: structureVideoFrameRange,
+          settings,
+          structureVideoDefaults,
+        },
+      });
 
-      // Set pending state to show loading until props update
       setPendingVideoUrl(videoUrl);
       onAddSegmentStructureVideo(newVideo);
     } catch (error) {
-      handleError(error, { context: 'SegmentSettingsForm', toastTitle: 'Failed to upload video' });
+      handleError(error, {
+        context: 'SegmentSettingsForm',
+        toastTitle: 'Failed to upload video',
+      });
     } finally {
       setIsUploadingVideo(false);
       setUploadProgress(0);
-      // Clear both file inputs so the same file can be selected again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      if (addFileInputRef.current) {
-        addFileInputRef.current.value = '';
-      }
+      clearFileInputs(fileInputRef, addFileInputRef);
     }
-  }, [onAddSegmentStructureVideo, structureVideoFrameRange, settings, structureVideoDefaults, createResource, privacyDefaults]);
+  }, [
+    addFileInputRef,
+    createResource,
+    fileInputRef,
+    onAddSegmentStructureVideo,
+    resourcesPublic,
+    setIsUploadingVideo,
+    setPendingVideoUrl,
+    setUploadProgress,
+    settings,
+    structureVideoDefaults,
+    structureVideoFrameRange,
+  ]);
 
-  // Handle file input change
+  return processVideoFile;
+}
+
+export function useStructureVideoUpload(
+  options: UseStructureVideoUploadOptions
+): UseStructureVideoUploadReturn {
+  const { structureVideoFrameRange, settings, structureVideoDefaults, onAddSegmentStructureVideo } = options;
+
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [pendingVideoUrl, setPendingVideoUrl] = useState<string | null>(null);
+  const [showVideoBrowser, setShowVideoBrowser] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const addFileInputRef = useRef<HTMLInputElement>(null);
+  const createResource = useCreateResource();
+
+  const { value: privacyDefaults } = useUserUIState('privacyDefaults', {
+    resourcesPublic: true,
+    generationsPublic: false,
+  });
+
+  const handleVideoResourceSelect = useVideoResourceSelectionHandler({
+    onAddSegmentStructureVideo,
+    structureVideoFrameRange,
+    settings,
+    structureVideoDefaults,
+    setPendingVideoUrl,
+    setShowVideoBrowser,
+  });
+
+  const processVideoFile = useVideoFileUploadProcessor({
+    onAddSegmentStructureVideo,
+    structureVideoFrameRange,
+    settings,
+    structureVideoDefaults,
+    resourcesPublic: privacyDefaults.resourcesPublic,
+    createResource,
+    setIsUploadingVideo,
+    setUploadProgress,
+    setPendingVideoUrl,
+    fileInputRef,
+    addFileInputRef,
+  });
+
+  const handleVideoPreviewLoaded = useCallback(() => {
+    setPendingVideoUrl(null);
+  }, []);
+
+  const clearPendingVideo = useCallback(() => {
+    setPendingVideoUrl(null);
+  }, []);
+
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -226,25 +320,20 @@ export function useStructureVideoUpload(
     }
   }, [processVideoFile]);
 
+  const isVideoLoading = isUploadingVideo || !!pendingVideoUrl;
+
   return {
-    // State
     isUploadingVideo,
     uploadProgress,
     pendingVideoUrl,
     showVideoBrowser,
-
-    // Actions
     setShowVideoBrowser,
     handleFileSelect,
     handleVideoResourceSelect,
     handleVideoPreviewLoaded,
     clearPendingVideo,
-
-    // Refs
     fileInputRef: fileInputRef as React.RefObject<HTMLInputElement>,
     addFileInputRef: addFileInputRef as React.RefObject<HTMLInputElement>,
-
-    // Computed
     isVideoLoading,
   };
 }

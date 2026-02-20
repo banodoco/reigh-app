@@ -20,7 +20,7 @@ interface BuildBatchTaskParamsInput {
   hiresFixConfig: HiresFixConfig;
   modelName: string; // Model name for task type mapping (e.g., 'qwen-image', 'qwen-image-2512', 'z-image')
   // Reference params grouped together - snake_case to match API directly
-  referenceParams: ReferenceApiParams;
+  referenceParams: Partial<ReferenceApiParams>;
 }
 
 export function buildBatchTaskParams(input: BuildBatchTaskParamsInput): BatchImageGenerationTaskParams {

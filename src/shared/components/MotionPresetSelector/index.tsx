@@ -75,10 +75,26 @@ export const MotionPresetSelector: React.FC<MotionPresetSelectorProps> = ({
 }) => {
   // Defensive: some callsites may pass non-functions (e.g. via `any`).
   // Avoid crashing the entire UI; treat invalid callbacks as no-ops.
-  const safeOnModeChange = typeof onModeChange === 'function' ? onModeChange : (() => {});
-  const safeOnPresetRemove = typeof onPresetRemove === 'function' ? onPresetRemove : (() => {});
-  const safeOnPresetSelect = typeof onPresetSelect === 'function' ? onPresetSelect : (() => {});
-  const safeOnPhaseConfigChange = typeof onPhaseConfigChange === 'function' ? onPhaseConfigChange : (() => {});
+  const safeOnModeChange = useCallback((mode: MotionMode) => {
+    if (typeof onModeChange === 'function') {
+      onModeChange(mode);
+    }
+  }, [onModeChange]);
+  const safeOnPresetRemove = useCallback(() => {
+    if (typeof onPresetRemove === 'function') {
+      onPresetRemove();
+    }
+  }, [onPresetRemove]);
+  const safeOnPresetSelect = useCallback((id: string, config: PhaseConfig, metadata?: PresetMetadata) => {
+    if (typeof onPresetSelect === 'function') {
+      onPresetSelect(id, config, metadata);
+    }
+  }, [onPresetSelect]);
+  const safeOnPhaseConfigChange = useCallback((config: PhaseConfig) => {
+    if (typeof onPhaseConfigChange === 'function') {
+      onPhaseConfigChange(config);
+    }
+  }, [onPhaseConfigChange]);
 
   // Normalize possibly-missing/invalid mode values coming from persisted settings.
   // This prevents the Tabs from ending up with "no selection".
@@ -297,7 +313,9 @@ export const MotionPresetSelector: React.FC<MotionPresetSelectorProps> = ({
               generationTypeMode={generationTypeMode}
               onRestoreDefaults={onRestoreDefaults || handleRestorePhaseConfigDefaults}
               selectedPhasePresetId={selectedPhasePresetId}
-              onPhasePresetSelect={onPresetSelect}
+              onPhasePresetSelect={(presetId, config, presetMetadata) => {
+                onPresetSelect(presetId, config, presetMetadata as PresetMetadata | undefined);
+              }}
               onPhasePresetRemove={onPresetRemove}
             />
           ) : (

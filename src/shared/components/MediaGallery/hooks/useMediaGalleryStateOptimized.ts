@@ -4,15 +4,14 @@ import {
   useEffect,
   useMemo
 } from 'react';
-import { GenerationRow } from '@/types/shots';
 import type { GeneratedImageWithMetadata } from '../types';
 
 // Consolidated state interface
 interface MediaGalleryState {
   // Lightbox state
-  activeLightboxMedia: GenerationRow | null;
+  activeLightboxMedia: GeneratedImageWithMetadata | null;
   autoEnterEditMode: boolean;
-  selectedImageForDetails: GenerationRow | null;
+  selectedImageForDetails: GeneratedImageWithMetadata | null;
   showTaskDetailsModal: boolean;
   pendingLightboxTarget: 'first' | 'last' | null;
   
@@ -43,9 +42,9 @@ interface MediaGalleryState {
 
 // Action types for the reducer
 type MediaGalleryStateAction =
-  | { type: 'SET_LIGHTBOX_MEDIA'; payload: GenerationRow | null }
+  | { type: 'SET_LIGHTBOX_MEDIA'; payload: GeneratedImageWithMetadata | null }
   | { type: 'SET_AUTO_ENTER_EDIT_MODE'; payload: boolean }
-  | { type: 'SET_SELECTED_IMAGE_FOR_DETAILS'; payload: GenerationRow | null }
+  | { type: 'SET_SELECTED_IMAGE_FOR_DETAILS'; payload: GeneratedImageWithMetadata | null }
   | { type: 'SET_SHOW_TASK_DETAILS_MODAL'; payload: boolean }
   | { type: 'SET_PENDING_LIGHTBOX_TARGET'; payload: 'first' | 'last' | null }
   | { type: 'MARK_OPTIMISTIC_UNPOSITIONED'; payload: { mediaId: string; shotId: string } }
@@ -277,9 +276,9 @@ interface UseMediaGalleryStateOptimizedReturn {
   state: MediaGalleryState;
   
   // Actions
-  setActiveLightboxMedia: (media: GenerationRow | null) => void;
+  setActiveLightboxMedia: (media: GeneratedImageWithMetadata | null) => void;
   setAutoEnterEditMode: (value: boolean) => void;
-  setSelectedImageForDetails: (image: GenerationRow | null) => void;
+  setSelectedImageForDetails: (image: GeneratedImageWithMetadata | null) => void;
   setShowTaskDetailsModal: (show: boolean) => void;
   setPendingLightboxTarget: (target: 'first' | 'last' | null) => void;
   markOptimisticUnpositioned: (imageId: string, shotId: string) => void;
@@ -310,6 +309,16 @@ interface UseMediaGalleryStateOptimizedReturn {
   safetyTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
 }
 
+function clearTimer(timeoutRef: React.MutableRefObject<NodeJS.Timeout | null>): void {
+  const timeoutId = timeoutRef.current;
+  if (!timeoutId) {
+    return;
+  }
+
+  clearTimeout(timeoutId);
+  timeoutRef.current = null;
+}
+
 export const useMediaGalleryStateOptimized = ({
   images,
   currentShotId,
@@ -325,12 +334,12 @@ export const useMediaGalleryStateOptimized = ({
   
   // Memoized action creators to prevent unnecessary re-renders
   const actions = useMemo(() => ({
-    setActiveLightboxMedia: (media: GenerationRow | null) => {
+    setActiveLightboxMedia: (media: GeneratedImageWithMetadata | null) => {
       dispatch({ type: 'SET_LIGHTBOX_MEDIA', payload: media });
     },
     setAutoEnterEditMode: (value: boolean) =>
       dispatch({ type: 'SET_AUTO_ENTER_EDIT_MODE', payload: value }),
-    setSelectedImageForDetails: (image: GenerationRow | null) =>
+    setSelectedImageForDetails: (image: GeneratedImageWithMetadata | null) =>
       dispatch({ type: 'SET_SELECTED_IMAGE_FOR_DETAILS', payload: image }),
     setShowTaskDetailsModal: (show: boolean) =>
       dispatch({ type: 'SET_SHOW_TASK_DETAILS_MODAL', payload: show }),
@@ -425,24 +434,19 @@ export const useMediaGalleryStateOptimized = ({
       // Only update if the object reference changed (meaning data changed or refetched)
       // and deep equality check on key properties to avoid unnecessary render cycles
       if (updatedImage && updatedImage !== state.activeLightboxMedia) {
-        // Check if relevant fields actually changed to prevent loop
-        // activeLightboxMedia may be a mapped GenerationRow (imageUrl/location) or a raw
-        // GeneratedImageWithMetadata (url) — check all possible URL fields for comparison
+        // Check if relevant fields actually changed to prevent loop.
         const nameChanged = updatedImage.name !== state.activeLightboxMedia.name;
         const starredChanged = updatedImage.starred !== state.activeLightboxMedia.starred;
-        const currentMedia = state.activeLightboxMedia as GeneratedImageWithMetadata & { imageUrl?: string; location?: string };
-        const currentUrl = currentMedia.imageUrl || currentMedia.location || currentMedia.url;
-        const urlChanged = updatedImage.url !== currentUrl;
+        const urlChanged = updatedImage.url !== state.activeLightboxMedia.url;
 
         if (nameChanged || starredChanged || urlChanged) {
-          // Merge updated fields into the existing media object to preserve
-          // imageUrl/location mapping from handleOpenLightbox
+          const autoEnterFlag = state.activeLightboxMedia.metadata?.__autoEnterEditMode as boolean | undefined;
           actions.setActiveLightboxMedia({
-            ...state.activeLightboxMedia,
-            name: updatedImage.name,
-            starred: updatedImage.starred,
-            ...(urlChanged ? { imageUrl: updatedImage.url, location: updatedImage.url, url: updatedImage.url } : {}),
-          } as GenerationRow);
+            ...updatedImage,
+            metadata: autoEnterFlag === undefined
+              ? updatedImage.metadata
+              : { ...updatedImage.metadata, __autoEnterEditMode: autoEnterFlag },
+          });
         }
       }
     }
@@ -454,18 +458,10 @@ export const useMediaGalleryStateOptimized = ({
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
-      if (mainTickTimeoutRef.current) {
-        clearTimeout(mainTickTimeoutRef.current);
-      }
-      if (secondaryTickTimeoutRef.current) {
-        clearTimeout(secondaryTickTimeoutRef.current);
-      }
-      if (doubleTapTimeoutRef.current) {
-        clearTimeout(doubleTapTimeoutRef.current);
-      }
-      if (safetyTimeoutRef.current) {
-        clearTimeout(safetyTimeoutRef.current);
-      }
+      clearTimer(mainTickTimeoutRef);
+      clearTimer(secondaryTickTimeoutRef);
+      clearTimer(doubleTapTimeoutRef);
+      clearTimer(safetyTimeoutRef);
     };
   }, []);
 

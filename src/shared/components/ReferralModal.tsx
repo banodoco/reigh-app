@@ -7,7 +7,7 @@ import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import { ProfitSplitBar } from '@/shared/components/ProfitSplitBar';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface ReferralModalProps {
   isOpen: boolean;
@@ -72,7 +72,10 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
           .single();
 
         if (!error && data) {
-          setStats(data);
+          setStats({
+            total_visits: data.total_visits ?? 0,
+            successful_referrals: data.successful_referrals ?? 0,
+          });
         }
       } catch (err) {
         handleError(err, { context: 'ReferralModal', showToast: false });

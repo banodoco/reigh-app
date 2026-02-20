@@ -12,7 +12,7 @@
  * - Comprehensive debug logging with unique identifiers
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface VisibilityState {
   /** Current visibility state */
@@ -163,8 +163,6 @@ class VisibilityManagerImpl {
       timeSinceLastHidden: this.state.lastBecameHiddenAt ? now - this.state.lastBecameHiddenAt : null,
     };
 
-    let notifiedCount = 0;
-
     for (const [, subscription] of this.subscriptions) {
       try {
         // Filter by event type if specified
@@ -178,7 +176,6 @@ class VisibilityManagerImpl {
         }
 
         subscription.callback(signals, eventType, event);
-        notifiedCount++;
       } catch (error) {
         handleError(error, { context: 'VisibilityManager', showToast: false });
       }

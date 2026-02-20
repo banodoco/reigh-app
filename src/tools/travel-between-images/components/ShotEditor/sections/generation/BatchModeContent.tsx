@@ -89,7 +89,7 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
 
   // Derive values
   const advancedMode = motionSettings.motionMode === 'advanced';
-  const stitchAfterGenerate = frameSettings.stitchAfterGenerate;
+  const stitchAfterGenerate = joinState.joinSettings.settings.stitchAfterGenerate ?? false;
   const effectiveGenerationMode = generationModeSettings.generationMode;
 
   // Extract join settings for stitch form
@@ -122,12 +122,12 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
             onBatchVideoFramesChange={frameSettings.setFrames}
             batchVideoSteps={frameSettings.batchVideoSteps}
             onBatchVideoStepsChange={generationHandlers.handleStepsChange}
-            dimensionSource={dimensions.dimensionSource}
-            onDimensionSourceChange={dimensions.onDimensionSourceChange}
+            dimensionSource={dimensions.dimensionSource ?? 'project'}
+            onDimensionSourceChange={dimensions.onDimensionSourceChange ?? (() => {})}
             customWidth={dimensions.customWidth}
-            onCustomWidthChange={dimensions.onCustomWidthChange}
+            onCustomWidthChange={dimensions.onCustomWidthChange ?? (() => {})}
             customHeight={dimensions.customHeight}
-            onCustomHeightChange={dimensions.onCustomHeightChange}
+            onCustomHeightChange={dimensions.onCustomHeightChange ?? (() => {})}
             negativePrompt={promptSettings.negativePrompt}
             onNegativePromptChange={promptSettings.setNegativePrompt}
             projects={projects}
@@ -183,7 +183,10 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
                     </div>
                     <Slider
                       value={structureVideo.structureVideoMotionStrength}
-                      onValueChange={(value) => structureVideoHandlers.handleStructureVideoMotionStrengthChange(value)}
+                      onValueChange={(value) => {
+                        const nextValue = Array.isArray(value) ? value[0] ?? structureVideo.structureVideoMotionStrength : value;
+                        structureVideoHandlers.handleStructureVideoMotionStrengthChange(nextValue);
+                      }}
                       min={0}
                       max={2}
                       step={0.1}
@@ -203,7 +206,10 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
                       </div>
                       <Slider
                         value={structureVideo.structureVideoUni3cEndPercent}
-                        onValueChange={(value) => structureVideoHandlers.handleUni3cEndPercentChange(value)}
+                        onValueChange={(value) => {
+                          const nextValue = Array.isArray(value) ? value[0] ?? structureVideo.structureVideoUni3cEndPercent : value;
+                          structureVideoHandlers.handleUni3cEndPercentChange(nextValue);
+                        }}
                         min={0}
                         max={1}
                         step={0.05}

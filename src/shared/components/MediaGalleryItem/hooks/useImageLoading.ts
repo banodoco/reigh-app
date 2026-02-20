@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { getDisplayUrl, stripQueryParameters } from "@/shared/lib/utils";
+import { getDisplayUrl, stripQueryParameters } from "@/shared/lib/mediaUrl";
 import { hasLoadedImage, setImageLoadStatus } from "@/shared/lib/preloading";
 import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
 
@@ -17,7 +17,7 @@ interface UseImageLoadingReturn {
   imageLoading: boolean;
   imageLoadError: boolean;
   handleImageLoad: () => void;
-  handleImageError: (e?: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>) => void;
+  handleImageError: (e?: React.SyntheticEvent<Element>) => void;
   retryImageLoad: () => void;
   setImageLoading: (loading: boolean) => void;
 }
@@ -70,7 +70,7 @@ export function useImageLoading({
     // Mark this image as cached in the centralized cache to avoid future skeletons
     try {
       setImageLoadStatus(image, true);
-    } catch (_) {
+    } catch {
       // Silent: cache status is non-critical optimization; failure won't affect functionality
     }
     // Notify parent that this image has loaded (if callback provided)
@@ -78,7 +78,7 @@ export function useImageLoading({
   }, [image, onImageLoaded]);
 
   // Handle image load error with retry mechanism
-  const handleImageError = useCallback((errorEvent?: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>) => {
+  const handleImageError = useCallback((errorEvent?: React.SyntheticEvent<Element>) => {
     const failedSrc = (errorEvent?.target as HTMLImageElement | HTMLVideoElement)?.src || displayUrl;
 
     // Always reset loading state on error

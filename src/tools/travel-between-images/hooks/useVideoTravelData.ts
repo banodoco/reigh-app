@@ -17,6 +17,7 @@ import { usePublicLoras } from '@/shared/hooks/useResources';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { VideoTravelSettings } from '../settings';
 import { Shot } from '@/types/shots';
+import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 
 interface ProjectUISettings {
   acceleratedMode?: boolean;
@@ -65,8 +66,8 @@ interface UseVideoTravelDataReturn {
  * Combines shots, LoRAs, and various settings queries.
  */
 export const useVideoTravelData = (
-  selectedShotId?: string, 
-  projectId?: string
+  selectedShotId?: string | null,
+  projectId?: string | null
 ): UseVideoTravelDataReturn => {
   // Get shots data from context (single source of truth) - full data for ShotEditor
   const { shots, isLoading: shotsLoading, error: shotsError, refetchShots } = useShots();
@@ -81,7 +82,7 @@ export const useVideoTravelData = (
   const toolSettingsQuery = useToolSettings<VideoTravelSettings>(
     TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
     { 
-      shotId: selectedShotId || null, 
+      shotId: selectedShotId ?? undefined,
       enabled: !!selectedShotId 
     }
   );
@@ -92,7 +93,7 @@ export const useVideoTravelData = (
   const projectSettingsQuery = useToolSettings<VideoTravelSettings>(
     TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
     { 
-      projectId: projectId || null, 
+      projectId: projectId ?? undefined,
       enabled: !!projectId 
     }
   );
@@ -100,7 +101,7 @@ export const useVideoTravelData = (
   const projectUISettingsQuery = useToolSettings<ProjectUISettings>(
     'travel-ui-state', 
     { 
-      projectId: projectId || null, 
+      projectId: projectId ?? undefined,
       enabled: !!projectId 
     }
   );
@@ -109,7 +110,7 @@ export const useVideoTravelData = (
   const uploadSettingsQuery = useToolSettings<UploadSettings>(
     'upload', 
     { 
-      projectId: projectId || null, 
+      projectId: projectId ?? undefined,
       enabled: !!projectId 
     }
   );
@@ -126,7 +127,7 @@ export const useVideoTravelData = (
     refetchShots,
     
     // LoRAs data
-    availableLoras: publicLorasQuery.data,
+    availableLoras: publicLorasQuery.data ?? [],
     lorasLoading: publicLorasQuery.isLoading,
     
     // Settings data

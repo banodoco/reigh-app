@@ -9,6 +9,17 @@
 
 import type { GenerationRow } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { VideoMetadata } from '@/shared/lib/videoUploader';
+
+type SharedStructureType = 'uni3c' | 'flow' | 'canny' | 'depth';
+
+function parseStructureType(value: unknown): SharedStructureType {
+  if (value === 'flow' || value === 'canny' || value === 'depth' || value === 'uni3c') {
+    return value;
+  }
+  return 'uni3c';
+}
 
 /**
  * Transform a shared generation (video) to the GenerationRow format expected by FinalVideoSection.
@@ -17,20 +28,42 @@ import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
  * @returns GenerationRow compatible object, or null if no generation
  */
 export function transformGenerationToParentRow(
-  generation: Record<string, unknown> | null | undefined
+  generation: GenerationRow | Record<string, unknown> | null | undefined
 ): GenerationRow | null {
   if (!generation) return null;
+  const rawGeneration = generation as Record<string, unknown>;
+
+  const metadata = rawGeneration.metadata;
+  const generationIdentity = {
+    generation_id: typeof rawGeneration.generation_id === 'string' ? rawGeneration.generation_id : null,
+    id: typeof rawGeneration.id === 'string' ? rawGeneration.id : null,
+    metadata: metadata && typeof metadata === 'object'
+      ? metadata as Record<string, unknown>
+      : undefined,
+  };
+  const resolvedGenerationId = getGenerationId(generationIdentity) || 'shared';
+
+  const id = typeof rawGeneration.id === 'string'
+    ? rawGeneration.id
+    : (typeof rawGeneration.generation_id === 'string' ? rawGeneration.generation_id : 'shared');
+
+  const location = typeof rawGeneration.location === 'string' ? rawGeneration.location : null;
+  const thumbUrl = typeof rawGeneration.thumbUrl === 'string'
+    ? rawGeneration.thumbUrl
+    : (typeof rawGeneration.thumbnail_url === 'string' ? rawGeneration.thumbnail_url : undefined);
+  const createdAt = typeof rawGeneration.created_at === 'string' ? rawGeneration.created_at : undefined;
+  const params = rawGeneration.params;
 
   return {
-    id: generation.id || generation.generation_id || 'shared',
-    generation_id: getGenerationId(generation as GenerationRow) || 'shared',
+    id,
+    generation_id: resolvedGenerationId,
     type: 'video',
-    location: generation.location,
-    imageUrl: generation.location, // FinalVideoSection/VideoItem uses imageUrl
-    thumbUrl: generation.thumbUrl || generation.thumbnail_url,
-    created_at: generation.created_at,
-    params: generation.params,
-  } as GenerationRow;
+    location,
+    imageUrl: location ?? undefined, // FinalVideoSection/VideoItem uses imageUrl
+    thumbUrl,
+    created_at: createdAt,
+    params: params as GenerationRow['params'],
+  };
 }
 
 /**
@@ -61,15 +94,7 @@ export function calculateColumnsForDevice(
  */
 export function extractStructureVideos(
   settings: Record<string, unknown> | null | undefined
-): Array<{
-  path: string;
-  start_frame: number;
-  end_frame: number;
-  treatment: 'adjust' | 'clip';
-  motion_strength: number;
-  structure_type: string;
-  metadata: unknown;
-}> {
+): Array<StructureVideoConfigWithMetadata & { uni3c_end_percent?: number }> {
   if (!settings) return [];
 
   const structureVideo = settings.structureVideo as Record<string, unknown> | undefined;
@@ -77,7 +102,27 @@ export function extractStructureVideos(
 
   // Prefer the array format if present
   if (structureVideos && Array.isArray(structureVideos) && structureVideos.length > 0) {
-    return structureVideos;
+    const parsedVideos: Array<StructureVideoConfigWithMetadata & { uni3c_end_percent?: number }> = [];
+    structureVideos.forEach((video) => {
+      const raw = (video && typeof video === 'object') ? video as Record<string, unknown> : null;
+      if (!raw || typeof raw.path !== 'string') return;
+
+      const metadata = (raw.metadata && typeof raw.metadata === 'object')
+        ? raw.metadata as VideoMetadata
+        : null;
+
+      parsedVideos.push({
+        path: raw.path,
+        start_frame: typeof raw.start_frame === 'number' ? raw.start_frame : 0,
+        end_frame: typeof raw.end_frame === 'number' ? raw.end_frame : 300,
+        treatment: raw.treatment === 'clip' ? 'clip' : 'adjust',
+        motion_strength: typeof raw.motion_strength === 'number' ? raw.motion_strength : 1.0,
+        structure_type: parseStructureType(raw.structure_type),
+        metadata,
+        uni3c_end_percent: typeof raw.uni3c_end_percent === 'number' ? raw.uni3c_end_percent : undefined,
+      });
+    });
+    return parsedVideos;
   }
 
   // Fall back to single video format
@@ -88,8 +133,11 @@ export function extractStructureVideos(
       end_frame: (structureVideo.endFrame as number) ?? 300,
       treatment: (structureVideo.treatment as 'adjust' | 'clip') || 'adjust',
       motion_strength: (structureVideo.motionStrength as number) ?? 1.0,
-      structure_type: (structureVideo.structureType as string) || 'uni3c',
-      metadata: structureVideo.metadata || null,
+      structure_type: parseStructureType(structureVideo.structureType),
+      metadata: (structureVideo.metadata as VideoMetadata) || null,
+      uni3c_end_percent: typeof structureVideo.uni3cEndPercent === 'number'
+        ? structureVideo.uni3cEndPercent
+        : undefined,
     }];
   }
 

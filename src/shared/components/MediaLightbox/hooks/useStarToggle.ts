@@ -39,7 +39,7 @@ export const useStarToggle = ({ media, starred, shotId }: UseStarToggleProps): U
       return media.starred;
     }
     return false;
-  }, [starred, media, shotId]);
+  }, [starred, media.starred]);
 
   const [localStarred, setLocalStarred] = useState<boolean>(initialStarred);
 
@@ -59,7 +59,7 @@ export const useStarToggle = ({ media, starred, shotId }: UseStarToggleProps): U
     }
     
     prevMediaIdRef.current = media.id;
-  }, [initialStarred, media.id, localStarred]);
+  }, [initialStarred, media.id]);
 
   // Handler that records mutation time to prevent stale prop syncing
   const handleToggleStar = () => {
@@ -77,7 +77,7 @@ export const useStarToggle = ({ media, starred, shotId }: UseStarToggleProps): U
     const actualGenerationId = getGenerationId(media);
     
     // Trigger mutation
-    toggleStarMutation.mutate({ id: actualGenerationId, starred: newStarred, shotId });
+    toggleStarMutation.mutate({ id: actualGenerationId ?? media.id, starred: newStarred, shotId });
   };
 
   return {
@@ -87,4 +87,3 @@ export const useStarToggle = ({ media, starred, shotId }: UseStarToggleProps): U
     handleToggleStar,
   };
 };
-

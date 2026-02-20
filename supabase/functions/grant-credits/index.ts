@@ -109,7 +109,7 @@ serve(async (req) => {
       }
 
       // Ensure the user row exists before attempting atomic claim
-      const { data: existingUser, error: checkError } = await adminClient
+      const { error: checkError } = await adminClient
         .from('users')
         .select('id')
         .eq('id', userId)

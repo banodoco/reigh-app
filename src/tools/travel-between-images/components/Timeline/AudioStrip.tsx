@@ -51,23 +51,24 @@ export const AudioStrip: React.FC<AudioStripProps> = ({
 
   // Load audio metadata if not provided
   useEffect(() => {
-    if (audioRef.current) {
-      const handleLoadedMetadata = () => {
-        setAudioDuration(audioRef.current?.duration || 0);
-        setIsLoaded(true);
-      };
+    const audio = audioRef.current;
+    if (!audio) return;
 
-      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+    const handleLoadedMetadata = () => {
+      setAudioDuration(audio.duration || 0);
+      setIsLoaded(true);
+    };
 
-      // If already loaded
-      if (audioRef.current.readyState >= 1) {
-        handleLoadedMetadata();
-      }
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
 
-      return () => {
-        audioRef.current?.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      };
+    // If already loaded
+    if (audio.readyState >= 1) {
+      handleLoadedMetadata();
     }
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
   }, [audioUrl]);
 
   // Update playhead position during playback using requestAnimationFrame

@@ -40,6 +40,7 @@ export function useDerivedNavigation({
   goPrev,
   logPrefix = '[DerivedNav]'
 }: UseDerivedNavigationProps) {
+  void logPrefix;
   
   const wrappedGoNext = useCallback(() => {
     if (derivedNavContext && lightboxIndex !== null) {
@@ -53,7 +54,7 @@ export function useDerivedNavigation({
     } else {
       goNext();
     }
-  }, [derivedNavContext, lightboxIndex, currentImages, handleOpenExternalGeneration, goNext, logPrefix]);
+  }, [derivedNavContext, lightboxIndex, currentImages, handleOpenExternalGeneration, goNext]);
   
   const wrappedGoPrev = useCallback(() => {
     if (derivedNavContext && lightboxIndex !== null) {
@@ -67,7 +68,7 @@ export function useDerivedNavigation({
     } else {
       goPrev();
     }
-  }, [derivedNavContext, lightboxIndex, currentImages, handleOpenExternalGeneration, goPrev, logPrefix]);
+  }, [derivedNavContext, lightboxIndex, currentImages, handleOpenExternalGeneration, goPrev]);
   
   // Calculate hasNext/hasPrevious based on whether we're in derived navigation mode
   const { hasNext, hasPrevious } = useMemo(() => {
@@ -100,4 +101,3 @@ export function useDerivedNavigation({
     hasPrevious
   };
 }
-

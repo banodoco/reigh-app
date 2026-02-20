@@ -35,8 +35,8 @@ export function useAudio({
     update: updateAudioSettings,
     isLoading: isAudioSettingsLoading
   } = useToolSettings<{
-    url?: string;
-    metadata?: AudioMetadata;
+    url?: string | null;
+    metadata?: AudioMetadata | null;
   }>('travel-audio', {
     projectId,
     shotId: shotId,

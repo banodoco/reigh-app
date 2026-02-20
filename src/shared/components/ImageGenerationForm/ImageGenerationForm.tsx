@@ -24,7 +24,7 @@ const LazyPromptEditorModal = React.lazy(() =>
 );
 
 interface ImageGenerationFormProps {
-  onGenerate: (params: BatchImageGenerationTaskParams) => Promise<string[]> | string[] | void;
+  onGenerate: (params: BatchImageGenerationTaskParams) => Promise<string[] | void> | string[] | void;
   openaiApiKey?: string;
   /**
    * Called when the associated shot selection changes in the form
@@ -199,7 +199,7 @@ export const ImageGenerationForm: React.FC<ImageGenerationFormProps> = ({
         onClose={() => form.uiActions.setCreateShotModalOpen(false)}
         onSubmit={form.handleCreateShot}
         isLoading={form.isCreatingShot}
-        projectId={form.selectedProjectId}
+        projectId={form.selectedProjectId ?? undefined}
       />
     </ImageGenerationFormProvider>
   );

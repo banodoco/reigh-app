@@ -5,7 +5,7 @@ import { Badge } from '@/shared/components/ui/badge';
 import { Pencil, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import type { PresetMetadata, PresetSampleGeneration } from '@/shared/types/presetMetadata';
 import type { PhaseConfig } from '../settings';
@@ -28,7 +28,7 @@ export const SelectedPresetCard: React.FC<SelectedPresetCardProps> = ({
 }) => {
   // Fetch preset details from database
   const { data: preset, isLoading, isError } = useQuery({
-    queryKey: queryKeys.presets.detail(presetId),
+    queryKey: presetQueryKeys.detail(presetId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('resources')
@@ -74,6 +74,7 @@ export const SelectedPresetCard: React.FC<SelectedPresetCardProps> = ({
   const metadata = preset.metadata as PresetMetadata;
   const sampleGenerations = metadata?.sample_generations || [];
   const hasVideo = sampleGenerations.some((gen: PresetSampleGeneration) => gen.type === 'video');
+  const presetName = typeof metadata?.name === 'string' ? metadata.name : 'Unnamed Preset';
 
   return (
     <Card className="p-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
@@ -82,7 +83,7 @@ export const SelectedPresetCard: React.FC<SelectedPresetCardProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between mb-2">
             <h3 className="font-semibold text-base text-blue-900 dark:text-blue-100 preserve-case">
-              {metadata?.name || 'Unnamed Preset'}
+              {presetName}
             </h3>
             <div className="flex items-center gap-1">
               <Button

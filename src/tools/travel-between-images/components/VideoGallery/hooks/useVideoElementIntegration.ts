@@ -22,6 +22,7 @@ export const useVideoElementIntegration = (
     posterFallbackTimeoutRef, 
     videoPosterLoaded 
   } = videoLoader;
+  const mutableVideoRef = videoRef as { current: HTMLVideoElement | null };
 
   useEffect(() => {
     if (!shouldLoad) return;
@@ -45,7 +46,7 @@ export const useVideoElementIntegration = (
       }
       
       if (videoElement) {
-        videoRef.current = videoElement;
+        mutableVideoRef.current = videoElement;
         
         // Event handlers
         const handleLoadedMetadata = () => {
@@ -94,7 +95,7 @@ export const useVideoElementIntegration = (
           const retryVideoElement = retryContainer?.querySelector('video') as HTMLVideoElement | null;
           
           if (retryVideoElement) {
-            videoRef.current = retryVideoElement;
+            mutableVideoRef.current = retryVideoElement;
             
             const handleLoadedMetadata = () => {
               setVideoMetadataLoaded(true);
@@ -136,5 +137,5 @@ export const useVideoElementIntegration = (
     }, 200);
     
     return () => clearTimeout(timeoutId);
-  }, [shouldLoad, video.id, index, shouldPreload, setVideoMetadataLoaded, setVideoPosterLoaded, videoPosterLoaded, posterFallbackTimeoutRef, videoRef, isMobile, containerRef]);
+  }, [shouldLoad, video.id, index, shouldPreload, setVideoMetadataLoaded, setVideoPosterLoaded, videoPosterLoaded, posterFallbackTimeoutRef, mutableVideoRef, isMobile, containerRef]);
 };

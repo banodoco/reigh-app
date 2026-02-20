@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { supabase } from '@/integrations/supabase/client';
 import { usePromoteVariantToGeneration } from '@/shared/hooks/usePromoteVariantToGeneration';
 import { useAddImageToShot } from '@/shared/hooks/useShots';

@@ -1,7 +1,7 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useOnboarding } from '@/shared/hooks/useOnboarding';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useProject } from '@/shared/contexts/ProjectContext';
@@ -12,6 +12,14 @@ export function useOnboardingFlow() {
   const navigate = useNavigate();
   const { selectedProjectId } = useProject();
   const { startTour } = useProductTour();
+  const tourStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTourStartTimeout = useCallback(() => {
+    if (tourStartTimeoutRef.current) {
+      clearTimeout(tourStartTimeoutRef.current);
+      tourStartTimeoutRef.current = null;
+    }
+  }, []);
 
   // Handle onboarding modal close - navigate to Getting Started shot, then start tour
   const handleOnboardingClose = useCallback(async () => {
@@ -28,7 +36,9 @@ export function useOnboardingFlow() {
 
         if (shot) {
           navigate(`/tools/travel-between-images?shot=${shot.id}`);
-          setTimeout(() => {
+          clearTourStartTimeout();
+          tourStartTimeoutRef.current = setTimeout(() => {
+            tourStartTimeoutRef.current = null;
             startTour();
           }, 1000);
         }
@@ -36,7 +46,7 @@ export function useOnboardingFlow() {
         handleError(err, { context: 'Layout', showToast: false });
       }
     }
-  }, [closeOnboardingModal, selectedProjectId, navigate, startTour]);
+  }, [clearTourStartTimeout, closeOnboardingModal, selectedProjectId, navigate, startTour]);
 
   // Preload user settings to warm the cache for the welcome modal
   useUserUIState('generationMethods', { onComputer: true, inCloud: true });
@@ -49,6 +59,8 @@ export function useOnboardingFlow() {
       });
     }
   }, [showOnboardingModal]);
+
+  useEffect(() => clearTourStartTimeout, [clearTourStartTimeout]);
 
   return {
     showOnboardingModal,

@@ -147,7 +147,7 @@ export function useEditModePanelState({
   // ========================================
 
   // Track previous edit mode to detect changes
-  const prevEditModeRef = useRef<'text' | 'inpaint' | 'annotate'>(editMode);
+  const prevEditModeRef = useRef(editMode);
 
   // Track if user has interacted with the prompt field
   const [hasUserEditedPrompt, setHasUserEditedPrompt] = useState(false);

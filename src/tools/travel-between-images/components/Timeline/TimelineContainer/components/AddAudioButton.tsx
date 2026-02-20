@@ -1,7 +1,7 @@
 import React from 'react';
 import { toast } from '@/shared/components/ui/sonner';
 import { uploadVideoToStorage } from '@/shared/lib/videoUploader';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface AddAudioButtonProps {
   projectId?: string;

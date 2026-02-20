@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { getErrorMessage, isError } from '@/shared/lib/errorUtils';
 
 type VoiceRecordingState = "idle" | "recording" | "processing";
@@ -86,7 +86,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
           }
         };
         updateLevel();
-      } catch (audioAnalysisError) {
+      } catch {
         // Continue without audio level monitoring
       }
       
@@ -168,7 +168,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
       };
 
       mediaRecorder.onerror = (event: Event) => {
-        const mediaError = (event as MediaRecorderErrorEvent).error;
+        const mediaError = (event as Event & { error?: Error }).error;
         handleError(mediaError, { context: 'useVoiceRecording', showToast: false });
         onError?.(mediaError?.message || "Recording error");
         setState("idle");
@@ -204,7 +204,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
       }
       setState("idle");
     }
-  }, [task, context, existingValue, onResult, onError]);
+  }, [task, context, example, existingValue, onResult, onError, cleanupAudioAnalysis]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
@@ -280,4 +280,3 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
     toggleRecording,
   };
 }
-

@@ -8,7 +8,7 @@ import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { GenerationRow } from '@/types/shots';
 import type { useSelection } from './hooks/useSelection';
 import type { useLightbox } from './hooks/useLightbox';
@@ -150,6 +150,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
         onBatchImageDelete={props.onBatchImageDelete}
         onImageDuplicate={props.onImageDuplicate}
         onImageReorder={props.onImageReorder}
+        generationMode={props.generationMode}
         onOpenLightbox={props.onOpenLightbox || lightbox.setLightboxIndex}
         onInpaintClick={(index) => {
           lightbox.setShouldAutoEnterInpaint(true);
@@ -250,7 +251,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
             onMagicEdit={props.onMagicEdit}
             readOnly={props.readOnly}
             showTaskDetails={true}
-            taskDetailsData={taskDetailsData}
+            taskDetailsData={taskDetailsData ?? undefined}
             adjacentSegments={adjacentSegmentsData}
             onNavigateToGeneration={(generationId: string) => {
               const index = lightbox.currentImages.findIndex((img: GenerationRow) => img.id === generationId);
@@ -294,4 +295,3 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
     </>
   );
 };
-

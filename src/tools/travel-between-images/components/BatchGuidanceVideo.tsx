@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/shared/components/ui/slider';
 import { Video, X, Images } from 'lucide-react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { uploadVideoToStorage, extractVideoMetadata, VideoMetadata } from '@/shared/lib/videoUploader';
 import { DatasetBrowserModal } from '@/shared/components/DatasetBrowserModal';
 import { useCreateResource, Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
@@ -178,7 +178,7 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
   }, [videoUrl, minFrame, drawTimelineFrame]);
 
   // Process uploaded file (shared by file input and drag-drop)
-  const processFile = async (file: File) => {
+  const processFile = useCallback(async (file: File) => {
     // Validate file type
     const validTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
     if (!validTypes.includes(file.type)) {
@@ -244,7 +244,7 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
         fileInputRef.current.value = '';
       }
     }
-  };
+  }, [projectId, shotId, privacyDefaults.resourcesPublic, createResource, onVideoUploaded]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -512,4 +512,3 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
     </div>
   );
 };
-

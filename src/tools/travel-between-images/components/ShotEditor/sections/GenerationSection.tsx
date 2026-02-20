@@ -17,7 +17,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/
 
 import { BatchModeContent, JoinModeContent } from './generation';
 import { useShotImages, useGenerationMode, useJoinState } from '../ShotSettingsContext';
-import { useFrameSettings } from '@/tools/travel-between-images/providers';
 
 export interface GenerationSectionProps {
   // Refs - must be passed from parent for DOM positioning
@@ -48,11 +47,8 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
   const generationMode = useGenerationMode();
   const joinState = useJoinState();
 
-  // Pull from VideoTravelSettingsProvider
-  const frameSettings = useFrameSettings();
-
   // Derive values
-  const stitchAfterGenerate = frameSettings.stitchAfterGenerate;
+  const stitchAfterGenerate = joinState.joinSettings.settings.stitchAfterGenerate ?? false;
 
   // Determine header display mode
   const showSimpleHeader = stitchAfterGenerate || simpleFilteredImages.length <= 2;

@@ -3,6 +3,7 @@
  * These tests verify the pure reorder logic works correctly for various scenarios
  */
 
+import { describe, expect, test } from 'vitest';
 import { analyzeReorderOperation, validateReorderAnalysis } from '../reorderUtils';
 
 describe('reorderUtils', () => {

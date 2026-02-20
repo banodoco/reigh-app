@@ -110,6 +110,14 @@ export function usePairSettingsHandler({
       onPairClick(pairIndex, mergedPairData);
     } else if (pairData) {
       onPairClick(pairIndex, pairData);
+    } else {
+      // Fallback: no pair data found (e.g., trailing with stale position data).
+      // Signal the click — handlePairClick has its own computed fallback data.
+      onPairClick(pairIndex, {
+        index: pairIndex,
+        frames: 0, startFrame: 0, endFrame: 0,
+        startImage: null, endImage: null,
+      });
     }
   }, [onPairClick, images, trailingEndFrame, pairDataByIndex, pairInfo, imagePositions]);
 

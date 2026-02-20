@@ -2,8 +2,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { GenerationRow } from "@/types/shots";
 import { pixelToFrame, applyFluidTimeline, applyFluidTimelineMulti, TRAILING_ENDPOINT_KEY } from "../utils/timeline-utils";
 import { log } from "@/shared/lib/logger";
-import { handleError } from "@/shared/lib/errorHandler";
+import { handleError } from "@/shared/lib/errorHandling/handleError";
+import { createSessionId } from "@/shared/lib/sessionId";
 import { TIMELINE_PADDING_OFFSET } from "../constants";
+
+const TIMELINE_DRAG_LOG_PREFIX = '[TimelineImageDrag]';
 
 interface DragState {
   isDragging: boolean;
@@ -51,6 +54,7 @@ export const useTimelineDrag = ({
   onDragStart,
   onDragEnd,
 }: UseTimelineDragProps) => {
+  const shortId = (id: string | null | undefined) => id ? id.slice(0, 8) : null;
 
   const DRAG_THRESHOLD = 5;
 
@@ -228,6 +232,7 @@ export const useTimelineDrag = ({
     dragState.isDragging,
     dragState.activeId,
     dragState.hasMovedPastThreshold,
+    dragState.originalFramePos,
     dropState.isDropping,
     dropState.frozenPositions,
     framePositions,
@@ -263,7 +268,7 @@ export const useTimelineDrag = ({
     }
 
     const framePos = framePositions.get(imageId) ?? 0;
-    const dragSessionId = `drag_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const dragSessionId = createSessionId('drag');
 
     log('TimelineDrag', 'start', { id: imageId.substring(0, 8), framePos });
 
@@ -283,7 +288,7 @@ export const useTimelineDrag = ({
       hasMovedPastThreshold: false,
     });
 
-  }, [framePositions, dragState.isDragging, setIsDragInProgress]);
+  }, [framePositions, dragState.isDragging, setIsDragInProgress, selectedIds]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!dragState.isDragging) return;
@@ -314,7 +319,7 @@ export const useTimelineDrag = ({
     const push = e.metaKey || e.ctrlKey || e.altKey;
     if (!push) pushBaselineDeltaRef.current = null;
     pushModRef.current = push;
-  }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.hasMovedPastThreshold, onDragStart]);
+  }, [dragState.isDragging, dragState.startX, dragState.startY, dragState.hasMovedPastThreshold, dragState.activeId, onDragStart]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!dragState.isDragging || !dragState.activeId) return;
@@ -361,6 +366,11 @@ export const useTimelineDrag = ({
         await setFramePositions(finalPositions);
       } catch (error) {
         handleError(error, { context: 'TimelineDrag', showToast: false });
+        console.error(`${TIMELINE_DRAG_LOG_PREFIX} setFramePositions failed`, {
+          activeId: shortId(dragState.activeId),
+          dragSessionId: dragState.dragSessionId?.slice(0, 12) ?? null,
+          error,
+        });
       } finally {
         setTimeout(() => {
           setDropState({ isDropping: false, frozenPositions: null });

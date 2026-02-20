@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { TrainingDataVideo, TrainingDataSegment } from '../../hooks/useTrainingData';
 import { useTrainingData } from '../../hooks/useTrainingData';
 import { Scissors } from 'lucide-react';
 import { toast } from '@/shared/components/ui/sonner';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { formatTime } from '@/shared/lib/utils';
 import { SegmentListItem } from './components/SegmentListItem';
 import { SegmentFormDialog } from './components/SegmentFormDialog';
@@ -73,9 +73,11 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
       : segments;
   })();
 
-  const jumpToTime = (time: number) => playback.seekTo(time);
+  const jumpToTime = useCallback((time: number) => {
+    playback.seekTo(time);
+  }, [playback]);
 
-  const handleStartSegment = () => {
+  const handleStartSegment = useCallback(() => {
     const actualTime = playback.getActualTime();
 
     if (segmentStartTime !== null && actualTime < segmentStartTime) {
@@ -92,9 +94,9 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
       try { setStartFrameImage(playback.captureCurrentFrame()); }
       catch { setStartFrameImage(null); }
     }
-  };
+  }, [playback, segmentStartTime]);
 
-  const handleEndSegment = () => {
+  const handleEndSegment = useCallback(() => {
     if (segmentStartTime === null) {
       toast.error('Please set start time first');
       return;
@@ -116,17 +118,17 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
       try { setEndFrameImage(playback.captureCurrentFrame()); }
       catch { setEndFrameImage(null); }
     }
-  };
+  }, [playback, segmentStartTime]);
 
-  const clearSegmentState = () => {
+  const clearSegmentState = useCallback(() => {
     setSegmentStartTime(null);
     setSegmentEndTime(null);
     setDescription('');
     setStartFrameImage(null);
     setEndFrameImage(null);
-  };
+  }, []);
 
-  const handleCreateSegment = async () => {
+  const handleCreateSegment = useCallback(async () => {
     if (segmentStartTime === null || segmentEndTime === null) {
       toast.error('Please set both start and end times');
       return;
@@ -143,7 +145,7 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [segmentStartTime, segmentEndTime, onCreateSegment, video.id, description, clearSegmentState, jumpToTime]);
 
   const handleCancelSegment = () => {
     clearSegmentState();
@@ -155,7 +157,16 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
     playback.seekTo(msToSeconds(segment.startTime));
   };
 
-  const handleDeleteLastSegment = () => {
+  const handleEditSegment = useCallback((segment: TrainingDataSegment) => {
+    const startSeconds = msToSeconds(segment.startTime);
+    const endSeconds = msToSeconds(segment.endTime);
+    setSegmentStartTime(startSeconds);
+    setSegmentEndTime(endSeconds);
+    setDescription(segment.description ?? '');
+    jumpToTime(startSeconds);
+  }, [jumpToTime]);
+
+  const handleDeleteLastSegment = useCallback(() => {
     if (segmentEndTime !== null) {
       setSegmentEndTime(null);
       setEndFrameImage(null);
@@ -165,7 +176,7 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
     } else {
       toast.error('No marks to remove');
     }
-  };
+  }, [segmentEndTime, segmentStartTime]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -197,7 +208,16 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
 
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [segmentStartTime, segmentEndTime, isCreating]);
+  }, [
+    segmentStartTime,
+    segmentEndTime,
+    isCreating,
+    playback,
+    handleStartSegment,
+    handleEndSegment,
+    handleCreateSegment,
+    handleDeleteLastSegment,
+  ]);
 
   return (
     <TooltipProvider>

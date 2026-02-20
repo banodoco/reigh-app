@@ -8,7 +8,7 @@
  * React layer's job.
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import {
   RawDatabaseEvent,
   ProcessedEvent,
@@ -171,7 +171,7 @@ export class RealtimeEventProcessor {
     processedAt: number
   ): TasksCreatedEvent {
     const tasks = events.map((e) => {
-      const record = e.new as TaskRecord;
+      const record = e.new as unknown as TaskRecord;
       return {
         id: record.id,
         taskType: record.task_type,
@@ -192,7 +192,7 @@ export class RealtimeEventProcessor {
     processedAt: number
   ): TasksUpdatedEvent {
     const tasks = events.map((e) => {
-      const newRecord = e.new as TaskRecord;
+      const newRecord = e.new as unknown as TaskRecord;
       const oldRecord = e.old as Partial<TaskRecord> | null;
 
       // Extract shot ID from various possible locations
@@ -245,7 +245,7 @@ export class RealtimeEventProcessor {
     processedAt: number
   ): GenerationsInsertedEvent {
     const generations = events.map((e) => {
-      const record = e.new as GenerationRecord;
+      const record = e.new as unknown as GenerationRecord;
       return {
         id: record.id,
         projectId: record.project_id,
@@ -268,7 +268,7 @@ export class RealtimeEventProcessor {
     processedAt: number
   ): GenerationsUpdatedEvent {
     const generations = events.map((e) => {
-      const newRecord = e.new as GenerationRecord;
+      const newRecord = e.new as unknown as GenerationRecord;
       const oldRecord = e.old as Partial<GenerationRecord> | null;
 
       // Detect what actually changed
@@ -341,7 +341,7 @@ export class RealtimeEventProcessor {
     let allInserts = true;
 
     const changes = events.map((e) => {
-      const newRecord = e.new as ShotGenerationRecord;
+      const newRecord = e.new as unknown as ShotGenerationRecord;
       const oldRecord = e.old as Partial<ShotGenerationRecord> | null;
 
       const isNowPositioned =
@@ -385,7 +385,7 @@ export class RealtimeEventProcessor {
     const affectedGenerationIds = new Set<string>();
 
     const variants = events.map((e) => {
-      const newRecord = e.new as VariantRecord;
+      const newRecord = e.new as unknown as VariantRecord;
 
       affectedGenerationIds.add(newRecord.generation_id);
 

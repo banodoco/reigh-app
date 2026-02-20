@@ -44,7 +44,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const hasValue = (props.value?.toString() || props.defaultValue?.toString() || "").length > 0
     const showClear = clearable && onClear && hasValue
-    const showVoice = voiceInput && onVoiceResult && aiInputMode !== "none"
+    const showVoice = voiceInput && onVoiceResult && (aiInputMode === "voice" || aiInputMode === "text")
     const hasActions = showClear || showVoice
 
     // Show buttons when hovered, input mode is active, OR always on mobile

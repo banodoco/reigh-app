@@ -13,7 +13,7 @@ import { Loader2, X } from 'lucide-react';
 import MediaLightbox from '@/shared/components/MediaLightbox';
 import { InlineSegmentVideo } from './InlineSegmentVideo';
 import { TIMELINE_HORIZONTAL_PADDING } from './constants';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { cn } from '@/shared/lib/utils';
 
 import type { PairData } from '@/shared/types/pairData';

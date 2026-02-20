@@ -60,6 +60,142 @@ interface UseTabletEndpointSelectionReturn {
   handleStripTouchEnd: (e: React.TouchEvent) => void;
 }
 
+interface UseStripTapToPlaceParams {
+  enabled: boolean;
+  selectedEndpoint: 'left' | 'right' | null;
+  outerContainerRef: React.RefObject<HTMLDivElement | null>;
+  onRangeChange?: (startFrame: number, endFrame: number) => void;
+  stripLeftPercent: number;
+  stripWidthPercent: number;
+  fullMin: number;
+  fullMax: number;
+  fullRange: number;
+  effectiveOutputStart: number;
+  effectiveOutputEnd: number;
+  siblingRanges: SiblingRange[];
+  setSelectedEndpoint: React.Dispatch<React.SetStateAction<'left' | 'right' | null>>;
+}
+
+interface StripTapPlacementParams {
+  selectedEndpoint: 'left' | 'right';
+  touchX: number;
+  rect: DOMRect;
+  stripLeftPercent: number;
+  stripWidthPercent: number;
+  fullMin: number;
+  fullMax: number;
+  fullRange: number;
+  effectiveOutputStart: number;
+  effectiveOutputEnd: number;
+  siblingRanges: SiblingRange[];
+}
+
+function resolveSiblingLimits(params: StripTapPlacementParams) {
+  let leftLimit = Math.max(0, params.fullMin);
+  let rightLimit = Math.min(params.fullMax, params.fullMax);
+
+  for (const sibling of params.siblingRanges) {
+    if (sibling.end <= params.effectiveOutputStart && sibling.end > leftLimit) {
+      leftLimit = sibling.end;
+    }
+    if (sibling.start >= params.effectiveOutputEnd && sibling.start < rightLimit) {
+      rightLimit = sibling.start;
+    }
+  }
+
+  return { leftLimit, rightLimit };
+}
+
+function getTapTargetFrame(params: StripTapPlacementParams) {
+  const fullTimelineWidth = params.rect.width / (params.stripWidthPercent / 100);
+  const timelineLeft = params.rect.left - (params.stripLeftPercent / 100) * fullTimelineWidth;
+  const normalizedX = Math.max(0, Math.min(1, (params.touchX - timelineLeft) / fullTimelineWidth));
+  return Math.round(params.fullMin + normalizedX * params.fullRange);
+}
+
+function computeRangeFromTap(params: StripTapPlacementParams): { start: number; end: number } | null {
+  if (params.stripWidthPercent < 1) return null;
+
+  const { leftLimit, rightLimit } = resolveSiblingLimits(params);
+  const targetFrame = getTapTargetFrame(params);
+
+  if (params.selectedEndpoint === 'left') {
+    const snappedStart = targetFrame <= leftLimit + EDGE_SNAP_THRESHOLD
+      ? leftLimit
+      : Math.max(leftLimit, targetFrame);
+
+    let newStart = Math.min(snappedStart, params.effectiveOutputEnd - MIN_DURATION_FRAMES);
+    newStart = Math.max(params.fullMin, Math.min(newStart, params.fullMax - MIN_DURATION_FRAMES));
+    return { start: newStart, end: params.effectiveOutputEnd };
+  }
+
+  const snappedEnd = targetFrame >= rightLimit - EDGE_SNAP_THRESHOLD
+    ? rightLimit
+    : Math.min(rightLimit, targetFrame);
+
+  let newEnd = Math.max(snappedEnd, params.effectiveOutputStart + MIN_DURATION_FRAMES);
+  newEnd = Math.min(params.fullMax, Math.max(newEnd, params.fullMin + MIN_DURATION_FRAMES));
+  return { start: params.effectiveOutputStart, end: newEnd };
+}
+
+function useStripTapToPlace(params: UseStripTapToPlaceParams) {
+  const {
+    enabled,
+    selectedEndpoint,
+    outerContainerRef,
+    onRangeChange,
+    stripLeftPercent,
+    stripWidthPercent,
+    fullMin,
+    fullMax,
+    fullRange,
+    effectiveOutputStart,
+    effectiveOutputEnd,
+    siblingRanges,
+    setSelectedEndpoint,
+  } = params;
+
+  return useCallback((e: React.TouchEvent) => {
+    if (!enabled || !selectedEndpoint || !outerContainerRef.current || !onRangeChange) return;
+
+    const touch = e.changedTouches[0];
+    const rect = outerContainerRef.current.getBoundingClientRect();
+    const nextRange = computeRangeFromTap({
+      selectedEndpoint,
+      touchX: touch.clientX,
+      rect,
+      stripLeftPercent,
+      stripWidthPercent,
+      fullMin,
+      fullMax,
+      fullRange,
+      effectiveOutputStart,
+      effectiveOutputEnd,
+      siblingRanges,
+    });
+
+    if (nextRange) {
+      onRangeChange(nextRange.start, nextRange.end);
+    }
+
+    setSelectedEndpoint(null);
+  }, [
+    enabled,
+    selectedEndpoint,
+    outerContainerRef,
+    onRangeChange,
+    stripLeftPercent,
+    stripWidthPercent,
+    fullMin,
+    fullMax,
+    fullRange,
+    effectiveOutputStart,
+    effectiveOutputEnd,
+    siblingRanges,
+    setSelectedEndpoint,
+  ]);
+}
+
 /**
  * Hook for tablet touch gesture handling on timeline strips.
  *
@@ -141,61 +277,21 @@ export function useTabletEndpointSelection(
     setSelectedEndpoint(prev => prev === _endpoint ? null : _endpoint);
   }, [enabled]);
 
-  // Handle tap on strip area to place the selected endpoint
-  const handleStripTapToPlace = useCallback((e: React.TouchEvent) => {
-    if (!enabled || !selectedEndpoint || !outerContainerRef.current || !onRangeChange) return;
-
-    const touch = e.changedTouches[0];
-    const rect = outerContainerRef.current.getBoundingClientRect();
-    const tapX = touch.clientX;
-
-    if (stripWidthPercent < 1) {
-      setSelectedEndpoint(null);
-      return;
-    }
-
-    // Find sibling boundaries
-    let leftLimit = Math.max(0, fullMin);
-    let rightLimit = Math.min(fullMax, fullMax);
-    for (const sibling of siblingRanges) {
-      if (sibling.end <= effectiveOutputStart && sibling.end > leftLimit) {
-        leftLimit = sibling.end;
-      }
-      if (sibling.start >= effectiveOutputEnd && sibling.start < rightLimit) {
-        rightLimit = sibling.start;
-      }
-    }
-
-    // Calculate target frame
-    const fullTimelineWidth = rect.width / (stripWidthPercent / 100);
-    const timelineLeft = rect.left - (stripLeftPercent / 100) * fullTimelineWidth;
-    const normalizedX = Math.max(0, Math.min(1, (tapX - timelineLeft) / fullTimelineWidth));
-    const targetFrame = Math.round(fullMin + normalizedX * fullRange);
-
-    if (selectedEndpoint === 'left') {
-      let newStart: number;
-      if (targetFrame <= leftLimit + EDGE_SNAP_THRESHOLD) {
-        newStart = leftLimit;
-      } else {
-        newStart = Math.max(leftLimit, targetFrame);
-      }
-      newStart = Math.min(newStart, effectiveOutputEnd - MIN_DURATION_FRAMES);
-      newStart = Math.max(fullMin, Math.min(newStart, fullMax - MIN_DURATION_FRAMES));
-      onRangeChange(newStart, effectiveOutputEnd);
-    } else {
-      let newEnd: number;
-      if (targetFrame >= rightLimit - EDGE_SNAP_THRESHOLD) {
-        newEnd = rightLimit;
-      } else {
-        newEnd = Math.min(rightLimit, targetFrame);
-      }
-      newEnd = Math.max(newEnd, effectiveOutputStart + MIN_DURATION_FRAMES);
-      newEnd = Math.min(fullMax, Math.max(newEnd, fullMin + MIN_DURATION_FRAMES));
-      onRangeChange(effectiveOutputStart, newEnd);
-    }
-
-    setSelectedEndpoint(null);
-  }, [enabled, selectedEndpoint, stripLeftPercent, stripWidthPercent, fullMin, fullMax, fullRange, effectiveOutputStart, effectiveOutputEnd, siblingRanges, onRangeChange, outerContainerRef]);
+  const handleStripTapToPlace = useStripTapToPlace({
+    enabled,
+    selectedEndpoint,
+    outerContainerRef,
+    onRangeChange,
+    stripLeftPercent,
+    stripWidthPercent,
+    fullMin,
+    fullMax,
+    fullRange,
+    effectiveOutputStart,
+    effectiveOutputEnd,
+    siblingRanges,
+    setSelectedEndpoint,
+  });
 
   // Track touch start for tap detection on strip body
   const handleStripTouchStart = useCallback((e: React.TouchEvent) => {
@@ -236,7 +332,7 @@ export function useTabletEndpointSelection(
     } else if (isTablet && !isStripActive) {
       // Single tap - delegate to parent for frame preview
       e.preventDefault();
-      onSingleTap(touch);
+      onSingleTap(touch as unknown as Touch);
     }
   }, [enabled, selectedEndpoint, handleStripTapToPlace, isTablet, isStripActive, onDoubleTap, onSingleTap]);
 

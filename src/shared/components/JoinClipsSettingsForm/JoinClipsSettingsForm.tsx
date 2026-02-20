@@ -88,7 +88,7 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
     featuredPresetIds = JOIN_CLIPS_FEATURED_PRESET_IDS,
     showGenerateButton = true,
 }) => {
-    const keepBridgingImagesValue = keepBridgingImages;
+    const keepBridgingImagesValue = keepBridgingImages ?? false;
     const enhancePromptValue = enhancePrompt;
 
     // Advanced section state
@@ -182,6 +182,10 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
     const handleContextFramesChange = (val: number) => {
         const newContextFrames = Math.max(4, val);
         setContextFrames(newContextFrames);
+    };
+    const sliderNumber = (value: number | readonly number[]): number => {
+        if (typeof value === 'number') return value;
+        return value[0] ?? 0;
     };
 
     // Calculate what the total will be quantized to (for display)
@@ -357,7 +361,7 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                                     step={1}
                                     value={Math.min(Math.max(1, gapFrames), maxGapFrames)}
                                     onValueChange={(value) => {
-                                        setGapFrames(Math.min(value, maxGapFrames));
+                                        setGapFrames(Math.min(sliderNumber(value), maxGapFrames));
                                     }}
                                     className="py-2"
                                 />
@@ -375,7 +379,7 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                                     max={maxContextFrames}
                                     step={1}
                                     value={Math.min(contextFrames, maxContextFrames)}
-                                    onValueChange={(value) => handleContextFramesChange(Math.min(value, maxContextFrames))}
+                                    onValueChange={(value) => handleContextFramesChange(Math.min(sliderNumber(value), maxContextFrames))}
                                     className="py-2"
                                 />
                             </div>
@@ -546,7 +550,7 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                                                             max={1}
                                                             step={0.05}
                                                             value={noisedInputVideo}
-                                                            onValueChange={(value) => setNoisedInputVideo(value)}
+                                                            onValueChange={(value) => setNoisedInputVideo(sliderNumber(value))}
                                                             className="py-2"
                                                         />
                                                     </div>
@@ -565,7 +569,7 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
                             gapFrames={gapFrames}
                             contextFrames={contextFrames}
                             replaceMode={replaceMode}
-                            keepBridgingImages={keepBridgingImages}
+                            keepBridgingImages={keepBridgingImagesValue}
                             clipPairs={clipPairs}
                             infoContent={
                                 <div className="text-xs text-muted-foreground">

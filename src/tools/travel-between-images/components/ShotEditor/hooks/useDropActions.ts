@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandler";
+import { handleError } from "@/shared/lib/errorHandling/handleError";
 import { GenerationRow, Shot } from "@/types/shots";
 import { useProject } from "@/shared/contexts/ProjectContext";
 import {
@@ -16,7 +16,7 @@ import {
   persistTimelinePositions
 } from './timelineDropHelpers';
 import { DEFAULT_FRAME_SPACING } from '@/shared/utils/timelinePositionCalculator';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 interface UseDropActionsProps {
   actions: {
@@ -211,7 +211,7 @@ export const useDropActions = ({
       const startFrame = targetFrame ?? await calculateNextAvailableFrame(currentShot.id, undefined);
 
       // For multiple files, ensure each position is unique
-      const existingGens = queryClientRef.current.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(currentShot.id)) || [];
+      const existingGens = queryClientRef.current.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(currentShot.id)) || [];
       const existingFrames = existingGens
         .filter(g => g.timeline_frame != null && g.timeline_frame !== -1)
         .map(g => g.timeline_frame as number);
@@ -228,7 +228,7 @@ export const useDropActions = ({
       }
 
       // 2. Create optimistic entries immediately using local file URLs
-      const previousFastGens = queryClientRef.current.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(currentShot.id)) || [];
+      const previousFastGens = queryClientRef.current.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(currentShot.id)) || [];
 
       const optimisticItems = files.map((file, index) => {
         const localUrl = URL.createObjectURL(file);
@@ -260,7 +260,7 @@ export const useDropActions = ({
 
       // Add optimistic items to cache
       queryClientRef.current.setQueryData(
-        queryKeys.generations.byShot(currentShot.id),
+        generationQueryKeys.byShot(currentShot.id),
         [...previousFastGens, ...optimisticItems]
       );
 
@@ -309,9 +309,9 @@ export const useDropActions = ({
       handleError(error, { context: 'BatchDrop', toastTitle: 'Failed to add images' });
 
       // Remove optimistic items on error
-      const currentCache = queryClientRef.current.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(currentShot.id)) || [];
+      const currentCache = queryClientRef.current.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(currentShot.id)) || [];
       queryClientRef.current.setQueryData(
-        queryKeys.generations.byShot(currentShot.id),
+        generationQueryKeys.byShot(currentShot.id),
         currentCache.filter(item => !optimisticIds.includes(item.id))
       );
 

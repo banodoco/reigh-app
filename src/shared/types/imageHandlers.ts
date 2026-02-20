@@ -79,6 +79,21 @@ export type GenerationDropHandler = (
 ) => Promise<void>;
 
 /**
+ * Add an existing generation to a target shot.
+ *
+ * @param targetShotId - The shot selected in the add-to-shot control.
+ * @param generationId - Canonical generations.id value.
+ * @param imageUrl - Full URL of the source media (optional).
+ * @param thumbUrl - Thumbnail URL of the source media (optional).
+ */
+export type AddToShotHandler = (
+  targetShotId: string,
+  generationId: string,
+  imageUrl?: string,
+  thumbUrl?: string
+) => Promise<boolean>;
+
+/**
  * Upload files via input element.
  * @param event - Change event from file input
  */
@@ -112,4 +127,3 @@ export interface ShotImageHandlers {
   /** Upload files via input */
   onUpload?: ImageUploadHandler;
 }
-

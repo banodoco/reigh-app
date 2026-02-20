@@ -87,18 +87,18 @@ export function usePairData({
         endFrame,
         startImage: {
           id: startImage.id,
-          generationId: startImage.generation_id,
+          generationId: startImage.generation_id || undefined,
           primaryVariantId: startImage.primary_variant_id || undefined,
-          url: startImage.imageUrl || startImage.location,
-          thumbUrl: startImage.thumbUrl || startImage.location,
+          url: startImage.imageUrl || startImage.location || undefined,
+          thumbUrl: startImage.thumbUrl || startImage.location || undefined,
           position: pairIndex + 1,
         },
         endImage: {
           id: endImage.id,
-          generationId: endImage.generation_id,
+          generationId: endImage.generation_id || undefined,
           primaryVariantId: endImage.primary_variant_id || undefined,
-          url: endImage.imageUrl || endImage.location,
-          thumbUrl: endImage.thumbUrl || endImage.location,
+          url: endImage.imageUrl || endImage.location || undefined,
+          thumbUrl: endImage.thumbUrl || endImage.location || undefined,
           position: pairIndex + 2,
         },
       });
@@ -130,13 +130,13 @@ export function usePairData({
         endFrame: lastImageEndFrame,
         startImage: {
           id: lastImage.id,
-          generationId: lastImage.generation_id,
+          generationId: lastImage.generation_id || undefined,
           primaryVariantId: lastImage.primary_variant_id || undefined,
-          url: lastImage.imageUrl || lastImage.location,
-          thumbUrl: lastImage.thumbUrl || lastImage.location,
+          url: lastImage.imageUrl || lastImage.location || undefined,
+          thumbUrl: lastImage.thumbUrl || lastImage.location || undefined,
           position: trailingPairIndex + 1,
         },
-        endImage: undefined,
+        endImage: null,
       });
     }
 

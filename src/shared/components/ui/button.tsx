@@ -26,9 +26,6 @@ const buttonVariants = cva(
         "theme-outline": "border-2 border-primary/30 bg-card/80 dark:bg-card/90 hover:bg-accent/20 hover:border-primary/50 text-primary font-cocogoose tracking-wide transition-all duration-300",
         "theme-soft": "bg-gradient-to-br from-accent/80 to-secondary/80 border-2 border-primary/10 text-primary hover:from-accent hover:to-secondary shadow-theme hover:shadow-theme-hover",
         success: "bg-gradient-to-r from-secondary to-secondary/80 border-2 border-secondary/50 text-primary hover:from-secondary/90 hover:to-secondary shadow-theme hover:shadow-theme-hover transition-all duration-300",
-        // Legacy aliases for backward compatibility
-        lala: "theme-button bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:from-primary/90 hover:to-primary shadow-theme hover:shadow-theme-hover border-2 border-primary/20",
-        "lala-ghost": "theme-nav-item bg-transparent border-2 border-transparent hover:border-primary/20 hover:bg-accent/30",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -42,10 +39,6 @@ const buttonVariants = cva(
         "theme-sm": "h-9 px-6 py-2 rounded-lg font-cocogoose tracking-wide",
         "theme-default": "h-11 px-8 py-3 rounded-xl font-cocogoose tracking-wide",
         "theme-lg": "h-14 px-12 py-4 rounded-2xl font-cocogoose font-light tracking-wider",
-        // Legacy aliases
-        "lala-sm": "h-9 px-6 py-2 rounded-lg font-cocogoose tracking-wide",
-        "lala-default": "h-11 px-8 py-3 rounded-xl font-cocogoose tracking-wide",
-        "lala-lg": "h-14 px-12 py-4 rounded-2xl font-cocogoose font-light tracking-wider",
       },
     },
     defaultVariants: {
@@ -55,18 +48,52 @@ const buttonVariants = cva(
   }
 )
 
+type ButtonVariant = VariantProps<typeof buttonVariants>['variant']
+type ButtonSize = VariantProps<typeof buttonVariants>['size']
+type LegacyButtonVariant = 'lala' | 'lala-ghost'
+type LegacyButtonSize = 'lala-sm' | 'lala-default' | 'lala-lg'
+
 interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+    Omit<VariantProps<typeof buttonVariants>, 'variant' | 'size'> {
+  variant?: ButtonVariant | LegacyButtonVariant
+  size?: ButtonSize | LegacyButtonSize
   asChild?: boolean
+}
+
+const LEGACY_VARIANT_MAP: Record<LegacyButtonVariant, Exclude<ButtonVariant, null | undefined>> = {
+  lala: 'theme',
+  'lala-ghost': 'theme-ghost',
+}
+
+const LEGACY_SIZE_MAP: Record<LegacyButtonSize, Exclude<ButtonSize, null | undefined>> = {
+  'lala-sm': 'theme-sm',
+  'lala-default': 'theme-default',
+  'lala-lg': 'theme-lg',
+}
+
+function normalizeVariant(variant: ButtonProps['variant']): ButtonVariant {
+  if (!variant) return variant
+  return variant in LEGACY_VARIANT_MAP
+    ? LEGACY_VARIANT_MAP[variant as LegacyButtonVariant]
+    : (variant as ButtonVariant)
+}
+
+function normalizeSize(size: ButtonProps['size']): ButtonSize {
+  if (!size) return size
+  return size in LEGACY_SIZE_MAP
+    ? LEGACY_SIZE_MAP[size as LegacyButtonSize]
+    : (size as ButtonSize)
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    const normalizedVariant = normalizeVariant(variant)
+    const normalizedSize = normalizeSize(size)
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant: normalizedVariant, size: normalizedSize, className }))}
         ref={ref}
         {...props}
       />

@@ -133,40 +133,23 @@ function InlineEditCanvas({ variant, state, media, onClose }: InlineEditCanvasPr
       )}
 
       <TopRightControls
-        isVideo={state.isVideo}
-        readOnly={false}
-        isSpecialEditMode={state.isSpecialEditMode}
-        selectedProjectId={state.selectedProjectId}
-        isCloudMode={state.isCloudMode}
         showDownload={true}
         handleDownload={state.handleDownload}
-        mediaId={media.id}
-        onClose={onClose}
       />
 
       <BottomLeftControls
-        isVideo={state.isVideo}
-        readOnly={false}
-        isSpecialEditMode={state.isSpecialEditMode}
-        selectedProjectId={state.selectedProjectId}
-        isCloudMode={state.isCloudMode}
-        handleEnterMagicEditMode={state.handleEnterMagicEditMode}
-        isUpscaling={state.isUpscaling}
-        handleUpscale={state.handleUpscale}
+        localStarred={state.localStarred}
+        handleToggleStar={state.handleToggleStar}
+        toggleStarPending={state.toggleStarMutation.isPending}
       />
 
       <BottomRightControls
-        isVideo={state.isVideo}
-        readOnly={false}
-        isSpecialEditMode={state.isSpecialEditMode}
-        selectedProjectId={state.selectedProjectId}
-        isCloudMode={state.isCloudMode}
         localStarred={state.localStarred}
         handleToggleStar={state.handleToggleStar}
         toggleStarPending={state.toggleStarMutation.isPending}
         isAddingToReferences={false}
         addToReferencesSuccess={false}
-        handleAddToReferences={() => {}}
+        handleAddToReferences={async () => {}}
       />
     </ImageEditProvider>
   );

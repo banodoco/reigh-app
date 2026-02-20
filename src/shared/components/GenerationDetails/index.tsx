@@ -22,6 +22,7 @@ import { isJoinClipsTaskType, isCharacterAnimateTaskType, isTravelTaskType } fro
 import { ImageGenerationDetails } from '@/shared/components/ImageGenerationDetails';
 import { Task } from '@/types/tasks';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { DisplayableMetadata } from '@/shared/components/MediaGallery/types';
 
 // Types
 type DisplayVariant = 'hover' | 'modal' | 'panel';
@@ -144,18 +145,24 @@ export const GenerationDetails: React.FC<GenerationDetailsProps> = ({
 
   // For image generation tasks (non-video), build metadata and use ImageGenerationDetails
   const parsedParams = parseTaskParams(task.params);
-  const metadata = {
-    prompt: derivePrompt(parsedParams),
+  const asString = (value: unknown): string | undefined => (
+    typeof value === 'string' ? value : undefined
+  );
+  const asNumber = (value: unknown): number | undefined => (
+    typeof value === 'number' ? value : undefined
+  );
+  const metadata: DisplayableMetadata = {
+    prompt: derivePrompt(parsedParams) ?? undefined,
     tool_type: taskType,
     originalParams: parsedParams,
-    negative_prompt: parsedParams.negative_prompt,
-    model: parsedParams.model,
-    steps: parsedParams.steps || parsedParams.num_inference_steps,
-    resolution: parsedParams.resolution,
-    style_reference_image: parsedParams.style_reference_image,
-    style_reference_strength: parsedParams.style_reference_strength,
-    subject_strength: parsedParams.subject_strength,
-    scene_reference_strength: parsedParams.scene_reference_strength,
+    negative_prompt: asString(parsedParams.negative_prompt),
+    model: asString(parsedParams.model),
+    steps: asNumber(parsedParams.steps) ?? asNumber(parsedParams.num_inference_steps),
+    resolution: asString(parsedParams.resolution),
+    style_reference_image: asString(parsedParams.style_reference_image),
+    style_reference_strength: asNumber(parsedParams.style_reference_strength),
+    subject_strength: asNumber(parsedParams.subject_strength),
+    scene_reference_strength: asNumber(parsedParams.scene_reference_strength),
   };
 
   return (

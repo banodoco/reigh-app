@@ -4,7 +4,7 @@ import { GenerationRow } from '@/types/shots';
 import { Task } from '@/types/tasks';
 import { deriveInputImages } from '../utils/task-utils';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface LightboxData {
   type: 'image' | 'video';

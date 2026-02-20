@@ -1,13 +1,15 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { TaskLogFilters } from '../types';
 
 interface UseTaskLogDownloadReturn {
   isDownloading: boolean;
   handleDownload: () => Promise<void>;
 }
+
+type TaskStatus = 'Queued' | 'In Progress' | 'Complete' | 'Failed' | 'Cancelled';
 
 export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadReturn {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -40,7 +42,7 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
         .in('project_id', projectIds);
 
       if (filters.status && filters.status.length > 0) {
-        query = query.in('status', filters.status);
+        query = query.in('status', filters.status as TaskStatus[]);
       }
       if (filters.taskTypes && filters.taskTypes.length > 0) {
         query = query.in('task_type', filters.taskTypes);
@@ -58,7 +60,7 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
 
       // Get cost information for all tasks
       const taskIds = tasksData?.map(task => task.id) || [];
-      let costsData: Array<{ task_id: string; amount: number; created_at: string }> = [];
+      let costsData: Array<{ task_id: string | null; amount: number; created_at: string }> = [];
 
       if (taskIds.length > 0) {
         const { data: costs } = await supabase

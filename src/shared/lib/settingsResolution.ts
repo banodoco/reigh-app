@@ -44,10 +44,10 @@ function resolveSettingField<T>(
 ): T | undefined {
   // Priority order: shot → project → user → defaults
   // Use explicit undefined checks because null/false/0 are valid values
-  if (sources.shot?.[field] !== undefined) return sources.shot[field];
-  if (sources.project?.[field] !== undefined) return sources.project[field];
-  if (sources.user?.[field] !== undefined) return sources.user[field];
-  if (sources.defaults?.[field] !== undefined) return sources.defaults[field];
+  if (sources.shot?.[field] !== undefined) return sources.shot[field] as T;
+  if (sources.project?.[field] !== undefined) return sources.project[field] as T;
+  if (sources.user?.[field] !== undefined) return sources.user[field] as T;
+  if (sources.defaults?.[field] !== undefined) return sources.defaults[field] as T;
   return undefined;
 }
 

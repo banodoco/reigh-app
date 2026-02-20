@@ -7,7 +7,7 @@ import { Pencil } from 'lucide-react';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { usePresetSampleFiles } from '../hooks/usePresetSampleFiles';
 
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -524,7 +524,12 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
             addLoraToPhase={addLoraToPhase}
             removeLoraFromPhase={removeLoraFromPhase}
             updatePhaseLora={updatePhaseLora}
-            setEditablePhaseConfig={(config) => dispatch({ type: 'SET_PHASE_CONFIG', config })}
+            setEditablePhaseConfig={(config) => {
+              const nextConfig = typeof config === 'function'
+                ? config(editablePhaseConfig)
+                : config;
+              dispatch({ type: 'SET_PHASE_CONFIG', config: nextConfig });
+            }}
           />
 
           <SampleGenerationsSection

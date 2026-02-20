@@ -13,7 +13,7 @@ import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
 import { cn } from "@/shared/lib/utils";
 import type { Shot } from "@/types/shots";
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface ShotSelectorWithAddProps {
   // Image data
@@ -183,7 +183,7 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
         }}
       />
 
-      <Tooltip delayDuration={0} disableHoverableContent>
+      <Tooltip>
         <TooltipTrigger asChild>
           <Button
             variant="outline"

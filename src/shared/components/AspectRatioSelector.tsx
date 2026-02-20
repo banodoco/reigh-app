@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Select,
   SelectContent,
@@ -39,13 +39,18 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   variant = "retro"
 }) => {
   const [hoveredAspectRatio, setHoveredAspectRatio] = useState<string>('');
+  const handleSelectValueChange = useCallback((nextValue: string | null) => {
+    if (nextValue) {
+      onValueChange(nextValue);
+    }
+  }, [onValueChange]);
 
   if (showVisualizer) {
     // Layout with visualizer (50% select, 50% visualizer)
     return (
       <div className={`flex items-center gap-3 ${className}`}>
         <div className="w-1/2">
-          <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+          <Select value={value} onValueChange={handleSelectValueChange} disabled={disabled}>
             <SelectTrigger variant={variant} className="w-full" id={id}>
               <SelectValue placeholder={placeholder}>
                 {value ? value : placeholder}
@@ -76,7 +81,7 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   // Layout without visualizer (full width select)
   return (
     <div className={className}>
-      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+      <Select value={value} onValueChange={handleSelectValueChange} disabled={disabled}>
         <SelectTrigger variant={variant} className="w-full" id={id}>
           <SelectValue placeholder={placeholder}>
             {value ? value : placeholder}

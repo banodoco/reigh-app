@@ -236,6 +236,8 @@ export function useSegmentOutputStrip({
   const deletion = useSegmentDeletion();
   const scrubbingHook = useSegmentScrubbing({ projectAspectRatio, displaySlots });
   const lightbox = useSegmentLightbox({ displaySlots, pairDataByIndex, selectedParentId });
+  const { clearScrubbing } = scrubbingHook;
+  const { setLightboxIndex } = lightbox;
   const { markAllViewed } = useMarkVariantViewed();
 
   // ===== PENDING TASK CHECKER =====
@@ -251,21 +253,26 @@ export function useSegmentOutputStrip({
     slotIndex: number,
     onOpenPairSettings?: (pairIndex: number, pairFrameData?: { frames: number; startFrame: number; endFrame: number }) => void,
   ) => {
-    scrubbingHook.clearScrubbing();
+    clearScrubbing();
     if (slot?.type === 'child') {
       markAllViewed(slot.child.id);
     }
-    if (onOpenPairSettings && slot) {
+
+    if (onOpenPairSettings) {
+      // Route all clicks through pair settings → segmentSlotMode lightbox.
+      // This handles both regular pairs and trailing segments uniformly,
+      // with proper form-only and video views plus full chevron navigation.
       const pairFrameData = pairInfo.find(p => p.index === slot.index);
       onOpenPairSettings(slot.index, pairFrameData ? {
         frames: pairFrameData.frames,
         startFrame: pairFrameData.startFrame,
         endFrame: pairFrameData.endFrame,
       } : undefined);
-    } else {
-      lightbox.setLightboxIndex(slotIndex);
+    } else if (slot.type === 'child') {
+      // No pair settings handler — fall back to inline SegmentOutputStrip lightbox
+      setLightboxIndex(slotIndex);
     }
-  }, [markAllViewed, pairInfo, scrubbingHook.clearScrubbing, lightbox.setLightboxIndex]);
+  }, [markAllViewed, pairInfo, clearScrubbing, setLightboxIndex, shotId]);
 
   // ===== TRAILING VIDEO INFO REPORTING =====
   useEffect(() => {

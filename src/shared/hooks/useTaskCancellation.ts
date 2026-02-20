@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 /**
  * Cancel a task using direct Supabase call
@@ -88,8 +88,8 @@ export const useCancelTask = (_projectId: string | null) => {
     mutationFn: cancelTask,
     onSuccess: () => {
       // Immediately invalidate tasks queries so cancelled task disappears
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      queryClient.invalidateQueries({ queryKey: taskQueryKeys.paginatedAll });
+      queryClient.invalidateQueries({ queryKey: taskQueryKeys.statusCountsAll });
       // Immediately invalidate pending task queries so indicators update instantly
       queryClient.invalidateQueries({
         predicate: (query) =>
@@ -148,7 +148,7 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
         const params = task.params as Record<string, unknown> | null;
         const orchestratorRef = params?.orchestrator_task_id_ref || params?.orchestrator_task_id;
 
-        if (orchestratorRef && orchestratorIds.includes(orchestratorRef)) {
+        if (typeof orchestratorRef === 'string' && orchestratorIds.includes(orchestratorRef)) {
           tasksToCancel.add(task.id);
         }
       });
@@ -186,8 +186,8 @@ const useCancelPendingTasks = () => {
     mutationFn: cancelPendingTasks,
     onSuccess: () => {
       // Immediately invalidate tasks queries so cancelled tasks disappear
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      queryClient.invalidateQueries({ queryKey: taskQueryKeys.paginatedAll });
+      queryClient.invalidateQueries({ queryKey: taskQueryKeys.statusCountsAll });
     },
     onError: (error: Error) => {
       handleError(error, { context: 'useCancelPendingTasks', toastTitle: 'Failed to cancel pending tasks' });

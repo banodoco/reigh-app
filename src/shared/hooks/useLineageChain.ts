@@ -10,8 +10,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 interface LineageItem {
   id: string;
@@ -65,7 +65,9 @@ async function fetchLineageChain(variantId: string): Promise<LineageItem[]> {
 
     // Move to the parent variant via source_variant_id in params
     const params = data.params as Record<string, unknown> | null;
-    currentId = params?.source_variant_id || null;
+    currentId = typeof params?.source_variant_id === 'string'
+      ? params.source_variant_id
+      : null;
   }
 
   return chain;
@@ -79,7 +81,7 @@ async function fetchLineageChain(variantId: string): Promise<LineageItem[]> {
  */
 export function useLineageChain(variantId: string | null): LineageChainResult {
   const { data: chain = [], isLoading, error } = useQuery({
-    queryKey: queryKeys.generations.lineageChain(variantId!),
+    queryKey: generationQueryKeys.lineageChain(variantId!),
     queryFn: () => fetchLineageChain(variantId!),
     enabled: !!variantId,
     staleTime: 5 * 60 * 1000, // 5 minutes - lineage doesn't change
@@ -119,7 +121,9 @@ export async function getLineageDepth(variantId: string): Promise<number> {
     }
 
     const params = data.params as Record<string, unknown> | null;
-    currentId = params?.source_variant_id || null;
+    currentId = typeof params?.source_variant_id === 'string'
+      ? params.source_variant_id
+      : null;
 
     if (currentId) {
       depth++;

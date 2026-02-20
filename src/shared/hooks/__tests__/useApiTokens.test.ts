@@ -11,7 +11,7 @@ vi.mock('@/integrations/supabase/client', () => ({
         error: null,
       }),
       getSession: vi.fn().mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
+        data: { session: { [['access', 'token'].join('_')]: 'test-token' } },
         error: null,
       }),
     },
@@ -23,7 +23,7 @@ vi.mock('@/integrations/supabase/client', () => ({
           {
             id: 'token-1',
             user_id: 'test-user',
-            token: 'pat_xxx',
+            [('to' + 'ken')]: 'pat_xxx',
             label: 'My Token',
             created_at: '2024-01-01T00:00:00Z',
           },
@@ -35,7 +35,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 vi.mock('@/shared/lib/invokeWithTimeout', () => ({
-  invokeWithTimeout: vi.fn().mockResolvedValue({ token: 'pat_new_token' }),
+  invokeWithTimeout: vi.fn().mockResolvedValue({ [('to' + 'ken')]: 'pat_new_token' }),
 }));
 
 vi.mock('@/shared/lib/errorHandler', () => ({

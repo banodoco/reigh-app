@@ -16,7 +16,7 @@ interface UseTimelineInitializationOptions {
   shotId: string | null;
   shotGenerations: ShotGeneration[];
   batchExchangePositions: (
-    exchanges: Array<{ id: string; newFrame: number } | { shotGenerationIdA: string; shotGenerationIdB: string }>
+    updates: Array<{ shotGenerationId: string; newFrame: number }>
   ) => Promise<void>;
 }
 
@@ -48,7 +48,7 @@ export function useTimelineInitialization({
 
     // Assign sequential frames
     const updates = unpositioned.map((sg, index) => ({
-      id: sg.generation_id,
+      shotGenerationId: sg.id,
       newFrame: index * frameSpacing
     }));
 

@@ -10,7 +10,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { dataFreshnessManager } from './DataFreshnessManager';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import {
   ConnectionState,
   ConnectionStatusCallback,
@@ -76,7 +76,7 @@ export class RealtimeConnection {
     if (this.channel) {
       try {
         await this.channel.unsubscribe();
-      } catch (e) {
+      } catch {
         // Ignore unsubscribe errors
       }
       this.channel = null;
@@ -157,7 +157,14 @@ export class RealtimeConnection {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session?.user) {
         const errorMsg = sessionError?.message || 'No valid session';
-        console.error('[RealtimeConnection] Auth check failed:', errorMsg);
+        handleError(new Error(errorMsg), {
+          context: 'RealtimeConnection.authCheck',
+          showToast: false,
+          logData: {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+          },
+        });
         this.setState({
           status: 'failed',
           error: errorMsg,
@@ -172,7 +179,10 @@ export class RealtimeConnection {
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Auth check failed';
-      console.error('[RealtimeConnection] Auth error:', errorMsg);
+      handleError(error, {
+        context: 'RealtimeConnection.authSessionFetch',
+        showToast: false,
+      });
       this.setState({
         status: 'failed',
         error: errorMsg,
@@ -311,7 +321,11 @@ export class RealtimeConnection {
     const isExhausted = attempt > this.config.maxReconnectAttempts;
 
     if (isExhausted) {
-      console.error('[RealtimeConnection] Max reconnect attempts reached');
+      handleError(new Error('Max reconnect attempts reached'), {
+        context: 'RealtimeConnection.handleSubscribeFailure',
+        showToast: false,
+        logData: { reason, attempt, maxReconnectAttempts: this.config.maxReconnectAttempts },
+      });
       this.setState({
         status: 'failed',
         error: `Connection failed after ${this.config.maxReconnectAttempts} attempts: ${reason}`,
@@ -353,7 +367,7 @@ export class RealtimeConnection {
       if (this.channel) {
         try {
           await this.channel.unsubscribe();
-        } catch (e) {
+        } catch {
           // Ignore
         }
         this.channel = null;

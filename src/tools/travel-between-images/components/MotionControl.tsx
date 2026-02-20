@@ -12,7 +12,7 @@ import { PhaseConfigVertical } from './PhaseConfigVertical';
 import { PhaseConfigSelectorModal } from '@/shared/components/PhaseConfigSelectorModal';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import type { PresetMetadata, PresetSampleGeneration } from '@/shared/types/presetMetadata';
 import { usePresetAutoSelect } from '../hooks/usePresetAutoSelect';
@@ -170,7 +170,7 @@ export const MotionControl: React.FC<MotionControlProps> = ({
 
   // Fetch additional featured presets from database (optional)
   const { data: additionalPresets } = useQuery({
-    queryKey: queryKeys.presets.featured(featuredPresetIds),
+    queryKey: presetQueryKeys.featured(featuredPresetIds),
     queryFn: async () => {
       if (!featuredPresetIds || featuredPresetIds.length === 0) return [];
       
@@ -200,7 +200,35 @@ export const MotionControl: React.FC<MotionControlProps> = ({
   const allPresets = useMemo(() => {
     const presets: Array<{ id: string; metadata: { name: string; description: string; phaseConfig: PhaseConfig; sample_generations?: PresetSampleGeneration[] } }> = [builtinDefaultPreset];
     if (additionalPresets && additionalPresets.length > 0) {
-      presets.push(...additionalPresets);
+      const normalizedAdditional: Array<{ id: string; metadata: { name: string; description: string; phaseConfig: PhaseConfig; sample_generations?: PresetSampleGeneration[] } }> = [];
+      additionalPresets.forEach((preset) => {
+        if (!preset) return;
+
+        const metadata = preset.metadata;
+        if (!metadata || typeof metadata !== 'object') return;
+
+        const parsed = metadata as {
+          name?: unknown;
+          description?: unknown;
+          phaseConfig?: unknown;
+          sample_generations?: unknown;
+        };
+        if (!parsed.phaseConfig || typeof parsed.phaseConfig !== 'object') return;
+
+        normalizedAdditional.push({
+          id: preset.id,
+          metadata: {
+            name: typeof parsed.name === 'string' ? parsed.name : 'Preset',
+            description: typeof parsed.description === 'string' ? parsed.description : '',
+            phaseConfig: parsed.phaseConfig as PhaseConfig,
+            sample_generations: Array.isArray(parsed.sample_generations)
+              ? parsed.sample_generations as PresetSampleGeneration[]
+              : undefined,
+          },
+        });
+      });
+
+      presets.push(...normalizedAdditional);
     }
     return presets;
   }, [builtinDefaultPreset, additionalPresets]);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Copy, Check } from 'lucide-react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface CopyIdButtonProps {
   id: string;

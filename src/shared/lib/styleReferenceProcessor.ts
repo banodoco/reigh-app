@@ -61,14 +61,14 @@ const getScaledDimensions = (aspectRatioString: string): { width: number; height
  * @param aspectRatioString Optional aspect ratio string for dimension lookup (e.g., "16:9")
  * @returns Promise with the processed image as a data URL (ready for upload)
  */
-const processStyleReferenceForAspectRatio = async (
+const processStyleReferenceForAspectRatio = (
   dataURL: string,
   targetAspectRatio: number,
   aspectRatioString?: string
 ): Promise<string | null> => {
   if (isNaN(targetAspectRatio) || targetAspectRatio <= 0) {
     console.error("Invalid target aspect ratio.");
-    return null;
+    return Promise.resolve(null);
   }
 
   return new Promise((resolve, reject) => {
@@ -202,14 +202,14 @@ const processStyleReferenceForAspectRatio = async (
  * @param aspectRatioString The aspect ratio string (e.g., "16:9", "1:1")
  * @returns Promise with the processed image as a data URL
  */
-export const processStyleReferenceForAspectRatioString = async (
+export const processStyleReferenceForAspectRatioString = (
   dataURL: string,
   aspectRatioString: string
 ): Promise<string | null> => {
   const targetAspectRatio = parseRatio(aspectRatioString);
   if (isNaN(targetAspectRatio)) {
     console.error("Invalid aspect ratio string:", aspectRatioString);
-    return null;
+    return Promise.resolve(null);
   }
   
   return processStyleReferenceForAspectRatio(dataURL, targetAspectRatio, aspectRatioString);

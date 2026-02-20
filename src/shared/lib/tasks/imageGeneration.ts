@@ -8,7 +8,7 @@ import {
 } from '../taskCreation';
 import { processBatchResults, type TaskCreationResult } from '../taskCreation';
 import { ASPECT_RATIO_TO_RESOLUTION } from '../aspectRatios';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { PathLoraConfig } from '@/shared/types/lora';
 
 // ============================================================================
@@ -418,6 +418,9 @@ async function createImageGenerationTask(params: ImageGenerationTaskParams): Pro
  * @returns Promise resolving to array of created tasks
  */
 export async function createBatchImageGenerationTasks(params: BatchImageGenerationTaskParams): Promise<TaskCreationResult[]> {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[createBatch] start', { projectId: params.project_id, prompts: params.prompts?.length, imagesPerPrompt: params.imagesPerPrompt, model: params.model_name });
+  }
 
   try {
     // 1. Validate parameters
@@ -477,13 +480,30 @@ export async function createBatchImageGenerationTasks(params: BatchImageGenerati
     });
 
     // 4. Create all tasks in parallel (matching original behavior)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[createBatch] creating', taskParams.length, 'tasks in parallel');
+    }
     const results = await Promise.allSettled(
       taskParams.map(taskParam => createImageGenerationTask(taskParam))
     );
 
+    if (process.env.NODE_ENV === 'development') {
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      console.log('[createBatch] done', { succeeded, failed });
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          console.error(`[createBatch] task ${i} FAILED:`, r.reason);
+        }
+      });
+    }
+
     return processBatchResults(results, 'createBatchImageGenerationTasks');
 
   } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[createBatch] outer catch:', error);
+    }
     handleError(error, { context: 'BatchImageGeneration', showToast: false });
     throw error;
   }

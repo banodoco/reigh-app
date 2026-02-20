@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 /**
  * Debug utilities for investigating polling issues
@@ -84,11 +84,11 @@ export const debugPolling = {
   inspectReactQueryCache(queryClient: QueryClient, projectId: string) {
     
     const taskStatusQueries = queryClient.getQueriesData({
-      queryKey: queryKeys.tasks.statusCounts(projectId)
+      queryKey: taskQueryKeys.statusCounts(projectId)
     });
 
     const paginatedTaskQueries = queryClient.getQueriesData({
-      queryKey: queryKeys.tasks.paginated(projectId)
+      queryKey: taskQueryKeys.paginated(projectId)
     });
     
     return {
@@ -120,6 +120,6 @@ export const debugPolling = {
 };
 
 // Make available globally for debugging
-if (typeof window !== 'undefined') {
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as Record<string, typeof debugPolling>).debugPolling = debugPolling;
 }

@@ -12,7 +12,7 @@ import {
   FolderPlus,
   ExternalLink
 } from 'lucide-react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { cn } from '@/shared/lib/utils';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
@@ -55,7 +55,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   onShotChange,
 }) => {
   const [mobileSelectedIds, setMobileSelectedIds] = useState<string[]>([]);
-  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const [newShotState, setNewShotState] = useState<'idle' | 'loading' | 'success'>('idle');
@@ -176,19 +175,17 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
 
   // Mobile tap handler for selection (disabled in readOnly)
   // Simple toggle - no double-tap detection needed since we show a lightbox button when selected
-  const handleMobileTap = useCallback((imageId: string, index: number) => {
+  const handleMobileTap = useCallback((imageId: string, _index: number) => {
     if (readOnly) return; // Don't allow selection in readOnly mode
 
     const wasSelected = mobileSelectedIds.includes(imageId);
 
     if (wasSelected) {
       setMobileSelectedIds(prev => prev.filter(id => id !== imageId));
-      setLastSelectedIndex(null);
     } else {
       setMobileSelectedIds(prev => [...prev, imageId]);
-      setLastSelectedIndex(index);
     }
-  }, [mobileSelectedIds, readOnly, lastSelectedIndex]);
+  }, [mobileSelectedIds, readOnly]);
 
   // Handler for creating a new shot from selected images
   const handleNewShot = useCallback(async () => {
@@ -390,6 +387,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
           const pairPrompt = pairPrompts?.[index];
           const enhancedPrompt = enhancedPrompts?.[index];
           const startImage = currentImages[index];
+          const generationId = image.generation_id;
 
           // Pair indicator from PREVIOUS image (before this image)
           const prevPairPrompt = index > 0 ? pairPrompts?.[index - 1] : undefined;
@@ -472,7 +470,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
                   isSelected={isSelected}
                   index={index}
                   onMobileTap={() => handleMobileTap(imageKey as string, index)}
-                  onDelete={image.id ? () => handleIndividualDelete(image.id) : undefined}
+                  onDelete={() => handleIndividualDelete(image.id)}
                   onDuplicate={onImageDuplicate}
                   onOpenLightbox={onOpenLightbox ? () => onOpenLightbox(index) : undefined}
                   onInpaintClick={onInpaintClick ? () => onInpaintClick(index) : undefined}
@@ -483,7 +481,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
                   projectAspectRatio={projectAspectRatio}
                   frameNumber={frameNumber}
                   readOnly={readOnly}
-                  onMarkAllViewed={image.generation_id ? () => markAllViewed(image.generation_id!) : undefined}
+                  onMarkAllViewed={generationId ? () => markAllViewed(generationId) : undefined}
                 />
                 
                 {/* Move button on left side of each non-selected item (hidden in readOnly) */}

@@ -10,7 +10,7 @@ import FileInput from '@/shared/components/FileInput';
 import { toast } from '@/shared/components/ui/sonner';
 import { cropFilename } from '@/shared/lib/utils';
 import { generateUUID } from '@/shared/lib/taskCreation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 type SplitMode = 'take-all' | 'manual' | 'auto-scene';
 
@@ -240,8 +240,6 @@ export function MultiVideoUploader({ onUpload, isUploading, selectedBatchId }: M
           setProcessingScenes(videoFile.id);
           try {
             const scenes = await detectScenes(videoFile.file);
-            console.log(`Detected ${scenes.length} scenes for ${videoFile.file.name}:`, scenes);
-            
             // Store scene times in the video file for later use
             videoFile.detectedScenes = scenes;
             processedVideos.push(videoFile);

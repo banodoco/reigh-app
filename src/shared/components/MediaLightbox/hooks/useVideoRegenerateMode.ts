@@ -20,6 +20,8 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import type { SegmentRegenerateFormProps } from '../components/SegmentRegenerateForm';
 import type { SegmentSlotModeData } from '../types';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import type { GenerationRow } from '@/types/shots';
+import type { TaskDetailsData } from '../types';
 
 interface CurrentSegmentImages {
   startUrl?: string;
@@ -28,32 +30,21 @@ interface CurrentSegmentImages {
   endGenerationId?: string;
   startShotGenerationId?: string;
   endShotGenerationId?: string;
+  startVariantId?: string;
+  endVariantId?: string;
   activeChildGenerationId?: string;
-}
-
-export interface TaskDetailsData {
-  task?: {
-    id: string;
-    params: Record<string, unknown>;
-  };
-  inputImages?: string[];
 }
 
 interface UseVideoRegenerateModeProps {
   isVideo: boolean;
-  media: {
-    id: string;
-    metadata?: Record<string, unknown>;
-    params?: Record<string, unknown>;
-    parent_generation_id?: string;
-  };
+  media: GenerationRow;
   shotId: string | undefined;
-  selectedProjectId: string | undefined;
-  actualGenerationId: string;
+  selectedProjectId: string | null;
+  actualGenerationId: string | null;
   adjustedTaskDetailsData: TaskDetailsData | undefined;
   primaryVariant: {
     id: string;
-    params?: Record<string, unknown>;
+    params?: Record<string, unknown> | null;
   } | null;
   currentSegmentImages?: CurrentSegmentImages;
   segmentSlotMode?: SegmentSlotModeData | null;
@@ -352,7 +343,8 @@ export function useVideoRegenerateMode({
     const parentGenerationId = media.parent_generation_id ||
       (orchestratorDetails.parent_generation_id as string) ||
       (taskParams.parent_generation_id as string) ||
-      actualGenerationId;
+      actualGenerationId ||
+      media.id;
 
     const isChildSegment = parentGenerationId !== actualGenerationId;
     const videoPairShotGenId = (taskParams.pair_shot_generation_id as string) ||
@@ -361,7 +353,10 @@ export function useVideoRegenerateMode({
       pairShotGenerationId === videoPairShotGenId;
 
     const childGenerationId = videoMatchesCurrentSlot
-      ? (currentSegmentImages?.activeChildGenerationId || (isChildSegment ? actualGenerationId : undefined))
+      ? (
+        currentSegmentImages?.activeChildGenerationId
+        || (isChildSegment ? actualGenerationId ?? undefined : undefined)
+      )
       : undefined;
 
     // Extract structure video props
@@ -395,7 +390,7 @@ export function useVideoRegenerateMode({
 
     return {
       params: taskParams as SegmentRegenerateFormProps['params'],
-      projectId: selectedProjectId || null,
+      projectId: selectedProjectId ?? null,
       generationId: parentGenerationId,
       shotId,
       childGenerationId,

@@ -1,4 +1,4 @@
-import { useState, useEffect, type RefObject } from 'react';
+import { useState, useEffect, useRef, type RefObject } from 'react';
 
 interface UseStickyHeaderOptions {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -13,13 +13,17 @@ interface UseStickyHeaderOptions {
  */
 export function useStickyHeader({ containerRef, isMobile, isFormExpanded }: UseStickyHeaderOptions): boolean {
   const [isSticky, setIsSticky] = useState(false);
+  const isStickyRef = useRef(isSticky);
+
+  useEffect(() => {
+    isStickyRef.current = isSticky;
+  }, [isSticky]);
 
   useEffect(() => {
     const containerEl = containerRef.current;
     if (!containerEl) return;
 
     const stickyThresholdY = { current: 0 };
-    const isStickyRef = { current: isSticky };
     let rafId: number | null = null;
 
     const computeThreshold = () => {
@@ -66,7 +70,7 @@ export function useStickyHeader({ containerRef, isMobile, isFormExpanded }: UseS
       if (rafId !== null) cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-  }, [isFormExpanded, isMobile]);
+  }, [containerRef, isFormExpanded, isMobile]);
 
   return isSticky;
 }

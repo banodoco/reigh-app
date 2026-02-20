@@ -10,9 +10,9 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface ToggleStarParams {
   variantId: string;
@@ -38,7 +38,7 @@ export function useToggleVariantStar() {
       return { variantId, starred };
     },
     onMutate: async ({ variantId, generationId, starred }) => {
-      const queryKey = queryKeys.generations.variants(generationId);
+      const queryKey = generationQueryKeys.variants(generationId);
 
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey });
@@ -66,7 +66,7 @@ export function useToggleVariantStar() {
     onSettled: (_data, _error, { generationId }) => {
       // Refetch to ensure consistency
       queryClient.invalidateQueries({
-        queryKey: queryKeys.generations.variants(generationId),
+        queryKey: generationQueryKeys.variants(generationId),
       });
     },
   });

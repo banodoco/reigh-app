@@ -3,17 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { getVisibleTaskTypes } from '@/shared/lib/taskConfig';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 // Hook to get status counts for indicators
 export const useTaskStatusCounts = (projectId: string | null) => {
+  const cacheProjectId = projectId ?? '__no-project__';
   // SMART POLLING: Use DataFreshnessManager for intelligent polling decisions
-  const smartPollingConfig = useSmartPollingConfig(projectId ? queryKeys.tasks.statusCounts(projectId) : ['task-status-counts', null]);
+  const smartPollingConfig = useSmartPollingConfig(taskQueryKeys.statusCounts(cacheProjectId));
 
   return useQuery({
-    queryKey: projectId ? queryKeys.tasks.statusCounts(projectId) : ['task-status-counts', null],
+    queryKey: taskQueryKeys.statusCounts(cacheProjectId),
     queryFn: async () => {
       // [TasksPaneCountMismatch] Note on counting rules for correlation with list visibility
 
@@ -122,9 +123,9 @@ export const useTaskStatusCounts = (projectId: string | null) => {
                            successResult.status === 'rejected' ? successResult.reason :
                            failureResult.status === 'rejected' ? failureResult.reason :
                            new Error('Query returned error');
-        dataFreshnessManager.onFetchFailure(queryKeys.tasks.statusCounts(projectId), errorReason as Error);
+        dataFreshnessManager.onFetchFailure(taskQueryKeys.statusCounts(projectId), errorReason as Error);
       } else {
-        dataFreshnessManager.onFetchSuccess(queryKeys.tasks.statusCounts(projectId));
+        dataFreshnessManager.onFetchSuccess(taskQueryKeys.statusCounts(projectId));
       }
 
       return result;
@@ -145,7 +146,7 @@ export const useTaskStatusCounts = (projectId: string | null) => {
  */
 export const useAllTaskTypes = (_projectId: string | null) => {
   return useQuery({
-    queryKey: queryKeys.tasks.allTypes,
+    queryKey: taskQueryKeys.allTypes,
     queryFn: () => {
       // Just use the hardcoded allowlist from taskConfig
       const visibleTypes = getVisibleTaskTypes();

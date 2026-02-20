@@ -5,72 +5,72 @@ import { ProgressiveLoadingManager } from "@/shared/components/ProgressiveLoadin
 import { MediaGalleryItem } from "@/shared/components/MediaGalleryItem";
 import { getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
 import { useAdjacentPagePreloader } from '@/shared/hooks/useAdjacentPagePreloader';
+import type { MediaGalleryItemProps } from '@/shared/components/MediaGalleryItem/types';
 import type { GeneratedImageWithMetadata } from '../types';
 import { parseRatio } from '@/shared/lib/aspectRatios';
 
-interface MediaGalleryGridProps {
-  // Data props
+interface MediaGalleryGridDataProps {
   images: GeneratedImageWithMetadata[];
   paginatedImages: GeneratedImageWithMetadata[];
   filteredImages: GeneratedImageWithMetadata[];
+}
 
-  // Layout props
+interface MediaGalleryGridLayoutProps {
   reducedSpacing?: boolean;
   whiteText?: boolean;
   gridColumnClasses: string;
   columnsPerRow?: number;
   projectAspectRatio?: string;
+  hideBottomPagination?: boolean;
+}
 
-  // Loading props
+interface MediaGalleryGridLoadingProps {
   isLoading?: boolean;
   isGalleryLoading: boolean;
   isServerPagination: boolean;
-
-  // Navigation completion - the SINGLE way to clear loading state
   clearNavigation: () => void;
-
-  // Legacy props (kept for backwards compatibility, but prefer clearNavigation)
   setIsGalleryLoading?: (loading: boolean) => void;
   setLoadingButton?: (button: 'prev' | 'next' | null) => void;
   safetyTimeoutRef?: React.MutableRefObject<NodeJS.Timeout | null>;
-  
-  // Progressive loading props
+  isBackfillLoading?: boolean;
+  setIsBackfillLoading?: (loading: boolean) => void;
+}
+
+interface MediaGalleryGridPreloadProps {
   effectivePage: number;
   isMobile: boolean;
-  
-  // Lightbox state
   isLightboxOpen?: boolean;
-  
-  // Preloading props
   enableAdjacentPagePreloading?: boolean;
   page: number;
   serverPage?: number;
   totalFilteredItems: number;
   itemsPerPage: number;
-  /** @deprecated No longer needed - use generationFilters instead */
   onPrefetchAdjacentPages?: (prevPage: number | null, nextPage: number | null) => void;
   selectedProjectId?: string;
-  /** Filters for generation queries - enables automatic preloading */
   generationFilters?: Record<string, unknown>;
-  
-  // Filter state for empty states
-  hasFilters: boolean;
-  
-  // Backfill state
-  isBackfillLoading?: boolean;
-  setIsBackfillLoading?: (loading: boolean) => void;
+}
 
-  // Props for computing skeleton count dynamically
+interface MediaGalleryGridFilterProps {
+  hasFilters: boolean;
+}
+
+interface MediaGalleryGridBackfillMetricsProps {
   totalCount?: number;
   offset?: number;
   optimisticDeletedCount?: number;
-  
-  // Pagination display state
-  hideBottomPagination?: boolean;
-
-  // MediaGalleryItem props - passing through all the props it needs
-  [key: string]: unknown; // This allows passing through all other props
 }
+
+type MediaGalleryGridProps =
+  & MediaGalleryGridDataProps
+  & MediaGalleryGridLayoutProps
+  & MediaGalleryGridLoadingProps
+  & MediaGalleryGridPreloadProps
+  & MediaGalleryGridFilterProps
+  & MediaGalleryGridBackfillMetricsProps
+  & Omit<
+    MediaGalleryItemProps,
+    'image' | 'index' | 'shouldLoad' | 'isPriority' | 'isGalleryLoading' | 'isMobile' | 'projectAspectRatio'
+  >;
 
 // Memoized grid component to prevent unnecessary re-renders from parent
 const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({

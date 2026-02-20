@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Project } from '@/types/project';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { preloadingService } from '@/shared/lib/preloading';
 import { UserPreferences } from '@/shared/settings/userPreferences';
 import { determineProjectIdToSelect } from './useProjectCRUD';
@@ -50,6 +50,13 @@ export function useProjectSelection({
   useEffect(() => {
     userPreferencesRef.current = userPreferences;
   }, [userPreferences]);
+
+  // Keep a ref so handleProjectsLoaded reads current selectedProjectId without
+  // being listed as a dep (which would rebuild fetchProjects on every selection change)
+  const selectedProjectIdRef = useRef(selectedProjectId);
+  useEffect(() => {
+    selectedProjectIdRef.current = selectedProjectId;
+  }, [selectedProjectId]);
 
   // CROSS-DEVICE SYNC: Reset sync flag when user logs out
   useEffect(() => {
@@ -112,13 +119,14 @@ export function useProjectSelection({
       handleSetSelectedProjectId(projects[0].id);
     } else {
       const lastOpenedProjectId = userPreferencesRef.current?.lastOpenedProjectId;
-      const projectIdToSelect = determineProjectIdToSelect(projects, selectedProjectId, lastOpenedProjectId);
+      const current = selectedProjectIdRef.current;
+      const projectIdToSelect = determineProjectIdToSelect(projects, current, lastOpenedProjectId);
 
-      if (projectIdToSelect !== selectedProjectId) {
+      if (projectIdToSelect !== current) {
         handleSetSelectedProjectId(projectIdToSelect);
       }
     }
-  }, [selectedProjectId, handleSetSelectedProjectId]);
+  }, [handleSetSelectedProjectId]);
 
   /** Called after a new project is created. */
   const handleProjectCreated = useCallback((project: Project) => {

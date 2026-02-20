@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useVideoUrlCache } from './useVideoUrlCache';
 import { useTrainingDataBatches } from './useTrainingDataBatches';
 import { useTrainingDataUpload } from './useTrainingDataUpload';
@@ -9,6 +9,122 @@ import type { TrainingDataVideo, TrainingDataSegment } from './types';
 
 // Re-export client types so existing consumers keep working
 export type { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from './types';
+
+function roundTime(value: number): number {
+  return Math.round(value);
+}
+
+async function fetchTrainingVideos(selectedBatchId: string | null): Promise<TrainingDataVideo[]> {
+  let query = supabase
+    .from('training_data')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (selectedBatchId) {
+    query = query.eq('batch_id', selectedBatchId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(transformVideo);
+}
+
+async function fetchTrainingSegments(): Promise<TrainingDataSegment[]> {
+  const { data, error } = await supabase
+    .from('training_data_segments')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(transformSegment);
+}
+
+async function ensureTrainingDataExists(trainingDataId: string): Promise<void> {
+  const { error } = await supabase
+    .from('training_data')
+    .select('id, batch_id')
+    .eq('id', trainingDataId)
+    .single();
+
+  if (error) {
+    throw new Error(`Training data with ID ${trainingDataId} not found`);
+  }
+}
+
+async function insertTrainingSegment(
+  trainingDataId: string,
+  startTime: number,
+  endTime: number,
+  description?: string
+): Promise<{ id: string; segment: TrainingDataSegment }> {
+  await ensureTrainingDataExists(trainingDataId);
+
+  const { data, error } = await supabase
+    .from('training_data_segments')
+    .insert({
+      training_data_id: trainingDataId,
+      start_time: roundTime(startTime),
+      end_time: roundTime(endTime),
+      description,
+      metadata: { duration: roundTime(endTime - startTime) },
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { id: data.id, segment: transformSegment(data) };
+}
+
+async function updateTrainingSegmentRecord(
+  id: string,
+  updates: Partial<{ startTime: number; endTime: number; description: string }>
+): Promise<TrainingDataSegment> {
+  const { data, error } = await supabase
+    .from('training_data_segments')
+    .update({
+      start_time: updates.startTime !== undefined ? roundTime(updates.startTime) : undefined,
+      end_time: updates.endTime !== undefined ? roundTime(updates.endTime) : undefined,
+      description: updates.description,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return transformSegment(data);
+}
+
+async function deleteTrainingSegmentRecord(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('training_data_segments')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+async function deleteTrainingVideoRecord(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('training_data')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+async function removeTrainingVideoFromStorage(storageLocation: string): Promise<void> {
+  const { error } = await supabase.storage
+    .from('training-data')
+    .remove([storageLocation]);
+
+  if (error) {
+    handleError(error, {
+      context: 'useTrainingData.removeTrainingVideoFromStorage',
+      showToast: false,
+    });
+  }
+}
 
 export function useTrainingData() {
   const [videos, setVideos] = useState<TrainingDataVideo[]>([]);
@@ -27,164 +143,87 @@ export function useTrainingData() {
     deleteBatch,
   } = useTrainingDataBatches({ videos });
 
-  // --- Video & segment fetching ---
-
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     try {
-      let query = supabase
-        .from('training_data')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (selectedBatchId) {
-        query = query.eq('batch_id', selectedBatchId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setVideos((data || []).map(transformVideo));
+      const data = await fetchTrainingVideos(selectedBatchId);
+      setVideos(data);
     } catch (error) {
       handleError(error, { context: 'useTrainingData.fetchVideos', toastTitle: 'Failed to load videos' });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedBatchId]);
 
-  const fetchSegments = async () => {
+  const fetchSegments = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('training_data_segments')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setSegments((data || []).map(transformSegment));
+      const data = await fetchTrainingSegments();
+      setSegments(data);
     } catch (error) {
       handleError(error, { context: 'useTrainingData.fetchSegments', toastTitle: 'Failed to load segments' });
     }
-  };
+  }, []);
 
-  // --- Segment CRUD ---
-
-  const createSegment = async (
+  const createSegment = useCallback(async (
     trainingDataId: string,
     startTime: number,
     endTime: number,
     description?: string,
   ): Promise<string> => {
     try {
-      const { error: checkError } = await supabase
-        .from('training_data')
-        .select('id, batch_id')
-        .eq('id', trainingDataId)
-        .single();
-
-      if (checkError) {
-        console.error('[CreateSegment] Training data not found:', checkError);
-        throw new Error(`Training data with ID ${trainingDataId} not found`);
-      }
-
-      const { data, error } = await supabase
-        .from('training_data_segments')
-        .insert({
-          training_data_id: trainingDataId,
-          start_time: Math.round(startTime),
-          end_time: Math.round(endTime),
-          description,
-          metadata: { duration: Math.round(endTime - startTime) },
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('[CreateSegment] Supabase error details:', {
-          error, code: error.code, message: error.message,
-          details: error.details, hint: error.hint,
-        });
-        throw error;
-      }
-
-      setSegments(prev => [transformSegment(data), ...prev]);
-      return data.id;
+      const { id, segment } = await insertTrainingSegment(trainingDataId, startTime, endTime, description);
+      setSegments((previous) => [segment, ...previous]);
+      return id;
     } catch (error) {
-      console.error('[CreateSegment] Error creating segment:', error);
+      handleError(error, { context: 'useTrainingData.createSegment', toastTitle: 'Failed to create segment' });
       throw error;
     }
-  };
+  }, []);
 
-  const updateSegment = async (
+  const updateSegment = useCallback(async (
     id: string,
     updates: Partial<{ startTime: number; endTime: number; description: string }>,
   ) => {
     try {
-      const { data, error } = await supabase
-        .from('training_data_segments')
-        .update({
-          start_time: updates.startTime ? Math.round(updates.startTime) : undefined,
-          end_time: updates.endTime ? Math.round(updates.endTime) : undefined,
-          description: updates.description,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setSegments(prev => prev.map(s => s.id === id ? transformSegment(data) : s));
+      const updatedSegment = await updateTrainingSegmentRecord(id, updates);
+      setSegments((previous) => previous.map((segment) => (
+        segment.id === id ? updatedSegment : segment
+      )));
     } catch (error) {
       handleError(error, { context: 'useTrainingData.updateSegment', toastTitle: 'Failed to update segment' });
     }
-  };
+  }, []);
 
-  const deleteSegment = async (id: string) => {
+  const deleteSegment = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('training_data_segments')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setSegments(prev => prev.filter(s => s.id !== id));
+      await deleteTrainingSegmentRecord(id);
+      setSegments((previous) => previous.filter((segment) => segment.id !== id));
     } catch (error) {
       handleError(error, { context: 'useTrainingData.deleteSegment', toastTitle: 'Failed to delete segment' });
     }
-  };
+  }, []);
 
-  // --- Video deletion ---
-
-  const deleteVideo = async (id: string) => {
+  const { getVideoUrl, markVideoAsInvalid, clearUrlCache } = useVideoUrlCache(videos);
+  const deleteVideo = useCallback(async (id: string) => {
     try {
       const video = videos.find(v => v.id === id);
       if (!video) return;
 
-      setVideos(prev => prev.filter(v => v.id !== id));
-      setSegments(prev => prev.filter(s => s.trainingDataId !== id));
+      setVideos((previous) => previous.filter((currentVideo) => currentVideo.id !== id));
+      setSegments((previous) => previous.filter((segment) => segment.trainingDataId !== id));
       clearUrlCache(id);
 
-      const { error: dbError } = await supabase
-        .from('training_data')
-        .delete()
-        .eq('id', id);
-
-      if (dbError) {
-        console.error('Database deletion error:', dbError);
+      try {
+        await deleteTrainingVideoRecord(id);
+      } catch (dbError) {
         await Promise.all([fetchVideos(), fetchSegments()]);
         throw dbError;
       }
 
-      const { error: storageError } = await supabase.storage
-        .from('training-data')
-        .remove([video.storageLocation]);
-
-      if (storageError) {
-        console.warn('Storage deletion warning (file may already be deleted):', storageError);
-      }
+      await removeTrainingVideoFromStorage(video.storageLocation);
     } catch (error) {
       handleError(error, { context: 'useTrainingData.deleteVideo', toastTitle: 'Failed to delete video' });
     }
-  };
-
-  // --- Upload sub-hook ---
+  }, [videos, clearUrlCache, fetchVideos, fetchSegments]);
 
   const { isUploading, uploadVideo, uploadVideosWithSplitModes } = useTrainingDataUpload({
     selectedBatchId,
@@ -195,24 +234,16 @@ export function useTrainingData() {
     fetchSegments,
   });
 
-  // --- Video URL caching ---
-
-  const { getVideoUrl, markVideoAsInvalid, clearUrlCache } = useVideoUrlCache(videos);
-
-  // --- Effects ---
-
   useEffect(() => {
     fetchBatches();
     fetchSegments();
-  }, []);
+  }, [fetchBatches, fetchSegments]);
 
   useEffect(() => {
-    if (selectedBatchId) {
+    if (selectedBatchId && batches.length > 0) {
       fetchVideos();
     }
-  }, [selectedBatchId]);
-
-  // --- Public API (unchanged) ---
+  }, [selectedBatchId, batches.length, fetchVideos]);
 
   return {
     videos,

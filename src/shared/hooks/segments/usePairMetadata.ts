@@ -7,7 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { segmentQueryKeys } from '@/shared/lib/queryKeys/segments';
 import type { PairMetadata } from '@/shared/components/segmentSettingsMigration';
 
 interface UsePairMetadataReturn {
@@ -21,7 +21,7 @@ export function usePairMetadata(
   pairShotGenerationId: string | null | undefined
 ): UsePairMetadataReturn {
   const query = useQuery({
-    queryKey: queryKeys.segments.pairMetadata(pairShotGenerationId || ''),
+    queryKey: segmentQueryKeys.pairMetadata(pairShotGenerationId || ''),
     queryFn: async (): Promise<PairMetadata | null> => {
       if (!pairShotGenerationId) return null;
 

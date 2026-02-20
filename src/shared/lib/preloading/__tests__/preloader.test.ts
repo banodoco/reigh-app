@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock dependencies
-vi.mock('@/shared/lib/utils', () => ({
+vi.mock('@/shared/lib/mediaUrl', () => ({
   getDisplayUrl: (url: string) => url,
 }));
 

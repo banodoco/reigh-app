@@ -38,7 +38,7 @@ serve(async (req) => {
   let body: { projectId?: string; status?: string[] };
   try {
     body = await req.json();
-  } catch (_err: unknown) {
+  } catch {
     return jsonResponse({ error: "Invalid JSON payload" }, 400);
   }
 

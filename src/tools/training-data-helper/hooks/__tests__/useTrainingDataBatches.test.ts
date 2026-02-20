@@ -45,7 +45,7 @@ vi.mock('@/shared/components/ui/sonner', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
   handleError: (...args: unknown[]) => mockHandleError(...args),
 }));
 

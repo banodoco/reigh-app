@@ -7,7 +7,6 @@ interface UseProjectDefaultsOptions {
   userId: string | null;
   selectedProjectId: string | null;
   isLoadingProjects: boolean;
-  isLoadingPreferences: boolean;
   projects: Project[];
   fetchProjects: () => Promise<void>;
   applyCrossDeviceSync: (projects: Project[]) => void;
@@ -24,28 +23,25 @@ export function useProjectDefaults({
   userId,
   selectedProjectId,
   isLoadingProjects,
-  isLoadingPreferences,
   projects,
   fetchProjects,
   applyCrossDeviceSync,
 }: UseProjectDefaultsOptions) {
-  // [PROFILING] Track fetch invocations to detect triple-fetch issue
-  const fetchInvocationCountRef = useRef(0);
-  const lastFetchReasonRef = useRef<string>('');
-
   // Prefetch all tool settings for the currently selected project
   usePrefetchToolSettings(selectedProjectId);
 
-  // Trigger initial project fetch when userId becomes available
+  // Trigger initial project fetch when userId becomes available.
+  // Intentionally omits isLoadingPreferences — that caused a triple-fetch
+  // (userId ready → prefs start loading → prefs done) on every startup.
+  // fetchProjects is also excluded because it rebuilds when selectedProjectId
+  // changes after the first fetch, which would trigger a cascade re-fetch.
+  // The mobile timeout fallback below handles any stalled initial fetch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (userId) {
-      fetchInvocationCountRef.current += 1;
-      const reason = `userId=${!!userId}, isLoadingPreferences=${isLoadingPreferences}`;
-      lastFetchReasonRef.current = reason;
-
       fetchProjects();
     }
-  }, [userId, isLoadingPreferences, fetchProjects]);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cross-device sync: apply server preferences once projects + prefs are loaded
   useEffect(() => {

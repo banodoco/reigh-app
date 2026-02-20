@@ -10,7 +10,8 @@
 import { useCallback } from 'react';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import type { SettingsScope } from '@/shared/hooks/useToolSettings';
 import {
   GenerationSource,
   TextToImageModel,
@@ -42,7 +43,7 @@ interface UseLoraHandlersProps {
 
   // Project settings for persistence
   projectImageSettings: ProjectImageSettings | null;
-  updateProjectImageSettings: ((scope: string, updates: Partial<ProjectImageSettings>) => Promise<void>) | null;
+  updateProjectImageSettings: ((scope: SettingsScope, updates: Partial<ProjectImageSettings>) => Promise<void>) | null;
 }
 
 interface UseLoraHandlersReturn {

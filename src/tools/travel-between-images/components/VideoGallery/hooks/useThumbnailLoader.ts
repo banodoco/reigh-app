@@ -40,9 +40,11 @@ const isInBrowserCache = (url: string): boolean => {
  * Uses the shared preloading tracker to check if images have been preloaded.
  */
 export const useThumbnailLoader = (video: GenerationRow) => {
-  const hasThumbnail = video.thumbUrl &&
+  const hasThumbnail = Boolean(
+    video.thumbUrl &&
     video.thumbUrl !== video.location &&
-    video.thumbUrl !== video.imageUrl;
+    video.thumbUrl !== video.imageUrl
+  );
 
   // Stable initial cache check - only computed once on mount
   const initialCacheStatus = useMemo(() => {
@@ -55,7 +57,7 @@ export const useThumbnailLoader = (video: GenerationRow) => {
     const isInitiallyCached = inPreloaderCache || inBrowserCache;
 
     return { inPreloaderCache, inBrowserCache, isInitiallyCached };
-  }, [hasThumbnail, video.thumbUrl, video.id]);
+  }, [hasThumbnail, video.thumbUrl]);
 
   // Initialize as true if cached to prevent flash - the onLoad will confirm it anyway
   // This is the key fix for preventing flash on back navigation - trust the cache check
@@ -94,12 +96,17 @@ export const useThumbnailLoader = (video: GenerationRow) => {
 
   // Listen for global cache updates (from useVideoGalleryPreloader)
   useEffect(() => {
-    const handleCacheUpdate = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (!detail?.updatedUrls?.includes(video.thumbUrl)) return;
+    const thumbUrl = video.thumbUrl;
 
-      const inPreloaderCache = hasLoadedImage(video.thumbUrl);
-      const inBrowserCache = isInBrowserCache(video.thumbUrl);
+    const handleCacheUpdate = (event: Event) => {
+      if (!thumbUrl) return;
+
+      const detail = (event as CustomEvent).detail;
+      const updatedUrls = Array.isArray(detail?.updatedUrls) ? detail.updatedUrls as string[] : [];
+      if (!updatedUrls.includes(thumbUrl)) return;
+
+      const inPreloaderCache = hasLoadedImage(thumbUrl);
+      const inBrowserCache = isInBrowserCache(thumbUrl);
       const isCached = inPreloaderCache || inBrowserCache;
 
       if (isCached && !thumbnailLoaded) {

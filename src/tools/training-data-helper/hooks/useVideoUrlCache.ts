@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TrainingDataVideo } from './types';
 
@@ -10,12 +10,17 @@ import type { TrainingDataVideo } from './types';
 export function useVideoUrlCache(videos: TrainingDataVideo[]) {
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [invalidVideos, setInvalidVideos] = useState<Set<string>>(new Set());
+  const videoUrlsRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    videoUrlsRef.current = videoUrls;
+  }, [videoUrls]);
 
   // Preload video URLs when videos change
   useEffect(() => {
     const loadVideoUrls = async () => {
       // Only process videos that don't have URLs yet
-      const videosNeedingUrls = videos.filter(video => !videoUrls[video.id]);
+      const videosNeedingUrls = videos.filter(video => !videoUrlsRef.current[video.id]);
 
       if (videosNeedingUrls.length === 0) return;
 
@@ -39,10 +44,14 @@ export function useVideoUrlCache(videos: TrainingDataVideo[]) {
         await Promise.all(urlPromises);
 
         if (Object.keys(newUrls).length > 0) {
-          setVideoUrls(prev => ({
-            ...prev,
-            ...newUrls
-          }));
+          setVideoUrls(prev => {
+            const next = {
+              ...prev,
+              ...newUrls
+            };
+            videoUrlsRef.current = next;
+            return next;
+          });
         }
       }
     };
@@ -50,7 +59,7 @@ export function useVideoUrlCache(videos: TrainingDataVideo[]) {
     if (videos.length > 0) {
       loadVideoUrls();
     }
-  }, [videos]); // Don't include videoUrls to avoid circular dependency
+  }, [videos]);
 
   const getVideoUrl = useCallback((video: TrainingDataVideo): string => {
     if (invalidVideos.has(video.id)) {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { GenerationRow } from '@/types/shots';
 
 interface LightboxProps {
@@ -12,18 +12,6 @@ export function useLightbox({ images, isMobile = false }: LightboxProps) {
   // Lightbox state
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [autoEnterInpaint, setAutoEnterInpaint] = useState(false);
-
-  // Mobile double-tap detection refs
-  const doubleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (doubleTapTimeoutRef.current) {
-        clearTimeout(doubleTapTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Navigation functions
   const goNext = useCallback(() => {

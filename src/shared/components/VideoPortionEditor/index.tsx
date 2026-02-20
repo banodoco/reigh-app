@@ -20,11 +20,11 @@ import {
 import { LoraManager } from '@/shared/components/LoraManager';
 import type { LoraModel, UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
 import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { PortionSelection, formatTime } from '@/shared/components/VideoPortionTimeline';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { PresetMetadata } from '@/shared/types/presetMetadata';
+import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 import { BUILTIN_VACE_PRESET, VACE_FEATURED_PRESET_IDS } from '@/shared/lib/vaceDefaults';
 import { getSegmentFormColor } from '@/shared/lib/segmentColors';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
@@ -386,7 +386,8 @@ export const VideoPortionEditor: React.FC<VideoPortionEditorProps> = ({
                                             step={4}
                                             value={Math.max(1, segmentFrameCount)}
                                             onValueChange={(value) => {
-                                                const quantizedGap = getQuantizedGap(value, contextFrames);
+                                                const sliderValue = Array.isArray(value) ? value[0] : value;
+                                                const quantizedGap = getQuantizedGap(sliderValue, contextFrames);
                                                 onUpdateSelectionSettings?.(selection.id, { gapFrameCount: quantizedGap });
                                             }}
                                             className="w-full"
@@ -479,7 +480,7 @@ export const VideoPortionEditor: React.FC<VideoPortionEditorProps> = ({
                             max={maxContextFrames !== undefined ? Math.min(30, maxContextFrames) : 30}
                             step={1}
                             value={contextFrames}
-                            onValueChange={(value) => handleContextFramesChange(value)}
+                            onValueChange={(value) => handleContextFramesChange(Array.isArray(value) ? value[0] : value)}
                         />
                         <p className="text-xs text-muted-foreground">
                             Frames from preserved sections used for context on each side of edits

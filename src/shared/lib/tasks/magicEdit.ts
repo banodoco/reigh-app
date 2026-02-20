@@ -7,7 +7,7 @@ import {
 } from '../taskCreation';
 import { processBatchResults, type TaskCreationResult } from '../taskCreation';
 import type { HiresFixApiParams } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { ComfyLoraConfig } from '@/shared/types/lora';
 
 /**

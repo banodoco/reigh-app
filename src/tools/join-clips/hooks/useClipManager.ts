@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/shared/hooks/use-toast';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import {
   DragEndEvent,
   KeyboardSensor,
@@ -155,7 +155,7 @@ export function useClipManager({
         transitionPrompts: promptsToSave,
       });
     }
-  }, [clips, transitionPrompts, settingsLoaded, joinSettings]);
+  }, [clips, transitionPrompts, settingsLoaded, joinSettings, selectedProjectId]);
 
   // ---------------------------------------------------------------------------
   // Lazy-load duration for clips that have URLs but no duration
@@ -231,7 +231,7 @@ export function useClipManager({
   // ---------------------------------------------------------------------------
   // Upload helper (wraps service + manages React state/side-effects)
   // ---------------------------------------------------------------------------
-  const uploadVideoFile = async (
+  const uploadVideoFile = useCallback(async (
     file: File,
     clipId: string,
   ): Promise<{ videoUrl: string; posterUrl: string; finalFrameUrl: string; durationSeconds: number } | null> => {
@@ -272,7 +272,7 @@ export function useClipManager({
     } finally {
       setUploadingClipId(null);
     }
-  };
+  }, [toast, selectedProjectId, createGenerationMutation]);
 
   // ---------------------------------------------------------------------------
   // Clip CRUD callbacks
@@ -329,7 +329,7 @@ export function useClipManager({
         }),
       );
     },
-    [selectedProjectId, createGenerationMutation],
+    [uploadVideoFile],
   );
 
   // ---------------------------------------------------------------------------
@@ -404,7 +404,7 @@ export function useClipManager({
         }),
       );
     },
-    [isScrolling, selectedProjectId, createGenerationMutation],
+    [isScrolling, uploadVideoFile],
   );
 
   // ---------------------------------------------------------------------------

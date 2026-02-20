@@ -15,14 +15,14 @@ vi.mock('@/shared/settings/progressiveLoading', () => ({
   isProgressiveLoadingEnabled: mockIsProgressiveLoadingEnabled,
 }));
 
-vi.mock('@/shared/lib/utils', () => ({
+vi.mock('@/shared/lib/mediaUrl', () => ({
   getDisplayUrl: mockGetDisplayUrl,
 }));
 
 import { useBatchImageLoading } from '../useBatchImageLoading';
 import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 
 describe('useBatchImageLoading', () => {
   beforeEach(() => {

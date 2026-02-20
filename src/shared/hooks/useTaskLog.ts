@@ -7,8 +7,8 @@ interface TaskWithCost {
   taskType: string;
   status: string;
   createdAt: string;
-  generationStartedAt?: string;
-  generationProcessedAt?: string;
+  generationStartedAt?: string | null;
+  generationProcessedAt?: string | null;
   projectId: string;
   cost?: number; // from credits_ledger
   duration?: number; // calculated from start/end times
@@ -100,7 +100,7 @@ export function useTaskLog(
 
       // Apply status filter
       if (filters.status && filters.status.length > 0) {
-        query = query.in('status', filters.status);
+        query = query.in('status', filters.status as Array<'Queued' | 'In Progress' | 'Complete' | 'Failed' | 'Cancelled'>);
       }
 
       // Apply task type filter
@@ -123,7 +123,7 @@ export function useTaskLog(
 
       // Get cost information for these tasks
       const taskIds = tasksData?.map(task => task.id) || [];
-      let costsData: { task_id: string; amount: number; created_at: string }[] = [];
+      let costsData: { task_id: string | null; amount: number; created_at: string }[] = [];
       
       if (taskIds.length > 0) {
         const { data: costs } = await supabase

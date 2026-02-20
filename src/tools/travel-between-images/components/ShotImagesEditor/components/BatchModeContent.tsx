@@ -156,7 +156,9 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
     const result: Record<number, string> = {};
     images.forEach((img, index) => {
       const enhancedPrompt = img.metadata?.enhanced_prompt;
-      if (enhancedPrompt) result[index] = enhancedPrompt;
+      if (typeof enhancedPrompt === 'string' && enhancedPrompt.length > 0) {
+        result[index] = enhancedPrompt;
+      }
     });
     return result;
   }, [images]);
@@ -234,9 +236,9 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
           </div>
           <BatchGuidanceVideo
             shotId={selectedShotId}
-            projectId={projectId}
-            videoUrl={primaryStructureVideoPath}
-            videoMetadata={primaryStructureVideoMetadata}
+            projectId={projectId ?? ''}
+            videoUrl={primaryStructureVideoPath ?? null}
+            videoMetadata={primaryStructureVideoMetadata ?? null}
             treatment={primaryStructureVideoTreatment}
             motionStrength={primaryStructureVideoMotionStrength}
             structureType={primaryStructureVideoType}
@@ -276,8 +278,8 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
             }}
             onStructureTypeChange={(type) => {
               onPrimaryStructureVideoInputChange(
-                primaryStructureVideoPath,
-                primaryStructureVideoMetadata,
+                primaryStructureVideoPath ?? null,
+                primaryStructureVideoMetadata ?? null,
                 primaryStructureVideoTreatment,
                 primaryStructureVideoMotionStrength,
                 type

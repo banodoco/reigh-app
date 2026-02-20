@@ -14,7 +14,7 @@
  * ImageLightbox or VideoLightbox based on media type.
  */
 
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback, useLayoutEffect } from 'react';
 import type { GenerationRow, GenerationMetadata, Shot } from '@/types/shots';
 import type { AdjacentSegmentsData, ShotOption, TaskDetailsData } from './types';
 
@@ -25,7 +25,6 @@ import { usePublicLoras } from '@/shared/hooks/useResources';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 
-// Import hooks
 import {
   useUpscale,
   useEditSettingsPersistence,
@@ -38,20 +37,14 @@ import {
   useImageEditOrchestrator,
 } from './hooks';
 
-// Import components
 import { LightboxShell, LightboxProviders } from './components';
 import { LightboxLayout } from './components/layouts/LightboxLayout';
 import { EditModePanel } from './components/EditModePanel';
 import { InfoPanel } from './components/InfoPanel';
 import { ImageEditProvider } from './contexts/ImageEditContext';
 
-// Import utils
 import { extractDimensionsFromMedia, handleLightboxDownload } from './utils';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
-
-// ============================================================================
-// Props Interface
-// ============================================================================
 
 interface ImageLightboxProps {
   media: GenerationRow;
@@ -101,63 +94,17 @@ interface ImageLightboxProps {
   adjacentSegments?: AdjacentSegmentsData;
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
-export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
-  const {
-    media,
-    onClose,
-    onNext,
-    onPrevious,
-    readOnly = false,
-    showNavigation = true,
-    showImageEditTools = true,
-    showDownload = true,
-    autoEnterInpaint = false,
-    hasNext = false,
-    hasPrevious = false,
-    allShots,
-    selectedShotId,
-    onShotChange,
-    onAddToShot,
-    onAddToShotWithoutPosition,
-    onDelete,
-    isDeleting,
-    onApplySettings,
-    showTickForImageId,
-    onShowTick,
-    showTickForSecondaryImageId,
-    onShowSecondaryTick,
-    starred,
-    showTaskDetails = false,
-    taskDetailsData,
-    onCreateShot,
-    onNavigateToShot,
-    toolTypeOverride,
-    optimisticPositionedIds,
-    optimisticUnpositionedIds,
-    onOptimisticPositioned,
-    onOptimisticUnpositioned,
-    onOpenExternalGeneration,
-    shotId,
-    tasksPaneOpen,
-    tasksPaneWidth,
-    positionedInSelectedShot,
-    associatedWithoutPositionInSelectedShot,
-    initialVariantId,
-    adjacentSegments,
-  } = props;
-
-  // ========================================
-  // CORE SETUP
-  // ========================================
+function useImageLightboxEnvironment(props: ImageLightboxProps) {
+  const { media, shotId, tasksPaneOpen, tasksPaneWidth } = props;
 
   const isMobile = useIsMobile();
   const { project, selectedProjectId } = useProject();
-  const projectAspectRatio = project?.aspect_ratio;
-  const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
+  const projectAspectRatio = project?.aspectRatio;
+
+  const { value: generationMethods } = useUserUIState('generationMethods', {
+    onComputer: true,
+    inCloud: true,
+  });
   const isCloudMode = generationMethods.inCloud;
   const isLocalGeneration = generationMethods.onComputer && !generationMethods.inCloud;
 
@@ -170,48 +117,29 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
   const effectiveTasksPaneOpen = tasksPaneOpen ?? tasksPaneOpenContext;
   const effectiveTasksPaneWidth = tasksPaneWidth ?? tasksPaneWidthContext;
 
-  // Refs
   const contentRef = useRef<HTMLDivElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const variantsSectionRef = useRef<HTMLDivElement>(null);
 
-  // State
   const [isDownloading, setIsDownloading] = useState(false);
   const [replaceImages, setReplaceImages] = useState(true);
-  const [_variantParamsToLoad, setVariantParamsToLoad] = useState<Record<string, unknown> | null>(null);
+  const [, setVariantParamsToLoad] = useState<Record<string, unknown> | null>(null);
 
   const actualGenerationId = getGenerationId(media);
   const variantFetchGenerationId = media.parent_generation_id || actualGenerationId;
-
-  // ========================================
-  // IMAGE DIMENSIONS
-  // ========================================
 
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(() => {
     return extractDimensionsFromMedia(media, true);
   });
 
-  React.useLayoutEffect(() => {
+  useLayoutEffect(() => {
     const dims = extractDimensionsFromMedia(media, true);
-    if (dims) setImageDimensions(dims);
-  }, [media?.id]);
-
-  // ========================================
-  // UPSCALE HOOK
-  // ========================================
+    if (dims) {
+      setImageDimensions(dims);
+    }
+  }, [media]);
 
   const upscaleHook = useUpscale({ media, selectedProjectId, isVideo: false, shotId });
-  const {
-    effectiveImageUrl,
-    isUpscaling,
-    upscaleSuccess,
-    handleUpscale,
-    setActiveVariant: setUpscaleActiveVariant,
-  } = upscaleHook;
-
-  // ========================================
-  // EDIT SETTINGS PERSISTENCE
-  // ========================================
 
   const editSettingsPersistence = useEditSettingsPersistence({
     generationId: actualGenerationId,
@@ -219,12 +147,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     enabled: true,
   });
 
-  // ========================================
-  // LORA MANAGEMENT
-  // ========================================
-
   const { data: availableLoras } = usePublicLoras();
-
   const editLoraManager = useLoraManager(availableLoras, {
     projectId: selectedProjectId || undefined,
     persistenceScope: 'none',
@@ -234,7 +157,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
 
   const effectiveEditModeLoRAs = useMemo(() => {
     if (editLoraManager.selectedLoras.length > 0) {
-      return editLoraManager.selectedLoras.map(lora => ({
+      return editLoraManager.selectedLoras.map((lora) => ({
         url: lora.path,
         strength: lora.strength,
       }));
@@ -242,23 +165,95 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     return editSettingsPersistence.editModeLoRAs;
   }, [editLoraManager.selectedLoras, editSettingsPersistence.editModeLoRAs]);
 
-  // ========================================
-  // SHARED LIGHTBOX STATE
-  // ========================================
+  return {
+    isMobile,
+    selectedProjectId,
+    projectAspectRatio,
+    isCloudMode,
+    isLocalGeneration,
+    isTasksPaneLocked,
+    effectiveTasksPaneOpen,
+    effectiveTasksPaneWidth,
+    contentRef,
+    imageContainerRef,
+    variantsSectionRef,
+    isDownloading,
+    setIsDownloading,
+    replaceImages,
+    setReplaceImages,
+    setVariantParamsToLoad,
+    actualGenerationId,
+    variantFetchGenerationId,
+    imageDimensions,
+    setImageDimensions,
+    upscaleHook,
+    editSettingsPersistence,
+    availableLoras,
+    editLoraManager,
+    effectiveEditModeLoRAs,
+  };
+}
+
+type ImageLightboxEnvironment = ReturnType<typeof useImageLightboxEnvironment>;
+
+function useImageLightboxSharedState(props: ImageLightboxProps, env: ImageLightboxEnvironment) {
+  const {
+    media,
+    onClose,
+    onNext,
+    onPrevious,
+    readOnly = false,
+    showNavigation = true,
+    hasNext = false,
+    hasPrevious = false,
+    allShots,
+    selectedShotId,
+    onShotChange,
+    onAddToShot,
+    onAddToShotWithoutPosition,
+    onDelete,
+    isDeleting,
+    showTaskDetails = false,
+    starred,
+    onOpenExternalGeneration,
+    shotId,
+    initialVariantId,
+    onNavigateToShot,
+    onShowTick,
+    onShowSecondaryTick,
+    onOptimisticPositioned,
+    onOptimisticUnpositioned,
+    optimisticPositionedIds,
+    optimisticUnpositionedIds,
+    positionedInSelectedShot,
+    associatedWithoutPositionInSelectedShot,
+    showDownload = true,
+  } = props;
+
+  const {
+    selectedProjectId,
+    isMobile,
+    variantFetchGenerationId,
+    isCloudMode,
+    isDownloading,
+    setIsDownloading,
+    imageDimensions,
+    projectAspectRatio,
+    upscaleHook,
+  } = env;
 
   const handleSlotNavNext = useCallback(() => {
-    if (onNext) onNext();
+    if (onNext) {
+      onNext();
+    }
   }, [onNext]);
 
   const handleSlotNavPrev = useCallback(() => {
-    if (onPrevious) onPrevious();
+    if (onPrevious) {
+      onPrevious();
+    }
   }, [onPrevious]);
 
-  // Refs cache the previous render's edit mode flags for useSharedLightboxState,
-  // which runs BEFORE useImageEditOrchestrator (orchestrator needs variant data
-  // from shared state). Using refs avoids the state-sync anti-pattern (useEffect
-  // that only calls setState) and the extra re-render it caused. One-frame delay
-  // is acceptable for swipe/layout calculations.
   const isInpaintModeRef = useRef(false);
   const isMagicEditModeRef = useRef(false);
 
@@ -305,37 +300,65 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     setIsDownloading,
     onDelete,
     isDeleting,
-    isUpscaling,
-    handleUpscale,
-    handleEnterMagicEditMode: () => {}, // Will be replaced after orchestrator runs
-    effectiveImageUrl,
+    isUpscaling: upscaleHook.isUpscaling,
+    handleUpscale: () => {
+      void upscaleHook.handleUpscale({ scaleFactor: 2, noiseScale: 0.1 });
+    },
+    handleEnterMagicEditMode: () => {},
+    effectiveImageUrl: upscaleHook.effectiveImageUrl,
     imageDimensions: imageDimensions || { width: 1024, height: 1024 },
     projectAspectRatio,
   });
 
-  const {
-    variants,
-    intendedActiveVariantIdRef,
-    navigation,
-    lineage,
-    shots,
-    sourceGeneration,
-    makeMainVariant,
-    effectiveMedia,
-    layout,
-    buttonGroupProps,
-  } = sharedState;
-
-  // Keep upscale hook in sync with active variant so it enhances the viewed image
   useEffect(() => {
-    setUpscaleActiveVariant(variants.activeVariant?.location, variants.activeVariant?.id);
-  }, [variants.activeVariant?.location, variants.activeVariant?.id, setUpscaleActiveVariant]);
+    upscaleHook.setActiveVariant(sharedState.variants.activeVariant?.location, sharedState.variants.activeVariant?.id);
+  }, [
+    sharedState.variants.activeVariant?.location,
+    sharedState.variants.activeVariant?.id,
+    upscaleHook,
+  ]);
 
-  // ========================================
-  // IMAGE EDIT ORCHESTRATOR
-  // ========================================
-  // Composes inpainting, magic edit, reposition, img2img hooks.
-  // Builds the ImageEditContext value.
+  return {
+    sharedState,
+    handleSlotNavNext,
+    handleSlotNavPrev,
+    isInpaintModeRef,
+    isMagicEditModeRef,
+  };
+}
+
+type ImageLightboxSharedModel = ReturnType<typeof useImageLightboxSharedState>;
+
+function useImageLightboxEditing(
+  props: ImageLightboxProps,
+  env: ImageLightboxEnvironment,
+  sharedModel: ImageLightboxSharedModel,
+) {
+  const {
+    media,
+    taskDetailsData,
+    initialVariantId,
+    autoEnterInpaint = false,
+    toolTypeOverride,
+    shotId,
+  } = props;
+
+  const {
+    selectedProjectId,
+    actualGenerationId,
+    imageDimensions,
+    imageContainerRef,
+    editSettingsPersistence,
+    effectiveEditModeLoRAs,
+    availableLoras,
+    variantFetchGenerationId,
+  } = env;
+
+  const {
+    sharedState,
+    isInpaintModeRef,
+    isMagicEditModeRef,
+  } = sharedModel;
 
   const editOrchestrator = useImageEditOrchestrator({
     media,
@@ -346,201 +369,116 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
     autoEnterInpaint,
     imageDimensions,
     imageContainerRef,
-    effectiveImageUrl,
-    activeVariant: variants.activeVariant,
-    setActiveVariantId: variants.setActiveVariantId,
-    refetchVariants: variants.refetch,
+    effectiveImageUrl: env.upscaleHook.effectiveImageUrl,
+    activeVariant: sharedState.variants.activeVariant,
+    setActiveVariantId: sharedState.variants.setActiveVariantId,
+    refetchVariants: sharedState.variants.refetch,
     editSettingsPersistence,
     effectiveEditModeLoRAs,
     availableLoras,
-    thumbnailUrl: variants.activeVariant?.thumbnail_url || media.thumbUrl,
+    thumbnailUrl: sharedState.variants.activeVariant?.thumbnail_url || media.thumbUrl,
   });
 
-  const {
-    imageEditValue,
-    isSpecialEditMode,
-    editMode,
-    handleEnterMagicEditMode,
-    handleUnifiedGenerate,
-    handleGenerateAnnotatedEdit,
-    handleGenerateReposition,
-    handleSaveAsVariant,
-    handleGenerateImg2Img,
-    img2imgLoraManager,
-  } = editOrchestrator;
-
-  // Update refs so next render's useSharedLightboxState sees current values.
-  // No useEffect needed — ref assignment is synchronous and doesn't trigger re-renders.
   isInpaintModeRef.current = editOrchestrator.isInpaintMode;
   isMagicEditModeRef.current = editOrchestrator.isMagicEditMode;
 
-  // ========================================
-  // ADJUSTED TASK DETAILS
-  // ========================================
-
   const { adjustedTaskDetailsData } = useAdjustedTaskDetails({
-    activeVariant: variants.activeVariant,
+    activeVariant: sharedState.variants.activeVariant,
     taskDetailsData,
-    isLoadingVariants: variants.isLoading,
+    isLoadingVariants: sharedState.variants.isLoading,
     initialVariantId,
   });
-
-  // ========================================
-  // PANEL MODE RESTORE
-  // ========================================
 
   usePanelModeRestore({
     mediaId: media.id,
     persistedPanelMode: editSettingsPersistence.panelMode,
     isVideo: false,
-    isSpecialEditMode,
+    isSpecialEditMode: editOrchestrator.isSpecialEditMode,
     isInVideoEditMode: false,
     initialVideoTrimMode: false,
     autoEnterInpaint,
     handleEnterVideoEditMode: () => {},
-    handleEnterMagicEditMode,
+    handleEnterMagicEditMode: editOrchestrator.handleEnterMagicEditMode,
   });
 
-  // ========================================
-  // PENDING TASKS & VARIANT BADGES
-  // ========================================
-
-  const { pendingTaskCount, unviewedVariantCount, handleMarkAllViewed } = useLightboxVariantBadges({
-    pendingTaskGenerationId: actualGenerationId,
+  const variantBadges = useLightboxVariantBadges({
+    pendingTaskGenerationId: env.actualGenerationId,
     selectedProjectId,
-    variants: variants.list,
+    variants: sharedState.variants.list,
     variantFetchGenerationId,
   });
 
-  // ========================================
-  // CONTEXT VALUE
-  // ========================================
-
-  const lightboxStateValue = useLightboxStateValue({
-    onClose,
-    readOnly,
-    isMobile,
-    isTabletOrLarger: layout.isTabletOrLarger,
-    selectedProjectId,
-    actualGenerationId,
-    media,
-    isVideo: false,
-    effectiveMediaUrl: effectiveMedia.mediaUrl,
-    effectiveVideoUrl: '',
-    effectiveImageDimensions: effectiveMedia.imageDimensions,
-    imageDimensions,
-    setImageDimensions,
-    variants: variants.list,
-    activeVariant: variants.activeVariant,
-    primaryVariant: variants.primaryVariant,
-    isLoadingVariants: variants.isLoading,
-    setActiveVariantId: variants.setActiveVariantId,
-    setPrimaryVariant: variants.setPrimaryVariant,
-    deleteVariant: variants.deleteVariant,
-    onLoadVariantSettings: setVariantParamsToLoad,
-    promoteSuccess: variants.promoteSuccess,
-    isPromoting: variants.isPromoting,
-    handlePromoteToGeneration: variants.handlePromoteToGeneration,
-    isMakingMainVariant: makeMainVariant.isMaking,
-    canMakeMainVariant: makeMainVariant.canMake,
-    handleMakeMainVariant: makeMainVariant.handle,
-    pendingTaskCount,
-    unviewedVariantCount,
-    onMarkAllViewed: handleMarkAllViewed,
-    variantsSectionRef,
-    showNavigation,
-    hasNext,
-    hasPrevious,
-    handleSlotNavNext,
-    handleSlotNavPrev,
-    swipeNavigation: navigation.swipeNavigation,
-  });
-
-  // ========================================
-  // DOWNLOAD HANDLER
-  // ========================================
-
-  const handleDownload = () => handleLightboxDownload({
-    intendedVariantId: intendedActiveVariantIdRef.current,
-    variants: variants.list,
-    fallbackUrl: effectiveMedia.mediaUrl,
-    media,
-    isVideo: false,
-    setIsDownloading,
-  });
-
-  const handleDelete = () => {
-    if (onDelete) onDelete(media.id);
+  return {
+    editOrchestrator,
+    adjustedTaskDetailsData,
+    variantBadges,
   };
+}
 
-  const handleApplySettings = () => {
-    if (onApplySettings) onApplySettings(media.metadata);
-  };
+type ImageLightboxEditModel = ReturnType<typeof useImageLightboxEditing>;
 
-  const handleNavigateToShotFromSelector = useCallback((shot: { id: string; name: string }) => {
-    if (onNavigateToShot) {
-      const minimalShot = { id: shot.id, name: shot.name, images: [], position: 0 };
-      onClose();
-      onNavigateToShot(minimalShot);
+function useImageLightboxControlsPanel(
+  props: ImageLightboxProps,
+  env: ImageLightboxEnvironment,
+  sharedModel: ImageLightboxSharedModel,
+  editModel: ImageLightboxEditModel,
+  showPanel: boolean,
+  panelVariant: 'desktop' | 'mobile',
+  panelTaskId: string | null,
+) {
+  const {
+    media,
+    allShots,
+    selectedShotId,
+    shotId,
+    onOpenExternalGeneration,
+    showImageEditTools = true,
+  } = props;
+
+  const {
+    sharedState,
+  } = sharedModel;
+
+  const { editOrchestrator, adjustedTaskDetailsData } = editModel;
+  const primaryVariantId = sharedState.variants.primaryVariant?.id;
+
+  return useMemo(() => {
+    if (!showPanel) {
+      return undefined;
     }
-  }, [onNavigateToShot, onClose]);
 
-  // ========================================
-  // LAYOUT DECISIONS
-  // ========================================
-
-  const needsFullscreenLayout = true;
-  const needsTasksPaneOffset = needsFullscreenLayout && (effectiveTasksPaneOpen || isTasksPaneLocked) && !layout.isPortraitMode && layout.isTabletOrLarger;
-
-  const accessibilityTitle = `Image Lightbox - ${media?.id?.substring(0, 8)}`;
-  const accessibilityDescription = 'View and interact with image in full screen. Use arrow keys to navigate, Escape to close.';
-
-  // ========================================
-  // SHOW PANEL DECISION
-  // ========================================
-
-  const showPanel = layout.shouldShowSidePanel || ((showTaskDetails || isSpecialEditMode) && isMobile);
-
-  // ========================================
-  // BUILD CONTROLS PANEL CONTENT
-  // ========================================
-
-  const panelVariant = (layout.shouldShowSidePanel && !isMobile) ? 'desktop' as const : 'mobile' as const;
-  const panelTaskId = adjustedTaskDetailsData?.taskId || (media as unknown as Record<string, unknown>)?.source_task_id as string | null || null;
-
-  const controlsPanelContent = useMemo(() => {
-    if (!showPanel) return undefined;
-
-    if (isSpecialEditMode) {
+    if (editOrchestrator.isSpecialEditMode) {
       return (
         <EditModePanel
           variant={panelVariant}
-          sourceGenerationData={sourceGeneration.data}
+          sourceGenerationData={sharedState.sourceGeneration.data}
           onOpenExternalGeneration={onOpenExternalGeneration}
           currentShotId={selectedShotId || shotId}
           allShots={allShots || []}
-          isCurrentMediaPositioned={shots.isAlreadyPositionedInSelectedShot}
+          isCurrentMediaPositioned={sharedState.shots.isAlreadyPositionedInSelectedShot}
           onReplaceInShot={() => Promise.resolve()}
-          sourcePrimaryVariant={sourceGeneration.primaryVariant}
-          onMakeMainVariant={makeMainVariant.handle}
-          canMakeMainVariant={makeMainVariant.canMake}
+          sourcePrimaryVariant={sharedState.sourceGeneration.primaryVariant}
+          onMakeMainVariant={sharedState.makeMainVariant.handle}
+          canMakeMainVariant={sharedState.makeMainVariant.canMake}
           taskId={panelTaskId}
           currentMediaId={media.id}
-          handleUnifiedGenerate={handleUnifiedGenerate}
-          handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
-          handleGenerateReposition={handleGenerateReposition}
-          handleSaveAsVariant={handleSaveAsVariant}
-          handleGenerateImg2Img={handleGenerateImg2Img}
-          isCloudMode={isCloudMode}
-          handleUpscale={handleUpscale}
-          isUpscaling={isUpscaling}
-          upscaleSuccess={upscaleSuccess}
-          img2imgLoraManager={img2imgLoraManager}
-          editLoraManager={editLoraManager}
-          availableLoras={availableLoras}
-          advancedSettings={editSettingsPersistence.advancedSettings}
-          setAdvancedSettings={editSettingsPersistence.setAdvancedSettings}
-          isLocalGeneration={isLocalGeneration}
+          handleUnifiedGenerate={editOrchestrator.handleUnifiedGenerate}
+          handleGenerateAnnotatedEdit={editOrchestrator.handleGenerateAnnotatedEdit}
+          handleGenerateReposition={editOrchestrator.handleGenerateReposition}
+          handleSaveAsVariant={editOrchestrator.handleSaveAsVariant}
+          handleGenerateImg2Img={editOrchestrator.handleGenerateImg2Img}
+          isCloudMode={env.isCloudMode}
+          handleUpscale={async () => {
+            await env.upscaleHook.handleUpscale({ scaleFactor: 2, noiseScale: 0.1 });
+          }}
+          isUpscaling={env.upscaleHook.isUpscaling}
+          upscaleSuccess={env.upscaleHook.upscaleSuccess}
+          img2imgLoraManager={editOrchestrator.img2imgLoraManager}
+          editLoraManager={env.editLoraManager}
+          availableLoras={env.availableLoras}
+          advancedSettings={env.editSettingsPersistence.advancedSettings}
+          setAdvancedSettings={env.editSettingsPersistence.setAdvancedSettings}
+          isLocalGeneration={env.isLocalGeneration}
         />
       );
     }
@@ -550,46 +488,207 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
         variant={panelVariant}
         showImageEditTools={showImageEditTools}
         taskDetailsData={adjustedTaskDetailsData}
-        derivedItems={lineage.derivedItems}
-        derivedGenerations={lineage.derivedGenerations}
-        paginatedDerived={lineage.paginatedDerived}
-        derivedPage={lineage.derivedPage}
-        derivedTotalPages={lineage.derivedTotalPages}
-        onSetDerivedPage={lineage.setDerivedPage}
+        derivedItems={sharedState.lineage.derivedItems}
+        derivedGenerations={sharedState.lineage.derivedGenerations}
+        paginatedDerived={sharedState.lineage.paginatedDerived}
+        derivedPage={sharedState.lineage.derivedPage}
+        derivedTotalPages={sharedState.lineage.derivedTotalPages}
+        onSetDerivedPage={sharedState.lineage.setDerivedPage}
         onNavigateToGeneration={onOpenExternalGeneration}
         currentMediaId={media.id}
         currentShotId={selectedShotId || shotId}
-        replaceImages={replaceImages}
-        onReplaceImagesChange={setReplaceImages}
-        onSwitchToPrimary={variants.primaryVariant ? () => variants.setActiveVariantId(variants.primaryVariant.id) : undefined}
+        replaceImages={env.replaceImages}
+        onReplaceImagesChange={env.setReplaceImages}
+        onSwitchToPrimary={primaryVariantId
+          ? () => sharedState.variants.setActiveVariantId(primaryVariantId)
+          : undefined}
         taskId={panelTaskId}
       />
     );
   }, [
-    showPanel, isSpecialEditMode, panelVariant, panelTaskId,
-    sourceGeneration.data, onOpenExternalGeneration, selectedShotId, shotId, allShots,
-    shots.isAlreadyPositionedInSelectedShot, sourceGeneration.primaryVariant,
-    makeMainVariant.handle, makeMainVariant.canMake, media.id,
-    handleUnifiedGenerate, handleGenerateAnnotatedEdit, handleGenerateReposition,
-    handleSaveAsVariant, handleGenerateImg2Img, isCloudMode, handleUpscale,
-    isUpscaling, upscaleSuccess, img2imgLoraManager, editLoraManager, availableLoras,
-    editSettingsPersistence.advancedSettings, editSettingsPersistence.setAdvancedSettings, isLocalGeneration,
-    showImageEditTools, adjustedTaskDetailsData, lineage.derivedItems,
-    lineage.derivedGenerations, lineage.paginatedDerived, lineage.derivedPage,
-    lineage.derivedTotalPages, lineage.setDerivedPage, replaceImages, setReplaceImages,
-    variants.primaryVariant, variants.setActiveVariantId,
+    showPanel,
+    editOrchestrator.isSpecialEditMode,
+    panelVariant,
+    sharedState.sourceGeneration.data,
+    onOpenExternalGeneration,
+    selectedShotId,
+    shotId,
+    allShots,
+    sharedState.shots.isAlreadyPositionedInSelectedShot,
+    sharedState.sourceGeneration.primaryVariant,
+    sharedState.makeMainVariant.handle,
+    sharedState.makeMainVariant.canMake,
+    panelTaskId,
+    media.id,
+    editOrchestrator.handleUnifiedGenerate,
+    editOrchestrator.handleGenerateAnnotatedEdit,
+    editOrchestrator.handleGenerateReposition,
+    editOrchestrator.handleSaveAsVariant,
+    editOrchestrator.handleGenerateImg2Img,
+    env.isCloudMode,
+    env.upscaleHook.handleUpscale,
+    env.upscaleHook.isUpscaling,
+    env.upscaleHook.upscaleSuccess,
+    editOrchestrator.img2imgLoraManager,
+    env.editLoraManager,
+    env.availableLoras,
+    env.editSettingsPersistence.advancedSettings,
+    env.editSettingsPersistence.setAdvancedSettings,
+    env.isLocalGeneration,
+    showImageEditTools,
+    adjustedTaskDetailsData,
+    primaryVariantId,
+    sharedState.lineage.derivedItems,
+    sharedState.lineage.derivedGenerations,
+    sharedState.lineage.paginatedDerived,
+    sharedState.lineage.derivedPage,
+    sharedState.lineage.derivedTotalPages,
+    sharedState.lineage.setDerivedPage,
+    env.replaceImages,
+    env.setReplaceImages,
+    sharedState.variants,
   ]);
+}
 
-  // ========================================
-  // BUILD LAYOUT PROPS
-  // ========================================
+function useImageLightboxRenderModel(
+  props: ImageLightboxProps,
+  env: ImageLightboxEnvironment,
+  sharedModel: ImageLightboxSharedModel,
+  editModel: ImageLightboxEditModel,
+) {
+  const {
+    media,
+    onClose,
+    readOnly = false,
+    showNavigation = true,
+    hasNext = false,
+    hasPrevious = false,
+    showTaskDetails = false,
+    allShots,
+    selectedShotId,
+    onShotChange,
+    onCreateShot,
+    onAddToShot,
+    onAddToShotWithoutPosition,
+    onDelete,
+    onApplySettings,
+    isDeleting,
+    showTickForImageId,
+    showTickForSecondaryImageId,
+    onShowTick,
+    onShowSecondaryTick,
+    onOptimisticPositioned,
+    onOptimisticUnpositioned,
+    onNavigateToShot,
+    adjacentSegments,
+  } = props;
+
+  const { sharedState, handleSlotNavNext, handleSlotNavPrev } = sharedModel;
+  const { editOrchestrator, adjustedTaskDetailsData, variantBadges } = editModel;
+
+  const lightboxStateValue = useLightboxStateValue({
+    onClose,
+    readOnly,
+    isMobile: env.isMobile,
+    isTabletOrLarger: sharedState.layout.isTabletOrLarger,
+    selectedProjectId: env.selectedProjectId,
+    actualGenerationId: env.actualGenerationId,
+    media,
+    isVideo: false,
+    effectiveMediaUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+    effectiveVideoUrl: '',
+    effectiveImageDimensions: sharedState.effectiveMedia.imageDimensions,
+    imageDimensions: env.imageDimensions,
+    setImageDimensions: env.setImageDimensions,
+    variants: sharedState.variants.list,
+    activeVariant: sharedState.variants.activeVariant,
+    primaryVariant: sharedState.variants.primaryVariant,
+    isLoadingVariants: sharedState.variants.isLoading,
+    setActiveVariantId: sharedState.variants.setActiveVariantId,
+    setPrimaryVariant: sharedState.variants.setPrimaryVariant,
+    deleteVariant: sharedState.variants.deleteVariant,
+    onLoadVariantSettings: env.setVariantParamsToLoad,
+    promoteSuccess: sharedState.variants.promoteSuccess,
+    isPromoting: sharedState.variants.isPromoting,
+    handlePromoteToGeneration: sharedState.variants.handlePromoteToGeneration,
+    isMakingMainVariant: sharedState.makeMainVariant.isMaking,
+    canMakeMainVariant: sharedState.makeMainVariant.canMake,
+    handleMakeMainVariant: sharedState.makeMainVariant.handle,
+    pendingTaskCount: variantBadges.pendingTaskCount,
+    unviewedVariantCount: variantBadges.unviewedVariantCount,
+    onMarkAllViewed: variantBadges.handleMarkAllViewed,
+    variantsSectionRef: env.variantsSectionRef,
+    showNavigation,
+    hasNext,
+    hasPrevious,
+    handleSlotNavNext,
+    handleSlotNavPrev,
+    swipeNavigation: sharedState.navigation.swipeNavigation,
+  });
+
+  const handleDownload = () => handleLightboxDownload({
+    intendedVariantId: sharedState.intendedActiveVariantIdRef.current,
+    variants: sharedState.variants.list,
+    fallbackUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+    media,
+    isVideo: false,
+    setIsDownloading: env.setIsDownloading,
+  });
+
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(media.id);
+    }
+  };
+
+  const handleApplySettings = () => {
+    if (onApplySettings) {
+      onApplySettings(media.metadata);
+    }
+  };
+
+  const handleNavigateToShotFromSelector = useCallback((shot: { id: string; name: string }) => {
+    if (!onNavigateToShot) {
+      return;
+    }
+    const minimalShot = { id: shot.id, name: shot.name, images: [], position: 0 };
+    onClose();
+    onNavigateToShot(minimalShot);
+  }, [onClose, onNavigateToShot]);
+
+  const needsFullscreenLayout = true;
+  const needsTasksPaneOffset = needsFullscreenLayout
+    && (env.effectiveTasksPaneOpen || env.isTasksPaneLocked)
+    && !sharedState.layout.isPortraitMode
+    && sharedState.layout.isTabletOrLarger;
+
+  const accessibilityTitle = `Image Lightbox - ${media?.id?.substring(0, 8)}`;
+  const accessibilityDescription = 'View and interact with image in full screen. Use arrow keys to navigate, Escape to close.';
+
+  const showPanel = sharedState.layout.shouldShowSidePanel
+    || ((showTaskDetails || editOrchestrator.isSpecialEditMode) && env.isMobile);
+
+  const panelVariant = (sharedState.layout.shouldShowSidePanel && !env.isMobile) ? 'desktop' as const : 'mobile' as const;
+  const panelTaskId = adjustedTaskDetailsData?.taskId
+    || ((media as unknown as Record<string, unknown>)?.source_task_id as string | null)
+    || null;
+
+  const controlsPanelContent = useImageLightboxControlsPanel(
+    props,
+    env,
+    sharedModel,
+    editModel,
+    showPanel,
+    panelVariant,
+    panelTaskId,
+  );
 
   const { layoutProps } = useLightboxWorkflowProps({
     panel: {
       showPanel,
-      shouldShowSidePanel: layout.shouldShowSidePanel,
-      effectiveTasksPaneOpen,
-      effectiveTasksPaneWidth,
+      shouldShowSidePanel: sharedState.layout.shouldShowSidePanel,
+      effectiveTasksPaneOpen: env.effectiveTasksPaneOpen,
+      effectiveTasksPaneWidth: env.effectiveTasksPaneWidth,
     },
     shotWorkflow: {
       allShots: allShots || [],
@@ -598,8 +697,8 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
       onCreateShot,
       onAddToShot,
       onAddToShotWithoutPosition,
-      isAlreadyPositionedInSelectedShot: shots.isAlreadyPositionedInSelectedShot,
-      isAlreadyAssociatedWithoutPosition: shots.isAlreadyAssociatedWithoutPosition,
+      isAlreadyPositionedInSelectedShot: sharedState.shots.isAlreadyPositionedInSelectedShot,
+      isAlreadyAssociatedWithoutPosition: sharedState.shots.isAlreadyAssociatedWithoutPosition,
       showTickForImageId,
       showTickForSecondaryImageId,
       onShowTick,
@@ -614,44 +713,57 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
       handleDelete,
       isDeleting,
       handleNavigateToShotFromSelector,
-      handleAddVariantAsNewGenerationToShot: variants.handleAddVariantAsNewGenerationToShot,
+      handleAddVariantAsNewGenerationToShot: sharedState.variants.handleAddVariantAsNewGenerationToShot,
     },
     buttonGroupProps: {
-      ...buttonGroupProps,
+      ...sharedState.buttonGroupProps,
       topRight: {
-        ...buttonGroupProps.topRight,
+        ...sharedState.buttonGroupProps.topRight,
         handleDownload,
         handleDelete,
       },
     },
-    contentRef,
+    contentRef: env.contentRef,
     adjacentSegments,
     segmentSlotMode: undefined,
   });
 
-  // ========================================
-  // RENDER
-  // ========================================
+  return {
+    lightboxStateValue,
+    layoutProps,
+    controlsPanelContent,
+    needsFullscreenLayout,
+    needsTasksPaneOffset,
+    accessibilityTitle,
+    accessibilityDescription,
+  };
+}
+
+export const ImageLightbox: React.FC<ImageLightboxProps> = (props) => {
+  const env = useImageLightboxEnvironment(props);
+  const sharedModel = useImageLightboxSharedState(props, env);
+  const editModel = useImageLightboxEditing(props, env, sharedModel);
+  const renderModel = useImageLightboxRenderModel(props, env, sharedModel, editModel);
 
   return (
-    <LightboxProviders stateValue={lightboxStateValue}>
-      <ImageEditProvider value={imageEditValue}>
+    <LightboxProviders stateValue={renderModel.lightboxStateValue}>
+      <ImageEditProvider value={editModel.editOrchestrator.imageEditValue}>
         <LightboxShell
-          onClose={onClose}
-          hasCanvasOverlay={editOrchestrator.isInpaintMode}
-          isRepositionMode={editOrchestrator.isInpaintMode && editMode === 'reposition'}
-          isMobile={isMobile}
-          isTabletOrLarger={layout.isTabletOrLarger}
-          effectiveTasksPaneOpen={effectiveTasksPaneOpen}
-          effectiveTasksPaneWidth={effectiveTasksPaneWidth}
-          isTasksPaneLocked={isTasksPaneLocked}
-          needsFullscreenLayout={needsFullscreenLayout}
-          needsTasksPaneOffset={needsTasksPaneOffset}
-          contentRef={contentRef}
-          accessibilityTitle={accessibilityTitle}
-          accessibilityDescription={accessibilityDescription}
+          onClose={props.onClose}
+          hasCanvasOverlay={editModel.editOrchestrator.isInpaintMode}
+          isRepositionMode={editModel.editOrchestrator.isInpaintMode && editModel.editOrchestrator.editMode === 'reposition'}
+          isMobile={env.isMobile}
+          isTabletOrLarger={sharedModel.sharedState.layout.isTabletOrLarger}
+          effectiveTasksPaneOpen={env.effectiveTasksPaneOpen}
+          effectiveTasksPaneWidth={env.effectiveTasksPaneWidth}
+          isTasksPaneLocked={env.isTasksPaneLocked}
+          needsFullscreenLayout={renderModel.needsFullscreenLayout}
+          needsTasksPaneOffset={renderModel.needsTasksPaneOffset}
+          contentRef={env.contentRef}
+          accessibilityTitle={renderModel.accessibilityTitle}
+          accessibilityDescription={renderModel.accessibilityDescription}
         >
-          <LightboxLayout {...layoutProps} controlsPanelContent={controlsPanelContent} />
+          <LightboxLayout {...renderModel.layoutProps} controlsPanelContent={renderModel.controlsPanelContent} />
         </LightboxShell>
       </ImageEditProvider>
     </LightboxProviders>

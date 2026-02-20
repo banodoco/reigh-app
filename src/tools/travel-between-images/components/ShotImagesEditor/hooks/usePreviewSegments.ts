@@ -3,7 +3,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import type { PreviewSegment } from '../types';
 import type { GenerationRow } from '@/types/shots';
 import type { SegmentSlot } from '@/shared/hooks/segments';

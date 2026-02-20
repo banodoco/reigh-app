@@ -8,7 +8,7 @@ import { MultiVideoUploader } from '../components/MultiVideoUploader';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { Video, Scissors } from 'lucide-react';
 import { cropFilename } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 export default function TrainingDataHelperPage() {
   const { 

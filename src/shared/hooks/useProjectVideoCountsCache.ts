@@ -2,7 +2,7 @@ import React, { useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { projectStatsQueryKeys } from '@/shared/lib/queryKeys/projectStats';
 
 /** Counts stored per shot */
 interface ShotCounts {
@@ -107,6 +107,9 @@ async function fetchProjectShotDataFromDB(projectId: string): Promise<Map<string
 
   const counts = new Map<string, ShotCounts>();
   statsResult.data?.forEach(row => {
+    if (!row.shot_id) {
+      return;
+    }
     counts.set(row.shot_id, {
       videoCount: row.video_count || 0,
       finalVideoCount: row.final_video_count || 0,
@@ -134,13 +137,14 @@ async function fetchProjectShotDataFromDB(projectId: string): Promise<Map<string
  */
 export function useProjectVideoCountsCache(projectId: string | null) {
   const cacheRef = useRef(globalProjectVideoCountsCache);
+  const effectiveProjectId = projectId ?? '__no-project__';
 
   // 🎯 SMART POLLING: Use DataFreshnessManager for intelligent polling decisions
-  const smartPollingConfig = useSmartPollingConfig(queryKeys.projectStats.videos(projectId!));
+  const smartPollingConfig = useSmartPollingConfig(projectStatsQueryKeys.videos(effectiveProjectId));
 
   // Query to fetch all shot video counts for the project
   const { data: projectCounts, isLoading, error, refetch } = useQuery<Map<string, ShotCounts>>({
-    queryKey: queryKeys.projectStats.videos(projectId!),
+    queryKey: projectStatsQueryKeys.videos(effectiveProjectId),
     queryFn: () => fetchProjectShotDataFromDB(projectId!),
     enabled: !!projectId,
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -235,7 +239,7 @@ export function useProjectVideoCountsCache(projectId: string | null) {
 
   // Debug function to log cache state
   const logCacheState = useCallback((): void => {
-  }, [projectId, getAllShotCounts]);
+  }, []);
 
   // Invalidate cache when certain query keys change (video additions/deletions)
   const invalidateOnVideoChanges = useCallback(() => {

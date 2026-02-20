@@ -3,7 +3,7 @@ import { useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Resource } from './useResources';
 import { isNotFoundError } from '@/shared/constants/supabaseErrors';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { resourceQueryKeys } from '@/shared/lib/queryKeys/resources';
 
 /**
  * Fetch a single resource by ID
@@ -43,7 +43,7 @@ export const useSpecificResources = (resourceIds: string[]) => {
   // Use individual queries per resource for normalized caching
   const queries = useQueries({
     queries: uniqueIds.map(id => ({
-      queryKey: queryKeys.resources.detail(id),
+      queryKey: resourceQueryKeys.detail(id),
       queryFn: () => fetchResourceById(id),
       // Keep data fresh but cache for a while
       staleTime: 5 * 60 * 1000,
@@ -76,7 +76,7 @@ const useInvalidateResource = () => {
   const queryClient = useQueryClient();
 
   return useCallback((resourceId: string) => {
-    queryClient.removeQueries({ queryKey: queryKeys.resources.detail(resourceId) });
+    queryClient.removeQueries({ queryKey: resourceQueryKeys.detail(resourceId) });
   }, [queryClient]);
 };
 

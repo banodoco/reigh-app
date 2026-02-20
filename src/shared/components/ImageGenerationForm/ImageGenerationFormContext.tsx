@@ -11,7 +11,7 @@
  */
 
 import React, { createContext, useContext, useMemo } from 'react';
-import { ImageGenerationFormUIState, FormUIActions } from './state';
+import { ImageGenerationFormUIState, FormUIActions } from './state/useFormUIState';
 import { PromptEntry, PromptMode, HydratedReferenceImage, ReferenceMode } from './types';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
@@ -49,7 +49,7 @@ export interface FormPromptHandlers {
   setCurrentBeforePromptText: (text: string) => void;
   setCurrentAfterPromptText: (text: string) => void;
   handleAddPrompt: () => void;
-  handleUpdatePrompt: (id: string, field: string, value: string) => void;
+  handleUpdatePrompt: (id: string, field: 'fullPrompt' | 'shortPrompt', value: string) => void;
   handleRemovePrompt: (id: string) => void;
   handleDeleteAllPrompts: () => void;
   markAsInteracted: () => void;
@@ -72,22 +72,22 @@ export interface FormReferenceState {
 
 /** Reference handlers */
 export interface FormReferenceHandlers {
-  onSelectReference: (id: string) => void;
-  onDeleteReference: (id: string) => void;
-  onUpdateReferenceName: (id: string, name: string) => void;
+  onSelectReference: (id: string) => void | Promise<void>;
+  onDeleteReference: (id: string) => void | Promise<void>;
+  onUpdateReferenceName: (id: string, name: string) => void | Promise<void>;
   onStyleUpload: (files: File[]) => Promise<void>;
-  onStyleRemove: () => void;
-  onStyleStrengthChange: (value: number) => void;
-  onSubjectStrengthChange: (value: number) => void;
-  onSubjectDescriptionChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onStyleRemove: () => void | Promise<void>;
+  onStyleStrengthChange: (value: number) => void | Promise<void>;
+  onSubjectStrengthChange: (value: number) => void | Promise<void>;
+  onSubjectDescriptionChange: (value: string) => void | Promise<void>;
   onSubjectDescriptionFocus: () => void;
   onSubjectDescriptionBlur: () => void;
-  onInThisSceneChange: (value: boolean) => void;
-  onInThisSceneStrengthChange: (value: number) => void;
-  onReferenceModeChange: (mode: ReferenceMode) => void;
-  onStyleBoostTermsChange: (terms: string) => void;
-  onToggleVisibility: (resourceId: string, isPublic?: boolean) => void;
-  onResourceSelect: (resource: Resource) => void;
+  onInThisSceneChange: (value: boolean) => void | Promise<void>;
+  onInThisSceneStrengthChange: (value: number) => void | Promise<void>;
+  onReferenceModeChange: (mode: ReferenceMode) => void | Promise<void>;
+  onStyleBoostTermsChange: (terms: string) => void | Promise<void>;
+  onToggleVisibility: (resourceId: string, isPublic: boolean) => void | Promise<void>;
+  onResourceSelect: (resource: Resource) => void | Promise<void>;
 }
 
 /** LORA-related state */
@@ -246,4 +246,3 @@ export function useContextValue(props: UseContextValueProps): ImageGenerationFor
     loraHandlers,
   ]);
 }
-

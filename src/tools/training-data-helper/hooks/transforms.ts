@@ -3,6 +3,14 @@
  * Pure functions: snake_case DB rows -> camelCase client types.
  */
 import type { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from './types';
+import type { Json } from '@/integrations/supabase/types';
+
+function toRecord(value: Json): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
 
 // Database types (snake_case, matching Supabase row shapes)
 interface TrainingDataBatchDB {
@@ -10,7 +18,7 @@ interface TrainingDataBatchDB {
   user_id: string;
   name: string;
   description: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Json;
   created_at: string;
   updated_at: string | null;
 }
@@ -20,11 +28,11 @@ interface TrainingDataVideoDB {
   original_filename: string;
   storage_location: string;
   duration: number | null;
-  metadata: Record<string, unknown>;
+  metadata: Json;
   created_at: string;
   updated_at: string | null;
   user_id: string;
-  batch_id: string;
+  batch_id: string | null;
 }
 
 interface TrainingDataSegmentDB {
@@ -34,7 +42,7 @@ interface TrainingDataSegmentDB {
   end_time: number;
   segment_location: string | null;
   description: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Json;
   created_at: string;
   updated_at: string | null;
 }
@@ -44,7 +52,7 @@ export const transformBatch = (batch: TrainingDataBatchDB): TrainingDataBatch =>
   userId: batch.user_id,
   name: batch.name,
   description: batch.description,
-  metadata: batch.metadata,
+  metadata: toRecord(batch.metadata),
   createdAt: batch.created_at,
   updatedAt: batch.updated_at,
 });
@@ -54,7 +62,7 @@ export const transformVideo = (video: TrainingDataVideoDB): TrainingDataVideo =>
   originalFilename: video.original_filename,
   storageLocation: video.storage_location,
   duration: video.duration,
-  metadata: video.metadata,
+  metadata: toRecord(video.metadata),
   createdAt: video.created_at,
   updatedAt: video.updated_at,
   userId: video.user_id,
@@ -68,7 +76,7 @@ export const transformSegment = (segment: TrainingDataSegmentDB): TrainingDataSe
   endTime: segment.end_time,
   segmentLocation: segment.segment_location,
   description: segment.description,
-  metadata: segment.metadata,
+  metadata: toRecord(segment.metadata),
   createdAt: segment.created_at,
   updatedAt: segment.updated_at,
 });

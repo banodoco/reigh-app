@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { GenerationRow } from '@/types/shots';
 
 interface UseSmoothContinuationsProps {

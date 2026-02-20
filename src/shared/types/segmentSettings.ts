@@ -126,10 +126,6 @@ export interface ShotVideoSettings extends SegmentSettings {
   enhancePrompt: boolean;
   /** Generation mode: I2V or VACE */
   generationTypeMode: 'i2v' | 'vace';
-
-  // === LEGACY/UI STATE (not part of core settings) ===
-  /** @deprecated Use motionMode === 'advanced' instead */
-  advancedMode?: boolean;
 }
 
 // =============================================================================

@@ -111,6 +111,7 @@ export function useTimestampUpdater({
   if (date && dateRef.current?.getTime() !== (typeof date === 'string' ? new Date(date) : date)?.getTime()) {
     dateRef.current = typeof date === 'string' ? new Date(date) : date;
   }
+  const trackedDateMs = dateRef.current?.getTime();
   
   useEffect(() => {
     if (!dateRef.current || disabled || !isVisible) {
@@ -125,7 +126,7 @@ export function useTimestampUpdater({
     );
     
     return unsubscribe;
-  }, [dateRef.current?.getTime(), isVisible, disabled]);
+  }, [trackedDateMs, isVisible, disabled]);
   
   return {
     /** Current update trigger - changes when timestamp should be recalculated */

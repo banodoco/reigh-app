@@ -25,7 +25,7 @@ export async function handleStorageOperations(
   supabase: unknown,
   parsedRequest: ParsedRequest,
   userId: string,
-  isServiceRole: boolean
+  _isServiceRole: boolean
 ): Promise<StorageResult> {
   let publicUrl: string;
   let objectPath: string;
@@ -48,7 +48,7 @@ export async function handleStorageOperations(
     // Use standardized task output path: {userId}/tasks/{taskId}/{filename}
     objectPath = storagePaths.taskOutput(userId, parsedRequest.taskId, parsedRequest.filename);
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(MEDIA_BUCKET)
       .upload(objectPath, parsedRequest.fileData as unknown, {
         contentType: effectiveContentType,
@@ -153,7 +153,7 @@ function generateThumbnail(
       if (data?.publicUrl) {
         return data.publicUrl;
       }
-    } catch (err) {
+    } catch {
       // Transform URL generation is best-effort; fall back to the main image URL below.
     }
   }
@@ -166,7 +166,7 @@ function generateThumbnail(
 /**
  * Verify that a file exists in storage (for MODE 4)
  */
-export async function verifyFileExists(
+export function verifyFileExists(
   supabase: unknown,
   storagePath: string
 ): Promise<{ exists: boolean; publicUrl?: string }> {

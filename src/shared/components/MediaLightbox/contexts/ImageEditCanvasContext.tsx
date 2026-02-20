@@ -73,7 +73,7 @@ export interface ImageEditCanvasState {
     onPointerCancel: (e: React.PointerEvent) => void;
     onWheel: (e: React.WheelEvent) => void;
   } | null;
-  getTransformStyle: () => string;
+  getTransformStyle: () => React.CSSProperties;
   setScale: (value: number) => void;
   setRotation: (value: number) => void;
   toggleFlipH: () => void;
@@ -81,7 +81,7 @@ export interface ImageEditCanvasState {
   resetTransform: () => void;
 
   // Display refs
-  imageContainerRef: React.RefObject<HTMLDivElement>;
+  imageContainerRef: React.RefObject<HTMLDivElement | null>;
   isFlippedHorizontally: boolean;
   isSaving: boolean;
 }
@@ -137,7 +137,7 @@ const EMPTY_CANVAS: ImageEditCanvasState = {
   hasTransformChanges: false,
   isRepositionDragging: false,
   repositionDragHandlers: null,
-  getTransformStyle: () => '',
+  getTransformStyle: () => ({}),
   setScale: () => {},
   setRotation: () => {},
   toggleFlipH: () => {},
@@ -145,7 +145,7 @@ const EMPTY_CANVAS: ImageEditCanvasState = {
   resetTransform: () => {},
 
   // Display refs
-  imageContainerRef: { current: null } as React.RefObject<HTMLDivElement>,
+  imageContainerRef: { current: null } as React.RefObject<HTMLDivElement | null>,
   isFlippedHorizontally: false,
   isSaving: false,
 };

@@ -109,13 +109,21 @@ function addToast(
   description?: React.ReactNode,
   opts?: SonnerMethodOptions
 ): string {
-  return toastManager.add({
-    type,
-    title,
-    description: description ?? opts?.description,
-    timeout: opts?.duration,
-    id: opts?.id,
+  // Pre-generate an ID so we can return it synchronously while deferring the
+  // actual add. This avoids a nested-flushSync warning when toasts are
+  // triggered from inside react-konva event handlers (which wrap their
+  // callbacks in flushSync for React 18 compatibility).
+  const id = opts?.id ?? `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  queueMicrotask(() => {
+    toastManager.add({
+      type,
+      title,
+      description: description ?? opts?.description,
+      timeout: opts?.duration,
+      id,
+    })
   })
+  return id
 }
 
 type ToastInput = string | ToastObjectOptions
@@ -129,11 +137,16 @@ function toastFn(input: ToastInput, opts?: SonnerMethodOptions): string {
   // Object form: toast({ title, description, variant })
   const { title, description, variant } = input
   const type = variant === "destructive" ? "error" : "default"
-  return toastManager.add({
-    type,
-    title: title ?? undefined,
-    description: description ?? undefined,
+  const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  queueMicrotask(() => {
+    toastManager.add({
+      type,
+      title: title ?? undefined,
+      description: description ?? undefined,
+      id,
+    })
   })
+  return id
 }
 
 toastFn.error = (

@@ -110,8 +110,8 @@ export const useHydratedReferences = (
           styleReferenceImage: metadata.styleReferenceImage,
           styleReferenceImageOriginal: metadata.styleReferenceImageOriginal,
           thumbnailUrl: metadata.thumbnailUrl || null,
-          // Use pointer.createdAt (when added to project) for sorting, fall back to resource.created_at
-          createdAt: pointer.createdAt || resource.created_at,
+          // Use pointer.createdAt (when added to project) for sorting, fall back to resource.createdAt
+          createdAt: pointer.createdAt || resource.createdAt,
           updatedAt: metadata.updatedAt,
           // Visibility and ownership settings
           isPublic: metadata.is_public ?? false,

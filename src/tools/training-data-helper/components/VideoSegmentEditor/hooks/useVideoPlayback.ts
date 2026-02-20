@@ -1,19 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /**
  * Manages video playback state: play/pause, seeking, playback rate,
  * frame capture, and readiness tracking.
  */
-export function useVideoPlayback() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [videoReady, setVideoReady] = useState(false);
-
-  // Sync video element events with state
+function useVideoPlaybackEventSync(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  videoReady: boolean,
+  setCurrentTime: (value: number) => void,
+  setIsPlaying: (value: boolean) => void
+) {
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || !videoReady) return;
@@ -31,67 +28,42 @@ export function useVideoPlayback() {
       videoElement.removeEventListener('play', handlePlay);
       videoElement.removeEventListener('pause', handlePause);
     };
-  }, [videoReady]);
+  }, [videoRef, videoReady, setCurrentTime, setIsPlaying]);
+}
 
-  const togglePlayPause = () => {
-    if (!videoRef.current) return;
+function canCaptureFrameAtTime(
+  video: HTMLVideoElement | null,
+  videoReady: boolean,
+  timeInSeconds: number
+): video is HTMLVideoElement {
+  if (
+    !video
+    || !videoReady
+    || !video.videoWidth
+    || !video.videoHeight
+    || video.readyState < 2
+    || video.networkState === 3
+  ) {
+    return false;
+  }
 
-    try {
-      const actuallyPlaying = !videoRef.current.paused;
+  return timeInSeconds <= video.duration;
+}
 
-      if (actuallyPlaying) {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        const playPromise = videoRef.current.play();
-        setIsPlaying(true);
-        if (playPromise !== undefined) {
-          playPromise.catch((error) => {
-            console.error('Error playing video:', error);
-            setIsPlaying(false);
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error toggling play/pause:', error);
-      setIsPlaying(false);
-    }
-  };
-
-  const seekTo = (time: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = time;
-    setCurrentTime(time);
-  };
-
-  const setVideoPlaybackRate = (rate: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.playbackRate = rate;
-    setPlaybackRate(rate);
-  };
-
-  const jumpBackQuarterSecond = () => {
-    const current = videoRef.current ? videoRef.current.currentTime : currentTime;
-    seekTo(Math.max(0, current - 0.25));
-  };
-
-  const jumpForwardQuarterSecond = () => {
-    const current = videoRef.current ? videoRef.current.currentTime : currentTime;
-    seekTo(Math.min(duration, current + 0.25));
-  };
-
-  /** Capture the current visible frame as a JPEG data URL. */
-  const captureCurrentFrame = (): string | null => {
+function useVideoFrameCapture(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  videoReady: boolean,
+  currentTime: number
+) {
+  const captureCurrentFrame = useCallback((): string | null => {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
-      console.warn('Video not ready for frame capture');
       return null;
     }
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      console.error('Could not get 2D context from canvas');
       return null;
     }
 
@@ -109,24 +81,13 @@ export function useVideoPlayback() {
       }
       return null;
     }
-  };
+  }, [videoRef]);
 
-  /** Seek to a specific time, capture the frame, then restore the original position. */
-  const captureFrameAtTime = (timeInSeconds: number): Promise<string | null> => {
+  const captureFrameAtTime = useCallback((timeInSeconds: number): Promise<string | null> => {
     return new Promise((resolve) => {
       const video = videoRef.current;
 
-      if (!video ||
-          !videoReady ||
-          !video.videoWidth ||
-          !video.videoHeight ||
-          video.readyState < 2 ||
-          video.networkState === 3) {
-        resolve(null);
-        return;
-      }
-
-      if (timeInSeconds > video.duration) {
+      if (!canCaptureFrameAtTime(video, videoReady, timeInSeconds)) {
         resolve(null);
         return;
       }
@@ -142,7 +103,11 @@ export function useVideoPlayback() {
           video.currentTime = originalTime;
           resolve(frameImage);
         } catch (error) {
-          console.error('Error during frame capture at time:', timeInSeconds, error);
+          handleError(error, {
+            context: 'useVideoPlayback.captureFrameAtTime',
+            toastTitle: 'Failed to capture frame',
+            showToast: false,
+          });
           video.currentTime = originalTime;
           resolve(null);
         }
@@ -167,10 +132,89 @@ export function useVideoPlayback() {
       video.addEventListener('error', onError);
       video.currentTime = timeInSeconds;
     });
-  };
+  }, [videoRef, videoReady, captureCurrentFrame]);
 
-  /** Get the actual current time from the video element (avoids stale React state). */
-  const getActualTime = () => videoRef.current ? videoRef.current.currentTime : currentTime;
+  const getActualTime = useCallback(() => (
+    videoRef.current ? videoRef.current.currentTime : currentTime
+  ), [videoRef, currentTime]);
+
+  return {
+    captureCurrentFrame,
+    captureFrameAtTime,
+    getActualTime,
+  };
+}
+
+export function useVideoPlayback() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [videoReady, setVideoReady] = useState(false);
+
+  useVideoPlaybackEventSync(videoRef, videoReady, setCurrentTime, setIsPlaying);
+
+  const togglePlayPause = useCallback(() => {
+    if (!videoRef.current) return;
+
+    try {
+      const actuallyPlaying = !videoRef.current.paused;
+
+      if (actuallyPlaying) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        const playPromise = videoRef.current.play();
+        setIsPlaying(true);
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            handleError(error, {
+              context: 'useVideoPlayback.togglePlayPause.play',
+              toastTitle: 'Unable to play video',
+              showToast: false,
+            });
+            setIsPlaying(false);
+          });
+        }
+      }
+    } catch (error) {
+      handleError(error, {
+        context: 'useVideoPlayback.togglePlayPause',
+        toastTitle: 'Unable to toggle playback',
+        showToast: false,
+      });
+      setIsPlaying(false);
+    }
+  }, []);
+
+  const seekTo = useCallback((time: number) => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = time;
+    setCurrentTime(time);
+  }, []);
+
+  const setVideoPlaybackRate = useCallback((rate: number) => {
+    if (!videoRef.current) return;
+    videoRef.current.playbackRate = rate;
+    setPlaybackRate(rate);
+  }, []);
+
+  const jumpBackQuarterSecond = useCallback(() => {
+    const current = videoRef.current ? videoRef.current.currentTime : currentTime;
+    seekTo(Math.max(0, current - 0.25));
+  }, [currentTime, seekTo]);
+
+  const jumpForwardQuarterSecond = useCallback(() => {
+    const current = videoRef.current ? videoRef.current.currentTime : currentTime;
+    seekTo(Math.min(duration, current + 0.25));
+  }, [currentTime, duration, seekTo]);
+
+  const { captureCurrentFrame, captureFrameAtTime, getActualTime } = useVideoFrameCapture(
+    videoRef,
+    videoReady,
+    currentTime
+  );
 
   return {
     videoRef,

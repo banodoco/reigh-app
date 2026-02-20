@@ -75,7 +75,7 @@ export function useRealtimeInvalidation(): void {
 function handleTasksUpdated(queryClient: QueryClient, event: TasksUpdatedEvent): void {
 
   // Track affected queries for freshness manager
-  const affectedQueries: string[][] = [
+  const affectedQueries: Array<readonly unknown[]> = [
     queryKeys.tasks.paginatedAll,
     queryKeys.tasks.statusCountsAll,
   ];
@@ -144,7 +144,7 @@ function handleTasksUpdated(queryClient: QueryClient, event: TasksUpdatedEvent):
       });
     } else {
       // No shot IDs found - fallback to broad invalidation
-      invalidateAllShotGenerations(queryClient, 'task-complete-no-shot-ids');
+      invalidateAllShotGenerations(queryClient);
     }
   }
 
@@ -171,9 +171,11 @@ function handleGenerationsInserted(queryClient: QueryClient, event: GenerationsI
   queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.detailAll });
+  // Keep segment parent dropdowns fresh when parent generations are inserted.
+  queryClient.invalidateQueries({ queryKey: queryKeys.segments.parentsAll });
 
   // Invalidate shot-generations
-  invalidateAllShotGenerations(queryClient, 'generations-inserted');
+  invalidateAllShotGenerations(queryClient);
 
   // Invalidate child generation queries if any have parents
   const parentsWithNewChildren = new Set(
@@ -191,6 +193,7 @@ function handleGenerationsInserted(queryClient: QueryClient, event: GenerationsI
     queryKeys.unified.all,
     queryKeys.generations.all,
     queryKeys.generations.detailAll,
+    queryKeys.segments.parentsAll,
   ]);
 }
 
@@ -213,7 +216,7 @@ function handleGenerationsUpdated(queryClient: QueryClient, event: GenerationsUp
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.detailAll });
 
   // Invalidate shot-generations
-  invalidateAllShotGenerations(queryClient, 'generations-updated');
+  invalidateAllShotGenerations(queryClient);
 
   // Invalidate shots (for thumbnail updates)
   queryClient.invalidateQueries({ queryKey: queryKeys.shots.all });
@@ -241,7 +244,7 @@ function handleGenerationsDeleted(queryClient: QueryClient, event: GenerationsDe
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.detailAll });
 
   // Invalidate shot-generations (deleted generation may have been in shots)
-  invalidateAllShotGenerations(queryClient, 'generations-deleted');
+  invalidateAllShotGenerations(queryClient);
 
   // Report to freshness manager
   dataFreshnessManager.onRealtimeEvent('generations-deleted', [
@@ -273,7 +276,7 @@ function handleShotGenerationsChanged(
       // For INSERT-only, minimal invalidation (optimistic updates handle the rest)
       invalidateGenerationsSync(queryClient, shotId, {
         reason: 'shot-generation-insert',
-        scope: 'unified',
+          scope: 'images',
       });
       invalidateGenerationsSync(queryClient, shotId, {
         reason: 'shot-generation-insert',
@@ -289,7 +292,7 @@ function handleShotGenerationsChanged(
   });
 
   // Report to freshness manager - include shot-specific queries
-  const affectedQueries: string[][] = [queryKeys.unified.all];
+  const affectedQueries: Array<readonly unknown[]> = [queryKeys.unified.all];
   event.affectedShotIds.forEach((shotId) => {
     affectedQueries.push(['unified-generations', 'shot', shotId]);
   });
@@ -317,10 +320,10 @@ function invalidateVariantCaches(
   // Variant changes/deletions may affect which variant is displayed
   queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
-  invalidateAllShotGenerations(queryClient, eventName);
+  invalidateAllShotGenerations(queryClient);
 
   // Report to freshness manager
-  const affectedQueries: string[][] = [
+  const affectedQueries: Array<readonly unknown[]> = [
     queryKeys.unified.all,
     queryKeys.generations.all,
     queryKeys.generations.variantBadges,

@@ -50,7 +50,7 @@ interface SegmentDisplayProps {
 
 interface VideoPlayerControlsProps extends VideoEventHandlers, PlaybackActions, SegmentDisplayProps {
   video: TrainingDataVideo;
-  videoRef: RefObject<HTMLVideoElement | null>;
+  videoRef: RefObject<HTMLVideoElement>;
   videoUrl: string;
   isPlaying: boolean;
   currentTime: number;

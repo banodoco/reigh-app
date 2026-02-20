@@ -1,7 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { useToolSettings, SettingsScope } from './useToolSettings';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { SettingsScope } from './useToolSettings';
+import { useRenderLogger } from '@/shared/lib/debugRendering';
+import { useAutoSaveSettings } from './useAutoSaveSettings';
 import { deepEqual, sanitizeSettings } from '../lib/deepEqual';
-import { handleError } from '@/shared/lib/errorHandler';
 import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
 
 /**
@@ -27,9 +28,10 @@ function inferEmptyValue(value: unknown): unknown {
   return undefined;
 }
 
-interface StateMapping<T> {
-  [key: string]: [T[keyof T], React.Dispatch<React.SetStateAction<T[keyof T]>>];
-}
+type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
+type StateMapping<T extends object> = {
+  [K in keyof T]: [T[K], StateSetter<T[K]>];
+};
 
 interface UsePersistentToolStateOptions {
   debounceMs?: number;
@@ -88,101 +90,108 @@ interface UsePersistentToolStateResult {
  * );
  * // Call markAsInteracted() in onChange handlers to enable persistence
  */
-export function usePersistentToolState<T extends Record<string, unknown>>(
+export function usePersistentToolState<T extends object>(
   toolId: string,
   context: { projectId?: string; shotId?: string },
   stateMapping: StateMapping<T>,
   options: UsePersistentToolStateOptions = {}
 ): UsePersistentToolStateResult {
   const { debounceMs = 500, scope = 'project', enabled = true, defaults: explicitDefaults } = options;
-
-  // Obtain current settings and mutation helpers
-  const {
-    settings,
-    isLoading: isLoadingSettings,
-    update: updateSettings,
-    isUpdating,
-  } = useToolSettings<T>(toolId, { ...context, enabled });
+  const warnedMissingDefaultsRef = useRef<Set<string>>(new Set());
+  const persistenceScope: 'shot' | 'project' = scope === 'shot' ? 'shot' : 'project';
 
   // Track hydration and interaction state
   const hasHydratedRef = useRef(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userHasInteractedRef = useRef(false);
-  const lastSavedSettingsRef = useRef<T | null>(null);
+  const lastSyncedSettingsRef = useRef<T | null>(null);
   const hydratedForEntityRef = useRef<string | null>(null);
 
   // Public state for consumers
   const [ready, setReady] = useState(false);
-  const [saveError, setSaveError] = useState<Error | undefined>();
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   // Get a unique key for the current entity (project/shot)
-  const entityKey = scope === 'shot' ? context.shotId : context.projectId;
+  const entityKey = persistenceScope === 'shot' ? context.shotId : context.projectId;
+  const normalizedProjectId = context.projectId ?? null;
+  const normalizedShotId = context.shotId ?? null;
+
+  useRenderLogger(`PersistentToolState:${toolId}`, { entityKey, enabled });
+
+  const resolvedDefaults = useMemo(() => {
+    const fromRegistry = explicitDefaults || toolDefaultsRegistry[toolId] || {};
+    const merged: Record<string, unknown> = { ...fromRegistry };
+
+    Object.entries(stateMapping).forEach(([key, mapping]) => {
+      const [currentValue] = mapping as [T[keyof T], React.Dispatch<React.SetStateAction<T[keyof T]>>];
+      if (merged[key] !== undefined) return;
+      const inferred = inferEmptyValue(currentValue);
+      merged[key] = inferred;
+
+      if (process.env.NODE_ENV === 'development') {
+        const warningKey = `${toolId}:${key}`;
+        if (!warnedMissingDefaultsRef.current.has(warningKey)) {
+          warnedMissingDefaultsRef.current.add(warningKey);
+          console.warn(
+            `[usePersistentToolState] Field "${key}" in tool "${toolId}" has no default value. ` +
+            `Inferring empty value (${JSON.stringify(inferred)}). ` +
+            `Consider adding explicit default in settings.ts`
+          );
+        }
+      }
+    });
+
+    return merged as T;
+  }, [explicitDefaults, stateMapping, toolId]);
+
+  const autoSave = useAutoSaveSettings<Record<string, unknown>>({
+    toolId,
+    shotId: normalizedShotId,
+    projectId: normalizedProjectId,
+    scope: persistenceScope,
+    defaults: resolvedDefaults as unknown as Record<string, unknown>,
+    enabled: enabled && !!entityKey,
+    // Preserve existing behavior: this adapter intentionally keeps a short debounce.
+    debounceMs: Math.min(debounceMs, 100),
+  });
+  const autoSaveStatus = autoSave.status;
+  const autoSaveSettings = autoSave.settings as Partial<T>;
+  const autoSaveUpdateFields = autoSave.updateFields as (updates: Partial<T>) => void;
+  const autoSaveError = autoSave.error;
 
   // Reset hydration when entity changes
   useEffect(() => {
     if (entityKey !== hydratedForEntityRef.current) {
       hasHydratedRef.current = false;
       userHasInteractedRef.current = false;
-      lastSavedSettingsRef.current = null;
+      lastSyncedSettingsRef.current = null;
       hydratedForEntityRef.current = entityKey || null;
       setReady(false);
       setHasUserInteracted(false);
     }
   }, [entityKey, toolId]);
 
-  // Hydrate local state from persisted settings
+  // Hydrate external state setters from persisted settings once entity is ready.
   useEffect(() => {
-    if (!enabled) {
-      return;
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[PersistentToolState:${toolId}] hydration check — entityKey=${entityKey}, autoSaveStatus=${autoSaveStatus}, hasHydrated=${hasHydratedRef.current}, enabled=${enabled}`);
     }
+    if (!enabled || !entityKey || hasHydratedRef.current || autoSaveStatus !== 'ready') return;
 
-    if (!isLoadingSettings && !hasHydratedRef.current && entityKey) {
-      // Use an empty object if settings could not be fetched (e.g. first time or API failure)
-      const effectiveSettings: Partial<T> = (settings as Partial<T>) || {};
-      
-      // Get defaults for this tool to reset undefined values
-      const toolDefaults = explicitDefaults || toolDefaultsRegistry[toolId] || {};
-      
-      hasHydratedRef.current = true;
-      userHasInteractedRef.current = false;
-      
-      // Apply each setting to its corresponding setter
-      // CRITICAL FIX: Always reset values when switching projects to prevent stale state
-      Object.entries(stateMapping).forEach(([key, [currentValue, setter]]) => {
-        if (effectiveSettings[key as keyof T] !== undefined) {
-          // Value exists in DB - use it
-          setter(effectiveSettings[key as keyof T] as T[keyof T]);
-        } else if (toolDefaults[key as keyof typeof toolDefaults] !== undefined) {
-          // Value missing in DB but has a default - reset to default
-          setter(toolDefaults[key as keyof typeof toolDefaults] as T[keyof T]);
-        } else {
-          // SAFETY NET: No value in DB and no default - infer empty value from current type
-          // This prevents stale state but ideally all fields should have explicit defaults
-          const emptyValue = inferEmptyValue(currentValue);
-          
-          // Warn in development if we're using inference (indicates missing default)
-          if (process.env.NODE_ENV === 'development') {
-            console.warn(
-              `[usePersistentToolState] Field "${key}" in tool "${toolId}" has no default value. ` +
-              `Inferring empty value (${JSON.stringify(emptyValue)}). ` +
-              `Consider adding explicit default in settings.ts`
-            );
-          }
-          
-          setter(emptyValue as T[keyof T]);
-        }
-      });
+    const effectiveSettings = (autoSaveSettings || resolvedDefaults) as Partial<T>;
+    Object.entries(stateMapping).forEach(([key, mapping]) => {
+      const [, setter] = mapping as [T[keyof T], React.Dispatch<React.SetStateAction<T[keyof T]>>];
+      setter(effectiveSettings[key as keyof T] as T[keyof T]);
+    });
 
-      // Mark as ready after hydration
-      setReady(true);
-    }
-  }, [settings, isLoadingSettings, stateMapping, entityKey, toolId]);
+    hasHydratedRef.current = true;
+    userHasInteractedRef.current = false;
+    setReady(true);
+  }, [autoSaveSettings, autoSaveStatus, enabled, entityKey, resolvedDefaults, stateMapping]);
 
   // Collect current state values from the mapping
   const getCurrentState = useCallback((): T => {
     const currentState: Record<string, unknown> = {};
-    Object.entries(stateMapping).forEach(([key, [value]]) => {
+    Object.entries(stateMapping as Record<string, [unknown, React.Dispatch<React.SetStateAction<unknown>>]>).forEach(([key, [value]]) => {
       currentState[key] = value;
     });
     return currentState as T;
@@ -190,72 +199,64 @@ export function usePersistentToolState<T extends Record<string, unknown>>(
 
   // Function to mark that user has interacted
   const markAsInteracted = useCallback(() => {
-    if (!enabled) {
-      return;
-    }
+    if (!enabled) return;
     userHasInteractedRef.current = true;
     setHasUserInteracted(true);
   }, [enabled]);
 
   const noopMarkAsInteracted = useCallback(() => {}, []);
+  const stateValuesSignature = useMemo(() => {
+    const stateValues: Record<string, unknown> = {};
+    Object.entries(stateMapping as Record<string, [unknown, React.Dispatch<React.SetStateAction<unknown>>]>).forEach(([key, [value]]) => {
+      stateValues[key] = value;
+    });
+    return JSON.stringify(stateValues);
+  }, [stateMapping]);
 
-  // Save settings with debouncing and deep comparison
+  // Push external state updates into the canonical auto-save hook after user interaction.
   useEffect(() => {
-    if (!enabled || !entityKey || !settings || !hasHydratedRef.current || !userHasInteractedRef.current) {
+    if (
+      !enabled ||
+      !entityKey ||
+      !hasHydratedRef.current ||
+      !userHasInteractedRef.current ||
+      autoSaveStatus === 'loading'
+    ) {
       return;
     }
 
-    // Clear any pending save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+    const currentState = getCurrentState();
+
+    if (
+      lastSyncedSettingsRef.current &&
+      deepEqual(
+        sanitizeSettings(currentState),
+        sanitizeSettings(lastSyncedSettingsRef.current)
+      )
+    ) {
+      return;
     }
 
-    // Debounce the save
-    saveTimeoutRef.current = setTimeout(async () => {
-      const currentState = getCurrentState();
-      
-      // Check if we just saved these exact settings
-      if (lastSavedSettingsRef.current && 
-          deepEqual(sanitizeSettings(currentState), sanitizeSettings(lastSavedSettingsRef.current))) {
-        return;
-      }
+    if (deepEqual(sanitizeSettings(currentState), sanitizeSettings(autoSaveSettings))) {
+      return;
+    }
 
-      // Check if settings actually changed from what's in the database
-      if (!isUpdating && !deepEqual(sanitizeSettings(currentState), sanitizeSettings(settings))) {
-        try {
-          lastSavedSettingsRef.current = currentState;
-          await updateSettings(scope, currentState);
-          setSaveError(undefined);
-        } catch (error) {
-          handleError(error, { context: 'usePersistentToolState', showToast: false });
-          setSaveError(error as Error);
-        }
-      }
-    }, Math.min(debounceMs, 100)); // Cap debounce at 100ms for performance
-
-    // Cleanup timeout on unmount or dependencies change
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
+    lastSyncedSettingsRef.current = currentState;
+    autoSaveUpdateFields(currentState);
   }, [
+    autoSaveSettings,
+    autoSaveStatus,
+    autoSaveUpdateFields,
+    enabled,
     entityKey,
-    settings,
     getCurrentState,
-    updateSettings,
-    isUpdating,
-    scope,
-    debounceMs,
-    toolId,
-    // Include all state values to trigger saves on change
-    ...Object.entries(stateMapping).map(([_, [value]]) => value)
+    stateValuesSignature,
   ]);
 
   return {
-    ready: enabled ? ready : true,
-    isSaving: enabled ? isUpdating : false,
-    saveError: enabled ? saveError : undefined,
+    ready: enabled ? !!entityKey && ready : true,
+    isSaving: enabled ? autoSaveStatus === 'saving' : false,
+    saveError: enabled ? autoSaveError ?? undefined : undefined,
     hasUserInteracted: enabled ? hasUserInteracted : false,
     markAsInteracted: enabled ? markAsInteracted : noopMarkAsInteracted,
   };

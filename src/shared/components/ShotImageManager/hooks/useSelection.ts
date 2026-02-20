@@ -71,7 +71,7 @@ export function useSelection({
     setMobileSelectedIds([]);
     setLastSelectedIndex(null);
     onSelectionChange?.(false);
-  }, [selectedIds.length, mobileSelectedIds.length, onSelectionChange]);
+  }, [onSelectionChange]);
   
   // Handle item click (desktop)
   const handleItemClick = useCallback((imageKey: string, event: React.MouseEvent) => {
@@ -184,4 +184,3 @@ export function useSelection({
     handleItemClick
   };
 }
-

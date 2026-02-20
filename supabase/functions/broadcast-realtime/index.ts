@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SystemLogger } from "../_shared/systemLogger.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -12,11 +13,20 @@ serve(async (req) => {
       return new Response("Method not allowed", { status: 405 });
     }
 
-    // Verify service role authentication - this function should only be called internally
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== SUPABASE_SERVICE_ROLE_KEY) {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const logger = new SystemLogger(supabase, 'broadcast-realtime');
+
+    // Service-role only endpoint
+    const auth = await authenticateRequest(req, supabase, "[BROADCAST-REALTIME]");
+    if (!auth.success) {
+      return new Response(JSON.stringify({ error: auth.error || "Authentication failed" }), {
+        status: auth.statusCode || 401,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    if (!auth.isServiceRole) {
       return new Response(JSON.stringify({ error: "Unauthorized - service role required" }), {
-        status: 401,
+        status: 403,
         headers: { "Content-Type": "application/json" }
       });
     }
@@ -29,10 +39,6 @@ serve(async (req) => {
         status: 400 
       });
     }
-
-    // Create Supabase client with service role key
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const logger = new SystemLogger(supabase, 'broadcast-realtime');
 
     // Create a channel and send the broadcast
     const broadcastChannel = supabase.channel(channel);

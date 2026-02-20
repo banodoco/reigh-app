@@ -100,7 +100,7 @@ export async function authenticateRequest(
           };
         }
       }
-    } catch (e) {
+    } catch {
       // Not a valid JWT - continue to PAT lookup
     }
   }

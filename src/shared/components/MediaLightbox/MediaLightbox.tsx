@@ -2,7 +2,7 @@ import React from 'react';
 import type { GenerationRow, Shot } from '@/types/shots';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from './types';
-import type { ShotOption } from './types';
+import type { ShotOption, TaskDetailsData } from './types';
 import { ImageLightbox } from './ImageLightbox';
 import { VideoLightbox } from './VideoLightbox';
 
@@ -27,7 +27,7 @@ export interface MediaLightboxProps {
   onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   onDelete?: (id: string) => void;
   isDeleting?: string | null;
-  onApplySettings?: (metadata: Record<string, unknown>) => void;
+  onApplySettings?: (metadata: GenerationRow['metadata']) => void;
   showTickForImageId?: string | null;
   onShowTick?: (imageId: string) => void;
   showTickForSecondaryImageId?: string | null;
@@ -36,15 +36,7 @@ export interface MediaLightboxProps {
   starred?: boolean;
   onToggleStar?: (id: string, starred: boolean) => void;
   showTaskDetails?: boolean;
-  taskDetailsData?: {
-    task: Record<string, unknown> | null;
-    isLoading: boolean;
-    error: Error | null;
-    inputImages: string[];
-    taskId: string | null;
-    onApplySettingsFromTask?: (taskId: string, replaceImages: boolean, inputImages: string[]) => void;
-    onClose?: () => void;
-  };
+  taskDetailsData?: TaskDetailsData;
   onShowTaskDetails?: () => void;
   onCreateShot?: (shotName: string, files: File[]) => Promise<{ shotId?: string; shotName?: string } | void>;
   onNavigateToShot?: (shot: Shot, options?: { isNewlyCreated?: boolean }) => void;

@@ -25,7 +25,7 @@ interface VideoItemActionsProps {
   onMobileModalOpen: (video: GenerationRow) => void;
   onApplySettingsFromTask: (taskId: string, replaceImages: boolean, inputImages: string[]) => void;
   // Share state (driven by parent hook)
-  handleShare: () => void;
+  handleShare: (e: React.MouseEvent | React.TouchEvent) => void;
   isCreatingShare: boolean;
   shareCopied: boolean;
   shareSlug: string | null | undefined;
@@ -57,7 +57,7 @@ export const VideoItemActions: React.FC<VideoItemActionsProps> = ({
       {/* Share Button */}
       {taskId && (
         <TooltipProvider>
-          <Tooltip delayDuration={300}>
+          <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="secondary"
@@ -120,7 +120,7 @@ export const VideoItemActions: React.FC<VideoItemActionsProps> = ({
       {/* Apply Settings Button */}
       {taskId && (
         <TooltipProvider>
-          <Tooltip delayDuration={300}>
+          <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="secondary"
@@ -157,7 +157,7 @@ export const VideoItemActions: React.FC<VideoItemActionsProps> = ({
 
       {/* Delete Button */}
       <TooltipProvider>
-        <Tooltip delayDuration={300}>
+        <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="destructive"

@@ -1,0 +1,1 @@
+{"batch":"Authorization","assessments":{"authorization_consistency":56,"mid_level_elegance":62},"findings":[]}

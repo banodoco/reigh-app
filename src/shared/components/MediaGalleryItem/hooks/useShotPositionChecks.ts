@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { GeneratedImageWithMetadata } from '../types';
+import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 interface UseShotPositionChecksParams {
   image: GeneratedImageWithMetadata;
@@ -7,7 +8,7 @@ interface UseShotPositionChecksParams {
   currentViewingShotId?: string;
   optimisticPositionedIds?: Set<string>;
   optimisticUnpositionedIds?: Set<string>;
-  onAddToLastShotWithoutPosition?: (...args: unknown[]) => unknown;
+  onAddToLastShotWithoutPosition?: AddToShotHandler;
   showTickForImageId: string | null;
   addingToShotImageId: string | null;
 }

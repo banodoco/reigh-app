@@ -105,7 +105,7 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-grow"
         />
-        <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
+        <Select value={sortOption} onValueChange={(value) => value && setSortOption(value as SortOption)}>
           <SelectTrigger variant="retro" className="w-[140px]">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
@@ -118,7 +118,7 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
           </SelectContent>
         </Select>
         {/* Model Filter Dropdown - far right */}
-        <Select value={selectedModelFilter} onValueChange={(v) => setSelectedModelFilter(v as ModelFilterCategory)}>
+        <Select value={selectedModelFilter} onValueChange={(v) => v && setSelectedModelFilter(v as ModelFilterCategory)}>
           <SelectTrigger variant="retro" className="w-[120px] ml-auto">
             <SelectValue placeholder="Model" />
           </SelectTrigger>
@@ -131,7 +131,7 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
         </Select>
         {/* Sub-filter - appears when a category is selected */}
         {selectedModelFilter !== 'all' && (
-          <Select value={selectedSubFilter} onValueChange={setSelectedSubFilter}>
+          <Select value={selectedSubFilter} onValueChange={(value) => setSelectedSubFilter(value ?? 'all')}>
             <SelectTrigger variant="retro" className="w-[150px]">
               <SelectValue placeholder="Type" />
             </SelectTrigger>

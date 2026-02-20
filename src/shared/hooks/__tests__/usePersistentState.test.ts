@@ -76,7 +76,7 @@ describe('usePersistentState', () => {
     });
 
     expect(result.current[0]).toEqual({ count: 1, name: 'updated' });
-    expect(JSON.parse(localStorageMock['obj-key'])).toEqual({ count: 1, name: 'updated' });
+    expect(localStorageMock['obj-key']).toBe(JSON.stringify({ count: 1, name: 'updated' }));
   });
 
   it('handles array values', () => {

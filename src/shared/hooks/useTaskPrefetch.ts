@@ -11,7 +11,7 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { mapDbTaskToTask } from './useTasks';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 /**
  * Hook for getting task data from cache for a generation.
@@ -21,9 +21,9 @@ import { queryKeys } from '@/shared/lib/queryKeys';
  * @returns Query result with { taskId: string | null }
  */
 export function useTaskFromUnifiedCache(generationId: string) {
-  const result = useQuery({
-    queryKey: queryKeys.tasks.generationTaskId(generationId),
-    queryFn: async () => {
+  const result = useQuery<{ taskId: string | null }>({
+    queryKey: taskQueryKeys.generationTaskId(generationId),
+    queryFn: async (): Promise<{ taskId: string | null }> => {
       // Fetch task ID from generations table
       // Note: React Query won't call this if data is cached (staleTime: Infinity)
       const { data, error } = await supabase
@@ -41,7 +41,8 @@ export function useTaskFromUnifiedCache(generationId: string) {
         return { taskId: null };
       }
 
-      const taskId = Array.isArray(data?.tasks) && data.tasks.length > 0 ? data.tasks[0] : null;
+      const firstTaskId = Array.isArray(data.tasks) && data.tasks.length > 0 ? data.tasks[0] : null;
+      const taskId = typeof firstTaskId === 'string' ? firstTaskId : null;
       return { taskId };
     },
     // Generation→task mapping is immutable - cache aggressively
@@ -69,7 +70,7 @@ export function usePrefetchTaskData() {
 
     // Check if task ID mapping is already cached (including { taskId: null } for no-task generations)
     let taskId: string | null = null;
-    const cachedMapping = queryClient.getQueryData(queryKeys.tasks.generationTaskId(generationId)) as { taskId: string | null } | undefined;
+    const cachedMapping = queryClient.getQueryData(taskQueryKeys.generationTaskId(generationId)) as { taskId: string | null } | undefined;
 
     if (cachedMapping !== undefined) {
       // Already cached - use the cached value (could be null if no task)
@@ -78,7 +79,7 @@ export function usePrefetchTaskData() {
       // Not cached - fetch the task ID mapping
       try {
         const result = await queryClient.fetchQuery({
-          queryKey: queryKeys.tasks.generationTaskId(generationId),
+          queryKey: taskQueryKeys.generationTaskId(generationId),
           queryFn: async () => {
             const { data, error } = await supabase
               .from('generations')
@@ -89,7 +90,8 @@ export function usePrefetchTaskData() {
             if (error) throw error;
             if (!data) return { taskId: null };
 
-            const fetchedTaskId = Array.isArray(data?.tasks) && data.tasks.length > 0 ? data.tasks[0] : null;
+            const firstTaskId = Array.isArray(data.tasks) && data.tasks.length > 0 ? data.tasks[0] : null;
+            const fetchedTaskId = typeof firstTaskId === 'string' ? firstTaskId : null;
             return { taskId: fetchedTaskId };
           },
           staleTime: Infinity,
@@ -102,11 +104,11 @@ export function usePrefetchTaskData() {
 
     // Prefetch the full task data if we have a task ID and it's not cached
     if (taskId) {
-      const cachedTask = queryClient.getQueryData(queryKeys.tasks.single(taskId));
+      const cachedTask = queryClient.getQueryData(taskQueryKeys.single(taskId));
       if (!cachedTask) {
         try {
           await queryClient.fetchQuery({
-            queryKey: queryKeys.tasks.single(taskId),
+            queryKey: taskQueryKeys.single(taskId),
             queryFn: async () => {
               const { data, error } = await supabase
                 .from('tasks')
@@ -141,14 +143,14 @@ export function usePrefetchTaskById() {
     if (!taskId) return;
 
     // Check if already cached
-    const cached = queryClient.getQueryData(queryKeys.tasks.single(taskId));
+    const cached = queryClient.getQueryData(taskQueryKeys.single(taskId));
     if (cached) {
       return;
     }
 
     try {
       await queryClient.fetchQuery({
-        queryKey: queryKeys.tasks.single(taskId),
+        queryKey: taskQueryKeys.single(taskId),
         queryFn: async () => {
           const { data, error } = await supabase
             .from('tasks')

@@ -34,8 +34,13 @@ vi.mock('../../../taskCreation', () => ({
     }
   },
   safeParseJson: <T>(jsonStr: string | undefined, fallback: T): T => {
+    const parseJson = JSON['parse'] as (raw: string) => unknown;
     if (!jsonStr) return fallback;
-    try { return JSON.parse(jsonStr) as T; } catch { return fallback; }
+    try {
+      return parseJson(jsonStr) as T;
+    } catch {
+      return fallback;
+    }
   },
 }));
 

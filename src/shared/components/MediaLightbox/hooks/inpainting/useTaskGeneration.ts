@@ -6,8 +6,8 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import type { GenerationRow } from '@/types/shots';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
@@ -112,12 +112,6 @@ export function useTaskGeneration({
     const config = TASK_CONFIGS[taskType];
     const strokes = taskType === 'inpaint' ? inpaintStrokes : annotationStrokes;
 
-    console.log(`${config.logPrefix} handleGenerate called`, {
-      selectedProjectId: selectedProjectId?.substring(0, 8),
-      strokesLength: strokes.length,
-      hasStrokeOverlayRef: !!strokeOverlayRef.current,
-    });
-
     // Validation
     if (!selectedProjectId || isVideo) {
       toast.error(`Cannot generate ${taskType === 'inpaint' ? 'inpaint' : 'annotated edit'}`);
@@ -154,24 +148,22 @@ export function useTaskGeneration({
         throw new Error('Failed to export mask from overlay');
       }
 
-      console.log(`${config.logPrefix} Mask exported from Konva`);
-
       // Upload mask to storage
       const maskFile = await fetch(maskImageData)
         .then(res => res.blob())
         .then(blob => new File([blob], `${config.fileNamePrefix}_${media.id}_${Date.now()}.png`, { type: 'image/png' }));
 
       const maskUrl = await uploadImageToStorage(maskFile);
-      console.log(`${config.logPrefix} Mask uploaded:`, maskUrl);
 
       // Get source image URL
       const mediaUrl = getMediaUrl(media) || media.imageUrl;
       const sourceUrl = activeVariantLocation || mediaUrl;
-
-      console.log(`${config.logPrefix} Creating task`, {
-        generation_id: actualGenerationId.substring(0, 8),
-        prompt: inpaintPrompt.substring(0, 30),
-      });
+      if (!sourceUrl) {
+        throw new Error('Missing source media URL');
+      }
+      if (!actualGenerationId) {
+        throw new Error('Missing generation id');
+      }
 
       await config.createTask({
         project_id: selectedProjectId,
@@ -179,7 +171,7 @@ export function useTaskGeneration({
         mask_url: maskUrl,
         prompt: inpaintPrompt,
         num_generations: inpaintNumGenerations,
-        generation_id: actualGenerationId,
+        generation_id: actualGenerationId ?? undefined,
         shot_id: shotId,
         tool_type: toolTypeOverride,
         loras: loras,
@@ -188,8 +180,6 @@ export function useTaskGeneration({
         hires_fix: convertToHiresFixApiParams(advancedSettings),
         qwen_edit_model: qwenEditModel,
       });
-
-      console.log(`${config.logPrefix} Task created successfully`);
 
       // Show success state
       setInpaintGenerateSuccess(true);
@@ -203,8 +193,8 @@ export function useTaskGeneration({
     } catch (error) {
       handleError(error, { context: 'useTaskGeneration', toastTitle: config.taskCreationError });
     } finally {
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });
       removeIncomingTask(incomingTaskId);
       setIsGeneratingInpaint(false);
     }

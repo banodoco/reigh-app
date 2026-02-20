@@ -51,7 +51,7 @@ export interface UseInpaintingProps {
   toolTypeOverride?: string;
   isVideo: boolean;
   imageDimensions: ImageDimensions | null;
-  imageContainerRef: React.RefObject<HTMLDivElement>;
+  imageContainerRef: React.RefObject<HTMLDivElement | null>;
   handleExitInpaintMode: () => void;
   loras?: Array<{ url: string; strength: number }>;
   activeVariantId?: string | null;
@@ -130,4 +130,3 @@ export interface StrokeCache {
   numGenerations: number;
   brushSize: number;
 }
-

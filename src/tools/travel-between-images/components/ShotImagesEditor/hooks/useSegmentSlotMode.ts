@@ -7,7 +7,7 @@
  * - useFrameCountUpdater: Frame count updates
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo, type RefObject } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, type MutableRefObject, type RefObject } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { SegmentSlotModeData } from '@/shared/components/MediaLightbox/types';
 import type { PairData } from '../../Timeline/TimelineContainer';
@@ -15,7 +15,8 @@ import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travel
 import type { GenerationRow } from '@/types/shots';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import { readSegmentOverrides } from '@/shared/utils/settingsMigration';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { isVideoAny } from '@/shared/lib/typeGuards';
 import { usePairData } from './usePairData';
 import { useFrameCountUpdater } from './useFrameCountUpdater';
 
@@ -59,229 +60,240 @@ export interface UseSegmentSlotModeReturn {
   updatePairFrameCount: (pairShotGenerationId: string, newFrameCount: number) => Promise<{ finalFrameCount: number } | void>;
 }
 
-export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSlotModeReturn {
-  const {
-    selectedShotId,
-    projectId,
-    effectiveGenerationMode,
-    batchVideoFrames,
-    shotGenerations,
-    segmentSlots,
-    selectedParentId,
-    defaultPrompt,
-    defaultNegativePrompt,
-    resolvedProjectResolution,
-    structureVideos,
-    onAddStructureVideo,
-    onUpdateStructureVideo,
-    onRemoveStructureVideo,
-    onSetStructureVideos,
-    maxFrameLimit,
-    loadPositions,
-    navigateWithTransition,
-    addOptimisticPending,
-    trailingFrameUpdateRef,
-  } = props;
+interface SegmentSlotState {
+  segmentSlotLightboxIndex: number | null;
+  setSegmentSlotLightboxIndex: (index: number | null) => void;
+  activePairData: PairData | null;
+  setActivePairData: (data: PairData | null) => void;
+  pendingImageToOpen: string | null;
+  setPendingImageToOpen: (id: string | null) => void;
+  pendingImageVariantId: string | null;
+  setPendingImageVariantId: (id: string | null) => void;
+}
 
+function findCoveringStructureVideo(
+  structureVideos: StructureVideoConfigWithMetadata[] | undefined,
+  pairStartFrame: number,
+  pairEndFrame: number,
+  generationMode: UseSegmentSlotModeProps['effectiveGenerationMode'],
+) {
+  return (structureVideos || []).find(video => {
+    const videoStart = video.start_frame ?? 0;
+    const videoEnd = video.end_frame ?? Infinity;
+    return pairEndFrame > videoStart && pairStartFrame < videoEnd;
+  }) ?? (generationMode !== 'timeline' ? structureVideos?.[0] : undefined);
+}
+
+function getVideoThumb(slot: SegmentSlot | undefined): string | null {
+  if (slot?.type !== 'child' || !slot.child?.location) return null;
+  return getDisplayUrl(slot.child.thumbUrl || slot.child.location);
+}
+
+type SegmentChild = Extract<SegmentSlot, { type: 'child' }>['child'];
+
+function buildAdjacentVideoThumbnails(
+  segmentVideo: SegmentChild | null,
+  pairSlot: SegmentSlot | undefined,
+  segmentSlotLightboxIndex: number,
+  segmentSlots: SegmentSlot[],
+  totalPairs: number,
+) {
+  if (!segmentVideo) return undefined;
+
+  const currentThumb = getVideoThumb(pairSlot);
+  if (!currentThumb) return undefined;
+
+  let prevInfo: { thumbUrl: string; pairIndex: number } | undefined;
+  for (let i = segmentSlotLightboxIndex - 1; i >= 0; i--) {
+    const thumb = getVideoThumb(segmentSlots.find(s => s.index === i));
+    if (thumb) {
+      prevInfo = { thumbUrl: thumb, pairIndex: i };
+      break;
+    }
+  }
+
+  let nextInfo: { thumbUrl: string; pairIndex: number } | undefined;
+  for (let i = segmentSlotLightboxIndex + 1; i < totalPairs; i++) {
+    const thumb = getVideoThumb(segmentSlots.find(s => s.index === i));
+    if (thumb) {
+      nextInfo = { thumbUrl: thumb, pairIndex: i };
+      break;
+    }
+  }
+
+  if (!prevInfo && !nextInfo) return undefined;
+
+  return {
+    prev: prevInfo,
+    current: { thumbUrl: currentThumb, pairIndex: segmentSlotLightboxIndex },
+    next: nextInfo,
+  };
+}
+
+function resolveOverlappingStructureVideos(
+  structureVideos: StructureVideoConfigWithMetadata[],
+  newVideo: StructureVideoConfigWithMetadata,
+) {
+  const newStart = newVideo.start_frame ?? 0;
+  const newEnd = newVideo.end_frame ?? Infinity;
+
+  return structureVideos
+    .flatMap(existing => {
+      const existingStart = existing.start_frame ?? 0;
+      const existingEnd = existing.end_frame ?? Infinity;
+
+      if (newEnd <= existingStart || newStart >= existingEnd) return [existing];
+      if (existingStart >= newStart && existingEnd <= newEnd) return [];
+      if (existingStart < newStart && existingEnd > newEnd) {
+        return [{ ...existing, end_frame: newStart }, { ...existing, start_frame: newEnd }];
+      }
+      if (existingStart < newStart) return [{ ...existing, end_frame: newStart }];
+      if (existingEnd > newEnd) return [{ ...existing, start_frame: newEnd }];
+      return [existing];
+    })
+    .filter(video => (video.end_frame ?? Infinity) > (video.start_frame ?? 0));
+}
+
+function getEnhancedPrompt(metadata: unknown): string {
+  if (!metadata || typeof metadata !== 'object') return '';
+  const value = (metadata as { enhanced_prompt?: unknown }).enhanced_prompt;
+  return typeof value === 'string' ? value : '';
+}
+
+function useSegmentSlotDeepLinking(
+  props: UseSegmentSlotModeProps,
+  state: SegmentSlotState,
+  pairDataByIndex: Map<number, PairData>,
+) {
   const location = useLocation();
   const navigate = useNavigate();
-
-  // ==========================================================================
-  // STATE
-  // ==========================================================================
-
-  const [segmentSlotLightboxIndex, setSegmentSlotLightboxIndex] = useState<number | null>(null);
-  const [activePairData, setActivePairData] = useState<PairData | null>(null);
-  // Initialize from location state so the value is available on first render (prevents flash).
-  // The overlay div in ShotImagesEditor uses this to start visible.
-  const initialState = location.state as { openImageGenerationId?: string; openImageVariantId?: string } | null;
-  const [pendingImageToOpen, setPendingImageToOpen] = useState<string | null>(
-    initialState?.openImageGenerationId ?? null
-  );
-  const [pendingImageVariantId, setPendingImageVariantId] = useState<string | null>(
-    initialState?.openImageVariantId ?? null
-  );
-  const frameCountDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstMountRef = useRef(true);
+  const navigateWithTransition = props.navigateWithTransition;
+  const segmentSlots = props.segmentSlots;
+  const {
+    segmentSlotLightboxIndex,
+    setSegmentSlotLightboxIndex,
+    setActivePairData,
+    setPendingImageToOpen,
+    setPendingImageVariantId,
+  } = state;
 
-  // Auto-clear variant ID when pending image is cleared
-  useEffect(() => {
-    if (!pendingImageToOpen) {
-      setPendingImageVariantId(null);
-    }
-  }, [pendingImageToOpen]);
-
-  // ==========================================================================
-  // COMPOSED HOOKS
-  // ==========================================================================
-
-  const { pairDataByIndex } = usePairData({
-    shotGenerations,
-    generationMode: effectiveGenerationMode,
-    batchVideoFrames,
-  });
-
-  const { updatePairFrameCount } = useFrameCountUpdater({
-    shotGenerations,
-    generationMode: effectiveGenerationMode,
-    maxFrameLimit,
-    loadPositions,
-    trailingFrameUpdateRef,
-  });
-
-  // ==========================================================================
-  // DEEP-LINKING: Open segment from URL state
-  // ==========================================================================
-
-  // Deep-linking: Open image from URL state (e.g. TasksPane "Open Image").
-  // Mirrors the openSegmentSlot pattern below.
-  // On first mount: pendingImageToOpen is already set via useState init, just clear URL state.
-  // On subsequent navigations (component already mounted): show overlay, set state, clear URL.
   useEffect(() => {
     const wasFirstMount = isFirstMountRef.current;
     isFirstMountRef.current = false;
 
-    const state = location.state as { openImageGenerationId?: string; openImageVariantId?: string; fromShotClick?: boolean } | null;
-    if (!state?.openImageGenerationId) return;
+    const currentState = location.state as { openImageGenerationId?: string; openImageVariantId?: string; fromShotClick?: boolean } | null;
+    if (!currentState?.openImageGenerationId) return;
 
     if (wasFirstMount) {
-      // First mount: pendingImageToOpen already set via useState init above.
-      // Just clear URL state.
       navigate(location.pathname + location.hash, {
         replace: true,
-        state: { fromShotClick: state.fromShotClick }
+        state: { fromShotClick: currentState.fromShotClick },
       });
       return;
     }
 
-    // Subsequent navigation (component already mounted, e.g. clicking another task).
-    // Close segment lightbox if open.
     if (segmentSlotLightboxIndex !== null) {
       setSegmentSlotLightboxIndex(null);
       setActivePairData(null);
     }
 
-    // Show overlay synchronously, then set state after paint.
     navigateWithTransition(() => {
-      setPendingImageToOpen(state.openImageGenerationId!);
-      if (state.openImageVariantId) {
-        setPendingImageVariantId(state.openImageVariantId);
+      setPendingImageToOpen(currentState.openImageGenerationId!);
+      if (currentState.openImageVariantId) {
+        setPendingImageVariantId(currentState.openImageVariantId);
       }
     });
 
-    // Clear URL state
     navigate(location.pathname + location.hash, {
       replace: true,
-      state: { fromShotClick: state.fromShotClick }
+      state: { fromShotClick: currentState.fromShotClick },
     });
-  }, [location.state, navigate, location.pathname, location.hash, navigateWithTransition, segmentSlotLightboxIndex]);
+  }, [
+    location.state,
+    location.pathname,
+    location.hash,
+    navigate,
+    navigateWithTransition,
+    segmentSlotLightboxIndex,
+    setSegmentSlotLightboxIndex,
+    setActivePairData,
+    setPendingImageToOpen,
+    setPendingImageVariantId,
+  ]);
 
   useEffect(() => {
-    const state = location.state as { openSegmentSlot?: string; fromShotClick?: boolean } | null;
-    if (!state?.openSegmentSlot || pairDataByIndex.size === 0) return;
+    const currentState = location.state as { openSegmentSlot?: string; fromShotClick?: boolean } | null;
+    if (!currentState?.openSegmentSlot || pairDataByIndex.size === 0) return;
 
-    // Find pair where startImage.id matches
     for (const [pairIndex, pairData] of pairDataByIndex.entries()) {
-      if (pairData.startImage.id === state.openSegmentSlot) {
-        // Check if segmentSlots has the video loaded for this pair
-        // This prevents the SegmentEditorModal from flashing before MediaLightbox
-        const matchingSlot = segmentSlots.find(s => s.index === pairIndex);
-        const hasVideo = matchingSlot?.type === 'child' && matchingSlot.child?.location;
+      if (pairData.startImage?.id !== currentState.openSegmentSlot) continue;
 
-        if (!hasVideo) {
-          // Video not loaded yet - wait for next render when segmentSlots updates
-          return;
-        }
+      const matchingSlot = segmentSlots.find(slot => slot.index === pairIndex);
+      const hasVideo = matchingSlot?.type === 'child' && matchingSlot.child?.location;
+      if (!hasVideo) return;
 
-        setActivePairData(pairData);
-        setSegmentSlotLightboxIndex(pairIndex);
-        navigate(location.pathname + location.hash, {
-          replace: true,
-          state: { fromShotClick: state.fromShotClick }
-        });
-        break;
-      }
-    }
-  }, [location.state, pairDataByIndex, segmentSlots, navigate, location.pathname, location.hash]);
-
-  // ==========================================================================
-  // HANDLERS
-  // ==========================================================================
-
-  const handlePairClick = useCallback((pairIndex: number, passedPairData?: PairData) => {
-    const pairData = passedPairData || pairDataByIndex.get(pairIndex);
-    if (pairData) {
       setActivePairData(pairData);
+      setSegmentSlotLightboxIndex(pairIndex);
+      navigate(location.pathname + location.hash, {
+        replace: true,
+        state: { fromShotClick: currentState.fromShotClick },
+      });
+      break;
     }
-    setSegmentSlotLightboxIndex(pairIndex);
-  }, [pairDataByIndex]);
+  }, [
+    location.state,
+    location.pathname,
+    location.hash,
+    navigate,
+    pairDataByIndex,
+    segmentSlots,
+    setActivePairData,
+    setSegmentSlotLightboxIndex,
+  ]);
+}
 
-  // ==========================================================================
-  // BUILD SEGMENT SLOT MODE DATA
-  // ==========================================================================
+function useSegmentSlotModeData(
+  props: UseSegmentSlotModeProps,
+  state: SegmentSlotState,
+  pairDataByIndex: Map<number, PairData>,
+  trailingPairData: PairData | null,
+  updatePairFrameCount: UseSegmentSlotModeReturn['updatePairFrameCount'],
+  frameCountDebounceRef: MutableRefObject<NodeJS.Timeout | null>,
+): SegmentSlotModeData | null {
+  return useMemo(() => {
+    if (state.segmentSlotLightboxIndex === null || !state.activePairData) return null;
 
-  const segmentSlotModeData: SegmentSlotModeData | null = useMemo(() => {
-    if (segmentSlotLightboxIndex === null || !activePairData) return null;
-
-    const pairData = activePairData;
-    const pairSlot = segmentSlots.find(slot => slot.index === segmentSlotLightboxIndex);
+    const pairData = state.activePairData;
+    const pairSlot = props.segmentSlots.find(slot => slot.index === state.segmentSlotLightboxIndex);
     const segmentVideo = pairSlot?.type === 'child' ? pairSlot.child : null;
+
+    // Include trailing slot in totalPairs when it has a video but isn't in pairDataByIndex
+    const effectiveTotalPairs = trailingPairData ? pairDataByIndex.size + 1 : pairDataByIndex.size;
 
     const pairStartFrame = pairData.startFrame ?? 0;
     const pairEndFrame = pairData.endFrame ?? 0;
+    const coveringVideo = findCoveringStructureVideo(
+      props.structureVideos,
+      pairStartFrame,
+      pairEndFrame,
+      props.effectiveGenerationMode,
+    );
 
-    // Find covering structure video
-    const coveringVideo = (structureVideos || []).find(video => {
-      const videoStart = video.start_frame ?? 0;
-      const videoEnd = video.end_frame ?? Infinity;
-      return pairEndFrame > videoStart && pairStartFrame < videoEnd;
-    }) ?? (effectiveGenerationMode !== 'timeline' && structureVideos?.[0]);
-
-    // Get prompts from metadata
-    const shotGen = shotGenerations.find(shotGen => shotGen.id === pairData.startImage?.id);
+    const shotGen = props.shotGenerations.find(generation => generation.id === pairData.startImage?.id);
     const overrides = readSegmentOverrides(shotGen?.metadata as Record<string, unknown> | null);
 
-    // Compute adjacent video thumbnails for preview sequence pill
-    const adjacentVideoThumbnails = (() => {
-      // Only show pill when current segment has a video
-      if (!segmentVideo) return undefined;
-
-      const getVideoThumb = (slot: typeof pairSlot) => {
-        if (slot?.type !== 'child' || !slot.child?.location) return null;
-        return getDisplayUrl(slot.child.thumbUrl || slot.child.location);
-      };
-
-      const currentThumb = getVideoThumb(pairSlot);
-      if (!currentThumb) return undefined;
-
-      // Search outward for prev/next video neighbors
-      let prevInfo: { thumbUrl: string; pairIndex: number } | undefined;
-      for (let i = segmentSlotLightboxIndex - 1; i >= 0; i--) {
-        const slot = segmentSlots.find(s => s.index === i);
-        const thumb = getVideoThumb(slot);
-        if (thumb) { prevInfo = { thumbUrl: thumb, pairIndex: i }; break; }
-      }
-
-      let nextInfo: { thumbUrl: string; pairIndex: number } | undefined;
-      for (let i = segmentSlotLightboxIndex + 1; i < pairDataByIndex.size; i++) {
-        const slot = segmentSlots.find(s => s.index === i);
-        const thumb = getVideoThumb(slot);
-        if (thumb) { nextInfo = { thumbUrl: thumb, pairIndex: i }; break; }
-      }
-
-      // Only show pill if at least one neighbor has video
-      if (!prevInfo && !nextInfo) return undefined;
-
-      return {
-        prev: prevInfo,
-        current: { thumbUrl: currentThumb, pairIndex: segmentSlotLightboxIndex },
-        next: nextInfo,
-      };
-    })();
+    const adjacentVideoThumbnails = buildAdjacentVideoThumbnails(
+      segmentVideo,
+      pairSlot,
+      state.segmentSlotLightboxIndex,
+      props.segmentSlots,
+      effectiveTotalPairs,
+    );
 
     return {
-      currentIndex: segmentSlotLightboxIndex,
-      totalPairs: pairDataByIndex.size,
+      currentIndex: state.segmentSlotLightboxIndex,
+      totalPairs: effectiveTotalPairs,
       pairData: {
         index: pairData.index,
         frames: pairData.frames,
@@ -292,41 +304,34 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
       },
       segmentVideo,
       activeChildGenerationId: pairSlot?.type === 'child' ? pairSlot.child.id : undefined,
-
-      // Navigation
       onNavigateToPair: (index: number) => {
-        const targetPairData = pairDataByIndex.get(index);
+        const targetPairData = pairDataByIndex.get(index)
+          ?? (index === pairDataByIndex.size ? trailingPairData : null);
         if (!targetPairData) return;
 
         const currentHasVideo = !!segmentVideo;
-        const targetSlot = segmentSlots.find(slot => slot.index === index);
-        const targetHasVideo = targetSlot?.type === 'child';
+        const targetHasVideo = props.segmentSlots.find(slot => slot.index === index)?.type === 'child';
 
         if (currentHasVideo !== targetHasVideo) {
-          navigateWithTransition(() => {
-            setActivePairData(targetPairData);
-            setSegmentSlotLightboxIndex(index);
+          props.navigateWithTransition(() => {
+            state.setActivePairData(targetPairData);
+            state.setSegmentSlotLightboxIndex(index);
           });
-        } else {
-          setActivePairData(targetPairData);
-          setSegmentSlotLightboxIndex(index);
+          return;
         }
+
+        state.setActivePairData(targetPairData);
+        state.setSegmentSlotLightboxIndex(index);
       },
-
-      // IDs
-      projectId: projectId || null,
-      shotId: selectedShotId,
-      parentGenerationId: selectedParentId || undefined,
-
-      // Prompts
+      projectId: props.projectId || null,
+      shotId: props.selectedShotId,
+      parentGenerationId: props.selectedParentId || undefined,
       pairPrompt: overrides.prompt || '',
       pairNegativePrompt: overrides.negativePrompt || '',
-      defaultPrompt,
-      defaultNegativePrompt,
-      enhancedPrompt: shotGen?.metadata?.enhanced_prompt || '',
-      projectResolution: resolvedProjectResolution,
-
-      // Structure video
+      defaultPrompt: props.defaultPrompt,
+      defaultNegativePrompt: props.defaultNegativePrompt,
+      enhancedPrompt: getEnhancedPrompt(shotGen?.metadata),
+      projectResolution: props.resolvedProjectResolution,
       structureVideoType: coveringVideo?.structure_type ?? null,
       structureVideoDefaults: coveringVideo ? {
         motionStrength: coveringVideo.motion_strength ?? 1.2,
@@ -334,88 +339,175 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
         uni3cEndPercent: coveringVideo.uni3c_end_percent ?? 0.1,
       } : undefined,
       structureVideoUrl: coveringVideo?.path,
-      structureVideoFrameRange: (effectiveGenerationMode === 'timeline' || coveringVideo) ? {
+      structureVideoFrameRange: (props.effectiveGenerationMode === 'timeline' || coveringVideo) ? {
         segmentStart: pairStartFrame,
         segmentEnd: pairEndFrame,
         videoTotalFrames: coveringVideo?.metadata?.total_frames ?? 60,
         videoFps: coveringVideo?.metadata?.frame_rate ?? 24,
-        // Video's output range on timeline (for calculating segment-specific frames in "fit to range" mode)
         videoOutputStart: coveringVideo?.start_frame ?? 0,
         videoOutputEnd: coveringVideo?.end_frame ?? pairEndFrame,
       } : undefined,
-
-      // Callbacks
-      // Frame count changes are handled by useFrameCountUpdater which supports both:
-      // - Normal pairs (shifts subsequent images)
-      // - Trailing segments (updates metadata.end_frame)
       onFrameCountChange: (pairShotGenerationId: string, frameCount: number) => {
-        if (effectiveGenerationMode !== 'timeline') return;
+        if (props.effectiveGenerationMode !== 'timeline') return;
 
-        if (frameCountDebounceRef.current) clearTimeout(frameCountDebounceRef.current);
+        if (frameCountDebounceRef.current) {
+          clearTimeout(frameCountDebounceRef.current);
+        }
+
         frameCountDebounceRef.current = setTimeout(() => {
           updatePairFrameCount(pairShotGenerationId, frameCount);
         }, 150);
       },
-      onGenerateStarted: (pairShotGenerationId) => addOptimisticPending(pairShotGenerationId),
-      maxFrameLimit,
-
-      // Structure video management (Timeline mode)
-      isTimelineMode: effectiveGenerationMode === 'timeline',
-      existingStructureVideos: structureVideos ?? [],
+      onGenerateStarted: (pairShotGenerationId) => {
+        if (!pairShotGenerationId) return;
+        props.addOptimisticPending(pairShotGenerationId);
+      },
+      maxFrameLimit: props.maxFrameLimit,
+      isTimelineMode: props.effectiveGenerationMode === 'timeline',
+      existingStructureVideos: props.structureVideos ?? [],
       onAddSegmentStructureVideo: (video) => {
-        if (effectiveGenerationMode !== 'timeline' || !onSetStructureVideos) {
-          onAddStructureVideo?.(video);
+        if (props.effectiveGenerationMode !== 'timeline' || !props.onSetStructureVideos) {
+          props.onAddStructureVideo?.(video);
           return;
         }
-        // Resolve overlaps
-        const newStart = video.start_frame ?? 0;
-        const newEnd = video.end_frame ?? Infinity;
-        const updatedVideos = (structureVideos || []).flatMap((existing) => {
-          const existingStart = existing.start_frame ?? 0;
-          const existingEnd = existing.end_frame ?? Infinity;
-          if (newEnd <= existingStart || newStart >= existingEnd) return [existing];
-          if (existingStart >= newStart && existingEnd <= newEnd) return [];
-          if (existingStart < newStart && existingEnd > newEnd) {
-            return [{ ...existing, end_frame: newStart }, { ...existing, start_frame: newEnd }];
-          }
-          if (existingStart < newStart) return [{ ...existing, end_frame: newStart }];
-          if (existingEnd > newEnd) return [{ ...existing, start_frame: newEnd }];
-          return [existing];
-        }).filter(video => (video.end_frame ?? Infinity) > (video.start_frame ?? 0));
-        onSetStructureVideos([...updatedVideos, video]);
+
+        const updatedVideos = resolveOverlappingStructureVideos(props.structureVideos || [], video);
+        props.onSetStructureVideos([...updatedVideos, video]);
       },
       onUpdateSegmentStructureVideo: (updates) => {
-        if (!onUpdateStructureVideo || !coveringVideo || !structureVideos) return;
-        const index = structureVideos.findIndex(video => video.path === coveringVideo.path);
-        if (index >= 0) onUpdateStructureVideo(index, updates);
+        if (!props.onUpdateStructureVideo || !coveringVideo || !props.structureVideos) return;
+        const index = props.structureVideos.findIndex(video => video.path === coveringVideo.path);
+        if (index >= 0) props.onUpdateStructureVideo(index, updates);
       },
       onRemoveSegmentStructureVideo: () => {
-        if (!onRemoveStructureVideo || !coveringVideo || !structureVideos) return;
-        const index = structureVideos.findIndex(video => video.path === coveringVideo.path);
-        if (index >= 0) onRemoveStructureVideo(index);
+        if (!props.onRemoveStructureVideo || !coveringVideo || !props.structureVideos) return;
+        const index = props.structureVideos.findIndex(video => video.path === coveringVideo.path);
+        if (index >= 0) props.onRemoveStructureVideo(index);
       },
-
-      // Navigate back to constituent image
       onNavigateToImage: (shotGenerationId: string) => {
-        navigateWithTransition(() => {
-          setSegmentSlotLightboxIndex(null);
-          setPendingImageToOpen(shotGenerationId);
+        props.navigateWithTransition(() => {
+          state.setSegmentSlotLightboxIndex(null);
+          state.setPendingImageToOpen(shotGenerationId);
         });
       },
-
-      // Preview sequence pill
       adjacentVideoThumbnails,
       onOpenPreviewDialog: props.onOpenPreviewDialog,
     };
   }, [
-    segmentSlotLightboxIndex, activePairData, segmentSlots, pairDataByIndex,
-    structureVideos, effectiveGenerationMode, shotGenerations, projectId,
-    selectedShotId, selectedParentId, defaultPrompt, defaultNegativePrompt,
-    resolvedProjectResolution, addOptimisticPending, maxFrameLimit,
-    navigateWithTransition, updatePairFrameCount, onAddStructureVideo,
-    onUpdateStructureVideo, onRemoveStructureVideo, onSetStructureVideos,
-    props.onOpenPreviewDialog,
+    props,
+    state,
+    pairDataByIndex,
+    trailingPairData,
+    updatePairFrameCount,
+    frameCountDebounceRef,
   ]);
+}
+
+export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSlotModeReturn {
+  const location = useLocation();
+
+  const initialState = location.state as { openImageGenerationId?: string; openImageVariantId?: string } | null;
+  const [segmentSlotLightboxIndex, setSegmentSlotLightboxIndex] = useState<number | null>(null);
+  const [activePairData, setActivePairData] = useState<PairData | null>(null);
+  const [pendingImageToOpen, setPendingImageToOpen] = useState<string | null>(
+    initialState?.openImageGenerationId ?? null
+  );
+  const [pendingImageVariantId, setPendingImageVariantId] = useState<string | null>(
+    initialState?.openImageVariantId ?? null
+  );
+  const frameCountDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!pendingImageToOpen) {
+      setPendingImageVariantId(null);
+    }
+  }, [pendingImageToOpen]);
+
+  const { pairDataByIndex } = usePairData({
+    shotGenerations: props.shotGenerations,
+    generationMode: props.effectiveGenerationMode,
+    batchVideoFrames: props.batchVideoFrames,
+  });
+
+  const { updatePairFrameCount } = useFrameCountUpdater({
+    shotId: props.selectedShotId,
+    shotGenerations: props.shotGenerations,
+    generationMode: props.effectiveGenerationMode,
+    maxFrameLimit: props.maxFrameLimit,
+    loadPositions: props.loadPositions,
+    trailingFrameUpdateRef: props.trailingFrameUpdateRef,
+  });
+
+  const state: SegmentSlotState = {
+    segmentSlotLightboxIndex,
+    setSegmentSlotLightboxIndex,
+    activePairData,
+    setActivePairData,
+    pendingImageToOpen,
+    setPendingImageToOpen,
+    pendingImageVariantId,
+    setPendingImageVariantId,
+  };
+
+  // Detect trailing child slot beyond pairDataByIndex and build synthetic pair data for it.
+  // This handles the case where a trailing video exists but end_frame hasn't been
+  // refreshed in shotGenerations metadata yet (stale query data).
+  const trailingPairData = useMemo((): PairData | null => {
+    const trailingSlotIndex = pairDataByIndex.size;
+    const trailingSlot = props.segmentSlots.find(s => s.index === trailingSlotIndex);
+    if (!trailingSlot || trailingSlot.type !== 'child' || !trailingSlot.child?.location) return null;
+
+    const sortedImages = [...props.shotGenerations]
+      .filter(g => g.timeline_frame != null && g.timeline_frame >= 0 && !isVideoAny(g))
+      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+    const lastImage = sortedImages[sortedImages.length - 1];
+    if (!lastImage) return null;
+
+    const startFrame = lastImage.timeline_frame ?? 0;
+    const metadata = lastImage.metadata as Record<string, unknown> | null;
+    const endFrame = (typeof metadata?.end_frame === 'number' ? metadata.end_frame : null) ?? startFrame + 17;
+
+    return {
+      index: trailingSlotIndex,
+      frames: endFrame - startFrame,
+      startFrame,
+      endFrame,
+      startImage: {
+        id: lastImage.id,
+        generationId: lastImage.generation_id || undefined,
+        url: lastImage.imageUrl || lastImage.location || undefined,
+        thumbUrl: lastImage.thumbUrl || lastImage.location || undefined,
+        position: sortedImages.length,
+      },
+      endImage: null,
+    };
+  }, [pairDataByIndex, props.segmentSlots, props.shotGenerations]);
+
+  useSegmentSlotDeepLinking(props, state, pairDataByIndex);
+
+  const handlePairClick = useCallback((pairIndex: number, passedPairData?: PairData) => {
+    // Prefer passed data when it has real content (startImage present).
+    // Fall back to computed data (pairDataByIndex or trailingPairData) when
+    // passed data is minimal (e.g., fallback from handleOpenPairSettings).
+    const computedData = pairDataByIndex.get(pairIndex)
+      || (pairIndex === pairDataByIndex.size ? trailingPairData : null);
+    const pairData = (passedPairData?.startImage ? passedPairData : null)
+      || computedData
+      || passedPairData;
+    if (pairData) {
+      setActivePairData(pairData);
+    }
+    setSegmentSlotLightboxIndex(pairIndex);
+  }, [pairDataByIndex, trailingPairData]);
+
+  const segmentSlotModeData = useSegmentSlotModeData(
+    props,
+    state,
+    pairDataByIndex,
+    trailingPairData,
+    updatePairFrameCount,
+    frameCountDebounceRef,
+  );
 
   return {
     segmentSlotLightboxIndex,

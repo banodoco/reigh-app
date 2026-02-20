@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { useRenderLogger } from '@/shared/hooks/useRenderLogger';
 import TaskList from './TaskList';
 import { cn } from '@/shared/lib/utils';
@@ -15,7 +15,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useCancelAllPendingTasks, useTaskStatusCounts, usePaginatedTasks, useAllTaskTypes, type PaginatedTasksResponse } from '@/shared/hooks/useTasks';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { useToast } from '@/shared/hooks/use-toast';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TasksPaneProcessingWarning } from '../ProcessingWarnings';
 import { useBottomOffset } from '@/shared/hooks/useBottomOffset';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
@@ -67,7 +67,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     try {
       const stored = sessionStorage.getItem('tasks-pane-project-scope');
       if (stored) return stored;
-    } catch (e) { /* Session storage not available */ }
+    } catch { /* Session storage not available */ }
     return 'current';
   });
   
@@ -75,7 +75,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   useEffect(() => {
     try {
       sessionStorage.setItem('tasks-pane-project-scope', projectScope);
-    } catch (e) { /* Session storage not available */ }
+    } catch { /* Session storage not available */ }
   }, [projectScope]);
   
   // Pagination state
@@ -263,7 +263,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
       return;
     }
 
-    const queryKey = [...queryKeys.tasks.paginated(selectedProjectId!), STATUS_GROUPS[selectedFilter], ITEMS_PER_PAGE, (currentPage - 1) * ITEMS_PER_PAGE];
+    const queryKey = [...taskQueryKeys.paginated(selectedProjectId!), STATUS_GROUPS[selectedFilter], ITEMS_PER_PAGE, (currentPage - 1) * ITEMS_PER_PAGE];
     const previousData = queryClient.getQueryData(queryKey);
     
     queryClient.setQueryData<PaginatedTasksResponse | undefined>(queryKey, (oldData) => {
@@ -288,8 +288,8 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
           variant: 'default',
         });
         
-        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.paginated(selectedProjectId) });
-        queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginated(selectedProjectId) });
+        queryClient.invalidateQueries({ queryKey: taskQueryKeys.paginated(selectedProjectId) });
+        queryClient.refetchQueries({ queryKey: taskQueryKeys.paginated(selectedProjectId) });
       },
       onError: (error) => {
         queryClient.setQueryData(queryKey, previousData);
@@ -355,7 +355,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
       <PaneControlTab
         side="right"
         isLocked={isLocked}
-        isOpen={isOpen}
+        isOpen={!!isOpen}
         toggleLock={toggleLock}
         openPane={openPane}
         paneDimension={tasksPaneWidth}
@@ -509,7 +509,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                 <Select
                   value={projectScope}
                   onValueChange={(value) => {
-                    setProjectScope(value);
+                    setProjectScope(value ?? 'current');
                     setCurrentPage(1);
                   }}
                 >
@@ -570,7 +570,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                 onCloseLightbox={handleCloseLightbox}
                 mobileActiveTaskId={mobileActiveTaskId}
                 onMobileActiveTaskChange={setMobileActiveTaskId}
-                taskTypeFilter={selectedTaskType}
+                taskTypeFilter={selectedTaskType ?? undefined}
                 showProjectIndicator={isAllProjectsMode}
                 projectNameMap={projectNameMap}
               />
@@ -593,7 +593,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
           showDownload={true}
           showMagicEdit={lightboxProps.showMagicEdit}
           showTaskDetails={true}
-          taskDetailsData={taskDetailsData}
+          taskDetailsData={taskDetailsData ?? undefined}
           allShots={simplifiedShotOptions}
           selectedShotId={lightboxSelectedShotId || currentShotId || lastAffectedShotId || undefined}
           onShotChange={setLightboxSelectedShotId}

@@ -3,8 +3,8 @@ import { toast } from '@/shared/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { creditQueryKeys } from '@/shared/lib/queryKeys/credits';
 
 interface CreditBalance {
   balance: number;
@@ -14,9 +14,11 @@ interface CreditBalance {
 interface CreditLedgerEntry {
   id: string;
   user_id: string;
-  type: 'purchase' | 'spend';
+  type: 'manual' | 'stripe' | 'spend' | 'refund' | 'auto_topup';
   amount: number;
-  description: string;
+  description?: string;
+  task_id?: string | null;
+  metadata?: unknown;
   created_at: string;
 }
 
@@ -134,7 +136,7 @@ export function useCredits() {
     isLoading: isLoadingBalance,
     error: balanceError,
   } = useQuery<CreditBalance>({
-    queryKey: queryKeys.credits.balance,
+    queryKey: creditQueryKeys.balance,
     queryFn: fetchCreditBalance,
     // Use userConfig preset - balance changes after purchases/spend
     ...QUERY_PRESETS.userConfig,
@@ -144,7 +146,7 @@ export function useCredits() {
   // Fetch credit ledger with pagination using Supabase
   const useCreditLedger = (limit = 50, offset = 0) => {
     return useQuery<CreditLedgerResponse>({
-      queryKey: [...queryKeys.credits.ledger, limit, offset],
+      queryKey: [...creditQueryKeys.ledger, limit, offset],
       queryFn: () => fetchCreditLedger(limit, offset),
       // Use userConfig preset - ledger updates after transactions
       ...QUERY_PRESETS.userConfig,
@@ -178,20 +180,24 @@ export function useCredits() {
     },
     onSuccess: (data) => {
       if (data.checkoutUrl) {
-        // Validate checkout URL to prevent open redirect attacks
-        // Only allow Stripe checkout URLs from our own backend
+        // Validate and normalize checkout URL to prevent open redirects.
+        // We only ever navigate to Stripe's canonical checkout origin.
+        const STRIPE_CHECKOUT_ORIGIN = 'https://checkout.stripe.com';
+        let safeCheckoutUrl: string | null = null;
+
         try {
-          const url = new URL(data.checkoutUrl);
-          if (url.hostname !== 'checkout.stripe.com') {
-            toast.error('Invalid checkout URL');
-            return;
+          const checkoutUrl = new URL(data.checkoutUrl, window.location.origin);
+          if (checkoutUrl.protocol !== 'https:' || checkoutUrl.origin !== STRIPE_CHECKOUT_ORIGIN) {
+            throw new Error('Unexpected checkout origin');
           }
+
+          safeCheckoutUrl = `${STRIPE_CHECKOUT_ORIGIN}${checkoutUrl.pathname}${checkoutUrl.search}${checkoutUrl.hash}`;
         } catch {
           toast.error('Invalid checkout URL');
           return;
         }
-        // Redirect to Stripe checkout
-        window.location.href = data.checkoutUrl;
+
+        window.location.assign(safeCheckoutUrl);
       } else if (data.error) {
         toast.error(data.message || 'Failed to create checkout session');
       }
@@ -222,8 +228,8 @@ export function useCredits() {
     },
     onSuccess: () => {
       // Invalidate balance and ledger to refresh
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.balance });
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.ledger });
+      queryClient.invalidateQueries({ queryKey: creditQueryKeys.balance });
+      queryClient.invalidateQueries({ queryKey: creditQueryKeys.ledger });
     },
     onError: (error) => {
       handleError(error, { context: 'useCredits', toastTitle: 'Failed to grant credits' });

@@ -175,3 +175,5 @@ export function useButtonGroupProps({
     onGoToJoin,
   ]);
 }
+
+export type ButtonGroupProps = ReturnType<typeof useButtonGroupProps>;

@@ -8,7 +8,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { finalVideoQueryKeys } from '@/shared/lib/queryKeys/finalVideos';
 
 export interface ShotFinalVideo {
   id: string;
@@ -18,7 +18,7 @@ export interface ShotFinalVideo {
 
 export function useShotFinalVideos(projectId: string | null) {
   const { data: rawData, isLoading } = useQuery({
-    queryKey: queryKeys.finalVideos.byProject(projectId!),
+    queryKey: finalVideoQueryKeys.byProject(projectId!),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('shot_final_videos')
@@ -43,11 +43,16 @@ export function useShotFinalVideos(projectId: string | null) {
     if (!rawData) return map;
 
     for (const row of rawData) {
-      const shotId = (row as Record<string, unknown>).shot_id as string;
-      if (shotId && !map.has(shotId)) {
+      const shotId = typeof (row as Record<string, unknown>).shot_id === 'string'
+        ? (row as Record<string, unknown>).shot_id as string
+        : null;
+      const location = typeof row.location === 'string' ? row.location : null;
+      const id = typeof row.id === 'string' ? row.id : null;
+
+      if (shotId && id && location && !map.has(shotId)) {
         map.set(shotId, {
-          id: row.id,
-          location: row.location!,
+          id,
+          location,
           thumbnailUrl: row.thumbnail_url || null,
         });
       }

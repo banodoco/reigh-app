@@ -89,8 +89,10 @@ const assistantTools = [
   },
 ];
 
+type ToolItem = (typeof processTools)[number] | (typeof assistantTools)[number];
+
 interface ToolCardProps {
-  item: typeof processTools[0];
+  item: ToolItem;
   isCurrentTool: boolean;
   isVisible: boolean;
   onNavigate: (path: string) => void;
@@ -186,6 +188,98 @@ const ToolCard = memo(({ item, isCurrentTool, isVisible, onNavigate }: ToolCardP
 
 ToolCard.displayName = 'ToolCard';
 
+interface ToolsPaneDrawerProps {
+  paneProps: Record<string, unknown>;
+  transformClass: string;
+  shotsPaneWidth: number;
+  isPointerEventsEnabled: boolean;
+  currentToolId: string | null;
+  isToolVisible: (tool: { environments: AppEnvValue[] } | null | undefined, toolId?: string) => boolean;
+  handleNavigate: (path: string) => void;
+}
+
+const ToolsPaneDrawer = ({
+  paneProps,
+  transformClass,
+  shotsPaneWidth,
+  isPointerEventsEnabled,
+  currentToolId,
+  isToolVisible,
+  handleNavigate,
+}: ToolsPaneDrawerProps) => {
+  return (
+    <div
+      className="pointer-events-none"
+      style={{
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: `${shotsPaneWidth}px`,
+        zIndex: 60,
+      }}
+    >
+      <div
+        {...paneProps}
+        className={cn(
+          'pointer-events-auto absolute top-0 left-0 h-full w-full border-2 border-r shadow-xl transform transition-transform duration-300 ease-smooth flex flex-col bg-zinc-900/95 border-zinc-700',
+          transformClass
+        )}
+      >
+        <div
+          className={cn(
+            'flex flex-col h-full',
+            isPointerEventsEnabled ? 'pointer-events-auto' : 'pointer-events-none'
+          )}
+        >
+          <div className="p-2 border-b border-zinc-800 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="h-5 w-5 text-zinc-400 ml-2" />
+              <h2 className="text-xl font-light text-zinc-200">Tools</h2>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 p-3 flex-grow overflow-y-auto scrollbar-hide">
+            <div className="mb-2">
+              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                Main Tools
+              </h3>
+              <div className="flex flex-col gap-2">
+                {processTools.map((tool) => (
+                  <ToolCard
+                    key={tool.id}
+                    item={tool}
+                    isCurrentTool={currentToolId === tool.id}
+                    isVisible={isToolVisible(tool, tool.id)}
+                    onNavigate={handleNavigate}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                Assistant Tools
+              </h3>
+              <div className="flex flex-col gap-2">
+                {assistantTools.filter((tool) => isToolVisible(tool, tool.id)).map((tool) => (
+                  <ToolCard
+                    key={tool.id}
+                    item={tool}
+                    isCurrentTool={currentToolId === tool.id}
+                    isVisible={isToolVisible(tool, tool.id)}
+                    onNavigate={handleNavigate}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ToolsPaneComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -280,7 +374,7 @@ const ToolsPaneComponent: React.FC = () => {
       <PaneControlTab
         side="left"
         isLocked={isLocked}
-        isOpen={isOpen}
+        isOpen={!!isOpen}
         toggleLock={toggleLock}
         openPane={openPane}
         paneDimension={shotsPaneWidth}
@@ -297,79 +391,15 @@ const ToolsPaneComponent: React.FC = () => {
         } : undefined}
         dataTour="tools-pane-tab"
       />
-      <div
-        className="pointer-events-none"
-        style={{
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: `${shotsPaneWidth}px`,
-          zIndex: 60,
-        }}
-      >
-        <div
-          {...paneProps}
-          className={cn(
-            `pointer-events-auto absolute top-0 left-0 h-full w-full border-2 border-r shadow-xl transform transition-transform duration-300 ease-smooth flex flex-col bg-zinc-900/95 border-zinc-700`,
-            transformClass
-          )}
-        >
-          {/* Inner wrapper with delayed pointer events */}
-          <div 
-            className={cn(
-              'flex flex-col h-full',
-              isPointerEventsEnabled ? 'pointer-events-auto' : 'pointer-events-none'
-            )}
-          >
-            <div className="p-2 border-b border-zinc-800 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="h-5 w-5 text-zinc-400 ml-2" />
-                <h2 className="text-xl font-light text-zinc-200">Tools</h2>
-              </div>
-            </div>
-            
-            {/* Tools List */}
-            <div className="flex flex-col gap-2 p-3 flex-grow overflow-y-auto scrollbar-hide">
-              {/* Section: Main Tools */}
-              <div className="mb-2">
-                <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
-                  Main Tools
-                </h3>
-                <div className="flex flex-col gap-2">
-                  {processTools.map((tool) => (
-                    <ToolCard
-                      key={tool.id}
-                      item={tool}
-                      isCurrentTool={currentToolId === tool.id}
-                      isVisible={isToolVisible(tool, tool.id)}
-                      onNavigate={handleNavigate}
-                    />
-                  ))}
-                </div>
-              </div>
-              
-              {/* Section: Assistant Tools */}
-              <div>
-                <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
-                  Assistant Tools
-                </h3>
-                <div className="flex flex-col gap-2">
-                  {assistantTools.filter(t => isToolVisible(t, t.id)).map((tool) => (
-                    <ToolCard
-                      key={tool.id}
-                      item={tool}
-                      isCurrentTool={currentToolId === tool.id}
-                      isVisible={isToolVisible(tool, tool.id)}
-                      onNavigate={handleNavigate}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ToolsPaneDrawer
+        paneProps={paneProps as Record<string, unknown>}
+        transformClass={transformClass}
+        shotsPaneWidth={shotsPaneWidth}
+        isPointerEventsEnabled={isPointerEventsEnabled}
+        currentToolId={currentToolId}
+        isToolVisible={isToolVisible}
+        handleNavigate={handleNavigate}
+      />
     </>
   );
 };

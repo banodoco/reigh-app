@@ -31,7 +31,7 @@ export const LastAffectedShotProvider = ({ children }: { children: ReactNode }) 
     update: updateSettings,
     isLoading 
   } = useToolSettings<LastAffectedShotSettings>('last-affected-shot', { 
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? undefined,
     enabled: !!selectedProjectId 
   });
 

@@ -11,9 +11,10 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL } from '@/integrations/supabase/config/env';
 import { deepMerge } from '@/shared/lib/deepEqual';
-import { isCancellationError, isAbortError, getErrorMessage } from '@/shared/lib/errorUtils';
-import { handleError } from '@/shared/lib/errorHandler';
+import { isCancellationError, getErrorMessage } from '@/shared/lib/errorUtils';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
 
 // ============================================================================
@@ -23,13 +24,51 @@ import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
 // Single-flight dedupe for settings fetches across components
 const inflightSettingsFetches = new Map<string, Promise<unknown>>();
 
-// Single-flight dedupe for getSession calls (it's slow - 600ms to 16s!)
-let inflightGetSession: Promise<{ data: { session: { user: { id: string } } | null } }> | null = null;
-
-// Lightweight user cache to avoid repeated auth calls within a short window
+// Lightweight user cache to avoid repeated localStorage reads within a short window
 let cachedUser: { id: string } | null = null;
 let cachedUserAt: number = 0;
 const USER_CACHE_MS = 10_000; // 10 seconds
+
+/**
+ * Seed the user cache from an external source (e.g. AuthContext).
+ *
+ * Call this as early as possible — ideally in AuthContext right after getSession()
+ * resolves, before AuthGate opens. This lets getUserWithTimeout() return
+ * immediately from cache without acquiring any navigator.locks, avoiding stalls
+ * during token refresh.
+ */
+export function setCachedUserId(userId: string) {
+  cachedUser = { id: userId };
+  cachedUserAt = Date.now();
+}
+
+/** @internal Only for test isolation — do not call in production code. */
+export function _resetCachedUserForTesting() {
+  cachedUser = null;
+  cachedUserAt = 0;
+}
+
+/**
+ * Read the user ID directly from localStorage without acquiring navigator.locks.
+ *
+ * Supabase stores the full session JSON (including user.id) under
+ * `sb-${projectRef}-auth-token`. Reading this is synchronous and never
+ * contends with token-refresh exclusive locks, unlike getSession()/getUser().
+ *
+ * Returns null if no session exists in storage (user is signed out).
+ */
+function readUserIdFromStorage(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
+    const raw = localStorage.getItem(`sb-${projectRef}-auth-token`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { user?: { id?: string } };
+    return parsed?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ============================================================================
 // Types
@@ -51,67 +90,35 @@ export interface SettingsFetchResult<T = unknown> {
 // ============================================================================
 
 /**
- * Get authenticated user with timeout protection.
+ * Get authenticated user ID without acquiring navigator.locks.
  *
- * Uses a local cache + single-flight deduplication to avoid repeated
- * slow getSession() calls (600ms-16s on mobile networks).
+ * Resolution order (all synchronous / lock-free):
+ *   1. In-memory cache (set by AuthContext via setCachedUserId)
+ *   2. localStorage session (same key Supabase uses; contains full user object)
+ *   3. null — user is genuinely signed out
  *
- * @param timeoutMs - Timeout in ms (default 15000, generous for mobile)
+ * Previously this called getSession() / getUser() which both acquire a shared
+ * navigator.lock. During token refresh Supabase holds an EXCLUSIVE lock, so
+ * ALL shared-lock requests queue behind it — blocking for 600ms-16s. By reading
+ * the user ID from localStorage instead we avoid locks entirely. Token validity
+ * for actual data requests is handled by createSupabaseClient's cached token.
  */
-export async function getUserWithTimeout(timeoutMs = 15000) {
-  const controller = new AbortController();
-
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
-
-  try {
-    // FIRST: Check cached user to avoid slow getSession calls
-    // This is critical because getSession() can take 600ms-16s!
-    if (cachedUser && (Date.now() - cachedUserAt) < USER_CACHE_MS) {
-      clearTimeout(timeoutId);
-      return { data: { user: { id: cachedUser.id } }, error: null };
-    }
-
-    // Fast path: use local session (no network) to avoid auth network call in background
-    // Single-flight the getSession call - it's slow and multiple components call it simultaneously
-    if (!inflightGetSession) {
-      inflightGetSession = supabase.auth.getSession().finally(() => {
-        inflightGetSession = null;
-      });
-    }
-
-    const { data: sessionData } = await inflightGetSession;
-
-    const sessionUser = sessionData?.session?.user || null;
-    if (sessionUser) {
-      cachedUser = { id: sessionUser.id };
-      cachedUserAt = Date.now();
-      clearTimeout(timeoutId);
-      return { data: { user: sessionUser }, error: null };
-    }
-
-    const result = await Promise.race([
-      supabase.auth.getUser(),
-      new Promise<{ data: { user: null }, error: Error }>((_, reject) =>
-        setTimeout(() => reject(new Error('Auth timeout - please check your connection')), timeoutMs)
-      )
-    ]);
-
-    clearTimeout(timeoutId);
-    const fetchedUserId = result?.data?.user?.id;
-    if (fetchedUserId) {
-      cachedUser = { id: fetchedUserId };
-      cachedUserAt = Date.now();
-    }
-    return result;
-  } catch (error: unknown) {
-    clearTimeout(timeoutId);
-    if (isAbortError(error)) {
-      throw new Error('Auth request was cancelled - please try again');
-    }
-    throw error;
+export function getUserWithTimeout(_timeoutMs = 15000): Promise<{ data: { user: { id: string } | null }; error: null }> {
+  // Check in-memory cache first
+  if (cachedUser && (Date.now() - cachedUserAt) < USER_CACHE_MS) {
+    return Promise.resolve({ data: { user: { id: cachedUser.id } }, error: null });
   }
+
+  // Read from localStorage — synchronous, no navigator.locks, always fresh
+  const localUserId = readUserIdFromStorage();
+  if (localUserId) {
+    cachedUser = { id: localUserId };
+    cachedUserAt = Date.now();
+    return Promise.resolve({ data: { user: { id: localUserId } }, error: null });
+  }
+
+  // No session in storage — user is signed out
+  return Promise.resolve({ data: { user: null }, error: null });
 }
 
 // ============================================================================
@@ -212,9 +219,12 @@ export async function fetchToolSettingsSupabase(
     })();
 
     inflightSettingsFetches.set(singleFlightKey, promise);
+    // The .finally cleanup promise is intentionally not awaited or returned.
+    // Suppress its rejection to avoid unhandled rejection warnings — the original
+    // `promise` reference (returned below) handles propagation to the caller.
     promise.finally(() => {
       inflightSettingsFetches.delete(singleFlightKey);
-    });
+    }).catch(() => {});
     return promise;
 
   } catch (error: unknown) {
@@ -223,32 +233,27 @@ export async function fetchToolSettingsSupabase(
       // Don't log these as errors - they're expected during component unmounting
       throw new DOMException('Request was cancelled', 'AbortError');
     }
-    // Enrich logging with environment context
+    // Build context info without calling getSession() — getSession() can block
+    // indefinitely when an exclusive navigator.lock is held (e.g. during token refresh),
+    // which would turn a transient auth error into a permanent hang.
     const errorMsg = getErrorMessage(error);
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const contextInfo = {
-        visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
-        hidden: typeof document !== 'undefined' ? document.hidden : false,
-        online: typeof navigator !== 'undefined' ? navigator.onLine : true,
-        hasSession: !!sess?.session,
-      };
+    const contextInfo = {
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      hidden: typeof document !== 'undefined' ? document.hidden : false,
+      online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    };
 
-      if (errorMsg.includes('Auth timeout') || errorMsg.includes('Auth request was cancelled')) {
-        // Return defaults rather than erroring, so UI remains usable
-        return { settings: deepMerge({}, toolDefaultsRegistry[toolId] ?? {}), hasShotSettings: false };
-      }
-
-      if (errorMsg.includes('Failed to fetch')) {
-        handleError(error, { context: 'fetchToolSettingsSupabase.network', showToast: false, logData: contextInfo });
-        throw new Error('Network connection issue. Please check your internet connection.');
-      }
-
-      handleError(error, { context: 'fetchToolSettingsSupabase', showToast: false, logData: contextInfo });
-    } catch (e) {
-      // If context gathering fails, still rethrow the original error
-      handleError(error, { context: 'fetchToolSettingsSupabase', showToast: false });
+    if (errorMsg.includes('Auth timeout') || errorMsg.includes('Auth request was cancelled')) {
+      // Return defaults rather than erroring, so UI remains usable
+      return { settings: deepMerge({}, toolDefaultsRegistry[toolId] ?? {}), hasShotSettings: false };
     }
+
+    if (errorMsg.includes('Failed to fetch')) {
+      handleError(error, { context: 'fetchToolSettingsSupabase.network', showToast: false, logData: contextInfo });
+      throw new Error('Network connection issue. Please check your internet connection.');
+    }
+
+    handleError(error, { context: 'fetchToolSettingsSupabase', showToast: false, logData: contextInfo });
     throw error;
   }
 }

@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/types/shots';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { segmentQueryKeys } from '@/shared/lib/queryKeys/segments';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
 // Slot type - either a real child or a placeholder for a processing segment
@@ -205,7 +205,7 @@ export function useSegmentOutputsForShot(
       const hasOrchestratorDetails = !!(gen.params as Record<string, unknown> | undefined)?.orchestrator_details;
       // Use generation_id for parent lookup (shot_generations.generation_id -> generations.id)
       const genId = getGenerationId(gen);
-      const hasChildren = parentIds.has(genId);
+      const hasChildren = typeof genId === 'string' ? parentIds.has(genId) : false;
 
       return isVideo && isNotChild && (hasOrchestratorDetails || hasChildren);
     });
@@ -229,7 +229,7 @@ export function useSegmentOutputsForShot(
     isFetching: isFetchingParents,
     refetch: refetchParents,
   } = useQuery({
-    queryKey: queryKeys.segments.parents(shotId!, projectId),
+    queryKey: segmentQueryKeys.parents(shotId!, projectId ?? undefined),
     queryFn: async () => {
       if (!shotId || !projectId) return [];
 
@@ -247,14 +247,17 @@ export function useSegmentOutputsForShot(
         throw error;
       }
 
-      return (data || []).map(transformToGenerationRow);
+      return ((data || []) as unknown as RawGenerationDbRow[]).map(transformToGenerationRow);
     },
     enabled: !!shotId && !!projectId && !preloadedGenerations,
     staleTime: 30000, // 30 seconds
   });
 
   // Use preloaded data if available, otherwise use query data
-  const parentGenerations = (preloadedParentGenerations ?? parentGenerationsData) || [];
+  const parentGenerations = useMemo(
+    () => (preloadedParentGenerations ?? parentGenerationsData) || [],
+    [preloadedParentGenerations, parentGenerationsData],
+  );
 
   // Auto-select the first (most recent) parent if none selected
   // IMPORTANT: Only auto-select when:
@@ -306,7 +309,7 @@ export function useSegmentOutputsForShot(
   }, [preloadedGenerations, selectedParentId, parentGenerations]);
 
   // Smart polling for segment children - allows new segments to appear after task completion
-  const childrenQueryKey = queryKeys.segments.children(selectedParentId!);
+  const childrenQueryKey = [...segmentQueryKeys.children(selectedParentId!)] as string[];
   const childrenPollingConfig = useSmartPollingConfig(childrenQueryKey);
 
   // Fetch children for selected parent - skip if preloaded data available
@@ -334,7 +337,7 @@ export function useSegmentOutputsForShot(
         throw error;
       }
 
-      return (data || []).map(transformToGenerationRow);
+      return ((data || []) as unknown as RawGenerationDbRow[]).map(transformToGenerationRow);
     },
     enabled: !!selectedParentId && !preloadedGenerations,
     // Smart polling config - polls when realtime is unhealthy, otherwise relies on invalidation
@@ -343,14 +346,17 @@ export function useSegmentOutputsForShot(
   });
 
   // Use preloaded children if available
-  const childGenerations = (preloadedChildren ?? childGenerationsData) || [];
+  const childGenerations = useMemo(
+    () => (preloadedChildren ?? childGenerationsData) || [],
+    [preloadedChildren, childGenerationsData],
+  );
 
   // Filter to only segments (not join outputs)
   const segments = useMemo(() => {
     const filtered = childGenerations.filter(child => isSegment(child.params as Record<string, unknown> | null));
 
     return filtered;
-  }, [childGenerations, trailingShotGenId]);
+  }, [childGenerations]);
 
   // Derive timeline data from preloaded generations if available
   const preloadedTimelineData = useMemo(() => {
@@ -373,7 +379,7 @@ export function useSegmentOutputsForShot(
     data: liveTimelineData,
     refetch: refetchTimeline,
   } = useQuery({
-    queryKey: queryKeys.segments.liveTimeline(shotId!),
+    queryKey: segmentQueryKeys.liveTimeline(shotId!),
     queryFn: async () => {
       if (!shotId) return [];
 
@@ -405,10 +411,8 @@ export function useSegmentOutputsForShot(
       map.set(sg.id, index);
     });
 
-    // Log the live timeline state
-
     return map;
-  }, [effectiveTimelineData]);
+  }, [effectiveTimelineData, shotId, preloadedTimelineData]);
 
   // Extract expected segment data from selected parent
   const expectedSegmentData = useMemo(() => {
@@ -419,11 +423,24 @@ export function useSegmentOutputsForShot(
   // Build segment slots
   // Uses LOCAL positions (instant during drag) or LIVE timeline (from DB) for slot assignment
   const segmentSlots = useMemo((): SegmentSlot[] => {
-    // Prefer local positions (instant updates) over live DB query
-    const useLocalPositions = localShotGenPositions && localShotGenPositions.size > 0;
+    const hasLocalPositions = !!localShotGenPositions && localShotGenPositions.size > 0;
+    const localPositionCount = localShotGenPositions?.size ?? 0;
+    const livePositionCount = liveShotGenIdToPosition.size;
+    const localCountMismatch = hasLocalPositions && livePositionCount > 0 && localPositionCount !== livePositionCount;
+    const localMissingInLive = hasLocalPositions && livePositionCount > 0
+      ? [...localShotGenPositions.keys()].some((id) => !liveShotGenIdToPosition.has(id))
+      : false;
+    const localOrderMismatchEntries = hasLocalPositions && livePositionCount > 0
+      ? [...localShotGenPositions.entries()]
+          .filter(([id, localIndex]) => liveShotGenIdToPosition.get(id) !== localIndex)
+          .slice(0, 8)
+      : [];
+    const localOrderMismatch = localOrderMismatchEntries.length > 0;
+    const useLocalPositions = hasLocalPositions;
+
     const positionMap = useLocalPositions ? localShotGenPositions : liveShotGenIdToPosition;
     const baseSlotCount = useLocalPositions
-      ? localShotGenPositions.size - 1  // N images = N-1 pairs
+      ? localPositionCount - 1  // N images = N-1 pairs
       : (effectiveTimelineData?.length ? effectiveTimelineData.length - 1 : 0);
     // Add extra slot for trailing segment if provided
     const slotCount = trailingShotGenId ? baseSlotCount + 1 : baseSlotCount;
@@ -431,11 +448,12 @@ export function useSegmentOutputsForShot(
     // Use slotCount (current timeline) for positioning, not expectedCount (original generation)
     if (slotCount === 0) {
       // No position data, just show what we have
-      return segments.map((child, index) => ({
+      const fallbackSlots = segments.map((child, index) => ({
         type: 'child' as const,
         child,
         index: child.child_order ?? index,
       }));
+      return fallbackSlots;
     }
 
     // Create slots for all expected segments
@@ -443,7 +461,6 @@ export function useSegmentOutputsForShot(
     const childrenBySlot = new Map<number, GenerationRow>();
     const usedSlots = new Set<number>();
     const childrenWithoutValidSlot: GenerationRow[] = [];
-
     // Priority chain for slot mapping:
     // 1. pair_shot_generation_id → position (LOCAL for instant, LIVE as fallback)
     // 2. child_order (fallback ONLY for videos without pair_shot_generation_id)
@@ -465,8 +482,6 @@ export function useSegmentOutputsForShot(
         // allow it even at the end position
         const isTrailingSegment = trailingShotGenId && pairShotGenId === trailingShotGenId;
 
-        // [TrailingDebug] Detailed logging for trailing segment matching
-
         if (pairShotGenPosition < slotCount || isTrailingSegment) {
           derivedSlot = pairShotGenPosition;
           slotSource = isTrailingSegment ? 'TRAILING_SEGMENT' : (useLocalPositions ? 'LOCAL_POSITION' : 'PAIR_SHOT_GEN_ID_LIVE');
@@ -474,8 +489,6 @@ export function useSegmentOutputsForShot(
           // Image is at last position - no valid pair starts there
           slotSource = 'PAIR_AT_END_NO_SLOT';
         }
-      } else if (pairShotGenId && !positionMap.has(pairShotGenId)) {
-        // [TrailingDebug] Log when pairShotGenId is not found in position map
       }
 
       // Priority 2: child_order fallback
@@ -523,7 +536,11 @@ export function useSegmentOutputsForShot(
       const pairShotGenerationId = liveStartImage?.id || expectedSegmentData?.pairShotGenIds?.[i];
 
       if (child) {
-        slots.push({ type: 'child', child, index: i, pairShotGenerationId });
+        // Use the child's own pair_shot_generation_id for the key.
+        // liveStartImage?.id is wrong when LOCAL and LIVE orders diverge (e.g. after a drag reorder),
+        // causing buildDisplaySlots to fail to match this slot to the correct LOCAL pair.
+        const childPsgId = getPairIdentifiers(child, child.params as Record<string, unknown> | null).pairShotGenId;
+        slots.push({ type: 'child', child, index: i, pairShotGenerationId: childPsgId || pairShotGenerationId });
       } else {
         slots.push({
           type: 'placeholder',
@@ -538,7 +555,7 @@ export function useSegmentOutputsForShot(
     }
 
     return slots;
-  }, [segments, expectedSegmentData, effectiveTimelineData, liveShotGenIdToPosition, localShotGenPositions, trailingShotGenId]);
+  }, [segments, expectedSegmentData, effectiveTimelineData, liveShotGenIdToPosition, localShotGenPositions, trailingShotGenId, shotId, selectedParentId]);
 
   // Calculate progress
   const segmentProgress = useMemo(() => {

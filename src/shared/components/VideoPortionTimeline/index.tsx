@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { cn, formatTime } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 // Type for a portion selection
 export interface PortionSelection {
@@ -273,12 +273,12 @@ export function MultiPortionTimeline({
   }, [isDraggingPlayhead, handleScrubberInteraction, videoRef]);
   
   // Get position from mouse or touch event
-  const getClientX = (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent): number => {
+  const getClientX = useCallback((e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent): number => {
     if ('touches' in e) {
       return e.touches[0]?.clientX ?? (e as TouchEvent).changedTouches?.[0]?.clientX ?? 0;
     }
     return (e as MouseEvent).clientX;
-  };
+  }, []);
   
   // Start dragging (mouse or touch)
   const startDrag = (e: React.MouseEvent | React.TouchEvent, id: string, handle: 'start' | 'end') => {
@@ -322,7 +322,7 @@ export function MultiPortionTimeline({
   };
   
   // Handle tap on track to move selected handle
-  const handleTrackTap = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleTrackTap = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!selectedHandle || !trackRef.current) {
       onSelectionClick(null);
       return;
@@ -357,7 +357,7 @@ export function MultiPortionTimeline({
     
     // Clear selection after moving
     setSelectedHandle(null);
-  };
+  }, [selectedHandle, onSelectionClick, selections, duration, fps, onSelectionChange, videoRef, getClientX]);
   
   // Throttle state updates using requestAnimationFrame
   const rafIdRef = useRef<number | null>(null);
@@ -440,7 +440,7 @@ export function MultiPortionTimeline({
         pendingUpdateRef.current = null;
       });
     }
-  }, [dragging, duration, fps, maxGapFrames, onSelectionChange, videoRef]);
+  }, [dragging, duration, fps, maxGapFrames, onSelectionChange, videoRef, getClientX]);
   
   const handleEnd = useCallback(() => {
     // Clear any pending RAF

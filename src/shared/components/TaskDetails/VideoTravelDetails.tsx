@@ -43,7 +43,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     setTimeout(() => setStateFn(false), 2000);
   };
 
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
+  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
   const derivedImages = useMemo(() => deriveInputImages(parsedParams), [parsedParams]);
 
   // For segment tasks, prefer derived images from task params (they're more accurate)
@@ -53,9 +53,9 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     ? derivedImages
     : (inputImages.length > 0 ? inputImages : derivedImages);
 
-  const orchestratorDetails = parsedParams?.orchestrator_details;
-  const orchestratorPayload = parsedParams?.full_orchestrator_payload;
-  const individualSegmentParams = parsedParams?.individual_segment_params;
+  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, any> | undefined;
+  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, any> | undefined;
+  const individualSegmentParams = parsedParams?.individual_segment_params as Record<string, any> | undefined;
 
   // Phase config
   const phaseConfig = useMemo(() => (
@@ -63,7 +63,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     orchestratorPayload?.phase_config ||
     orchestratorDetails?.phase_config ||
     parsedParams?.phase_config
-  ), [individualSegmentParams, orchestratorPayload, orchestratorDetails, parsedParams]);
+  ) as Record<string, any> | undefined, [individualSegmentParams, orchestratorPayload, orchestratorDetails, parsedParams]);
 
   // Check if in advanced mode - if not, we show additional_loras instead of phase config
   const isAdvancedMode = useMemo(() => {
@@ -157,8 +157,8 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     : null;
 
   // Technical settings
-  const modelName = orchestratorDetails?.model_name || orchestratorPayload?.model_name || parsedParams?.model_name;
-  const resolution = orchestratorDetails?.parsed_resolution_wh || parsedParams?.parsed_resolution_wh;
+  const modelName = (orchestratorDetails?.model_name || orchestratorPayload?.model_name || parsedParams?.model_name) as string | undefined;
+  const resolution = (orchestratorDetails?.parsed_resolution_wh || parsedParams?.parsed_resolution_wh) as string | undefined;
   const frames = isSegmentTask
     ? (individualSegmentParams?.num_frames || parsedParams?.num_frames || parsedParams?.segment_frames_target)
     : (orchestratorDetails?.segment_frames_expanded?.[0] || orchestratorPayload?.segment_frames_expanded?.[0] || parsedParams?.segment_frames_expanded);

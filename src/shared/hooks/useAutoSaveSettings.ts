@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useToolSettings } from './useToolSettings';
+import { useRenderLogger } from '@/shared/lib/debugRendering';
 import { useDebouncedSettingsSave } from './useDebouncedSettingsSave';
 import { deepEqual } from '@/shared/lib/deepEqual';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /**
  * Status states for the auto-save settings lifecycle
@@ -143,7 +144,7 @@ interface UseAutoSaveSettingsReturn<T> {
  * if (settings.status !== 'ready') return <Loading />;
  * ```
  */
-export function useAutoSaveSettings<T extends Record<string, unknown>>(
+export function useAutoSaveSettings<T extends object>(
   options: UseAutoSaveSettingsOptions<T>
 ): UseAutoSaveSettingsReturn<T> {
   const {
@@ -172,6 +173,8 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
   const [status, setStatus] = useState<AutoSaveStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
   const [hasPersistedData, setHasPersistedData] = useState(false);
+
+  useRenderLogger(`AutoSaveSettings:${toolId}`, { entityId, status });
 
   // Refs for tracking state without triggering re-renders
   const loadedSettingsRef = useRef<T | null>(null);
@@ -439,11 +442,19 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
   // Load settings - React Query mode (reactive from useToolSettings)
   useEffect(() => {
     if (isCustomMode) return;
-    if (!entityId || !enabled) return;
+    if (!entityId || !enabled) {
+      if (process.env.NODE_ENV === 'development' && toolId) {
+        console.log(`[AutoSaveSettings:${toolId}] skipped — entityId=${entityId}, enabled=${enabled}`);
+      }
+      return;
+    }
 
     // Show loading state while fetching
     if (rqIsLoading) {
       if (status === 'idle') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[AutoSaveSettings:${toolId}] status idle→loading, entityId=${entityId}`);
+        }
         setStatus('loading');
       }
       return;
@@ -497,6 +508,9 @@ export function useAutoSaveSettings<T extends Record<string, unknown>>(
     }
 
     // No pending edits for this entity - safe to apply DB settings
+    if (process.env.NODE_ENV === 'development' && toolId) {
+      console.log(`[AutoSaveSettings:${toolId}] applying DB settings → ready, entityId=${entityId}`);
+    }
 
     setSettings(clonedSettings);
     loadedSettingsRef.current = JSON.parse(JSON.stringify(clonedSettings));

@@ -18,6 +18,7 @@
 import React, { createContext, useContext } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { Shot, GenerationRow } from '@/types/shots';
+import type { Project } from '@/types/project';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
 import { ShotEditorState } from './state/types';
@@ -25,6 +26,8 @@ import { ShotEditorActions } from './state/useShotEditorState';
 import { LoraManagerReturn } from './hooks/useLoraSync';
 import type { UseStructureVideoReturn } from './hooks/useStructureVideo';
 import type { UseAudioReturn } from './hooks/useAudio';
+import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
+import type { JoinSegmentsSettings } from '@/tools/travel-between-images/hooks/useJoinSegmentsSettings';
 import type {
   ImageDeleteHandler,
   BatchImageDeleteHandler,
@@ -159,11 +162,11 @@ export interface StructureVideoHandlers {
 /** Join segments state and handlers */
 export interface JoinState {
   joinSettings: {
-    settings: Record<string, unknown>;
-    updateField: (field: string, value: unknown) => void;
-    updateFields: (fields: Record<string, unknown>) => void;
+    settings: JoinSegmentsSettings;
+    updateField: <K extends keyof JoinSegmentsSettings>(field: K, value: JoinSegmentsSettings[K]) => void;
+    updateFields: (fields: Partial<JoinSegmentsSettings>) => void;
   };
-  joinLoraManager: LoraManagerReturn;
+  joinLoraManager: UseLoraManagerReturn;
   joinValidationData: {
     videoCount: number;
     shortestClipFrames?: number;
@@ -195,7 +198,7 @@ export interface ShotSettingsContextValue {
   projectId: string;
   selectedProjectId: string;
   effectiveAspectRatio: string | undefined;
-  projects: Array<{ id: string; aspectRatio?: string }>;
+  projects: Project[];
 
   // UI state management (not settings - those come from VideoTravelSettingsProvider)
   state: ShotEditorState;
@@ -269,7 +272,7 @@ export function useShotSettingsContext(): ShotSettingsContextValue {
 /**
  * Access core shot data: selected shot, IDs, aspect ratio, projects
  */
-export function useShotCore(): ShotCoreState & { projects: Array<{ id: string; aspectRatio?: string }> } {
+export function useShotCore(): ShotCoreState & { projects: Project[] } {
   const ctx = useShotSettingsContext();
   return {
     selectedShot: ctx.selectedShot,

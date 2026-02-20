@@ -1,0 +1,346 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { usePendingSegmentTasks } from '@/shared/hooks/usePendingSegmentTasks';
+import { useSegmentOutputsForShot } from '../../../hooks/useSegmentOutputsForShot';
+import { useDownloadImages } from './useDownloadImages';
+import { useLightboxTransition } from './useLightboxTransition';
+import { usePreviewSegments } from './usePreviewSegments';
+import { useSegmentSlotMode } from './useSegmentSlotMode';
+import { useShotGenerationsData } from './useShotGenerationsData';
+import { useSmoothContinuations } from './useSmoothContinuations';
+import type { ShotImagesEditorProps } from '../types';
+import type { TimelineMediaContextValue } from '../../Timeline/TimelineMediaContext';
+
+function useShotData(
+  props: ShotImagesEditorProps,
+  effectiveGenerationMode: 'batch' | 'timeline' | 'by-pair',
+  localShotGenPositions?: Map<string, number>,
+) {
+  const {
+    selectedShotId,
+    projectId,
+    preloadedImages,
+    selectedOutputId,
+    onSelectedOutputChange,
+    readOnly,
+  } = props;
+
+  const shotData = useShotGenerationsData({
+    selectedShotId,
+    projectId,
+    generationMode: effectiveGenerationMode,
+    preloadedImages,
+  });
+
+  const {
+    shotGenerations,
+    memoizedShotGenerations,
+    imagesWithBadges,
+    pairPrompts,
+    isLoading: positionsLoading,
+    updateTimelineFrame,
+    batchExchangePositions,
+    moveItemsToMidpoint,
+    deleteItem,
+    loadPositions,
+    clearEnhancedPrompt,
+    getImagesForMode,
+    hasEverHadData,
+  } = shotData;
+
+  const { positionedCount, lastImageShotGenId } = useMemo(() => {
+    const positioned = shotGenerations
+      .filter((generation) => generation.timeline_frame != null && generation.timeline_frame >= 0)
+      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+
+    return {
+      positionedCount: positioned.length,
+      lastImageShotGenId: positioned[positioned.length - 1]?.id ?? null,
+    };
+  }, [shotGenerations]);
+
+  const segmentOutputData = useSegmentOutputsForShot(
+    selectedShotId,
+    projectId || '',
+    localShotGenPositions,
+    selectedOutputId,
+    onSelectedOutputChange,
+    readOnly ? preloadedImages : undefined,
+    lastImageShotGenId ?? undefined,
+  );
+
+  const pendingSegmentData = usePendingSegmentTasks(selectedShotId, projectId || null);
+
+  return {
+    shotGenerations,
+    memoizedShotGenerations,
+    imagesWithBadges,
+    pairPrompts,
+    positionsLoading,
+    updateTimelineFrame,
+    batchExchangePositions,
+    moveItemsToMidpoint,
+    deleteItem,
+    loadPositions,
+    clearEnhancedPrompt,
+    getImagesForMode,
+    hasEverHadData,
+    segmentSlots: segmentOutputData.segmentSlots,
+    selectedParentId: segmentOutputData.selectedParentId,
+    isSegmentsLoading: segmentOutputData.isLoading,
+    addOptimisticPending: pendingSegmentData.addOptimisticPending,
+    hasPendingTask: pendingSegmentData.hasPendingTask,
+  };
+}
+
+function usePruneOffscreenStructureVideos(
+  props: ShotImagesEditorProps,
+  effectiveGenerationMode: 'batch' | 'timeline' | 'by-pair',
+  shotGenerations: Array<{ timeline_frame?: number | null }>,
+  positionsLoading: boolean,
+) {
+  const { structureVideos, onSetStructureVideos, selectedShotId } = props;
+
+  const pruneRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      !structureVideos?.length
+      || !onSetStructureVideos
+      || !shotGenerations.length
+      || positionsLoading
+      || effectiveGenerationMode !== 'timeline'
+    ) {
+      return;
+    }
+
+    if (pruneRef.current === selectedShotId) {
+      return;
+    }
+
+    const maxFrame = Math.max(...shotGenerations.map((generation) => generation.timeline_frame ?? 0));
+    if (maxFrame <= 0) {
+      return;
+    }
+
+    const visible = structureVideos.filter((video) => (video.start_frame ?? 0) < maxFrame);
+    if (visible.length < structureVideos.length) {
+      onSetStructureVideos(visible);
+    }
+
+    pruneRef.current = selectedShotId;
+  }, [
+    structureVideos,
+    onSetStructureVideos,
+    shotGenerations,
+    positionsLoading,
+    effectiveGenerationMode,
+    selectedShotId,
+  ]);
+}
+
+function useModeOrchestration(
+  props: ShotImagesEditorProps,
+  data: ReturnType<typeof useShotData>,
+  effectiveGenerationMode: 'batch' | 'timeline' | 'by-pair',
+  resolvedProjectResolution: string | undefined,
+  trailingFrameUpdateRef: MutableRefObject<((endFrame: number) => void) | null>,
+) {
+  const {
+    selectedShotId,
+    projectId,
+    batchVideoFrames,
+    defaultPrompt = '',
+    defaultNegativePrompt = '',
+    structureVideos,
+    onAddStructureVideo,
+    onUpdateStructureVideo,
+    onRemoveStructureVideo,
+    onSetStructureVideos,
+    maxFrameLimit = 81,
+    shotName,
+    smoothContinuations = false,
+    readOnly = false,
+  } = props;
+
+  const {
+    shotGenerations,
+    segmentSlots,
+    selectedParentId,
+    loadPositions,
+    addOptimisticPending,
+    updateTimelineFrame,
+    imagesWithBadges,
+  } = data;
+
+  const [previewInitialPairIndex, setPreviewInitialPairIndex] = useState<number | null>(null);
+
+  const {
+    transitionOverlayRef,
+    hideTransitionOverlay,
+    navigateWithTransition,
+  } = useLightboxTransition();
+
+  const openPreviewRef = useRef<((startAtPairIndex: number) => void) | null>(null);
+  const handleOpenPreviewFromLightbox = useCallback((startAtPairIndex: number) => {
+    openPreviewRef.current?.(startAtPairIndex);
+  }, []);
+
+  const segmentSlot = useSegmentSlotMode({
+    selectedShotId,
+    projectId,
+    effectiveGenerationMode,
+    batchVideoFrames,
+    shotGenerations,
+    segmentSlots,
+    selectedParentId,
+    defaultPrompt,
+    defaultNegativePrompt,
+    resolvedProjectResolution,
+    structureVideos,
+    onAddStructureVideo,
+    onUpdateStructureVideo,
+    onRemoveStructureVideo,
+    onSetStructureVideos,
+    maxFrameLimit,
+    loadPositions,
+    navigateWithTransition,
+    addOptimisticPending,
+    trailingFrameUpdateRef,
+    onOpenPreviewDialog: handleOpenPreviewFromLightbox,
+  });
+
+  const preview = usePreviewSegments({
+    generationMode: effectiveGenerationMode,
+    batchVideoFrames,
+    shotGenerations,
+    segmentSlots,
+  });
+
+  openPreviewRef.current = (startAtPairIndex: number) => {
+    segmentSlot.setSegmentSlotLightboxIndex(null);
+    setPreviewInitialPairIndex(startAtPairIndex);
+    preview.setIsPreviewTogetherOpen(true);
+  };
+
+  const download = useDownloadImages({
+    images: imagesWithBadges,
+    shotName,
+  });
+
+  useSmoothContinuations({
+    smoothContinuations,
+    images: imagesWithBadges,
+    maxFrameLimit,
+    updateTimelineFrame,
+    readOnly,
+  });
+
+  const handleClearPendingImageToOpen = useCallback(() => {
+    segmentSlot.setPendingImageToOpen(null);
+    setTimeout(() => {
+      hideTransitionOverlay();
+      document.body.classList.remove('lightbox-transitioning');
+    }, 200);
+  }, [hideTransitionOverlay, segmentSlot]);
+
+  return {
+    transitionOverlayRef,
+    navigateWithTransition,
+    segmentSlot,
+    preview,
+    previewInitialPairIndex,
+    setPreviewInitialPairIndex,
+    download,
+    handleClearPendingImageToOpen,
+  };
+}
+
+function useTimelineMediaValue(props: ShotImagesEditorProps) {
+  const {
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment = 'adjust',
+    primaryStructureVideoMotionStrength = 1.0,
+    primaryStructureVideoType = 'flow',
+    onPrimaryStructureVideoInputChange,
+    structureVideos,
+    isStructureVideoLoading,
+    cachedHasStructureVideo,
+    onAddStructureVideo,
+    onUpdateStructureVideo,
+    onRemoveStructureVideo,
+    audioUrl,
+    audioMetadata,
+    onAudioChange,
+  } = props;
+
+  return useMemo<TimelineMediaContextValue>(() => ({
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType,
+    onPrimaryStructureVideoInputChange,
+    structureVideos,
+    isStructureVideoLoading,
+    cachedHasStructureVideo,
+    onAddStructureVideo,
+    onUpdateStructureVideo,
+    onRemoveStructureVideo,
+    audioUrl,
+    audioMetadata,
+    onAudioChange,
+  }), [
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType,
+    onPrimaryStructureVideoInputChange,
+    structureVideos,
+    isStructureVideoLoading,
+    cachedHasStructureVideo,
+    onAddStructureVideo,
+    onUpdateStructureVideo,
+    onRemoveStructureVideo,
+    audioUrl,
+    audioMetadata,
+    onAudioChange,
+  ]);
+}
+
+export type ShotImagesEditorDataModel = ReturnType<typeof useShotData>;
+export type ShotImagesEditorModeModel = ReturnType<typeof useModeOrchestration>;
+
+export function useShotImagesEditorModel(
+  props: ShotImagesEditorProps,
+  effectiveGenerationMode: 'batch' | 'timeline' | 'by-pair',
+  resolvedProjectResolution: string | undefined,
+  trailingFrameUpdateRef: MutableRefObject<((endFrame: number) => void) | null>,
+  localShotGenPositions?: Map<string, number>,
+) {
+  const data = useShotData(props, effectiveGenerationMode, localShotGenPositions);
+
+  usePruneOffscreenStructureVideos(
+    props,
+    effectiveGenerationMode,
+    data.shotGenerations,
+    data.positionsLoading,
+  );
+
+  const mode = useModeOrchestration(
+    props,
+    data,
+    effectiveGenerationMode,
+    resolvedProjectResolution,
+    trailingFrameUpdateRef,
+  );
+
+  const timelineMediaValue = useTimelineMediaValue(props);
+
+  return {
+    data,
+    mode,
+    timelineMediaValue,
+  };
+}

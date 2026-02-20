@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 
 interface UseTrailingEndpointProps {
@@ -10,6 +10,10 @@ interface UseTrailingEndpointProps {
   trailingEndFrame: number | undefined;
   /** Computed trailing video URL (from synchronous computation before orchestrator) */
   computedTrailingVideoUrl: string | null;
+  /** Callback-detected trailing video URL (owned by caller, lifted before orchestrator) */
+  callbackTrailingVideoUrl: string | null;
+  /** Setter for callbackTrailingVideoUrl — caller clears it when last image changes */
+  setCallbackTrailingVideoUrl: (url: string | null) => void;
   onFileDrop?: (files: File[], targetFrame?: number) => Promise<void>;
 }
 
@@ -18,8 +22,6 @@ interface UseTrailingEndpointReturn {
   trailingVideoUrl: string | null;
   /** Extract the final frame from a trailing video and add as next image */
   handleExtractFinalFrame: () => Promise<void>;
-  /** Set trailing video URL (for callback from child components) */
-  setTrailingVideoUrl: (url: string | null) => void;
   /** Image-only positions from currentPositions (excluding trailing endpoint) */
   imagePositions: Map<string, number>;
 }
@@ -33,6 +35,10 @@ interface UseTrailingEndpointReturn {
  * since they only depend on framePositions and must be available before
  * the orchestrator hook runs.
  *
+ * callbackTrailingVideoUrl is also owned by the caller (before the orchestrator)
+ * so it can influence fullMax via hasAnyTrailingVideo. This hook receives it as
+ * a prop and handles the clear-on-last-image-change effect.
+ *
  * This hook handles post-orchestrator logic that needs currentPositions:
  * - Image-only positions (excluding trailing endpoint key)
  * - Last-image tracking to clear stale trailing video URLs
@@ -42,10 +48,10 @@ export function useTrailingEndpoint({
   currentPositions,
   trailingEndFrame,
   computedTrailingVideoUrl,
+  callbackTrailingVideoUrl,
+  setCallbackTrailingVideoUrl,
   onFileDrop,
 }: UseTrailingEndpointProps): UseTrailingEndpointReturn {
-  // Use computed URL, with callback as fallback for edge cases
-  const [callbackTrailingVideoUrl, setTrailingVideoUrl] = useState<string | null>(null);
   const trailingVideoUrl = computedTrailingVideoUrl || callbackTrailingVideoUrl;
 
   // Image-only positions (excluding trailing endpoint) for sorts that need the "last image"
@@ -70,12 +76,12 @@ export function useTrailingEndpoint({
     if (lastImageIdRef.current !== null &&
         currentLastImageId !== lastImageIdRef.current) {
       if (trailingVideoUrl) {
-        setTrailingVideoUrl(null);
+        setCallbackTrailingVideoUrl(null);
       }
     }
 
     lastImageIdRef.current = currentLastImageId;
-  }, [imagePositions, trailingVideoUrl]);
+  }, [imagePositions, trailingVideoUrl, setCallbackTrailingVideoUrl]);
 
   // Handler to extract final frame from trailing video and add as next image
   const handleExtractFinalFrame = useCallback(async () => {
@@ -148,7 +154,6 @@ export function useTrailingEndpoint({
   return {
     trailingVideoUrl,
     handleExtractFinalFrame,
-    setTrailingVideoUrl,
     imagePositions,
   };
 }

@@ -27,6 +27,7 @@ import { useVideoEditSafe } from '../contexts/VideoEditContext';
 import type { GenerationRow } from '@/types/shots';
 import type { TaskDetailsData } from '../types';
 import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
+import type { DerivedItem } from '@/shared/hooks/useDerivedItems';
 
 interface InfoPanelProps {
   /** Layout variant */
@@ -37,12 +38,12 @@ interface InfoPanelProps {
 
   // TaskDetailsPanelWrapper props (deeply nested data)
   taskDetailsData: TaskDetailsData | undefined;
-  derivedItems: GenerationRow[];
+  derivedItems: DerivedItem[];
   derivedGenerations: GenerationRow[] | null;
-  paginatedDerived: GenerationRow[];
+  paginatedDerived: DerivedItem[];
   derivedPage: number;
   derivedTotalPages: number;
-  onSetDerivedPage: (page: number | ((prev: number) => number)) => void;
+  onSetDerivedPage: (page: number) => void;
   onNavigateToGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
   currentMediaId: string;
   currentShotId?: string;

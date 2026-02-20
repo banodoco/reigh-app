@@ -4,6 +4,7 @@
  * Tests for the centralized network status management system
  */
 
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NetworkStatusManager, getNetworkStatusManager } from '../NetworkStatusManager';
 
 // Mock navigator

@@ -7,12 +7,20 @@
   "generate_scorecard": true,
   "badge_path": "scorecard.png",
   "exclude": [],
-  "zone_overrides": {},
+  "zone_overrides": {
+    "vitest.edge.config.ts": "config",
+    "vitest.config.ts": "config",
+    "supabase/functions/_tests/mocks/denoHttpServer.ts": "test",
+    "src/integrations/supabase/types.ts": "generated"
+  },
   "review_dimensions": [],
   "large_files_threshold": 0,
   "props_threshold": 0,
   "languages": {},
   "ignore_metadata": {},
   "finding_noise_budget": 10,
-  "finding_noise_global_budget": 0
+  "finding_noise_global_budget": 0,
+  "target_strict_score": 95,
+  "review_allow_custom_dimensions": false,
+  "review_custom_dimensions": []
 }

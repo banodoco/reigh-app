@@ -24,6 +24,10 @@ export { useImageManagement } from './useImageManagement';
 export { useSteerableMotionHandlers } from './useSteerableMotionHandlers';
 export { useStructureVideoHandlers } from './useStructureVideoHandlers';
 export { useJoinSegmentsSetup } from './useJoinSegmentsSetup';
+export { useShotEditorBridge } from './useShotEditorBridge';
+export { useLastVideoGeneration } from './useLastVideoGeneration';
+export { useAspectAdjustedColumns } from './useAspectAdjustedColumns';
+export { useEnsureSelectedOutput } from './useEnsureSelectedOutput';
 
 // NOTE: Bridge hooks (usePromptSettingsWithFallback, etc.) have been replaced
 // with direct context hooks from VideoTravelSettingsProvider.

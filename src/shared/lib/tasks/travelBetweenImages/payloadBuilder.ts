@@ -194,18 +194,19 @@ export function buildTravelBetweenImagesPayload(
 
     // Build unified structure_guidance from the first video's settings
     const firstVideo = params.structure_videos[0];
-    const isUni3cTarget = (firstVideo as Record<string, unknown>).structure_type === 'uni3c';
+    const firstVideoRecord = firstVideo as unknown as Record<string, unknown>;
+    const isUni3cTarget = firstVideoRecord.structure_type === 'uni3c';
 
     const unifiedGuidance: Record<string, unknown> = {
       target: isUni3cTarget ? 'uni3c' : 'vace',
       videos: cleanedVideos,
-      strength: (firstVideo as Record<string, unknown>).motion_strength ?? 1.0,
+      strength: firstVideoRecord.motion_strength ?? 1.0,
     };
 
     if (isUni3cTarget) {
       unifiedGuidance.step_window = [
-        (firstVideo as Record<string, unknown>).uni3c_start_percent ?? 0,
-        (firstVideo as Record<string, unknown>).uni3c_end_percent ?? 1.0,
+        firstVideoRecord.uni3c_start_percent ?? 0,
+        firstVideoRecord.uni3c_end_percent ?? 1.0,
       ];
       unifiedGuidance.frame_policy = 'fit';
       unifiedGuidance.zero_empty_frames = true;
@@ -213,7 +214,7 @@ export function buildTravelBetweenImagesPayload(
       const preprocessingMap: Record<string, string> = {
         'flow': 'flow', 'canny': 'canny', 'depth': 'depth', 'raw': 'none',
       };
-      unifiedGuidance.preprocessing = preprocessingMap[(firstVideo as Record<string, unknown>).structure_type as string ?? 'flow'] ?? 'flow';
+      unifiedGuidance.preprocessing = preprocessingMap[(firstVideoRecord.structure_type as string) ?? 'flow'] ?? 'flow';
     }
 
     orchestratorPayload.structure_guidance = unifiedGuidance;

@@ -40,7 +40,7 @@ export function useMotionPresets({
       // Sort by the order in featuredPresetIds
       const sorted = featuredPresetIds
         .map(id => data?.find(p => p.id === id))
-        .filter(Boolean) as Preset[];
+        .filter(Boolean) as unknown as Preset[];
       
       return sorted;
     },

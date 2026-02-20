@@ -14,6 +14,7 @@ import { useSubmitButtonState } from '@/shared/hooks/useSubmitButtonState';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import { useGenerationSource } from './useGenerationSource';
 import { usePromptManagement } from './usePromptManagement';
 import { useReferenceManagement } from './useReferenceManagement';
@@ -25,9 +26,11 @@ import { useShotManagement } from './useShotManagement';
 import { useFormContextBuilder } from './useFormContextBuilder';
 
 import { useFormUIState } from '../state/useFormUIState';
+import { useRenderLogger, useChangedDepsLogger } from '@/shared/lib/debugRendering';
 
 import {
-  type PersistedFormSettings,
+  type HiresFixConfig,
+  type ImageGenShotSettings,
   type PromptEntry,
   type PromptMode,
   getLoraTypeForModel,
@@ -37,10 +40,22 @@ import {
 import { BatchImageGenerationTaskParams } from '@/shared/lib/tasks/imageGeneration';
 
 interface UseImageGenFormProps {
-  onGenerate: (params: BatchImageGenerationTaskParams) => Promise<string[]> | string[] | void;
+  onGenerate: (params: BatchImageGenerationTaskParams) => Promise<string[] | void> | string[] | void;
   openaiApiKey?: string;
   onShotChange?: (shotId: string | null) => void;
   initialShotId?: string | null;
+}
+
+interface PersistentImageGenState {
+  imagesPerPrompt: number;
+  selectedLoras: ActiveLora[];
+  beforeEachPromptText: string;
+  afterEachPromptText: string;
+  associatedShotId: string | null;
+  promptMode: PromptMode;
+  prompts: PromptEntry[];
+  masterPrompt: string;
+  hiresFixConfig: Partial<HiresFixConfig>;
 }
 
 export function useImageGenForm({
@@ -53,6 +68,7 @@ export function useImageGenForm({
   // UI State (reducer for modal states, session tracking)
   // ============================================================================
   const { uiState, uiActions } = useFormUIState();
+  useRenderLogger('useImageGenForm');
 
   const [imagesPerPrompt, setImagesPerPrompt] = useState(8);
   const [promptMultiplier, setPromptMultiplier] = useState(1);
@@ -119,7 +135,7 @@ export function useImageGenForm({
 
   // LoRA management using the modularized hook with new generalized approach
   const loraManager = useLoraManager(availableLoras, {
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? undefined,
     persistenceScope: 'project',
     enableProjectPersistence: true,
     persistenceKey: 'project-loras',
@@ -130,12 +146,37 @@ export function useImageGenForm({
   });
 
   // Project-level settings (NOT shot-specific)
-  const { ready, markAsInteracted } = usePersistentToolState<PersistedFormSettings>(
+  const setSelectedLorasForPersistence: Dispatch<SetStateAction<ActiveLora[]>> = useCallback((nextValue) => {
+    if (typeof nextValue === 'function') {
+      loraManager.setSelectedLoras(nextValue(loraManager.selectedLoras));
+      return;
+    }
+
+    loraManager.setSelectedLoras(nextValue);
+  }, [loraManager]);
+
+  // Track which stateMapping values are changing — helps diagnose render loops caused
+  // by unstable references (inline objects/arrays) triggering usePersistentToolState's effects.
+  // Enable with: window.debugConfig.enable('renderLogging')
+  useChangedDepsLogger('useImageGenForm[stateMapping]', {
+    imagesPerPrompt,
+    beforeEachPromptText,
+    afterEachPromptText,
+    associatedShotId,
+    promptMode,
+    noShotPrompts,
+    noShotMasterPrompt,
+    hiresFixConfig,
+    'loraManager.selectedLoras': loraManager.selectedLoras,
+    setSelectedLorasForPersistence,
+  });
+
+  const { ready, markAsInteracted } = usePersistentToolState<PersistentImageGenState>(
     TOOL_IDS.IMAGE_GENERATION,
-    { projectId: selectedProjectId },
+    { projectId: selectedProjectId ?? undefined },
     {
       imagesPerPrompt: [imagesPerPrompt, setImagesPerPrompt],
-      selectedLoras: [loraManager.selectedLoras, loraManager.setSelectedLoras],
+      selectedLoras: [loraManager.selectedLoras, setSelectedLorasForPersistence],
       beforeEachPromptText: [beforeEachPromptText, setBeforeEachPromptText],
       afterEachPromptText: [afterEachPromptText, setAfterEachPromptText],
       associatedShotId: [associatedShotId, setAssociatedShotId],
@@ -173,6 +214,13 @@ export function useImageGenForm({
     uiActions,
   });
 
+  const updateShotPromptField = useCallback((field: string, value: unknown) => {
+    shotPromptSettings.updateField(
+      field as keyof ImageGenShotSettings,
+      value as ImageGenShotSettings[keyof ImageGenShotSettings],
+    );
+  }, [shotPromptSettings]);
+
   // ============================================================================
   // Generation Source & Model Selection (extracted hook)
   // ============================================================================
@@ -184,7 +232,7 @@ export function useImageGenForm({
     handleGenerationSourceChange,
     handleTextModelChange,
   } = useGenerationSource({
-    projectImageSettings,
+    projectImageSettings: projectImageSettings ?? undefined,
     isLoadingProjectSettings,
     updateProjectImageSettings,
     markAsInteracted,
@@ -205,7 +253,7 @@ export function useImageGenForm({
       entityId: shotPromptSettings.entityId,
       status: shotPromptSettings.status,
       settings: shotPromptSettings.settings,
-      updateField: shotPromptSettings.updateField,
+      updateField: updateShotPromptField,
     },
     noShotPrompts,
     setNoShotPrompts,
@@ -232,7 +280,7 @@ export function useImageGenForm({
   // Reference Management (extracted hook)
   // ============================================================================
   const referenceManagementResult = useReferenceManagement({
-    selectedProjectId,
+    selectedProjectId: selectedProjectId ?? undefined,
     effectiveShotId,
     selectedReferenceId,
     selectedReferenceIdByShot,
@@ -246,7 +294,7 @@ export function useImageGenForm({
     privacyDefaults,
     associatedShotId,
     shotPromptSettings: {
-      updateField: shotPromptSettings.updateField,
+      updateField: updateShotPromptField,
     },
     setHiresFixConfig,
   });
@@ -267,7 +315,7 @@ export function useImageGenForm({
     handleUseExistingPrompts,
     handleNewPromptsLikeExisting,
   } = useFormSubmission({
-    selectedProjectId,
+    selectedProjectId: selectedProjectId ?? undefined,
     prompts,
     imagesPerPrompt,
     promptMultiplier,
@@ -313,7 +361,7 @@ export function useImageGenForm({
     markAsInteracted,
     generationSource,
     selectedTextModel,
-    projectImageSettings,
+    projectImageSettings: projectImageSettings ?? null,
     updateProjectImageSettings,
   });
 

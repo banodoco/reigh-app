@@ -151,7 +151,12 @@ const LoraCardComponent: React.FC<LoraCardProps> = ({
                 <Slider
                   id={`lora-strength-${lora['Model ID']}`}
                   value={strength ?? 1}
-                  onValueChange={(value) => onUpdateLoraStrength(lora['Model ID'], value)}
+                  onValueChange={(value) =>
+                    onUpdateLoraStrength(
+                      lora['Model ID'],
+                      Array.isArray(value) ? (value[0] ?? 1) : value
+                    )
+                  }
                   min={0} max={2} step={0.05}
                   className="flex-1"
                 />

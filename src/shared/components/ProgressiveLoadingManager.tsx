@@ -9,7 +9,7 @@ import React from 'react';
 import { useProgressiveImageLoading } from '@/shared/hooks/useProgressiveImageLoading';
 
 interface ProgressiveLoadingManagerProps {
-  images: { id?: string }[];
+  images: { id: string }[];
   page: number;
   enabled?: boolean;
   isMobile: boolean;

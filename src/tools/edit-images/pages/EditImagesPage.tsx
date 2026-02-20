@@ -35,7 +35,7 @@ import { parseRatio } from '@/shared/lib/aspectRatios';
 import { variantToGenerationRow } from '@/shared/lib/mediaTypeHelpers';
 import { MediaSelectionPanel } from '@/shared/components/MediaSelectionPanel';
 import { useEditToolMediaPersistence } from '@/shared/hooks/useEditToolMediaPersistence';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
 const TOOL_TYPE = TOOL_IDS.EDIT_IMAGES;
@@ -81,7 +81,7 @@ export default function EditImagesPage() {
     showSkeleton,
   } = useEditToolMediaPersistence({
     settingsToolId: 'edit-images-ui',
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? undefined,
     preloadMedia: preloadImage,
   });
   
@@ -101,6 +101,9 @@ export default function EditImagesPage() {
 
   // Shared upload logic for both file input and drag-drop
   const uploadImage = useCallback(async (file: File): Promise<GenerationRow> => {
+    if (!selectedProjectId) {
+      throw new Error('No project selected');
+    }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.id) {
       throw new Error('User not authenticated');
@@ -115,7 +118,7 @@ export default function EditImagesPage() {
       const uploadResult = await uploadImageWithThumbnail(file, thumbnailResult.thumbnailBlob, userId);
       publicUrl = uploadResult.imageUrl;
       thumbnailUrl = uploadResult.thumbnailUrl;
-    } catch (thumbnailError) {
+    } catch {
       publicUrl = await uploadImageToStorage(file, 3);
       thumbnailUrl = publicUrl;
     }
@@ -178,23 +181,26 @@ export default function EditImagesPage() {
   // Drag and drop handlers
   const handleDragOver = preventDefaultDragOver;
 
-  const handleDrop = useCallback(
+  const handleDrop = useMemo(() =>
     createSingleFileDropHandler({
       mimePrefix: 'image/',
       mimeErrorMessage: "Please drop an image file",
       resetDrag: resetDragState,
-      getProjectId: () => selectedProjectId,
+      getProjectId: () => selectedProjectId ?? undefined,
       upload: (file) => uploadImage(file),
       onResult: (result) => setSelectedMedia(result as GenerationRow),
       context: 'EditImagesPage',
       toastTitle: 'Failed to upload image',
-      uploadOperation,
+      uploadOperation: uploadOperation as any,
     }),
-    [selectedProjectId, uploadOperation, uploadImage]
+    [selectedProjectId, resetDragState, uploadOperation, uploadImage, setSelectedMedia]
   );
 
   // Get results items for navigation
-  const resultsItems = (resultsData as GenerationsPaginatedResponse | undefined)?.items || [];
+  const resultsItems = useMemo(
+    () => (resultsData as GenerationsPaginatedResponse | undefined)?.items ?? [],
+    [resultsData]
+  );
   const [lightboxIndex, setLightboxIndex] = useState<number>(-1);
 
   // Store the variant ID separately for lightbox
@@ -202,7 +208,7 @@ export default function EditImagesPage() {
 
   // Transform variant data to GenerationRow format for lightbox
   const transformVariantToGeneration = (media: GeneratedImageWithMetadata): GenerationRow =>
-    variantToGenerationRow(media, 'image', selectedProjectId || '') as GenerationRow;
+    variantToGenerationRow(media, 'image', selectedProjectId || '') as unknown as GenerationRow;
 
   const handleResultClick = (media: GeneratedImageWithMetadata) => {
     const index = resultsItems.findIndex((item) => item.id === media.id);
@@ -238,17 +244,18 @@ export default function EditImagesPage() {
   };
 
   // Get task ID from current lightbox variant for task details
-  const currentTaskId = useMemo(() => {
+  const currentTaskId = useMemo<string | null>(() => {
     if (lightboxIndex >= 0 && resultsItems[lightboxIndex]) {
       const item = resultsItems[lightboxIndex];
       // Task ID is stored in metadata.source_task_id (from variant params)
-      return item.metadata?.source_task_id || null;
+      const sourceTaskId = item.metadata?.source_task_id;
+      return typeof sourceTaskId === 'string' ? sourceTaskId : null;
     }
     return null;
   }, [lightboxIndex, resultsItems]);
 
   // Fetch task data for the current lightbox item
-  const { data: taskData, isLoading: isLoadingTask, error: taskError } = useGetTask(currentTaskId);
+  const { data: taskData, isLoading: isLoadingTask, error: taskError } = useGetTask(currentTaskId ?? '');
 
   // Derive input images from task params
   const inputImages = useMemo(() => {
@@ -471,7 +478,7 @@ export default function EditImagesPage() {
                       .single();
                     
                     if (data && !error) {
-                      setSelectedMedia(data as GenerationRow);
+                      setSelectedMedia(data as unknown as GenerationRow);
                     }
                   } catch (e) {
                     handleError(e, { context: 'EditImagesPage', showToast: false });
@@ -502,11 +509,11 @@ export default function EditImagesPage() {
           hasPrevious={lightboxIndex > 0}
           showTaskDetails={true}
           taskDetailsData={{
-            task: taskData,
+            task: taskData ?? null,
             isLoading: isLoadingTask,
             error: taskError,
             inputImages,
-            taskId: currentTaskId,
+            taskId: currentTaskId ?? null,
           }}
           initialVariantId={lightboxVariantId || undefined}
         />
@@ -518,4 +525,3 @@ export default function EditImagesPage() {
 function ImageSelectionModal({ onSelect }: { onSelect: (media: GenerationRow) => void }) {
   return <MediaSelectionPanel onSelect={onSelect} mediaType="image" />;
 }
-

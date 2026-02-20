@@ -5,7 +5,7 @@ import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from 
 import { useApiKeys } from '@/shared/hooks/useApiKeys';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface UseImageGenSubmitParams {
   projectId: string | null;
@@ -28,11 +28,17 @@ export function useImageGenSubmit({
 
     const incomingTaskId = addIncomingTask({
       taskType: 'image_generation',
-      label: taskParams.prompts?.[0]?.text?.substring(0, 50) || 'Generating images...',
+      label: taskParams.prompts?.[0]?.fullPrompt?.substring(0, 50) || 'Generating images...',
     });
     let createdTaskIds: string[] = [];
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[handleNewGenerate] createBatchImageGenerationTasks start, prompts:', taskParams.prompts?.length);
+      }
       const createdTasks = await createBatchImageGenerationTasks(taskParams);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[handleNewGenerate] createBatchImageGenerationTasks done, tasks:', createdTasks.length);
+      }
       createdTaskIds = createdTasks.map((t) => t.task_id);
 
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(effectiveProjectId) });
@@ -41,11 +47,23 @@ export function useImageGenSubmit({
 
       return createdTaskIds;
     } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[handleNewGenerate] FAILED:', error);
+      }
       handleError(error, { context: 'ImageGenerationToolPage.handleNewGenerate', toastTitle: error instanceof Error ? error.message : 'Failed to create tasks.' });
       return [];
     } finally {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[handleNewGenerate] refetchQueries start');
+      }
       await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[handleNewGenerate] refetchQueries paginatedAll done');
+      }
       await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[handleNewGenerate] refetchQueries statusCountsAll done');
+      }
       removeIncomingTask(incomingTaskId);
     }
   }, [projectId, effectiveProjectId, queryClient, addIncomingTask, removeIncomingTask]);

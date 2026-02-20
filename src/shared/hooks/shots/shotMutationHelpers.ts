@@ -4,7 +4,7 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { SHOT_FILTER } from '@/shared/constants/filterConstants';
 
 // ============================================================================
@@ -37,7 +37,7 @@ export function optimisticallyRemoveFromUnifiedGenerations(
     items: Array<{ id: string; generation_id?: string }>;
     total: number;
     hasMore?: boolean;
-  }>({ queryKey: queryKeys.unified.projectPrefix(projectId) });
+  }>({ queryKey: unifiedGenerationQueryKeys.projectPrefix(projectId) });
 
   let updatedCount = 0;
 

@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '@/shared/lib/utils';
-import { getDisplayUrl, stripQueryParameters } from '@/shared/lib/utils';
+import { getDisplayUrl, stripQueryParameters } from '@/shared/lib/mediaUrl';
 import { Button } from '@/shared/components/ui/button';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
-interface HoverScrubVideoProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onTouchEnd'> {
+interface HoverScrubVideoProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onTouchEnd' | 'onLoadStart' | 'onLoadedData'> {
   /**
    * Source URL for the video. Can be a full URL or relative path handled by getDisplayUrl.
    */
@@ -103,7 +103,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   thumbnailMode = false,
   autoplayOnHover = false,
   posterOnlyUntilClick = false,
-  playOnClick = false,
+  playOnClick: _playOnClick = false,
   onVideoError,
   onLoadStart,
   onLoadedData,
@@ -121,9 +121,16 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     playDelay: 400,
     resetOnLeave: true,
   });
+  const handleScrubMouseMove = scrubbing.containerProps.onMouseMove;
+  const handleScrubMouseEnter = scrubbing.containerProps.onMouseEnter;
+  const handleScrubMouseLeave = scrubbing.containerProps.onMouseLeave;
+  const handleScrubLoadedMetadata = scrubbing.videoProps.onLoadedMetadata;
+  const resetScrubbing = scrubbing.reset;
+  const setScrubVideoElement = scrubbing.setVideoElement;
+  void _playOnClick;
 
   // Additional refs for features not covered by the hook
-  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   // Track whether a play was explicitly initiated by the user
   const userInitiatedPlayRef = useRef(false);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -141,9 +148,9 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   const videoRefCallback = useCallback((video: HTMLVideoElement | null) => {
     localVideoRef.current = video;
     if (video) {
-      scrubbing.setVideoElement(video);
+      setScrubVideoElement(video);
     }
-  }, [scrubbing.setVideoElement]);
+  }, [setScrubVideoElement]);
 
   // Also alias for easier access
   const videoRef = localVideoRef;
@@ -156,7 +163,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   const displaySrc = getDisplayUrl(src);
   const hasValidVideoSrc = displaySrc && displaySrc !== '/placeholder.svg';
   
-  // Track stable source (without query params) to avoid resetting when only tokens change
   const stableSrcRef = useRef<string>(stripQueryParameters(src));
   
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -177,8 +183,8 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     }
 
     // Delegate to the hook's handler for actual scrubbing
-    scrubbing.containerProps.onMouseMove(e);
-  }, [scrubbingEnabled, loadOnDemand, hasLoadedOnDemand, preloadProp, src, scrubbing.containerProps]);
+    handleScrubMouseMove(e);
+  }, [scrubbingEnabled, loadOnDemand, hasLoadedOnDemand, preloadProp, handleScrubMouseMove, videoRef]);
 
   const handleMouseEnter = useCallback(() => {
     // Handle autoplayOnHover mode separately
@@ -202,8 +208,8 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     }
 
     // Delegate to the hook's handler
-    scrubbing.containerProps.onMouseEnter();
-  }, [scrubbingEnabled, autoplayOnHover, isMobile, disableScrubbing, preloadProp, src, scrubbing.containerProps]);
+    handleScrubMouseEnter();
+  }, [scrubbingEnabled, autoplayOnHover, isMobile, disableScrubbing, handleScrubMouseEnter, videoRef]);
 
   const handleMouseLeave = useCallback(() => {
     // Handle autoplayOnHover mode separately
@@ -223,8 +229,8 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     isHoveringRef.current = false;
 
     // Delegate to the hook's handler
-    scrubbing.containerProps.onMouseLeave();
-  }, [scrubbingEnabled, autoplayOnHover, isMobile, disableScrubbing, src, scrubbing.containerProps]);
+    handleScrubMouseLeave();
+  }, [scrubbingEnabled, autoplayOnHover, isMobile, disableScrubbing, handleScrubMouseLeave, videoRef]);
 
   const handleSpeedChange = (speed: number) => {
     if (videoRef.current) {
@@ -235,7 +241,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
 
   const handleLoadedMetadata = useCallback(() => {
     // Let the hook handle duration and scrubber recalculation
-    scrubbing.videoProps.onLoadedMetadata();
+    handleScrubLoadedMetadata();
 
     if (!videoRef.current) return;
 
@@ -249,7 +255,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     if (!disableScrubbing && videoRef.current.currentTime === 0 && !poster) {
       videoRef.current.currentTime = 0.001;
     }
-  }, [isMobile, disableScrubbing, thumbnailMode, poster, scrubbing.videoProps]);
+  }, [disableScrubbing, poster, handleScrubLoadedMetadata, videoRef]);
 
   useEffect(() => {
     if (thumbnailMode) {
@@ -275,7 +281,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
         video.currentTime = 0;
       }
       // Reset scrubbing state for new source
-      scrubbing.reset();
+      resetScrubbing();
     }
 
     // Add event listeners to track unexpected play events
@@ -315,7 +321,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   // NOTE: scrubbing.reset is a stable callback, no need to include the entire scrubbing object
   // Including scrubbing would cause cleanup to run on every state change (e.g., isPlaying),
   // which would pause the video immediately after play() is called
-  }, [src, isMobile, disableScrubbing, thumbnailMode]);
+  }, [src, isMobile, disableScrubbing, thumbnailMode, resetScrubbing, videoRef]);
 
   // Additional mobile protection - use Intersection Observer to detect when video becomes visible
   // Only for gallery thumbnails, not lightbox
@@ -343,7 +349,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     return () => {
       observer.disconnect();
     };
-  }, [isMobile, src, disableScrubbing]);
+  }, [isMobile, disableScrubbing, thumbnailMode, videoRef]);
 
   // Periodic mobile check to catch any unexpected play states - but only for gallery thumbnails
   useEffect(() => {
@@ -358,7 +364,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
     return () => {
       clearInterval(intervalId);
     };
-  }, [isMobile, src, disableScrubbing]);
+  }, [isMobile, disableScrubbing, thumbnailMode, videoRef]);
 
   return (
     <div
@@ -387,13 +393,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
         onTouchEnd={(e) => {
           onTouchEnd?.(e);
         }}
-        onTouchStart={(_e) => {
-        }}
-        onTouchMove={(_e) => {
-        }}
-        onClick={() => {
-
-        }}
         onLoadStart={(e) => {
           onLoadStart?.(e);
         }}
@@ -418,10 +417,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
             },
           });
           onVideoError?.(e);
-        }}
-        onSuspend={() => {
-        }}
-        onWaiting={() => {
         }}
       >
         Your browser does not support the video tag.
@@ -503,4 +498,4 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   );
 };
 
-export default HoverScrubVideo; 
+export default HoverScrubVideo;

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/useShots';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast as sonnerToast } from '@/shared/components/ui/sonner';
 
 interface UseShotActionsOptions {
   lightboxSelectedShotId: string | undefined;
@@ -154,6 +155,5 @@ export function useShotActions({
     handleOptimisticUnpositioned,
   };
 }
-
 
 

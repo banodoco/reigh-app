@@ -25,11 +25,11 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
 import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { Plus, Upload, Loader2 } from 'lucide-react';
 import { getDragType, getGenerationDropData, isFileDrag, type GenerationDropData, type DragType } from '@/shared/lib/dragDrop';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { useShotFinalVideos } from '../hooks/useShotFinalVideos';
 
 interface ShotListDisplayProps {
@@ -101,8 +101,8 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
         return dateA - dateB;
       });
     } else {
-      // Default 'ordered' mode - sort by timeline_frame
-      sorted = [...baseList].sort((a, b) => (a.timeline_frame || 0) - (b.timeline_frame || 0));
+      // Default 'ordered' mode - sort by persisted shot position
+      sorted = [...baseList].sort((a, b) => (a.position || 0) - (b.position || 0));
     }
     
     return sorted;
@@ -202,7 +202,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       setOptimisticShots(shotsWithNewPositions);
 
       // Optimistically update the unlimited shots cache (used by ShotsContext -> useListShots(projectId))
-      queryClient.setQueryData(queryKeys.shots.list(currentProjectId, 0), shotsWithNewPositions);
+      queryClient.setQueryData(shotQueryKeys.list(currentProjectId, 0), shotsWithNewPositions);
 
       // Generate position updates for database
       const shotOrders = reorderedShots.map((shot, index) => ({
@@ -216,8 +216,8 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
         {
           onError: (error) => {
             // Revert optimistic updates on both caches on error
-            queryClient.setQueryData(queryKeys.shots.list(currentProjectId), shots);
-            queryClient.setQueryData(queryKeys.shots.list(currentProjectId, 5), shots);
+            queryClient.setQueryData(shotQueryKeys.list(currentProjectId), shots);
+            queryClient.setQueryData(shotQueryKeys.list(currentProjectId, 5), shots);
             toast.error(`Failed to reorder shots: ${error.message}`);
           },
         }
@@ -248,7 +248,10 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   const [newlyCreatedShotBaselineNonVideoCount, setNewlyCreatedShotBaselineNonVideoCount] = useState(0);
   
   // Get current shot IDs
-  const currentShotIds = shots?.map(s => s.id) || [];
+  const currentShotIds = React.useMemo(
+    () => shots?.map(s => s.id) ?? [],
+    [shots]
+  );
   const currentShotIdsKey = React.useMemo(() => currentShotIds.join('|'), [currentShotIds]);
   
   // If a new shot appears, transfer expected image count to that shot card.
@@ -277,7 +280,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       clearTimeout(safetyTimeoutRef.current);
       safetyTimeoutRef.current = null;
     }
-  }, [currentShotIdsKey]);
+  }, [currentShotIds, currentShotIdsKey, shots]);
 
   // Compute pending skeleton shot during render (no flicker)
   // Only show skeleton if the new shot hasn't appeared in the data yet

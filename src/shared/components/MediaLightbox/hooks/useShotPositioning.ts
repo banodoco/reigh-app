@@ -79,6 +79,7 @@ export const useShotPositioning = ({
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
   // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
   const actualGenerationId = getGenerationId(media);
+  const generationIdForActions = actualGenerationId ?? media.id;
 
   const isAlreadyPositionedInSelectedShot = useMemo(() => {
     if (!selectedShotId || !media.id) return false;
@@ -118,9 +119,9 @@ export const useShotPositioning = ({
       const matchingAssociation = allShotAssociations.find(
         (assoc: ShotAssociation) => assoc.shot_id === selectedShotId
       );
-      const result = matchingAssociation && 
-             matchingAssociation.position !== null && 
-             matchingAssociation.position !== undefined;
+      const result = !!(matchingAssociation &&
+             matchingAssociation.position !== null &&
+             matchingAssociation.position !== undefined);
       return result;
     }
     
@@ -171,11 +172,11 @@ export const useShotPositioning = ({
 
     // CRITICAL: Pass selectedShotId (the dropdown value) as targetShotId
     // Use actualGenerationId (generations.id) not media.id (which might be shot_generations.id)
-    const success = await addFn(selectedShotId, actualGenerationId, imageUrl, thumbUrl);
+    const success = await addFn(selectedShotId, generationIdForActions, imageUrl, thumbUrl);
     if (success) {
-      onShowFeedback?.(actualGenerationId);
+      onShowFeedback?.(generationIdForActions);
       // Pass selectedShotId so optimistic state can use composite keys (mediaId:shotId)
-      onOptimistic?.(actualGenerationId, selectedShotId);
+      onOptimistic?.(generationIdForActions, selectedShotId);
     }
   };
 
@@ -214,8 +215,8 @@ export const useShotPositioning = ({
       const matchingAssociation = assocShotAssociations.find(
         (assoc: ShotAssociation) => assoc.shot_id === selectedShotId
       );
-      return matchingAssociation && 
-             (matchingAssociation.position === null || matchingAssociation.position === undefined);
+      return !!(matchingAssociation &&
+             (matchingAssociation.position === null || matchingAssociation.position === undefined));
     }
     
     return false;
@@ -232,4 +233,3 @@ export const useShotPositioning = ({
     handleAddToShotWithoutPosition,
   };
 };
-

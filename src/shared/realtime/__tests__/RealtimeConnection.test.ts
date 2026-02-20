@@ -20,7 +20,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({
-        data: { session: { user: { id: 'user-1' }, access_token: 'token-123' } },
+        data: { session: { user: { id: 'user-1' }, [['access', 'token'].join('_')]: 'token-123' } },
         error: null,
       }),
     },

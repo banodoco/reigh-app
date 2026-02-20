@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /**
  * Filters project-level settings for inheritance into a new project.

@@ -250,7 +250,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                   <Button
                     onClick={handleGenerateToken}
                     disabled={isGenerating}
-                    className="w-full"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     {isGenerating ? "Generating..." : "Generate Key & Show Instructions"}
                   </Button>
@@ -265,7 +265,14 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                     {/* Computer Type */}
                     <div>
                       <Label className="text-xs text-blue-600 dark:text-blue-400 mb-1 block">Computer:</Label>
-                      <Select value={computerType} onValueChange={setComputerType}>
+                      <Select
+                        value={computerType}
+                        onValueChange={(value) => {
+                          if (value) {
+                            setComputerType(value);
+                          }
+                        }}
+                      >
                         <SelectTrigger variant="retro" size="sm" colorScheme="blue" className="w-full h-9">
                           <SelectValue>{(v: string | null) => COMPUTER_LABELS[v ?? ""] ?? v}</SelectValue>
                         </SelectTrigger>
@@ -280,7 +287,15 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                     {/* GPU Type */}
                     <div>
                       <Label className="text-xs text-violet-600 dark:text-violet-400 mb-1 block">GPU:</Label>
-                      <Select value={gpuType} onValueChange={setGpuType} disabled={computerType === "mac"}>
+                      <Select
+                        value={gpuType}
+                        onValueChange={(value) => {
+                          if (value) {
+                            setGpuType(value);
+                          }
+                        }}
+                        disabled={computerType === "mac"}
+                      >
                         <SelectTrigger variant="retro" size="sm" colorScheme="violet" className="w-full h-9">
                           <SelectValue>{(v: string | null) => GPU_LABELS[v ?? ""] ?? v}</SelectValue>
                         </SelectTrigger>
@@ -295,13 +310,20 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                     {/* Memory Profile */}
                     <div>
                       <Label className="text-xs text-emerald-600 dark:text-emerald-400 mb-1 block">Memory:</Label>
-                      <Select value={memoryProfile} onValueChange={setMemoryProfile}>
+                      <Select
+                        value={memoryProfile}
+                        onValueChange={(value) => {
+                          if (value) {
+                            setMemoryProfile(value);
+                          }
+                        }}
+                      >
                         <SelectTrigger variant="retro" size="sm" colorScheme="emerald" className="w-full h-9">
                           <SelectValue>{(v: string | null) => MEMORY_LABELS[v ?? ""] ?? v}</SelectValue>
                         </SelectTrigger>
                         <SelectContent variant="retro">
                           <TooltipProvider>
-                            <Tooltip delayDuration={0}>
+                            <Tooltip>
                               <TooltipTrigger asChild>
                                 <SelectItem variant="retro" value="1" label="Max Performance" className="cursor-pointer">Max Performance</SelectItem>
                               </TooltipTrigger>
@@ -309,7 +331,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                                 <p className="text-sm">64GB+ RAM, 24GB VRAM. Fastest.</p>
                               </TooltipContent>
                             </Tooltip>
-                            <Tooltip delayDuration={0}>
+                            <Tooltip>
                               <TooltipTrigger asChild>
                                 <SelectItem variant="retro" value="2" label="High RAM" className="cursor-pointer">High RAM</SelectItem>
                               </TooltipTrigger>
@@ -317,7 +339,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                                 <p className="text-sm">64GB+ RAM, 12GB VRAM. Long videos.</p>
                               </TooltipContent>
                             </Tooltip>
-                            <Tooltip delayDuration={0}>
+                            <Tooltip>
                               <TooltipTrigger asChild>
                                 <SelectItem variant="retro" value="3" label="Balanced" className="cursor-pointer">Balanced</SelectItem>
                               </TooltipTrigger>
@@ -325,7 +347,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                                 <p className="text-sm">32GB RAM, 24GB VRAM. Recommended for 3090/4090.</p>
                               </TooltipContent>
                             </Tooltip>
-                            <Tooltip delayDuration={0}>
+                            <Tooltip>
                               <TooltipTrigger asChild>
                                 <SelectItem variant="retro" value="4" label="Conservative" className="cursor-pointer">Conservative</SelectItem>
                               </TooltipTrigger>
@@ -333,7 +355,7 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                                 <p className="text-sm">32GB RAM, 12GB VRAM. Works everywhere.</p>
                               </TooltipContent>
                             </Tooltip>
-                            <Tooltip delayDuration={0}>
+                            <Tooltip>
                               <TooltipTrigger asChild>
                                 <SelectItem variant="retro" value="5" label="Minimum" className="cursor-pointer">Minimum</SelectItem>
                               </TooltipTrigger>
@@ -350,7 +372,14 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                     {computerType === "windows" && (
                       <div>
                         <Label className="text-xs text-rose-600 dark:text-rose-400 mb-1 block">Shell:</Label>
-                        <Select value={windowsShell} onValueChange={setWindowsShell}>
+                        <Select
+                          value={windowsShell}
+                          onValueChange={(value) => {
+                            if (value) {
+                              setWindowsShell(value);
+                            }
+                          }}
+                        >
                           <SelectTrigger variant="retro" size="sm" colorScheme="rose" className="w-full h-9">
                             <SelectValue>{(v: string | null) => SHELL_LABELS[v ?? ""] ?? v}</SelectValue>
                           </SelectTrigger>

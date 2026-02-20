@@ -57,12 +57,6 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
   const modal = useMediumModal();
   const { showFade, scrollRef } = useScrollFade({ isOpen: open });
 
-  useEffect(() => {
-    if (open) {
-      loadProjects();
-    }
-  }, [open]);
-
   const loadProjects = useCallback(async () => {
     const result = await loadOperation.execute(async () => {
       const { data, error } = await supabase
@@ -82,13 +76,22 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
     }
   }, [loadOperation, selectedProjectId]);
 
+  useEffect(() => {
+    if (open) {
+      loadProjects();
+    }
+  }, [open, loadProjects]);
+
   const handleCreateProject = useCallback(async () => {
     if (!newProjectName.trim()) return;
 
     const result = await createOperation.execute(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Must be signed in to create a project');
+
       const { data, error } = await supabase
         .from('projects')
-        .insert({ name: newProjectName.trim() })
+        .insert({ name: newProjectName.trim(), user_id: user.id })
         .select('id, name, created_at')
         .single();
 
@@ -253,4 +256,3 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
     </Dialog>
   );
 };
-

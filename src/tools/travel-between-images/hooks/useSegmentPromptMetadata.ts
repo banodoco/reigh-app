@@ -14,7 +14,7 @@ import type { Json } from '@/integrations/supabase/types';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { GenerationRow } from '@/types/shots';
 import { readSegmentOverrides, writeSegmentOverrides } from '@/shared/utils/settingsMigration';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 // ============================================================================

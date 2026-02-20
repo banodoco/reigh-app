@@ -7,7 +7,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { ShotSelectorWithAdd } from '@/shared/components/ShotSelectorWithAdd';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface ShotOption {
   id: string;
@@ -104,7 +104,7 @@ export const WorkflowControls: React.FC<WorkflowControlsProps> = ({
     if (!onAddToShotWithoutPosition || !selectedShotId) return;
     
     try {
-      const success = await onAddToShotWithoutPosition(mediaId, imageUrl, thumbUrl);
+      const success = await onAddToShotWithoutPosition(selectedShotId, mediaId, imageUrl, thumbUrl);
       if (success) {
         onShowSecondaryTick?.(mediaId);
         onOptimisticUnpositioned?.(mediaId, selectedShotId);

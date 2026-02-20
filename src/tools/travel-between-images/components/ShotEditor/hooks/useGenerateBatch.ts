@@ -8,7 +8,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { generateVideo } from '../services/generateVideoService';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import type { SteerableMotionSettings } from '@/shared/types/steerableMotion';
@@ -32,7 +32,7 @@ interface UseGenerateBatchOptions {
   onShotImagesUpdate?: (images: GenerationRow[]) => void;
   effectiveAspectRatio?: string;
   // Generation mode
-  generationMode: string;
+  generationMode: 'timeline' | 'batch' | 'by-pair';
   // Prompt config
   prompt: string;
   enhancePrompt: boolean;
@@ -41,7 +41,7 @@ interface UseGenerateBatchOptions {
   negativePrompt: string;
   // Motion config
   amountOfMotion: number;
-  motionMode: string;
+  motionMode: 'basic' | 'advanced' | 'presets';
   advancedMode: boolean;
   phaseConfig?: PhaseConfig;
   selectedPhasePresetId?: string | null;
@@ -49,7 +49,7 @@ interface UseGenerateBatchOptions {
   steerableMotionSettings?: SteerableMotionSettings;
   randomSeed: boolean;
   turboMode: boolean;
-  generationTypeMode?: string;
+  generationTypeMode?: 'i2v' | 'vace';
   smoothContinuations?: boolean;
   // Frame settings
   batchVideoFrames: number;
@@ -58,7 +58,7 @@ interface UseGenerateBatchOptions {
   // Structure video
   structureVideos: StructureVideoConfigWithMetadata[];
   // Clear prompts callback
-  clearAllEnhancedPrompts: () => void;
+  clearAllEnhancedPrompts: () => Promise<void>;
   // Output selection
   selectedOutputId?: string | null;
   // Stitch config (for join after generate)
@@ -75,7 +75,7 @@ interface UseGenerateBatchOptions {
   joinGuidanceScale: number;
   joinSeed: number;
   joinRandomSeed: boolean;
-  joinMotionMode: string;
+  joinMotionMode: 'basic' | 'advanced';
   joinPhaseConfig?: PhaseConfig;
   joinSelectedPhasePresetId?: string | null;
   joinSelectedLoras: Array<{ path: string; strength: number }>;
@@ -87,7 +87,7 @@ interface UseGenerateBatchOptions {
 }
 
 interface UseGenerateBatchReturn {
-  handleGenerateBatch: (variantNameParam: string) => void;
+  handleGenerateBatch: (variantNameParam?: string) => void;
   isSteerableMotionEnqueuing: boolean;
   steerableMotionJustQueued: boolean;
   isGenerationDisabled: boolean;
@@ -95,11 +95,11 @@ interface UseGenerateBatchReturn {
 
 export function useGenerateBatch({
   projectId,
-  selectedProjectId,
+  selectedProjectId: _selectedProjectId,
   selectedShotId,
   selectedShot,
   queryClient,
-  onShotImagesUpdate,
+  onShotImagesUpdate: _onShotImagesUpdate,
   effectiveAspectRatio,
   generationMode,
   // Prompt config
@@ -119,7 +119,7 @@ export function useGenerateBatch({
   randomSeed,
   turboMode,
   generationTypeMode,
-  smoothContinuations,
+  smoothContinuations: _smoothContinuations,
   // Frame settings
   batchVideoFrames,
   // LoRAs
@@ -165,9 +165,11 @@ export function useGenerateBatch({
 
   const isGenerationDisabled = isSteerableMotionEnqueuing;
 
-  const handleGenerateBatch = useCallback((variantNameParam: string) => {
+  const handleGenerateBatch = useCallback((variantNameParam?: string) => {
+    const variantName = variantNameParam ?? '';
+
     // Add incoming task immediately for instant TasksPane feedback
-    const taskLabel = variantNameParam || selectedShot?.name || 'Travel video';
+    const taskLabel = variantName || selectedShot?.name || 'Travel video';
     const incomingTaskId = addIncomingTask({
       taskType: 'travel_orchestrator',
       label: taskLabel.length > 50 ? taskLabel.substring(0, 50) + '...' : taskLabel,
@@ -180,6 +182,10 @@ export function useGenerateBatch({
     // Fire-and-forget: run task creation in background
     (async () => {
       try {
+        if (!projectId || !selectedShotId || !selectedShot) {
+          return;
+        }
+
         // Determine the parent generation ID to use
         let effectiveParentId = selectedOutputId ?? undefined;
 
@@ -198,7 +204,7 @@ export function useGenerateBatch({
           selectedShotId,
           selectedShot,
           queryClient,
-          effectiveAspectRatio,
+          effectiveAspectRatio: effectiveAspectRatio ?? null,
           generationMode,
           promptConfig: {
             base_prompt: prompt,
@@ -212,14 +218,14 @@ export function useGenerateBatch({
             motion_mode: motionMode || 'basic',
             advanced_mode: advancedMode,
             phase_config: phaseConfig,
-            selected_phase_preset_id: selectedPhasePresetId,
+            selected_phase_preset_id: selectedPhasePresetId ?? undefined,
           },
           modelConfig: {
             seed: steerableMotionSettings?.seed ?? 789,
             random_seed: randomSeed,
             turbo_mode: turboMode,
             debug: steerableMotionSettings?.debug || false,
-            generation_type_mode: generationTypeMode || 'i2v',
+            generation_type_mode: generationTypeMode ?? 'i2v',
             use_svi: false, // SVI feature removed from UX
           },
           structureVideos,
@@ -228,9 +234,9 @@ export function useGenerateBatch({
             id: lora.id,
             path: lora.path,
             strength: parseFloat(lora.strength?.toString() ?? '0') || 0.0,
-            name: lora.name
+            name: lora.name ?? 'LoRA',
           })),
-          variantNameParam,
+          variantNameParam: variantName,
           clearAllEnhancedPrompts,
           parentGenerationId: effectiveParentId,
           stitchConfig: stitchAfterGenerate ? {
@@ -283,11 +289,9 @@ export function useGenerateBatch({
     })();
   }, [
     projectId,
-    selectedProjectId,
     selectedShotId,
     selectedShot,
     queryClient,
-    onShotImagesUpdate,
     effectiveAspectRatio,
     generationMode,
     prompt,
@@ -304,7 +308,6 @@ export function useGenerateBatch({
     randomSeed,
     turboMode,
     generationTypeMode,
-    smoothContinuations,
     batchVideoFrames,
     selectedLoras,
     structureVideos,

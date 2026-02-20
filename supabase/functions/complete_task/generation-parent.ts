@@ -4,18 +4,16 @@
  */
 
 import { extractShotAndPosition } from './params.ts';
-import { TOOL_TYPES } from './constants.ts';
 import {
   findExistingGeneration,
   createVariant,
-  linkGenerationToShot,
 } from './generation-core.ts';
 
 // ===== PARENT GENERATION =====
 
 /**
- * Get existing parent generation or create a placeholder
- * Implements the "Lazy Parent Creation" pattern
+ * Resolve a canonical parent generation for orchestrator-derived tasks.
+ * Never creates ad-hoc placeholder generations.
  */
 export async function getOrCreateParentGeneration(
   supabase: unknown,
@@ -60,45 +58,38 @@ export async function getOrCreateParentGeneration(
       return existing;
     }
 
-    const newId = crypto.randomUUID();
-    const baseParams = orchTask?.params || segmentParams || {};
-    const placeholderParams = {
-      ...baseParams,
-      tool_type: baseParams.tool_type || TOOL_TYPES.TRAVEL_BETWEEN_IMAGES
-    };
-
-    const placeholderRecord = {
-      id: newId,
-      tasks: [orchestratorTaskId],
-      project_id: projectId,
-      type: 'video',
-      is_child: false,
-      location: null,
-      created_at: new Date().toISOString(),
-      params: placeholderParams
-    };
-
-    const { data: newParent, error } = await supabase
-      .from('generations')
-      .insert(placeholderRecord)
-      .select()
-      .single();
-
-    if (error) {
-      console.error(`[GenMigration] Error creating placeholder parent:`, error);
-      return await findExistingGeneration(supabase, orchestratorTaskId);
-    }
-
-    // Link parent to shot if orchestrator has shot_id
+    // Fall back to the canonical shot parent for legacy tasks that might be missing parent_generation_id.
     const paramsForShotExtraction = orchTask?.params || segmentParams;
     if (paramsForShotExtraction) {
-      const { shotId, addInPosition } = extractShotAndPosition(paramsForShotExtraction);
+      const { shotId } = extractShotAndPosition(paramsForShotExtraction);
       if (shotId) {
-        await linkGenerationToShot(supabase, shotId, newId, addInPosition);
+        const { data: ensuredParentId, error: ensureError } = await supabase
+          .rpc('ensure_shot_parent_generation', {
+            p_shot_id: shotId,
+            p_project_id: projectId,
+          });
+
+        if (ensureError || !ensuredParentId) {
+          console.error(`[GenMigration] Error ensuring canonical shot parent for shot ${shotId}:`, ensureError);
+          return null;
+        }
+
+        const { data: ensuredParent, error: parentFetchError } = await supabase
+          .from('generations')
+          .select('*')
+          .eq('id', ensuredParentId)
+          .single();
+
+        if (parentFetchError || !ensuredParent) {
+          console.error(`[GenMigration] Error fetching ensured parent generation ${ensuredParentId}:`, parentFetchError);
+          return null;
+        }
+
+        return ensuredParent;
       }
     }
 
-    return newParent;
+    return null;
 
   } catch (error) {
     console.error(`[GenMigration] Exception in getOrCreateParentGeneration:`, error);
@@ -217,7 +208,7 @@ export async function getChildVariantViewedAt(
       if (count === 1) {
         return new Date().toISOString();
       }
-    } catch (err) {
+    } catch {
       // Non-blocking: if sibling counting fails, treat as non-single-segment.
     }
   }

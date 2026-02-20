@@ -1,13 +1,5 @@
 /**
- * LightboxLayout - Unified layout for all lightbox configurations
- *
- * Replaces DesktopSidePanelLayout, MobileStackedLayout, and CenteredLayout.
- * All conditional rendering derives from two values:
- *   - showPanel: whether the controls panel renders
- *   - shouldShowSidePanel: whether the panel goes right (side-by-side) or bottom (stacked)
- *
- * Edit mode state (brush, annotation, reposition, canvas) is read from ImageEditContext.
- * Video edit, panel, workflow, and navigation state come through props.
+ * LightboxLayout - Unified layout for all lightbox configurations.
  */
 
 import React from 'react';
@@ -16,8 +8,6 @@ import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { Eraser, Square, Undo2, X, Diamond, Trash2 } from 'lucide-react';
 import type { LightboxLayoutProps } from './types';
-
-// Context hooks
 import {
   useLightboxCoreSafe,
   useLightboxMediaSafe,
@@ -26,15 +16,11 @@ import {
 } from '../../contexts/LightboxStateContext';
 import { useImageEditCanvasSafe } from '../../contexts/ImageEditCanvasContext';
 import { useVideoEditSafe } from '../../contexts/VideoEditContext';
-
-// Sub-components
 import { VariantOverlayBadge } from './VariantOverlayBadge';
 import { NewImageOverlayButton } from './NewImageOverlayButton';
 import { AdjacentSegmentNavigation } from './AdjacentSegmentNavigation';
 import { PreviewSequencePill } from './PreviewSequencePill';
 import { ConstituentImageNavigation } from './ConstituentImageNavigation';
-
-// Existing components
 import { NavigationArrows } from '../NavigationArrows';
 import { FloatingToolControls } from '../FloatingToolControls';
 import {
@@ -48,10 +34,7 @@ import { VideoTrimModeDisplay } from '../VideoTrimModeDisplay';
 import { WorkflowControls } from '../WorkflowControls';
 import { WorkflowControlsBar } from '../WorkflowControlsBar';
 
-export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
-  // ========================================
-  // CONTEXT STATE
-  // ========================================
+function useLightboxLayoutModel(props: LightboxLayoutProps) {
   const core = useLightboxCoreSafe();
   const mediaState = useLightboxMediaSafe();
   const variantsState = useLightboxVariantsSafe();
@@ -59,590 +42,462 @@ export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
   const imageEdit = useImageEditCanvasSafe();
   const videoEdit = useVideoEditSafe();
 
-  const { onClose, readOnly, isMobile, actualGenerationId, selectedProjectId } = core;
-  const { media, isVideo, effectiveMediaUrl, effectiveVideoUrl, setImageDimensions, effectiveImageDimensions } = mediaState;
-  const { variants, activeVariant, primaryVariant, promoteSuccess, isPromoting, handlePromoteToGeneration, isMakingMainVariant, canMakeMainVariant, handleMakeMainVariant } = variantsState;
-  const { showNavigation, hasNext, hasPrevious, handleSlotNavNext, handleSlotNavPrev, swipeNavigation } = navigation;
-
-  // Video edit state from VideoEditContext
-  const {
-    isVideoTrimModeActive, isVideoEditModeActive,
-    trimVideoRef, videoEditing,
-    setVideoDuration, setTrimCurrentTime,
-    trimState: contextTrimState, videoDuration,
-  } = videoEdit;
-
-  // Edit mode state from ImageEditContext
-  const {
-    isInpaintMode, isSpecialEditMode, editMode,
-    isAnnotateMode, brushStrokes, isEraseMode, setIsEraseMode, brushSize, setBrushSize,
-    selectedShapeId,
-    handleUndo, handleClearMask,
-    getDeleteButtonPosition, handleToggleFreeForm, handleDeleteSelected,
-  } = imageEdit;
-
-  // ========================================
-  // PROPS (non-edit-mode)
-  // ========================================
-  const {
-    showPanel,
-    shouldShowSidePanel,
-
-    // Panel state
-    effectiveTasksPaneOpen,
-    effectiveTasksPaneWidth,
-
-    // Composed prop objects
-    buttonGroupProps,
-    workflowBarProps,
-    controlsPanelContent,
-
-    // Workflow controls (below media, centered only)
-    workflowControlsProps,
-
-    // Special navigation
-    adjacentSegments,
-    segmentSlotMode,
-  } = props;
-
-  // ========================================
-  // DERIVED LAYOUT VALUES
-  // ========================================
-  // shouldShowSidePanel = side-by-side (iPad landscape, desktop); !shouldShowSidePanel && showPanel = stacked (mobile/portrait)
-  const isSidePanelLayout = showPanel && shouldShowSidePanel;
-  const isStackedLayout = showPanel && !shouldShowSidePanel;
-
-  const floatingToolVariant = isMobile ? 'mobile' : 'tablet';
-
-  // MediaDisplayWithCanvas variant/container
-  const mediaDisplayVariant = showPanel
+  const isSidePanelLayout = props.showPanel && props.shouldShowSidePanel;
+  const isStackedLayout = props.showPanel && !props.shouldShowSidePanel;
+  const floatingToolVariant: 'mobile' | 'tablet' = core.isMobile ? 'mobile' : 'tablet';
+  const mediaDisplayVariant: 'desktop-side-panel' | 'mobile-stacked' | 'regular-centered' = props.showPanel
     ? (isSidePanelLayout ? 'desktop-side-panel' : 'mobile-stacked')
     : 'regular-centered';
   const mediaDisplayContainerClassName = isSidePanelLayout
     ? 'max-w-full max-h-full'
     : 'w-full h-full';
-  const mediaDisplayDebugContext = showPanel
+  const mediaDisplayDebugContext = props.showPanel
     ? (isSidePanelLayout ? 'Desktop' : 'Mobile Stacked')
     : 'Regular Centered';
-
-  // Top center offset: stacked layout uses responsive top-4 md:top-16
   const topCenterClassName = isStackedLayout
     ? 'absolute top-4 md:top-16 left-1/2 transform -translate-x-1/2 z-[60] flex flex-col items-center gap-2'
     : 'absolute top-4 left-1/2 transform -translate-x-1/2 z-[60] flex flex-col items-center gap-2';
 
-  // ========================================
-  // SHARED MEDIA CONTENT RENDERING
-  // ========================================
-  const renderMediaContent = () => {
-    if (isVideo && isVideoEditModeActive && videoEditing) {
-      return (
-        <VideoEditModeDisplay
-          videoRef={videoEditing.videoRef}
-          videoUrl={effectiveVideoUrl}
-          posterUrl={activeVariant?.thumbnail_url || media.thumbUrl}
-          videoDuration={videoDuration}
-          onLoadedMetadata={setVideoDuration}
-          selections={videoEditing.selections}
-          activeSelectionId={videoEditing.activeSelectionId}
-          onSelectionChange={videoEditing.handleUpdateSelection}
-          onSelectionClick={videoEditing.setActiveSelectionId}
-          onRemoveSelection={videoEditing.handleRemoveSelection}
-          onAddSelection={videoEditing.handleAddSelection}
-        />
-      );
-    }
+  return {
+    props,
+    core,
+    mediaState,
+    variantsState,
+    navigation,
+    imageEdit,
+    videoEdit,
+    isSidePanelLayout,
+    isStackedLayout,
+    floatingToolVariant,
+    mediaDisplayVariant,
+    mediaDisplayContainerClassName,
+    mediaDisplayDebugContext,
+    topCenterClassName,
+  };
+}
 
-    if (isVideo && isVideoTrimModeActive) {
-      return (
-        <VideoTrimModeDisplay
-          videoRef={trimVideoRef}
-          videoUrl={effectiveVideoUrl}
-          posterUrl={activeVariant?.thumbnail_url || media.thumbUrl}
-          trimState={contextTrimState}
-          onLoadedMetadata={setVideoDuration}
-          onTimeUpdate={setTrimCurrentTime}
-        />
-      );
-    }
+type LightboxLayoutModel = ReturnType<typeof useLightboxLayoutModel>;
 
-    // All layouts route through MediaDisplayWithCanvas (handles StyledVideoPlayer internally)
+function MediaContent({ model }: { model: LightboxLayoutModel }) {
+  const { mediaState, variantsState, videoEdit } = model;
+
+  if (mediaState.isVideo && videoEdit.isVideoEditModeActive && videoEdit.videoEditing) {
     return (
-      <MediaDisplayWithCanvas
-        effectiveImageUrl={isVideo ? effectiveVideoUrl : effectiveMediaUrl}
-        thumbUrl={activeVariant?.thumbnail_url || media.thumbUrl}
-        isVideo={isVideo}
-        onImageLoad={setImageDimensions}
-        onVideoLoadedMetadata={(e) => {
-          const video = e.currentTarget;
-          if (Number.isFinite(video.duration) && video.duration > 0) {
-            setVideoDuration(video.duration);
-          }
-        }}
-        variant={mediaDisplayVariant}
-        containerClassName={mediaDisplayContainerClassName}
-        tasksPaneWidth={isSidePanelLayout && effectiveTasksPaneOpen ? effectiveTasksPaneWidth : 0}
-        debugContext={mediaDisplayDebugContext}
-        imageDimensions={effectiveImageDimensions}
+      <VideoEditModeDisplay
+        videoRef={videoEdit.videoEditing.videoRef}
+        videoUrl={mediaState.effectiveVideoUrl}
+        posterUrl={variantsState.activeVariant?.thumbnail_url || mediaState.media.thumbUrl}
+        videoDuration={videoEdit.videoDuration}
+        onLoadedMetadata={videoEdit.setVideoDuration}
+        selections={videoEdit.videoEditing.selections}
+        activeSelectionId={videoEdit.videoEditing.activeSelectionId}
+        onSelectionChange={videoEdit.videoEditing.handleUpdateSelection}
+        onSelectionClick={videoEdit.videoEditing.setActiveSelectionId}
+        onRemoveSelection={videoEdit.videoEditing.handleRemoveSelection}
+        onAddSelection={videoEdit.videoEditing.handleAddSelection}
       />
-    );
-  };
-
-  // ========================================
-  // SHARED ANNOTATION BUTTONS
-  // ========================================
-  const renderAnnotationButtons = () => {
-    if (!selectedShapeId || !isAnnotateMode) return null;
-
-    const buttonPos = getDeleteButtonPosition();
-    if (!buttonPos) return null;
-
-    const selectedShape = brushStrokes.find(s => s.id === selectedShapeId);
-    const isFreeForm = selectedShape?.isFreeForm || false;
-
-    return (
-      <div className="fixed z-[100] flex gap-2" style={{
-        left: `${buttonPos.x}px`,
-        top: `${buttonPos.y}px`,
-        transform: 'translate(-50%, -50%)'
-      }}>
-        <button
-          onClick={handleToggleFreeForm}
-          className={cn(
-            "rounded-full p-2 shadow-lg transition-colors",
-            isFreeForm
-              ? "bg-purple-600 hover:bg-purple-700 text-white"
-              : "bg-gray-700 hover:bg-gray-600 text-white"
-          )}
-          title={isFreeForm
-            ? "Switch to rectangle mode (edges move linearly)"
-            : "Switch to free-form mode (rhombus/non-orthogonal angles)"}
-        >
-          {isFreeForm ? <Diamond className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-        </button>
-        <button
-          onClick={handleDeleteSelected}
-          className="bg-red-600 hover:bg-red-700 text-white rounded-full p-2 shadow-lg transition-colors"
-          title="Delete annotation (or press DELETE key)"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-    );
-  };
-
-  // ========================================
-  // RENDER
-  // ========================================
-
-  if (showPanel) {
-    // ======== PANEL LAYOUT (Desktop side panel / Mobile stacked) ========
-    const isDesktopPanel = isSidePanelLayout;
-
-    return (
-      <div
-        data-lightbox-bg
-        className={cn(
-          "w-full h-full bg-black/90",
-          isDesktopPanel ? "flex" : "flex flex-col"
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Media section */}
-        <div
-          data-lightbox-bg
-          className={cn(
-            "flex items-center justify-center relative overflow-hidden",
-            isDesktopPanel
-              ? "flex-1 touch-none"
-              : "flex-none touch-none z-10"
-          )}
-          style={isDesktopPanel
-            ? { width: '60%' }
-            : {
-                height: '50%',
-                transform: swipeNavigation.isSwiping ? `translateX(${swipeNavigation.swipeOffset}px)` : undefined,
-                transition: swipeNavigation.isSwiping ? 'none' : 'transform 0.2s ease-out',
-              }
-          }
-          onClick={(e) => e.stopPropagation()}
-          {...(!isDesktopPanel ? swipeNavigation.swipeHandlers : {})}
-        >
-          {/* Desktop: nav arrows before media */}
-          {isDesktopPanel && (
-            <NavigationArrows
-              showNavigation={showNavigation}
-              readOnly={readOnly}
-              onPrevious={handleSlotNavPrev}
-              onNext={handleSlotNavNext}
-              hasPrevious={hasPrevious}
-              hasNext={hasNext}
-              variant="desktop"
-            />
-          )}
-
-          {renderMediaContent()}
-          {renderAnnotationButtons()}
-
-          {/* Top Center - segment nav + variant badge */}
-          <div className={topCenterClassName}>
-            {adjacentSegments && !isVideo && (
-              <AdjacentSegmentNavigation adjacentSegments={adjacentSegments} />
-            )}
-            {isVideo && segmentSlotMode?.adjacentVideoThumbnails && segmentSlotMode?.onOpenPreviewDialog && (
-              <PreviewSequencePill
-                adjacentVideoThumbnails={segmentSlotMode.adjacentVideoThumbnails}
-                onOpenPreviewDialog={segmentSlotMode.onOpenPreviewDialog}
-              />
-            )}
-            <VariantOverlayBadge
-              activeVariant={activeVariant}
-              variants={variants}
-              readOnly={readOnly}
-              isMakingMainVariant={isMakingMainVariant}
-              canMakeMainVariant={canMakeMainVariant}
-              onMakeMainVariant={handleMakeMainVariant}
-            />
-          </div>
-
-          {/* Top Left - New image button */}
-          <NewImageOverlayButton
-            isVideo={isVideo}
-            readOnly={readOnly}
-            activeVariantId={activeVariant?.id}
-            primaryVariantId={primaryVariant?.id}
-            selectedProjectId={selectedProjectId}
-            isPromoting={isPromoting}
-            promoteSuccess={promoteSuccess}
-            onPromote={handlePromoteToGeneration}
-          />
-
-          {/* Floating Tool Controls (panel layouts only) */}
-          {isSpecialEditMode && (
-            <FloatingToolControls variant={floatingToolVariant} />
-          )}
-
-          {/* Button Groups */}
-          <BottomLeftControls {...buttonGroupProps.bottomLeft} />
-          <BottomRightControls {...buttonGroupProps.bottomRight} />
-          <TopRightControls {...buttonGroupProps.topRight} />
-
-          {/* Constituent Image Navigation */}
-          {segmentSlotMode?.onNavigateToImage && (
-            <ConstituentImageNavigation
-              startImageId={segmentSlotMode.pairData.startImage?.id}
-              endImageId={segmentSlotMode.pairData.endImage?.id}
-              startImageUrl={segmentSlotMode.pairData.startImage?.thumbUrl || segmentSlotMode.pairData.startImage?.url}
-              endImageUrl={segmentSlotMode.pairData.endImage?.thumbUrl || segmentSlotMode.pairData.endImage?.url}
-              onNavigateToImage={segmentSlotMode.onNavigateToImage}
-              variant="overlay"
-            />
-          )}
-
-          {/* Bottom Workflow Controls Bar */}
-          <WorkflowControlsBar
-            onAddToShot={workflowBarProps.onAddToShot}
-            onDelete={workflowBarProps.onDelete}
-            onApplySettings={workflowBarProps.onApplySettings}
-            isSpecialEditMode={isSpecialEditMode}
-            isVideo={isVideo}
-            mediaId={actualGenerationId}
-            imageUrl={effectiveMediaUrl}
-            thumbUrl={media.thumbUrl}
-            allShots={workflowBarProps.allShots}
-            selectedShotId={workflowBarProps.selectedShotId}
-            onShotChange={workflowBarProps.onShotChange}
-            onCreateShot={workflowBarProps.onCreateShot}
-            isAlreadyPositionedInSelectedShot={workflowBarProps.isAlreadyPositionedInSelectedShot}
-            isAlreadyAssociatedWithoutPosition={workflowBarProps.isAlreadyAssociatedWithoutPosition}
-            showTickForImageId={workflowBarProps.showTickForImageId}
-            showTickForSecondaryImageId={workflowBarProps.showTickForSecondaryImageId}
-            onAddToShotWithoutPosition={workflowBarProps.onAddToShotWithoutPosition}
-            onShowTick={workflowBarProps.onShowTick}
-            onShowSecondaryTick={workflowBarProps.onShowSecondaryTick}
-            onOptimisticPositioned={workflowBarProps.onOptimisticPositioned}
-            onOptimisticUnpositioned={workflowBarProps.onOptimisticUnpositioned}
-            contentRef={workflowBarProps.contentRef}
-            handleApplySettings={workflowBarProps.handleApplySettings}
-            onNavigateToShot={workflowBarProps.handleNavigateToShotFromSelector}
-            onClose={onClose}
-            onAddVariantAsNewGeneration={workflowBarProps.handleAddVariantAsNewGenerationToShot}
-            activeVariantId={activeVariant?.id || primaryVariant?.id}
-            currentTimelineFrame={media.timeline_frame}
-          />
-
-          {/* Stacked: nav arrows after media */}
-          {!isDesktopPanel && (
-            <NavigationArrows
-              showNavigation={showNavigation}
-              readOnly={readOnly}
-              onPrevious={handleSlotNavPrev}
-              onNext={handleSlotNavNext}
-              hasPrevious={hasPrevious}
-              hasNext={hasNext}
-              variant="mobile"
-            />
-          )}
-        </div>
-
-        {/* Controls Panel */}
-        <div
-          data-task-details-panel
-          className={cn(
-            "bg-background overflow-hidden relative z-[60] overscroll-none",
-            isDesktopPanel
-              ? "border-l border-border h-full"
-              : "border-t border-border overflow-y-auto"
-          )}
-          style={isDesktopPanel ? { width: '40%' } : { height: '50%' }}
-        >
-          {controlsPanelContent}
-        </div>
-      </div>
     );
   }
 
-  // ======== CENTERED LAYOUT (no panel) ========
+  if (mediaState.isVideo && videoEdit.isVideoTrimModeActive) {
+    return (
+      <VideoTrimModeDisplay
+        videoRef={videoEdit.trimVideoRef}
+        videoUrl={mediaState.effectiveVideoUrl}
+        posterUrl={variantsState.activeVariant?.thumbnail_url || mediaState.media.thumbUrl}
+        trimState={videoEdit.trimState}
+        onLoadedMetadata={videoEdit.setVideoDuration}
+        onTimeUpdate={videoEdit.setTrimCurrentTime}
+      />
+    );
+  }
+
+  return (
+    <MediaDisplayWithCanvas
+      effectiveImageUrl={mediaState.isVideo ? mediaState.effectiveVideoUrl : mediaState.effectiveMediaUrl}
+      thumbUrl={variantsState.activeVariant?.thumbnail_url || mediaState.media.thumbUrl}
+      isVideo={mediaState.isVideo}
+      onImageLoad={mediaState.setImageDimensions}
+      onVideoLoadedMetadata={(event) => {
+        const video = event.currentTarget;
+        if (Number.isFinite(video.duration) && video.duration > 0) {
+          videoEdit.setVideoDuration(video.duration);
+        }
+      }}
+      variant={model.mediaDisplayVariant}
+      containerClassName={model.mediaDisplayContainerClassName}
+      tasksPaneWidth={model.isSidePanelLayout && model.props.effectiveTasksPaneOpen ? model.props.effectiveTasksPaneWidth : 0}
+      debugContext={model.mediaDisplayDebugContext}
+      imageDimensions={mediaState.effectiveImageDimensions}
+    />
+  );
+}
+
+function AnnotationButtons({ model }: { model: LightboxLayoutModel }) {
+  const imageEdit = model.imageEdit;
+  if (!imageEdit.selectedShapeId || !imageEdit.isAnnotateMode) return null;
+
+  const buttonPos = imageEdit.getDeleteButtonPosition();
+  if (!buttonPos) return null;
+
+  const selectedShape = imageEdit.brushStrokes.find(shape => shape.id === imageEdit.selectedShapeId);
+  const isFreeForm = selectedShape?.isFreeForm || false;
+
+  return (
+    <div
+      className="fixed z-[100] flex gap-2"
+      style={{ left: `${buttonPos.x}px`, top: `${buttonPos.y}px`, transform: 'translate(-50%, -50%)' }}
+    >
+      <button
+        onClick={imageEdit.handleToggleFreeForm}
+        className={cn(
+          'rounded-full p-2 shadow-lg transition-colors',
+          isFreeForm
+            ? 'bg-purple-600 hover:bg-purple-700 text-white'
+            : 'bg-gray-700 hover:bg-gray-600 text-white'
+        )}
+        title={isFreeForm
+          ? 'Switch to rectangle mode (edges move linearly)'
+          : 'Switch to free-form mode (rhombus/non-orthogonal angles)'}
+      >
+        {isFreeForm ? <Diamond className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+      </button>
+      <button
+        onClick={imageEdit.handleDeleteSelected}
+        className="bg-red-600 hover:bg-red-700 text-white rounded-full p-2 shadow-lg transition-colors"
+        title="Delete annotation (or press DELETE key)"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function TopCenterOverlay({ model, className }: { model: LightboxLayoutModel; className: string }) {
+  return (
+    <div className={className}>
+      {model.props.adjacentSegments && !model.mediaState.isVideo && (
+        <AdjacentSegmentNavigation adjacentSegments={model.props.adjacentSegments} />
+      )}
+      {model.mediaState.isVideo && model.props.segmentSlotMode?.adjacentVideoThumbnails && model.props.segmentSlotMode?.onOpenPreviewDialog && (
+        <PreviewSequencePill
+          adjacentVideoThumbnails={model.props.segmentSlotMode.adjacentVideoThumbnails}
+          onOpenPreviewDialog={model.props.segmentSlotMode.onOpenPreviewDialog}
+        />
+      )}
+      <VariantOverlayBadge
+        activeVariant={model.variantsState.activeVariant ?? undefined}
+        variants={model.variantsState.variants}
+        readOnly={model.core.readOnly}
+        isMakingMainVariant={model.variantsState.isMakingMainVariant}
+        canMakeMainVariant={model.variantsState.canMakeMainVariant}
+        onMakeMainVariant={model.variantsState.handleMakeMainVariant}
+      />
+    </div>
+  );
+}
+
+function OverlayElements({ model, topCenterClassName, showFloatingTools }: {
+  model: LightboxLayoutModel;
+  topCenterClassName: string;
+  showFloatingTools: boolean;
+}) {
+  const { core, mediaState, variantsState, props } = model;
+
+  return (
+    <>
+      <TopCenterOverlay model={model} className={topCenterClassName} />
+
+      <NewImageOverlayButton
+        isVideo={mediaState.isVideo}
+        readOnly={core.readOnly}
+        activeVariantId={variantsState.activeVariant?.id}
+        primaryVariantId={variantsState.primaryVariant?.id}
+        selectedProjectId={core.selectedProjectId}
+        isPromoting={variantsState.isPromoting}
+        promoteSuccess={variantsState.promoteSuccess}
+        onPromote={variantsState.handlePromoteToGeneration}
+      />
+
+      {showFloatingTools && model.imageEdit.isSpecialEditMode && (
+        <FloatingToolControls variant={model.floatingToolVariant} />
+      )}
+
+      <BottomLeftControls {...props.buttonGroupProps.bottomLeft} />
+      <BottomRightControls {...props.buttonGroupProps.bottomRight} />
+      <TopRightControls {...props.buttonGroupProps.topRight} />
+
+      {props.segmentSlotMode?.onNavigateToImage && (
+        <ConstituentImageNavigation
+          startImageId={props.segmentSlotMode.pairData.startImage?.id}
+          endImageId={props.segmentSlotMode.pairData.endImage?.id}
+          startImageUrl={props.segmentSlotMode.pairData.startImage?.thumbUrl || props.segmentSlotMode.pairData.startImage?.url}
+          endImageUrl={props.segmentSlotMode.pairData.endImage?.thumbUrl || props.segmentSlotMode.pairData.endImage?.url}
+          onNavigateToImage={props.segmentSlotMode.onNavigateToImage}
+          variant="overlay"
+        />
+      )}
+
+      <WorkflowControlsBar
+        onAddToShot={props.workflowBarProps.onAddToShot}
+        onDelete={props.workflowBarProps.onDelete}
+        onApplySettings={props.workflowBarProps.onApplySettings}
+        isSpecialEditMode={model.imageEdit.isSpecialEditMode}
+        isVideo={mediaState.isVideo}
+        mediaId={core.actualGenerationId ?? mediaState.media.id}
+        imageUrl={mediaState.effectiveMediaUrl}
+        thumbUrl={mediaState.media.thumbUrl}
+        allShots={props.workflowBarProps.allShots}
+        selectedShotId={props.workflowBarProps.selectedShotId}
+        onShotChange={props.workflowBarProps.onShotChange}
+        onCreateShot={props.workflowBarProps.onCreateShot}
+        isAlreadyPositionedInSelectedShot={props.workflowBarProps.isAlreadyPositionedInSelectedShot}
+        isAlreadyAssociatedWithoutPosition={props.workflowBarProps.isAlreadyAssociatedWithoutPosition}
+        showTickForImageId={props.workflowBarProps.showTickForImageId}
+        showTickForSecondaryImageId={props.workflowBarProps.showTickForSecondaryImageId}
+        onAddToShotWithoutPosition={props.workflowBarProps.onAddToShotWithoutPosition}
+        onShowTick={props.workflowBarProps.onShowTick}
+        onShowSecondaryTick={props.workflowBarProps.onShowSecondaryTick}
+        onOptimisticPositioned={props.workflowBarProps.onOptimisticPositioned}
+        onOptimisticUnpositioned={props.workflowBarProps.onOptimisticUnpositioned}
+        contentRef={props.workflowBarProps.contentRef}
+        handleApplySettings={props.workflowBarProps.handleApplySettings}
+        onNavigateToShot={props.workflowBarProps.handleNavigateToShotFromSelector}
+        onClose={core.onClose}
+        onAddVariantAsNewGeneration={props.workflowBarProps.handleAddVariantAsNewGenerationToShot}
+        activeVariantId={variantsState.activeVariant?.id || variantsState.primaryVariant?.id}
+        currentTimelineFrame={mediaState.media.timeline_frame ?? undefined}
+      />
+    </>
+  );
+}
+
+function CompactEditControls({ model }: { model: LightboxLayoutModel }) {
+  const { core, imageEdit } = model;
+  if (core.readOnly || !imageEdit.isSpecialEditMode || imageEdit.editMode === 'text') return null;
+
+  return (
+    <div className="absolute top-20 left-4 z-[70] select-none" onClick={(event) => event.stopPropagation()}>
+      <div className="mb-2 bg-background backdrop-blur-md rounded-lg p-2 space-y-1.5 w-40 border border-border shadow-xl">
+        {imageEdit.editMode === 'inpaint' && (
+          <div className="space-y-0.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-foreground">Size:</label>
+              <span className="text-xs text-muted-foreground">{imageEdit.brushSize}px</span>
+            </div>
+            <input
+              type="range"
+              min={5}
+              max={100}
+              value={imageEdit.brushSize}
+              onChange={(event) => imageEdit.setBrushSize(parseInt(event.target.value, 10))}
+              className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+        )}
+
+        {imageEdit.editMode === 'inpaint' && (
+          <Button
+            variant={imageEdit.isEraseMode ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => imageEdit.setIsEraseMode(!imageEdit.isEraseMode)}
+            className={cn('w-full text-xs h-7', imageEdit.isEraseMode && 'bg-purple-600 hover:bg-purple-700')}
+          >
+            <Eraser className="h-3 w-3 mr-1" />
+            {imageEdit.isEraseMode ? 'Erase' : 'Paint'}
+          </Button>
+        )}
+
+        {imageEdit.editMode === 'annotate' && (
+          <div className="flex gap-1">
+            <Button variant="default" size="sm" className="flex-1 text-xs h-7" disabled>
+              <Square className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={imageEdit.handleUndo}
+                disabled={imageEdit.brushStrokes.length === 0}
+                className="flex-1 text-xs h-7"
+              >
+                <Undo2 className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="z-[100001]">Undo</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={imageEdit.handleClearMask}
+                disabled={imageEdit.brushStrokes.length === 0}
+                className="flex-1 text-xs h-7"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="z-[100001]">Clear all</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PanelLayoutView({ model }: { model: LightboxLayoutModel }) {
+  const isDesktopPanel = model.isSidePanelLayout;
+
+  return (
+    <div
+      data-lightbox-bg
+      className={cn('w-full h-full bg-black/90', isDesktopPanel ? 'flex' : 'flex flex-col')}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div
+        data-lightbox-bg
+        className={cn('flex items-center justify-center relative overflow-hidden', isDesktopPanel ? 'flex-1 touch-none' : 'flex-none touch-none z-10')}
+        style={isDesktopPanel
+          ? { width: '60%' }
+          : {
+              height: '50%',
+              transform: model.navigation.swipeNavigation.isSwiping
+                ? `translateX(${model.navigation.swipeNavigation.swipeOffset}px)`
+                : undefined,
+              transition: model.navigation.swipeNavigation.isSwiping ? 'none' : 'transform 0.2s ease-out',
+            }}
+        onClick={(event) => event.stopPropagation()}
+        {...(!isDesktopPanel ? model.navigation.swipeNavigation.swipeHandlers : {})}
+      >
+        {isDesktopPanel && (
+          <NavigationArrows
+            showNavigation={model.navigation.showNavigation}
+            readOnly={model.core.readOnly}
+            onPrevious={model.navigation.handleSlotNavPrev}
+            onNext={model.navigation.handleSlotNavNext}
+            hasPrevious={model.navigation.hasPrevious}
+            hasNext={model.navigation.hasNext}
+            variant="desktop"
+          />
+        )}
+
+        <MediaContent model={model} />
+        <AnnotationButtons model={model} />
+        <OverlayElements model={model} topCenterClassName={model.topCenterClassName} showFloatingTools={true} />
+
+        {!isDesktopPanel && (
+          <NavigationArrows
+            showNavigation={model.navigation.showNavigation}
+            readOnly={model.core.readOnly}
+            onPrevious={model.navigation.handleSlotNavPrev}
+            onNext={model.navigation.handleSlotNavNext}
+            hasPrevious={model.navigation.hasPrevious}
+            hasNext={model.navigation.hasNext}
+            variant="mobile"
+          />
+        )}
+      </div>
+
+      <div
+        data-task-details-panel
+        className={cn('bg-background overflow-hidden relative z-[60] overscroll-none', isDesktopPanel ? 'border-l border-border h-full' : 'border-t border-border overflow-y-auto')}
+        style={isDesktopPanel ? { width: '40%' } : { height: '50%' }}
+      >
+        {model.props.controlsPanelContent}
+      </div>
+    </div>
+  );
+}
+
+function CenteredLayoutView({ model }: { model: LightboxLayoutModel }) {
   return (
     <div
       data-lightbox-bg
       className="relative flex flex-col items-center gap-3 sm:gap-4 md:gap-6 px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8 w-full h-full touch-none"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
     >
-      {/* Media Container with swipe navigation */}
       <div
         data-lightbox-bg
         className={cn(
-          "relative flex items-center justify-center max-w-full my-auto",
-          isMobile && isInpaintMode && "pointer-events-auto",
-          "touch-none"
+          'relative flex items-center justify-center max-w-full my-auto',
+          model.core.isMobile && model.imageEdit.isInpaintMode && 'pointer-events-auto',
+          'touch-none'
         )}
         style={{
           height: 'calc(100vh - 220px)',
           maxHeight: 'calc(100vh - 220px)',
-          transform: swipeNavigation.isSwiping ? `translateX(${swipeNavigation.swipeOffset}px)` : undefined,
-          transition: swipeNavigation.isSwiping ? 'none' : 'transform 0.2s ease-out',
+          transform: model.navigation.swipeNavigation.isSwiping
+            ? `translateX(${model.navigation.swipeNavigation.swipeOffset}px)`
+            : undefined,
+          transition: model.navigation.swipeNavigation.isSwiping ? 'none' : 'transform 0.2s ease-out',
         }}
-        onClick={(e) => e.stopPropagation()}
-        {...swipeNavigation.swipeHandlers}
+        onClick={(event) => event.stopPropagation()}
+        {...model.navigation.swipeNavigation.swipeHandlers}
       >
-        {renderMediaContent()}
-        {renderAnnotationButtons()}
-
-        {/* Top Center - segment nav + variant badge */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[60] flex flex-col items-center gap-2">
-          {adjacentSegments && !isVideo && (
-            <AdjacentSegmentNavigation adjacentSegments={adjacentSegments} />
-          )}
-          {isVideo && segmentSlotMode?.adjacentVideoThumbnails && segmentSlotMode?.onOpenPreviewDialog && (
-            <PreviewSequencePill
-              adjacentVideoThumbnails={segmentSlotMode.adjacentVideoThumbnails}
-              onOpenPreviewDialog={segmentSlotMode.onOpenPreviewDialog}
-            />
-          )}
-          <VariantOverlayBadge
-            activeVariant={activeVariant}
-            variants={variants}
-            readOnly={readOnly}
-            isMakingMainVariant={isMakingMainVariant}
-            canMakeMainVariant={canMakeMainVariant}
-            onMakeMainVariant={handleMakeMainVariant}
-          />
-        </div>
-
-        {/* Top Left - New image button */}
-        <NewImageOverlayButton
-          isVideo={isVideo}
-          readOnly={readOnly}
-          activeVariantId={activeVariant?.id}
-          primaryVariantId={primaryVariant?.id}
-          selectedProjectId={selectedProjectId}
-          isPromoting={isPromoting}
-          promoteSuccess={promoteSuccess}
-          onPromote={handlePromoteToGeneration}
+        <MediaContent model={model} />
+        <AnnotationButtons model={model} />
+        <OverlayElements
+          model={model}
+          topCenterClassName="absolute top-4 left-1/2 transform -translate-x-1/2 z-[60] flex flex-col items-center gap-2"
+          showFloatingTools={false}
         />
+        <CompactEditControls model={model} />
 
-        {/* Compact Edit Controls (centered layout only, no panel to hold them) */}
-        {!readOnly && isSpecialEditMode && editMode !== 'text' && (
-          <div
-            className="absolute top-20 left-4 z-[70] select-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-2 bg-background backdrop-blur-md rounded-lg p-2 space-y-1.5 w-40 border border-border shadow-xl">
-              {/* Brush Size Slider - Only in Inpaint mode */}
-              {editMode === 'inpaint' && (
-                <div className="space-y-0.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-foreground">Size:</label>
-                    <span className="text-xs text-muted-foreground">{brushSize}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={5}
-                    max={100}
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                </div>
-              )}
-
-              {/* Paint/Erase Toggle */}
-              {editMode === 'inpaint' && (
-                <Button
-                  variant={isEraseMode ? "default" : "secondary"}
-                  size="sm"
-                  onClick={() => setIsEraseMode(!isEraseMode)}
-                  className={cn(
-                    "w-full text-xs h-7",
-                    isEraseMode && "bg-purple-600 hover:bg-purple-700"
-                  )}
-                >
-                  <Eraser className="h-3 w-3 mr-1" />
-                  {isEraseMode ? 'Erase' : 'Paint'}
-                </Button>
-              )}
-
-              {editMode === 'annotate' && (
-                <div className="flex gap-1">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1 text-xs h-7"
-                    disabled
-                  >
-                    <Square className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-
-              {/* Undo | Clear */}
-              <div className="flex items-center gap-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleUndo}
-                      disabled={brushStrokes.length === 0}
-                      className="flex-1 text-xs h-7"
-                    >
-                      <Undo2 className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="z-[100001]">Undo</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearMask}
-                      disabled={brushStrokes.length === 0}
-                      className="flex-1 text-xs h-7"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="z-[100001]">Clear all</TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Button Groups */}
-        <TopRightControls {...buttonGroupProps.topRight} />
-        <BottomLeftControls {...buttonGroupProps.bottomLeft} />
-        <BottomRightControls {...buttonGroupProps.bottomRight} />
-
-        {/* Constituent Image Navigation */}
-        {segmentSlotMode?.onNavigateToImage && (
-          <ConstituentImageNavigation
-            startImageId={segmentSlotMode.pairData.startImage?.id}
-            endImageId={segmentSlotMode.pairData.endImage?.id}
-            startImageUrl={segmentSlotMode.pairData.startImage?.thumbUrl || segmentSlotMode.pairData.startImage?.url}
-            endImageUrl={segmentSlotMode.pairData.endImage?.thumbUrl || segmentSlotMode.pairData.endImage?.url}
-            onNavigateToImage={segmentSlotMode.onNavigateToImage}
-            variant="overlay"
-          />
-        )}
-
-        {/* Bottom Workflow Controls Bar */}
-        <WorkflowControlsBar
-          onAddToShot={workflowBarProps.onAddToShot}
-          onDelete={workflowBarProps.onDelete}
-          onApplySettings={workflowBarProps.onApplySettings}
-          isSpecialEditMode={isSpecialEditMode}
-          isVideo={isVideo}
-          mediaId={actualGenerationId}
-          imageUrl={effectiveMediaUrl}
-          thumbUrl={media.thumbUrl}
-          allShots={workflowBarProps.allShots}
-          selectedShotId={workflowBarProps.selectedShotId}
-          onShotChange={workflowBarProps.onShotChange}
-          onCreateShot={workflowBarProps.onCreateShot}
-          isAlreadyPositionedInSelectedShot={workflowBarProps.isAlreadyPositionedInSelectedShot}
-          isAlreadyAssociatedWithoutPosition={workflowBarProps.isAlreadyAssociatedWithoutPosition}
-          showTickForImageId={workflowBarProps.showTickForImageId}
-          showTickForSecondaryImageId={workflowBarProps.showTickForSecondaryImageId}
-          onAddToShotWithoutPosition={workflowBarProps.onAddToShotWithoutPosition}
-          onShowTick={workflowBarProps.onShowTick}
-          onShowSecondaryTick={workflowBarProps.onShowSecondaryTick}
-          onOptimisticPositioned={workflowBarProps.onOptimisticPositioned}
-          onOptimisticUnpositioned={workflowBarProps.onOptimisticUnpositioned}
-          contentRef={workflowBarProps.contentRef}
-          handleApplySettings={workflowBarProps.handleApplySettings}
-          onNavigateToShot={workflowBarProps.handleNavigateToShotFromSelector}
-          onClose={onClose}
-          onAddVariantAsNewGeneration={workflowBarProps.handleAddVariantAsNewGenerationToShot}
-          activeVariantId={activeVariant?.id || primaryVariant?.id}
-          currentTimelineFrame={media.timeline_frame}
-        />
-
-        {/* Navigation Arrows */}
         <NavigationArrows
-          showNavigation={showNavigation}
-          readOnly={readOnly}
-          onPrevious={handleSlotNavPrev}
-          onNext={handleSlotNavNext}
-          hasPrevious={hasPrevious}
-          hasNext={hasNext}
+          showNavigation={model.navigation.showNavigation}
+          readOnly={model.core.readOnly}
+          onPrevious={model.navigation.handleSlotNavPrev}
+          onNext={model.navigation.handleSlotNavNext}
+          hasPrevious={model.navigation.hasPrevious}
+          hasNext={model.navigation.hasNext}
           variant="mobile"
         />
       </div>
 
-      {/* Workflow Controls - Below Media (centered layout only) */}
-      {!readOnly && !isSpecialEditMode && workflowControlsProps && (
-        <div className="w-full" onClick={(e) => e.stopPropagation()}>
+      {!model.core.readOnly && !model.imageEdit.isSpecialEditMode && model.props.workflowControlsProps && (
+        <div className="w-full" onClick={(event) => event.stopPropagation()}>
           <WorkflowControls
-            mediaId={actualGenerationId}
-            imageUrl={effectiveMediaUrl}
-            thumbUrl={media.thumbUrl}
-            isVideo={isVideo}
-            isInpaintMode={isInpaintMode}
-            allShots={workflowControlsProps.allShots}
-            selectedShotId={workflowControlsProps.selectedShotId}
-            onShotChange={workflowControlsProps.onShotChange}
-            onCreateShot={workflowControlsProps.onCreateShot}
-            contentRef={workflowControlsProps.contentRef}
-            isAlreadyPositionedInSelectedShot={workflowControlsProps.isAlreadyPositionedInSelectedShot}
-            isAlreadyAssociatedWithoutPosition={workflowControlsProps.isAlreadyAssociatedWithoutPosition}
-            showTickForImageId={workflowControlsProps.showTickForImageId}
-            showTickForSecondaryImageId={workflowControlsProps.showTickForSecondaryImageId}
-            onAddToShot={workflowControlsProps.onAddToShot}
-            onAddToShotWithoutPosition={workflowControlsProps.onAddToShotWithoutPosition}
-            onShowTick={workflowControlsProps.onShowTick}
-            onApplySettings={workflowControlsProps.onApplySettings}
-            handleApplySettings={workflowControlsProps.handleApplySettings}
-            onDelete={workflowControlsProps.onDelete}
-            handleDelete={workflowControlsProps.handleDelete}
-            isDeleting={workflowControlsProps.isDeleting}
-            onNavigateToShot={workflowControlsProps.handleNavigateToShotFromSelector}
-            onClose={onClose}
+            mediaId={model.core.actualGenerationId ?? ''}
+            imageUrl={model.mediaState.effectiveMediaUrl ?? ''}
+            thumbUrl={model.mediaState.media.thumbUrl}
+            isVideo={model.mediaState.isVideo}
+            isInpaintMode={model.imageEdit.isInpaintMode}
+            allShots={model.props.workflowControlsProps.allShots}
+            selectedShotId={model.props.workflowControlsProps.selectedShotId}
+            onShotChange={model.props.workflowControlsProps.onShotChange}
+            onCreateShot={model.props.workflowControlsProps.onCreateShot}
+            contentRef={model.props.workflowControlsProps.contentRef}
+            isAlreadyPositionedInSelectedShot={model.props.workflowControlsProps.isAlreadyPositionedInSelectedShot}
+            isAlreadyAssociatedWithoutPosition={model.props.workflowControlsProps.isAlreadyAssociatedWithoutPosition}
+            showTickForImageId={model.props.workflowControlsProps.showTickForImageId}
+            showTickForSecondaryImageId={model.props.workflowControlsProps.showTickForSecondaryImageId}
+            onAddToShot={model.props.workflowControlsProps.onAddToShot}
+            onAddToShotWithoutPosition={model.props.workflowControlsProps.onAddToShotWithoutPosition}
+            onShowTick={model.props.workflowControlsProps.onShowTick}
+            onApplySettings={model.props.workflowControlsProps.onApplySettings}
+            handleApplySettings={model.props.workflowControlsProps.handleApplySettings}
+            onDelete={model.props.workflowControlsProps.onDelete}
+            handleDelete={model.props.workflowControlsProps.handleDelete}
+            isDeleting={model.props.workflowControlsProps.isDeleting}
+            onNavigateToShot={model.props.workflowControlsProps.handleNavigateToShotFromSelector}
+            onClose={model.core.onClose}
           />
         </div>
       )}
     </div>
   );
+}
+
+export const LightboxLayout: React.FC<LightboxLayoutProps> = (props) => {
+  const model = useLightboxLayoutModel(props);
+  return props.showPanel
+    ? <PanelLayoutView model={model} />
+    : <CenteredLayoutView model={model} />;
 };

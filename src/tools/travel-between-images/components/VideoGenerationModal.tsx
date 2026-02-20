@@ -12,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
 import { Shot } from '@/types/shots';
 import { ExternalLink } from 'lucide-react';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -28,14 +28,15 @@ import {
 } from './ShotEditor/services/generateVideoService';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { LoraModel, LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
+import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
 import { useShotImages } from '@/shared/hooks/useShotImages';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { findClosestAspectRatio } from '@/shared/lib/aspectRatios';
 import { DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID, FEATURED_PRESET_IDS } from './MotionControl';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 
 interface VideoGenerationModalProps {
   isOpen: boolean;
@@ -69,7 +70,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     acceleratedMode?: boolean;
     randomSeed?: boolean;
   }>('travel-ui-state', {
-    shotId: isOpen ? shot.id : null,
+    shotId: isOpen ? shot.id : undefined,
     enabled: isOpen && !!shot.id
   });
   
@@ -115,8 +116,10 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     if (positionedImages.length > 0) {
       const firstImage = positionedImages[0];
       const metadata = firstImage.metadata || {};
-      if (metadata.width && metadata.height) {
-        const ratio = metadata.width / metadata.height;
+      const width = typeof metadata.width === 'number' ? metadata.width : null;
+      const height = typeof metadata.height === 'number' ? metadata.height : null;
+      if (width && height) {
+        const ratio = width / height;
         return findClosestAspectRatio(ratio);
       }
     }
@@ -251,7 +254,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
           motion_mode: motionMode,
           advanced_mode: advancedMode,
           phase_config: finalPhaseConfig,
-          selected_phase_preset_id: settings.selectedPhasePresetId,
+          selected_phase_preset_id: settings.selectedPhasePresetId ?? undefined,
         },
         modelConfig: {
           seed: mergedSteerableSettings.seed,
@@ -289,7 +292,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedProjectId, shot, positionedImages, selectedLoras, settings, queryClient, effectiveAspectRatio, randomSeed, updateField, onClose]);
+  }, [selectedProjectId, shot, positionedImages, selectedLoras, settings, queryClient, effectiveAspectRatio, randomSeed, updateField, onClose, invalidateGenerations]);
   
   const handleNavigateToShot = useCallback(() => {
     onClose();
@@ -304,6 +307,15 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   
   const isLoading = (status !== 'ready' && status !== 'saving' && status !== 'error') || generationsLoading;
   const isDisabled = isGenerating || isLoading || positionedImages.length < 1;
+  const selectedLorasForModal = useMemo(() => {
+    return selectedLoras.flatMap((lora) => {
+      const fullLora = availableLoras.find((model) => model['Model ID'] === lora.id);
+      if (!fullLora) {
+        return [];
+      }
+      return [{ ...fullLora, strength: lora.strength }];
+    });
+  }, [availableLoras, selectedLoras]);
 
   return (
     <>
@@ -318,7 +330,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
                 <DialogTitle className="text-xl font-light">
                   Generate Video - <span className="preserve-case">{shot.name || 'Unnamed Shot'}</span>
                 </DialogTitle>
-                <Tooltip delayDuration={500}>
+                <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={handleNavigateToShot} className="h-7 w-7">
                       <ExternalLink className="h-4 w-4" />
@@ -518,10 +530,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         onAddLora={handleAddLora}
         onRemoveLora={handleRemoveLora}
         onUpdateLoraStrength={handleLoraStrengthChange}
-        selectedLoras={selectedLoras.map(lora => {
-          const fullLora = availableLoras.find(l => l['Model ID'] === lora.id);
-          return { ...fullLora, "Model ID": lora.id, Name: lora.name, strength: lora.strength } as LoraModel;
-        })}
+        selectedLoras={selectedLorasForModal}
         lora_type="Wan 2.1 14b"
       />
     </>

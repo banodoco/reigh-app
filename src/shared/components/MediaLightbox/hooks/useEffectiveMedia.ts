@@ -13,10 +13,10 @@ import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 interface UseEffectiveMediaProps {
   isVideo: boolean;
   activeVariant: {
-    id: string;
-    location: string;
-    thumbnail_url?: string;
-    is_primary?: boolean;
+    id?: string | null;
+    location?: string | null;
+    thumbnail_url?: string | null;
+    is_primary?: boolean | null;
   } | null;
   effectiveImageUrl: string | undefined;
   imageDimensions: { width: number; height: number } | null;
@@ -39,7 +39,7 @@ export function useEffectiveMedia({
   // Get the effective video URL (active variant or current media)
   const effectiveVideoUrl = useMemo(() => {
     if (isVideo && activeVariant) {
-      return activeVariant.location;
+      return activeVariant.location ?? undefined;
     }
     return effectiveImageUrl;
   }, [isVideo, activeVariant, effectiveImageUrl]);

@@ -107,8 +107,8 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         isModeReady={isModeReady}
         settingsError={settingsError}
         isMobile={isMobile}
-        generationMode={generationMode}
-        onGenerationModeChange={onGenerationModeChange}
+        generationMode={generationMode ?? 'timeline'}
+        onGenerationModeChange={onGenerationModeChange ?? (() => {})}
         selectedShotId={selectedShot.id}
         projectId={projectId}
         shotName={selectedShot.name}
@@ -116,7 +116,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         preloadedImages={allShotImages}
         // Image handlers from context
         onImageReorder={imageHandlers.onReorder}
-        onFramePositionsChange={undefined}
+        onFramePositionsChange={() => {}}
         onFileDrop={imageHandlers.onFileDrop}
         onGenerationDrop={imageHandlers.onGenerationDrop}
         onBatchFileDrop={imageHandlers.onBatchFileDrop}
@@ -140,7 +140,11 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         onOpenUnpositionedPane={shotManagement.openUnpositionedGenerationsPane}
         // UI state from context
         fileInputKey={state.fileInputKey}
-        onImageUpload={imageHandlers.onUpload}
+        onImageUpload={async (files) => {
+          if (imageHandlers.onBatchFileDrop) {
+            await imageHandlers.onBatchFileDrop(files);
+          }
+        }}
         isUploadingImage={state.isUploadingImage}
         uploadProgress={state.uploadProgress}
         duplicatingImageId={state.duplicatingImageId}
@@ -179,7 +183,11 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
         onCreateShot={shotManagement.onCreateShot}
         onNewShotFromSelection={shotManagement.onNewShotFromSelection}
         onDragStateChange={onDragStateChange}
-        onTrailingDurationChange={onBatchVideoFramesChange}
+        onTrailingDurationChange={(durationFrames) => {
+          if (typeof durationFrames === 'number') {
+            onBatchVideoFramesChange(durationFrames);
+          }
+        }}
         maxFrameLimit={maxFrameLimit}
         smoothContinuations={smoothContinuations}
         selectedOutputId={selectedOutputId}

@@ -85,13 +85,16 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
     effectiveProjectId,
   });
 
+  const { setLastAffectedShotId } = actions;
+  const { setGalleryFilters } = gallery;
+
   const handleFormShotChange = useCallback((shotId: string | null) => {
     setFormAssociatedShotId(shotId);
     if (shotId) {
-      actions.setLastAffectedShotId(shotId);
-      gallery.setGalleryFilters(prev => ({ ...prev, shotFilter: shotId }));
+      setLastAffectedShotId(shotId);
+      setGalleryFilters(prev => ({ ...prev, shotFilter: shotId }));
     }
-  }, [actions.setLastAffectedShotId, gallery.setGalleryFilters]);
+  }, [setLastAffectedShotId, setGalleryFilters]);
 
   useEffect(() => {
     const formCollapsedParam = searchParams.get('formCollapsed');
@@ -107,7 +110,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
       window.history.replaceState({}, '', newUrl);
     }
    
-  }, []); // Run once on mount
+  }, [searchParams]); // Run when URL params change
 
   const handleCollapsibleOpenChange = useCallback((nextOpen: boolean) => {
     setIsFormExpanded(nextOpen);
@@ -161,7 +164,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
           </Collapsible>
         </div>
 
-        <div ref={gallery.galleryRef} className="pt-0">
+        <div ref={gallery.galleryRef as React.RefObject<HTMLDivElement>} className="pt-0">
           {(!effectiveProjectId || (gallery.isLoadingGenerations && gallery.imagesToShow.length === 0)) ? (
             <SkeletonGallery
               count={gallery.skeletonItemsPerPage}

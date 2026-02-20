@@ -23,7 +23,8 @@ import { useTaskDetails } from './hooks/useTaskDetails';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import { getDisplayUrl, cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { getPreviewDimensions } from '@/shared/lib/aspectRatios';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
@@ -114,7 +115,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [showTickForSecondaryImageId]);
+  }, [showTickForSecondaryImageId, setShowTickForSecondaryImageId]);
   
   // Fetch task details for current lightbox image
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
@@ -194,13 +195,16 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
     resetOnLeave: true,
     onHoverEnd: () => setActiveScrubbingIndex(null),
   });
+  const handleScrubbingMouseEnter = scrubbing.containerProps.onMouseEnter;
+  const resetScrubbing = scrubbing.reset;
+  const setScrubbingVideoElement = scrubbing.setVideoElement;
 
   // When active scrubbing index changes, manually trigger onMouseEnter
   useEffect(() => {
     if (activeScrubbingIndex !== null) {
-      scrubbing.containerProps.onMouseEnter();
+      handleScrubbingMouseEnter();
     }
-  }, [activeScrubbingIndex]); // Don't include scrubbing.containerProps to avoid loops
+  }, [activeScrubbingIndex, handleScrubbingMouseEnter]);
 
   // Clear scrubbing preview on scroll
   useEffect(() => {
@@ -208,12 +212,12 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
 
     const handleScroll = () => {
       setActiveScrubbingIndex(null);
-      scrubbing.reset();
+      resetScrubbing();
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [activeScrubbingIndex, scrubbing]);
+  }, [activeScrubbingIndex, resetScrubbing]);
 
   // Get the active segment's video URL
   const activeSegmentSlot = activeScrubbingIndex !== null ? segmentSlots?.[activeScrubbingIndex] : null;
@@ -222,9 +226,9 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
   // Connect preview video to scrubbing hook when active segment changes
   useEffect(() => {
     if (previewVideoRef.current && activeScrubbingIndex !== null) {
-      scrubbing.setVideoElement(previewVideoRef.current);
+      setScrubbingVideoElement(previewVideoRef.current);
     }
-  }, [activeScrubbingIndex, activeSegmentVideoUrl, scrubbing.setVideoElement]);
+  }, [activeScrubbingIndex, activeSegmentVideoUrl, setScrubbingVideoElement]);
 
   // Handle scrubbing start - capture the segment's position for preview placement
   const handleScrubbingStart = useCallback((index: number, segmentRect: DOMRect) => {
@@ -340,8 +344,6 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
               onDelete={batchOps.handleIndividualDelete}
               onDuplicate={props.onImageDuplicate}
               isMobile={isMobile}
-              imageDeletionSettings={batchOps.imageDeletionSettings}
-              updateImageDeletionSettings={batchOps.updateImageDeletionSettings}
               duplicatingImageId={props.duplicatingImageId}
               duplicateSuccessImageId={props.duplicateSuccessImageId}
               projectAspectRatio={props.projectAspectRatio}
@@ -376,7 +378,9 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
           
           <DragOverlay>
             {dragAndDrop.activeImage && (
-              selection.selectedIds.length > 1 && selection.selectedIds.includes(dragAndDrop.activeId) ? (
+              selection.selectedIds.length > 1 &&
+              dragAndDrop.activeId !== null &&
+              selection.selectedIds.includes(dragAndDrop.activeId) ? (
                 <MultiImagePreview count={selection.selectedIds.length} image={dragAndDrop.activeImage} />
               ) : (
                 <SingleImagePreview image={dragAndDrop.activeImage} />
@@ -385,23 +389,32 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
           </DragOverlay>
           
           {lightbox.lightboxIndex !== null && lightbox.currentImages[lightbox.lightboxIndex] && (() => {
+            const lightboxIndex = lightbox.lightboxIndex;
+            if (lightboxIndex === null) {
+              return null;
+            }
             const baseImagesCount = (optimistic.optimisticOrder && optimistic.optimisticOrder.length > 0) ? optimistic.optimisticOrder.length : (props.images || []).length;
-            const isExternalGen = lightbox.lightboxIndex >= baseImagesCount;
+            const isExternalGen = lightboxIndex >= baseImagesCount;
             
             let hasNext: boolean;
             let hasPrevious: boolean;
             
             if (externalGens.derivedNavContext) {
-              const currentId = lightbox.currentImages[lightbox.lightboxIndex]?.id;
-              const currentDerivedIndex = externalGens.derivedNavContext.derivedGenerationIds.indexOf(currentId);
-              hasNext = currentDerivedIndex !== -1 && currentDerivedIndex < externalGens.derivedNavContext.derivedGenerationIds.length - 1;
-              hasPrevious = currentDerivedIndex !== -1 && currentDerivedIndex > 0;
+              const currentId = lightbox.currentImages[lightboxIndex]?.id;
+              if (!currentId) {
+                hasNext = false;
+                hasPrevious = false;
+              } else {
+                const currentDerivedIndex = externalGens.derivedNavContext.derivedGenerationIds.indexOf(currentId);
+                hasNext = currentDerivedIndex !== -1 && currentDerivedIndex < externalGens.derivedNavContext.derivedGenerationIds.length - 1;
+                hasPrevious = currentDerivedIndex !== -1 && currentDerivedIndex > 0;
+              }
             } else {
-              hasNext = lightbox.lightboxIndex < lightbox.currentImages.length - 1;
-              hasPrevious = lightbox.lightboxIndex > 0;
+              hasNext = lightboxIndex < lightbox.currentImages.length - 1;
+              hasPrevious = lightboxIndex > 0;
             }
             
-            const currentImage = lightbox.currentImages[lightbox.lightboxIndex];
+            const currentImage = lightbox.currentImages[lightboxIndex];
 
             // Extended fields that may be present at runtime from external generation lookups
             const currentImageShotId = (currentImage as GenerationRow & { shot_id?: string }).shot_id;
@@ -428,7 +441,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
 
             return (
               <MediaLightbox
-                media={lightbox.currentImages[lightbox.lightboxIndex]}
+                media={lightbox.currentImages[lightboxIndex]}
                 shotId={props.shotId}
                 toolTypeOverride={props.toolTypeOverride}
                 autoEnterInpaint={lightbox.shouldAutoEnterInpaint}
@@ -448,7 +461,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                 onNext={lightbox.handleNext}
                 onPrevious={lightbox.handlePrevious}
                 onDelete={!props.readOnly ? (_mediaId: string) => {
-                  const currentImage = lightbox.currentImages[lightbox.lightboxIndex];
+                  const currentImage = lightbox.currentImages[lightboxIndex];
                   const shotImageEntryId = currentImage.shotImageEntryId || currentImage.id;
                   props.onImageDelete(shotImageEntryId);
                 } : undefined}
@@ -458,11 +471,11 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                 showMagicEdit={true}
                 hasNext={hasNext}
                 hasPrevious={hasPrevious}
-                starred={lightbox.currentImages[lightbox.lightboxIndex]?.starred || false}
+                starred={lightbox.currentImages[lightboxIndex]?.starred || false}
                 onMagicEdit={props.onMagicEdit}
                 readOnly={props.readOnly}
                 showTaskDetails={true}
-                taskDetailsData={taskDetailsData}
+                taskDetailsData={taskDetailsData ?? undefined}
                 onNavigateToGeneration={(generationId: string) => {
                   const index = lightbox.currentImages.findIndex((img: GenerationRow) => img.id === generationId);
                   if (index !== -1) {
@@ -523,4 +536,3 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
     </>
   );
 };
-

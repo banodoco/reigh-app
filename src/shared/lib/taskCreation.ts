@@ -1,14 +1,31 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ASPECT_RATIO_TO_RESOLUTION } from "./aspectRatios";
 import { nanoid } from "nanoid";
-import { AuthError, NetworkError, ValidationError } from "./errors";
-import { handleError } from '@/shared/lib/errorHandler';
+import { AppError, AuthError, NetworkError, ServerError, ValidationError } from "./errors";
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { isAbortError } from '@/shared/lib/errorUtils';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/config/env';
 
 /**
  * Default aspect ratio to use when project aspect ratio is not found
  */
 const DEFAULT_ASPECT_RATIO = "1:1";
+
+// Read access token directly from localStorage — synchronous, no navigator.locks.
+// supabase.auth.getSession() acquires a shared navigator.lock which blocks during
+// token refresh (exclusive lock held for 600ms-16s). Same pattern as createSupabaseClient.ts.
+function readAccessTokenFromStorage(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
+    const raw = localStorage.getItem(`sb-${projectRef}-auth-token`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { access_token?: string };
+    return parsed?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Interface for project resolution lookup result
@@ -16,6 +33,29 @@ const DEFAULT_ASPECT_RATIO = "1:1";
 interface ProjectResolutionResult {
   resolution: string;
   aspectRatio: string;
+}
+
+async function resolveProjectResolutionStrict(projectId: string): Promise<ProjectResolutionResult> {
+  const { data: project, error } = await supabase
+    .from('projects')
+    .select('aspect_ratio')
+    .eq('id', projectId)
+    .single();
+
+  if (error) {
+    throw new ServerError('Failed to load project aspect ratio', {
+      context: { projectId },
+      cause: error,
+    });
+  }
+
+  const aspectRatioKey = project?.aspect_ratio ?? DEFAULT_ASPECT_RATIO;
+  const resolution = ASPECT_RATIO_TO_RESOLUTION[aspectRatioKey] ?? ASPECT_RATIO_TO_RESOLUTION[DEFAULT_ASPECT_RATIO];
+
+  return {
+    resolution,
+    aspectRatio: aspectRatioKey,
+  };
 }
 
 /**
@@ -39,20 +79,7 @@ export async function resolveProjectResolution(
   }
 
   try {
-    // Fetch project aspect ratio from database
-    const { data: project } = await supabase
-      .from("projects")
-      .select("aspect_ratio")
-      .eq("id", projectId)
-      .single();
-
-    const aspectRatioKey = project?.aspect_ratio ?? DEFAULT_ASPECT_RATIO;
-    const resolution = ASPECT_RATIO_TO_RESOLUTION[aspectRatioKey] ?? ASPECT_RATIO_TO_RESOLUTION[DEFAULT_ASPECT_RATIO];
-
-    return {
-      resolution,
-      aspectRatio: aspectRatioKey
-    };
+    return await resolveProjectResolutionStrict(projectId);
   } catch (error) {
     handleError(error, { context: 'TaskCreation', showToast: false });
     // Fallback to default resolution
@@ -74,7 +101,7 @@ export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     try {
       return crypto.randomUUID();
-    } catch (error) { /* intentionally ignored */ }
+    } catch { /* intentionally ignored */ }
   }
   
   // Fallback to nanoid for mobile browsers or when crypto.randomUUID is not available
@@ -142,10 +169,11 @@ export interface TaskCreationResult {
  * @returns Promise resolving to the created task data
  */
 export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreationResult> {
-  // Get current session for authentication
-  const { data: { session } } = await supabase.auth.getSession();
+  // Read access token from localStorage — avoids navigator.locks contention.
+  // getSession() acquires a shared navigator.lock blocked during token refresh.
+  const accessToken = readAccessTokenFromStorage();
 
-  if (!session) {
+  if (!accessToken) {
     throw new AuthError('Please log in to create tasks', { needsLogin: true });
   }
 
@@ -163,22 +191,38 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
     // task if this key was already used.
     const idempotency_key = generateUUID();
 
-    const { data, error } = await supabase.functions.invoke('create-task', {
-      body: {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[createTask] invoking create-task edge function', taskParams.task_type);
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/create-task`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({
         params: taskParams.params,
         task_type: taskParams.task_type,
         project_id: taskParams.project_id,
         dependant_on: null,
         idempotency_key,
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      }),
       signal: controller.signal,
     });
 
-    if (error) {
-      throw new Error(error.message || 'Failed to create task');
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new ServerError(errorText || 'Failed to create task', {
+        context: { requestId, taskType: taskParams.task_type, projectId: taskParams.project_id },
+      });
+    }
+
+    const data = await response.json() as TaskCreationResult;
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[createTask] create-task returned', { hasData: !!data, data, durationMs: Date.now() - startTime });
     }
 
     // Task creation events are now handled by DataFreshnessManager via realtime events
@@ -193,17 +237,21 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
       durationMs: Date.now() - startTime,
     };
 
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[createTask] invoke FAILED', context, err);
+    }
+
     // Normalize abort errors for better UX
     if (isAbortError(err)) {
       throw new NetworkError('Task creation timed out. Please try again.', {
         isTimeout: true,
         context,
-        cause: err,
+        cause: err instanceof Error ? err : undefined,
       });
     }
 
-    handleError(err, { context: 'TaskCreation', showToast: false });
-    throw err;
+    const normalizedError = handleError(err, { context: 'TaskCreation', showToast: false });
+    throw normalizedError;
   } finally {
     clearTimeout(timeout);
   }
@@ -243,9 +291,10 @@ export function expandArrayToCount<T>(arr: T[] | undefined, targetCount: number)
  * @param requiredFields - Array of required field names
  * @throws TaskValidationError if validation fails
  */
-export function validateRequiredFields(params: Record<string, unknown>, requiredFields: string[]): void {
+export function validateRequiredFields(params: object, requiredFields: readonly string[]): void {
+  const values = params as Record<string, unknown>;
   for (const field of requiredFields) {
-    const value = params[field];
+    const value = values[field];
     
     if (value === undefined || value === null) {
       throw new TaskValidationError(`${field} is required`, field);
@@ -339,7 +388,13 @@ export function processBatchResults(
 
   if (successful === 0) {
     const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
-    throw new Error(`All batch tasks failed: ${firstError.reason}`);
+    const reasonError = firstError.reason instanceof Error
+      ? firstError.reason
+      : new Error(String(firstError.reason));
+    throw new AppError(`All batch tasks failed: ${reasonError.message}`, {
+      cause: reasonError,
+      context: { context },
+    });
   }
 
   if (failed > 0) {

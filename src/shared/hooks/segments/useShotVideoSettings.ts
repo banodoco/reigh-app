@@ -7,7 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { readShotSettings, type ShotVideoSettings } from '@/shared/utils/settingsMigration';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
@@ -22,7 +22,7 @@ export function useShotVideoSettings(
   shotId: string | null | undefined
 ): UseShotVideoSettingsReturn {
   const query = useQuery({
-    queryKey: queryKeys.shots.batchSettings(shotId || ''),
+    queryKey: shotQueryKeys.batchSettings(shotId || ''),
     queryFn: async (): Promise<ShotVideoSettings | null> => {
       if (!shotId) return null;
 

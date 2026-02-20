@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { Image, Upload } from 'lucide-react';
 import { ImageUploadActions } from '@/shared/components/ImageUploadActions';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useFileDragTracking } from '@/shared/hooks/useFileDragTracking';
 
 const GENERATION_MIME = 'application/x-generation';

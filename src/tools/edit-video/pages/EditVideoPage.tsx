@@ -30,7 +30,7 @@ import { parseRatio } from '@/shared/lib/aspectRatios';
 import { variantToGenerationRow } from '@/shared/lib/mediaTypeHelpers';
 import { MediaSelectionPanel } from '@/shared/components/MediaSelectionPanel';
 import { useEditToolMediaPersistence } from '@/shared/hooks/useEditToolMediaPersistence';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
 const TOOL_TYPE = TOOL_IDS.EDIT_VIDEO;
@@ -91,7 +91,7 @@ export default function EditVideoPage() {
     userClosedEditor,
   } = useEditToolMediaPersistence({
     settingsToolId: 'edit-video-ui',
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? undefined,
     preloadMedia: preloadVideoPoster,
     onSettingsLoaded: handleSettingsLoaded,
     extraClearData: VIDEO_EXTRA_CLEAR_DATA,
@@ -117,7 +117,7 @@ export default function EditVideoPage() {
   // Transform variant data to GenerationRow format for lightbox (using parent generation id)
   const transformVariantToGeneration = useCallback(
     (media: GeneratedImageWithMetadata): GenerationRow =>
-      variantToGenerationRow(media, 'video', selectedProjectId || '') as GenerationRow,
+      variantToGenerationRow(media, 'video', selectedProjectId || '') as unknown as GenerationRow,
     [selectedProjectId]
   );
   
@@ -157,6 +157,9 @@ export default function EditVideoPage() {
 
   // Shared upload logic for both file input and drag-drop
   const uploadVideo = useCallback(async (file: File): Promise<GenerationRow> => {
+    if (!selectedProjectId) {
+      throw new Error('No project selected');
+    }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.id) {
       throw new Error('User not authenticated');
@@ -183,7 +186,7 @@ export default function EditVideoPage() {
           .getPublicUrl(posterFileName);
         posterUrl = publicUrl;
       }
-    } catch (posterError) { /* intentionally ignored */ }
+    } catch { /* intentionally ignored */ }
 
     const fileExt = getFileExtension(file.name, file.type, 'mp4');
     const fileName = storagePaths.upload(userId, `${timestamp}.${fileExt}`);
@@ -228,7 +231,7 @@ export default function EditVideoPage() {
       params: generationParams,
     });
 
-    return generation as GenerationRow;
+    return generation as unknown as GenerationRow;
   }, [selectedProjectId]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -259,19 +262,19 @@ export default function EditVideoPage() {
   // Drag and drop handlers
   const handleDragOver = preventDefaultDragOver;
 
-  const handleDrop = useCallback(
+  const handleDrop = useMemo(() =>
     createSingleFileDropHandler({
       mimePrefix: 'video/',
       mimeErrorMessage: "Please drop a video file",
       resetDrag: resetDragState,
-      getProjectId: () => selectedProjectId,
+      getProjectId: () => selectedProjectId ?? undefined,
       upload: (file) => uploadVideo(file),
       onResult: (result) => setSelectedMedia(result as GenerationRow),
       context: 'EditVideoPage',
       toastTitle: 'Failed to upload video',
-      uploadOperation,
+      uploadOperation: uploadOperation as any,
     }),
-    [selectedProjectId, uploadOperation, uploadVideo]
+    [selectedProjectId, resetDragState, uploadOperation, uploadVideo, setSelectedMedia]
   );
 
   return (
@@ -493,8 +496,7 @@ export default function EditVideoPage() {
                 key={selectedMedia.id} // Force remount when media changes
                 media={selectedMedia}
                 onClose={handleEditorClose}
-                onVideoSaved={async (newUrl) => {
-                  console.log("Video regenerated:", newUrl);
+                onVideoSaved={async (_newUrl) => {
                 }}
                 onNavigateToGeneration={async (generationId) => {
                   try {
@@ -505,7 +507,7 @@ export default function EditVideoPage() {
                       .single();
                     
                     if (data && !error) {
-                      setSelectedMedia(data as GenerationRow);
+                      setSelectedMedia(data as unknown as GenerationRow);
                       setSavedSegments(undefined); // Clear saved segments when navigating to new generation
                     }
                   } catch (e) {

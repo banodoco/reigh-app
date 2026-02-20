@@ -50,12 +50,12 @@ describe('determineVideoPhase', () => {
     expect(result.readyToShow).toBe(false);
   });
 
-  it('returns THUMBNAIL_READY when has thumbnail loaded and video not ready', () => {
-    // hasThumbnail=true, thumbnailLoaded=true, videoPosterLoaded=false → THUMBNAIL_READY
-    // Regardless of shouldLoad, the THUMBNAIL_READY check comes first
+  it('returns VIDEO_LOADING_WITH_THUMBNAIL when thumbnail is ready and loading has started', () => {
+    // hasThumbnail=true, thumbnailLoaded=true, videoPosterLoaded=false, shouldLoad=true
+    // should stay in loading phase while still showing the thumbnail.
     const result = determineVideoPhase(true, false, false, true, true);
-    expect(result.phase).toBe('THUMBNAIL_READY');
-    expect(result.readyToShow).toBe(true);
+    expect(result.phase).toBe('VIDEO_LOADING_WITH_THUMBNAIL');
+    expect(result.readyToShow).toBe(false);
   });
 
   it('returns VIDEO_READY when video poster loaded', () => {

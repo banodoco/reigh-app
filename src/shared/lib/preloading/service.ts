@@ -9,7 +9,7 @@
  * This service coordinates preloading and lifecycle events.
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { PreloadQueue } from './queue';
 import { getPreloadConfig } from './config';
 import { preloadImages } from './preloader';

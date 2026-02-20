@@ -4,9 +4,9 @@ import { Button } from "@/shared/components/ui/button";
 import { MediaGalleryPagination } from "@/shared/components/MediaGalleryPagination";
 import { MediaTypeFilter } from "@/shared/components/MediaTypeFilter";
 import { ShotFilter } from "@/shared/components/ShotFilter";
+import type { Shot } from "@/types/shots";
 
-interface MediaGalleryHeaderProps {
-  // Pagination props
+interface MediaGalleryHeaderPaginationProps {
   totalPages: number;
   page: number;
   isServerPagination: boolean;
@@ -19,26 +19,31 @@ interface MediaGalleryHeaderProps {
   reducedSpacing?: boolean;
   hidePagination?: boolean;
   onPageChange: (newPage: number, direction: 'prev' | 'next', fromBottom?: boolean) => void;
+}
 
-  // Layout props
-  /** Phone only (not iPad) - hides top pagination when true (shown in floating bottom bar instead) */
+interface MediaGalleryHeaderLayoutProps {
   isPhoneOnly?: boolean;
-
-  // Filter props
   hideTopFilters?: boolean;
   hideMediaTypeFilter?: boolean;
+}
+
+interface MediaGalleryHeaderFilterProps {
   showStarredOnly: boolean;
   onStarredFilterChange?: (starredOnly: boolean) => void;
+  mediaTypeFilter: 'all' | 'image' | 'video';
+  onMediaTypeFilterChange?: (mediaType: 'all' | 'image' | 'video') => void;
+}
 
-  // Shot filter props
+interface MediaGalleryHeaderShotFilterProps {
   showShotFilter?: boolean;
-  allShots: Array<{ id: string; name: string }>;
+  allShots: Shot[];
   shotFilter: string;
   onShotFilterChange?: (shotId: string) => void;
   excludePositioned: boolean;
   onExcludePositionedChange?: (exclude: boolean) => void;
+}
 
-  // Search props
+interface MediaGalleryHeaderSearchProps {
   showSearch?: boolean;
   isSearchOpen?: boolean;
   searchTerm?: string;
@@ -46,11 +51,14 @@ interface MediaGalleryHeaderProps {
   toggleSearch?: () => void;
   clearSearch?: () => void;
   handleSearchChange?: (value: string) => void;
-
-  // Media type filter props
-  mediaTypeFilter: 'all' | 'image' | 'video';
-  onMediaTypeFilterChange?: (mediaType: 'all' | 'image' | 'video') => void;
 }
+
+type MediaGalleryHeaderProps =
+  & MediaGalleryHeaderPaginationProps
+  & MediaGalleryHeaderLayoutProps
+  & MediaGalleryHeaderFilterProps
+  & MediaGalleryHeaderShotFilterProps
+  & MediaGalleryHeaderSearchProps;
 
 export const MediaGalleryHeader: React.FC<MediaGalleryHeaderProps> = ({
   // Pagination props
@@ -106,9 +114,9 @@ export const MediaGalleryHeader: React.FC<MediaGalleryHeaderProps> = ({
             <ShotFilter
               shots={allShots || []}
               selectedShotId={shotFilter}
-              onShotChange={onShotFilterChange}
+              onShotChange={onShotFilterChange ?? (() => {})}
               excludePositioned={excludePositioned}
-              onExcludePositionedChange={onExcludePositionedChange}
+              onExcludePositionedChange={onExcludePositionedChange ?? (() => {})}
               darkSurface={whiteText}
               checkboxId="exclude-positioned-media-gallery"
               triggerWidth="w-[100px] sm:w-[140px]"

@@ -40,7 +40,16 @@ export const MediaTypeFilter: React.FC<MediaTypeFilterProps> = ({
   const variant = darkSurface ? 'zinc' : 'retro';
 
   return (
-    <Select value={value} onValueChange={(val: 'all' | 'image' | 'video') => onChange?.(val)} open={open} onOpenChange={onOpenChange}>
+    <Select
+      value={value}
+      onValueChange={(val) => {
+        if (val) {
+          onChange?.(val);
+        }
+      }}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <SelectTrigger
         id={id}
         variant={darkSurface ? 'retro-dark' : 'retro'}

@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { LoraModel } from '@/shared/types/lora';
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database, Json } from '@/integrations/supabase/types';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
 import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { resourceQueryKeys } from '@/shared/lib/queryKeys/resources';
 
 export interface PhaseConfigMetadata {
     name: string;
@@ -74,20 +75,39 @@ export interface StructureVideoMetadata {
 
 export type ResourceType = 'lora' | 'phase-config' | 'style-reference' | 'structure-video';
 export type ResourceMetadata = LoraModel | PhaseConfigMetadata | StyleReferenceMetadata | StructureVideoMetadata;
+type ResourceRow = Database['public']['Tables']['resources']['Row'];
 
 export interface Resource {
     id: string;
-    userId: string;
+    userId?: string;
+    user_id?: string;
     type: ResourceType;
-    metadata: ResourceMetadata;
-    isPublic: boolean;
-    createdAt: string;
+    metadata: ResourceMetadata | Json;
+    isPublic?: boolean;
+    is_public?: boolean;
+    createdAt?: string;
+    created_at?: string;
+}
+
+function isResourceType(type: string): type is ResourceType {
+    return type === 'lora' || type === 'phase-config' || type === 'style-reference' || type === 'structure-video';
+}
+
+function mapResourceRow(row: ResourceRow, fallbackType?: ResourceType): Resource {
+    const resolvedType = isResourceType(row.type) ? row.type : fallbackType;
+    if (!resolvedType) {
+        throw new Error(`Unknown resource type: ${row.type}`);
+    }
+    return {
+        ...row,
+        type: resolvedType,
+    };
 }
 
 // List public resources (available to all users)
 export const useListPublicResources = (type: ResourceType) => {
     return useQuery<Resource[], Error>({
-        queryKey: [...queryKeys.resources.public(type), 'v2'],
+        queryKey: [...resourceQueryKeys.public(type), 'v2'],
         queryFn: async () => {
             
             // Manual pagination to bypass 1000 limit
@@ -110,7 +130,7 @@ export const useListPublicResources = (type: ResourceType) => {
                 }
                 
                 if (data) {
-                    allData = [...allData, ...data];
+                    allData = [...allData, ...data.map((row) => mapResourceRow(row, type))];
                     if (data.length < pageSize) {
                         hasMore = false;
                     } else {
@@ -139,7 +159,7 @@ export const useListPublicResources = (type: ResourceType) => {
 export const useListResources = (type: ResourceType) => {
     return useQuery<Resource[], Error>({
         // Note: Using ['resources', type] pattern for user resources (no projectId needed)
-        queryKey: [...queryKeys.resources.all, type, 'v2'],
+        queryKey: [...resourceQueryKeys.all, type, 'v2'],
         queryFn: async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
@@ -161,7 +181,7 @@ export const useListResources = (type: ResourceType) => {
                 if (error) throw error;
 
                 if (data) {
-                    allData = [...allData, ...data];
+                    allData = [...allData, ...data.map((row) => mapResourceRow(row, type))];
                     if (data.length < pageSize) {
                         hasMore = false;
                     } else {
@@ -200,21 +220,21 @@ export const useCreateResource = () => {
             
             const { data, error } = await supabase
                 .from('resources')
-                .insert({
-                    type,
-                    metadata,
-                    user_id: user.id,
-                    is_public: isPublic
-                })
+                    .insert({
+                        type,
+                        metadata: metadata as unknown as Json,
+                        user_id: user.id,
+                        is_public: isPublic
+                    })
                 .select()
                 .single();
             
             if (error) throw error;
-            return data;
+            return mapResourceRow(data, type);
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: [...queryKeys.resources.all, data.type] });
-            queryClient.invalidateQueries({ queryKey: queryKeys.resources.public(data.type) });
+            queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.all, data.type] });
+            queryClient.invalidateQueries({ queryKey: resourceQueryKeys.public(data.type) });
         },
         onError: (error) => {
             handleError(error, { context: 'useCreateResource', toastTitle: 'Failed to create resource' });
@@ -282,7 +302,7 @@ export const useUpdateResource = () => {
             // Now perform the update
             const { data, error } = await supabase
                 .from('resources')
-                .update({ metadata, is_public: isPublic })
+                .update({ metadata: metadata as unknown as Json, is_public: isPublic })
                 .eq('id', id)
                 .eq('user_id', user.id)
                 .select()
@@ -311,18 +331,18 @@ export const useUpdateResource = () => {
                     throw new Error('Update may have succeeded but failed to fetch updated resource');
                 }
                 
-                return fetchedData;
+                return mapResourceRow(fetchedData, existingResource.type as ResourceType);
             }
             
-            return data;
+            return mapResourceRow(data, existingResource.type as ResourceType);
         },
         onSuccess: (data) => {
             // Invalidate both v2 query keys to ensure fresh data
-            queryClient.invalidateQueries({ queryKey: [...queryKeys.resources.all, data.type, 'v2'] });
-            queryClient.invalidateQueries({ queryKey: [...queryKeys.resources.public(data.type), 'v2'] });
+            queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.all, data.type, 'v2'] });
+            queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.public(data.type), 'v2'] });
             // Also invalidate without v2 for backwards compatibility
-            queryClient.invalidateQueries({ queryKey: [...queryKeys.resources.all, data.type] });
-            queryClient.invalidateQueries({ queryKey: queryKeys.resources.public(data.type) });
+            queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.all, data.type] });
+            queryClient.invalidateQueries({ queryKey: resourceQueryKeys.public(data.type) });
             // Invalidate specific-resources queries that include this resource ID
             // Using predicate to find any query that contains this resource ID
             queryClient.invalidateQueries({
@@ -359,10 +379,10 @@ export const useDeleteResource = () => {
         },
         onSuccess: (_data, variables) => {
             // Remove the individual resource cache entry
-            queryClient.removeQueries({ queryKey: queryKeys.resources.detail(variables.id) });
+            queryClient.removeQueries({ queryKey: resourceQueryKeys.detail(variables.id) });
             // Also invalidate the list queries
-            queryClient.invalidateQueries({ queryKey: [...queryKeys.resources.all, variables.type] });
-            queryClient.invalidateQueries({ queryKey: queryKeys.resources.public(variables.type) });
+            queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.all, variables.type] });
+            queryClient.invalidateQueries({ queryKey: resourceQueryKeys.public(variables.type) });
         },
         onError: (error) => {
             handleError(error, { context: 'useDeleteResource', toastTitle: 'Failed to delete resource' });

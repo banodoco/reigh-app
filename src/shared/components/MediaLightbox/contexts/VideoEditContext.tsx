@@ -15,7 +15,7 @@ interface EnhanceSettings {
   numFrames: number;
   upscaleFactor: number;
   colorFix: boolean;
-  outputQuality: 'low' | 'medium' | 'high';
+  outputQuality: 'low' | 'medium' | 'high' | 'maximum';
 }
 
 interface VideoEditingManager {

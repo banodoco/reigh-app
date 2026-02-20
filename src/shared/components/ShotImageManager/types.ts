@@ -9,6 +9,7 @@ import type {
   ImageReorderHandler,
   FileDropHandler,
   GenerationDropHandler,
+  AddToShotHandler,
 } from '@/shared/types/imageHandlers';
 
 /** Per-pair parameter overrides for showing override icons */
@@ -61,8 +62,8 @@ interface ShotManagementProps {
   selectedShotId?: string;
   onShotChange?: (shotId: string) => void;
   // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
-  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onAddToShot?: AddToShotHandler;
+  onAddToShotWithoutPosition?: AddToShotHandler;
   onCreateShot?: (shotName: string, files: File[]) => Promise<{shotId?: string; shotName?: string} | void>;
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
 }
@@ -118,22 +119,9 @@ export interface ShotImageManagerProps extends
   ShotSegmentProps,
   ShotLightboxProps {}
 
-/** Props for segment video outputs in batch view */
-interface BatchSegmentOutputProps {
-  segmentSlots: SegmentSlot[];
-  onSegmentClick: (slotIndex: number) => void;
-  onOpenPairSettings?: (pairIndex: number) => void;
-  projectAspectRatio?: string;
-  isMobile?: boolean;
-}
-
 export interface DerivedNavContext {
   sourceGenerationId: string;
   derivedGenerationIds: string[];
-}
-
-interface ExternalGeneration extends GenerationRow {
-  based_on?: string;
 }
 
 /**
@@ -150,6 +138,8 @@ export interface BaseShotImageManagerProps extends
   isUploadingImage?: boolean;
   /** Create a new shot from selected images */
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
+  /** Change selected shot (used after creating a new shot from selection) */
+  onShotChange?: (shotId: string) => void;
 }
 
 export interface ShotBatchItemMobileProps {

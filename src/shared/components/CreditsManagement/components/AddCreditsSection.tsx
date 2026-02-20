@@ -83,8 +83,8 @@ export function AddCreditsSection({
 
         <div className="px-1">
           <Slider
-            value={purchaseAmount}
-            onValueChange={(value) => onPurchaseAmountChange(value)}
+            value={[purchaseAmount]}
+            onValueChange={(value) => onPurchaseAmountChange(Array.isArray(value) ? (value[0] ?? 0) : value)}
             min={0}
             max={100}
             step={5}

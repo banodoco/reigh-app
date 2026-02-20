@@ -14,8 +14,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as ApplySettingsService from '../services/applySettingsService';
 import { GenerationRow, Shot } from '@/types/shots';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { SteerableMotionSettings, PhaseConfig } from '../state/types';
+import type { SteerableMotionSettings } from '@/shared/types/steerableMotion';
+import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import { invalidateGenerationsSync } from '@/shared/hooks/useGenerationInvalidation';
+import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToShotHelpers';
+import type { PresetMetadata } from '@/shared/types/presetMetadata';
+import type { Json } from '@/integrations/supabase/types';
 
 interface ApplySettingsContext {
   // IDs
@@ -24,7 +29,7 @@ interface ApplySettingsContext {
   
   // Data
   simpleFilteredImages: GenerationRow[];
-  selectedShot: Shot | null;
+  selectedShot: Shot | undefined;
   availableLoras: LoraModel[];
   
   // State callbacks (from props)
@@ -32,15 +37,15 @@ interface ApplySettingsContext {
   onSteerableMotionSettingsChange: (settings: Partial<SteerableMotionSettings>) => void;
   onBatchVideoFramesChange: (frames: number) => void;
   onBatchVideoStepsChange: (steps: number) => void;
-  onDimensionSourceChange: (source: 'project' | 'firstImage' | 'custom') => void;
-  onCustomWidthChange: (width?: number) => void;
-  onCustomHeightChange: (height?: number) => void;
+  onDimensionSourceChange?: (source: 'project' | 'firstImage' | 'custom') => void;
+  onCustomWidthChange?: (width?: number) => void;
+  onCustomHeightChange?: (height?: number) => void;
   onGenerationModeChange: (mode: 'batch' | 'timeline' | 'by-pair') => void;
   onAdvancedModeChange: (advanced: boolean) => void;
   onMotionModeChange: (mode: 'basic' | 'advanced') => void;
   onGenerationTypeModeChange: (mode: 'i2v' | 'vace') => void;
   onPhaseConfigChange: (config: PhaseConfig) => void;
-  onPhasePresetSelect: (presetId: string, config: PhaseConfig, promptPrefix?: string) => void;
+  onPhasePresetSelect: (presetId: string, config: PhaseConfig, presetMetadata?: PresetMetadata) => void;
   onPhasePresetRemove: () => void;
   onTurboModeChange: (turbo: boolean) => void;
   onEnhancePromptChange: (enhance: boolean) => void;
@@ -49,10 +54,11 @@ interface ApplySettingsContext {
   onTextAfterPromptsChange: (text: string) => void;
   onStructureVideoInputChange: (
     videoPath: string | null,
-    metadata: Record<string, unknown> | null,
+    metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',
     motionStrength: number,
-    structureType: 'uni3c' | 'flow' | 'canny' | 'depth'
+    structureType: 'uni3c' | 'flow' | 'canny' | 'depth',
+    resourceId?: string,
   ) => void;
   
   // Current values
@@ -71,13 +77,192 @@ interface ApplySettingsContext {
   
   // Managers/Mutations
   loraManager: {
-    setSelectedLoras?: (loras: LoraModel[]) => void;
+    setSelectedLoras?: (
+      loras: Array<{ id: string; name: string; path: string; strength: number; [key: string]: unknown }>
+    ) => void;
     handleAddLora: (lora: LoraModel, showToast: boolean, strength: number) => void;
   };
-  addImageToShotMutation: { mutateAsync: (params: Record<string, unknown>) => Promise<unknown> };
-  removeImageFromShotMutation: { mutateAsync: (params: Record<string, unknown>) => Promise<unknown> };
+  addImageToShotMutation: { mutateAsync: (params: AddImageToShotVariables) => Promise<unknown> };
+  removeImageFromShotMutation: {
+    mutateAsync: (params: {
+      shotId: string;
+      shotGenerationId: string;
+      projectId: string;
+      shiftItems?: { id: string; newFrame: number }[];
+    }) => Promise<unknown>;
+  };
   updatePairPromptsByIndex: (pairIndex: number, prompt: string, negativePrompt: string) => Promise<void>;
-  loadPositions: (opts?: { silent?: boolean; reason?: string }) => Promise<void>;
+  loadPositions: (opts?: { silent?: boolean; reason?: string }) => void | Promise<void>;
+}
+
+interface PairPromptSnapshotRow {
+  id: string;
+  timeline_frame: number | null;
+  metadata: Json;
+  generation?: {
+    id?: string | null;
+    type?: string | null;
+    location?: string | null;
+  } | null;
+}
+
+const SHOT_GENERATION_SNAPSHOT_SELECT = `
+  id,
+  timeline_frame,
+  metadata,
+  generation:generations!shot_generations_generation_id_generations_id_fk(id, type, location)
+`;
+
+function buildApplyContext(ctx: ApplySettingsContext): ApplySettingsService.ApplyContext {
+  return {
+    currentGenerationMode: ctx.generationMode,
+    currentAdvancedMode: ctx.advancedMode,
+    onBatchVideoPromptChange: ctx.onBatchVideoPromptChange,
+    onSteerableMotionSettingsChange: ctx.onSteerableMotionSettingsChange,
+    onBatchVideoFramesChange: ctx.onBatchVideoFramesChange,
+    onBatchVideoStepsChange: ctx.onBatchVideoStepsChange,
+    onGenerationModeChange: ctx.onGenerationModeChange,
+    onAdvancedModeChange: ctx.onAdvancedModeChange,
+    onMotionModeChange: ctx.onMotionModeChange,
+    onGenerationTypeModeChange: ctx.onGenerationTypeModeChange,
+    onPhaseConfigChange: ctx.onPhaseConfigChange,
+    onPhasePresetSelect: ctx.onPhasePresetSelect,
+    onPhasePresetRemove: ctx.onPhasePresetRemove,
+    onTurboModeChange: ctx.onTurboModeChange,
+    onEnhancePromptChange: ctx.onEnhancePromptChange,
+    onTextBeforePromptsChange: ctx.onTextBeforePromptsChange,
+    onTextAfterPromptsChange: ctx.onTextAfterPromptsChange,
+    onAmountOfMotionChange: ctx.onAmountOfMotionChange,
+    onStructureVideoInputChange: ctx.onStructureVideoInputChange,
+    loraManager: ctx.loraManager as ApplySettingsService.ApplyContext['loraManager'],
+    availableLoras: ctx.availableLoras,
+    updatePairPromptsByIndex: ctx.updatePairPromptsByIndex,
+    steerableMotionSettings: ctx.steerableMotionSettings,
+    batchVideoFrames: ctx.batchVideoFrames,
+    batchVideoSteps: ctx.batchVideoSteps,
+    textBeforePrompts: ctx.textBeforePrompts,
+    textAfterPrompts: ctx.textAfterPrompts,
+    turboMode: ctx.turboMode,
+    enhancePrompt: ctx.enhancePrompt,
+    amountOfMotion: ctx.amountOfMotion,
+    motionMode: ctx.motionMode,
+    generationTypeMode: ctx.generationTypeMode,
+  };
+}
+
+async function fetchTaskData(taskId: string) {
+  try {
+    return await ApplySettingsService.fetchTask(taskId);
+  } catch (fetchError) {
+    console.error('[ApplySettings] fetchTask failed:', fetchError);
+    throw fetchError;
+  }
+}
+
+async function fetchPairPromptSnapshot(shotId: string): Promise<PairPromptSnapshotRow[]> {
+  const { data, error } = await supabase
+    .from('shot_generations')
+    .select(SHOT_GENERATION_SNAPSHOT_SELECT)
+    .eq('shot_id', shotId)
+    .not('timeline_frame', 'is', null)
+    .order('timeline_frame', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[ApplySettings] Error fetching pair prompt snapshot:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+async function loadPairPromptSnapshot(
+  ctx: ApplySettingsContext,
+  replaceImages: boolean,
+  inputImages: string[],
+  queryClient: ReturnType<typeof useQueryClient>,
+): Promise<PairPromptSnapshotRow[]> {
+  if (!ctx.selectedShot?.id) return [];
+
+  if (replaceImages && inputImages.length > 0) {
+    invalidateGenerationsSync(queryClient, ctx.selectedShot.id, {
+      reason: 'apply-settings-from-task',
+      scope: 'all',
+    });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    await Promise.resolve(ctx.loadPositions({ silent: true }));
+  }
+
+  return fetchPairPromptSnapshot(ctx.selectedShot.id);
+}
+
+function preparePairPromptTargets(snapshot: PairPromptSnapshotRow[]) {
+  return snapshot
+    .filter(row => {
+      const generation = row.generation;
+      const isVideo = generation?.type === 'video' ||
+        generation?.type === 'video_travel_output' ||
+        generation?.location?.endsWith?.('.mp4');
+      return !isVideo;
+    })
+    .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+}
+
+async function applySettingsFromTask(
+  taskId: string,
+  replaceImages: boolean,
+  inputImages: string[],
+  ctx: ApplySettingsContext,
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  const taskData = await fetchTaskData(taskId);
+  if (!taskData) {
+    console.error('[ApplySettings] Task not found');
+    return;
+  }
+
+  const settings = ApplySettingsService.extractSettings(taskData);
+  const applyContext = buildApplyContext(ctx);
+
+  await ApplySettingsService.replaceImagesIfRequested(
+    settings,
+    replaceImages,
+    inputImages,
+    ctx.selectedShot ?? null,
+    ctx.projectId,
+    ctx.simpleFilteredImages,
+    ctx.addImageToShotMutation,
+    ctx.removeImageFromShotMutation,
+  );
+
+  const pairPromptSnapshot = await loadPairPromptSnapshot(ctx, replaceImages, inputImages, queryClient);
+  const pairPromptTargets = preparePairPromptTargets(pairPromptSnapshot);
+
+  await ApplySettingsService.applyModelSettings(settings, applyContext);
+  await ApplySettingsService.applyPromptSettings(settings, applyContext);
+  await ApplySettingsService.applyGenerationSettings(settings, applyContext);
+  await ApplySettingsService.applyModeSettings(settings, applyContext);
+  await ApplySettingsService.applyAdvancedModeSettings(settings, applyContext);
+  await ApplySettingsService.applyTextPromptAddons(settings, applyContext);
+  await ApplySettingsService.applyMotionSettings(settings, applyContext);
+  await ApplySettingsService.applyLoRAs(settings, applyContext);
+  await ApplySettingsService.applyStructureVideo(settings, applyContext, taskData);
+  await ApplySettingsService.applyFramePositionsToExistingImages(
+    settings,
+    ctx.selectedShot ?? null,
+    ctx.simpleFilteredImages,
+  );
+
+  if (ctx.selectedShot?.id) {
+    invalidateGenerationsSync(queryClient, ctx.selectedShot.id, {
+      reason: 'apply-settings-force-reload',
+      scope: 'all',
+      delayMs: 200,
+    });
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 200));
+  await Promise.resolve(ctx.loadPositions({ silent: true }));
 }
 
 export function useApplySettingsHandler(context: ApplySettingsContext) {
@@ -93,208 +278,19 @@ export function useApplySettingsHandler(context: ApplySettingsContext) {
   
   // Return stable callback that reads from ref
   return useCallback(async (taskId: string, replaceImages: boolean, inputImages: string[]) => {
-    // Get latest values from ref (no stale closures!)
     const ctx = contextRef.current;
-    
-    // ⚠️ SAFETY CHECK: Ensure data is loaded before mutations
-    // We need id (shot_generations.id) for mutations
     const hasMissingIds = ctx.simpleFilteredImages.some(img => !img.id);
     if (hasMissingIds && replaceImages) {
       toast.error('Loading shot data... please try again in a moment.');
       return;
     }
-    
-    let pairPromptSnapshot: Array<{
-      id: string;
-      timeline_frame: number | null;
-      metadata: Record<string, unknown> | null;
-      generation?: {
-        id?: string | null;
-        type?: string | null;
-        location?: string | null;
-      } | null;
-    }> = [];
 
     try {
-      // Step 1: Fetch task from database
-      let taskData;
-      try {
-        taskData = await ApplySettingsService.fetchTask(taskId);
-      } catch (fetchError) {
-        console.error('[ApplySettings] ❌ fetchTask threw error:', fetchError);
-        throw fetchError;
-      }
-      
-      if (!taskData) {
-        console.error('[ApplySettings] ❌ Task not found (returned null/undefined)');
-        return;
-      }
-      
-      // Step 2: Extract all settings
-      const settings = ApplySettingsService.extractSettings(taskData);
-      
-      // Step 3: Build apply context with all callbacks and current state
-      const applyContext: ApplySettingsService.ApplyContext = {
-        // Current state
-        currentGenerationMode: ctx.generationMode,
-        currentAdvancedMode: ctx.advancedMode,
-        
-        // Callbacks
-        onBatchVideoPromptChange: ctx.onBatchVideoPromptChange,
-        onSteerableMotionSettingsChange: ctx.onSteerableMotionSettingsChange,
-        onBatchVideoFramesChange: ctx.onBatchVideoFramesChange,
-        onBatchVideoStepsChange: ctx.onBatchVideoStepsChange,
-        onGenerationModeChange: ctx.onGenerationModeChange,
-        onAdvancedModeChange: ctx.onAdvancedModeChange,
-        onMotionModeChange: ctx.onMotionModeChange,
-        onGenerationTypeModeChange: ctx.onGenerationTypeModeChange,
-        onPhaseConfigChange: ctx.onPhaseConfigChange,
-        onPhasePresetSelect: ctx.onPhasePresetSelect,
-        onPhasePresetRemove: ctx.onPhasePresetRemove,
-        onTurboModeChange: ctx.onTurboModeChange,
-        onEnhancePromptChange: ctx.onEnhancePromptChange,
-        onTextBeforePromptsChange: ctx.onTextBeforePromptsChange,
-        onTextAfterPromptsChange: ctx.onTextAfterPromptsChange,
-        onAmountOfMotionChange: ctx.onAmountOfMotionChange,
-        onStructureVideoInputChange: ctx.onStructureVideoInputChange,
-        loraManager: ctx.loraManager,
-        availableLoras: ctx.availableLoras,
-        updatePairPromptsByIndex: ctx.updatePairPromptsByIndex,
-        
-        // Current values for comparison
-        steerableMotionSettings: ctx.steerableMotionSettings,
-        batchVideoFrames: ctx.batchVideoFrames,
-        batchVideoSteps: ctx.batchVideoSteps,
-        textBeforePrompts: ctx.textBeforePrompts,
-        textAfterPrompts: ctx.textAfterPrompts,
-        turboMode: ctx.turboMode,
-        enhancePrompt: ctx.enhancePrompt,
-        amountOfMotion: ctx.amountOfMotion,
-        motionMode: ctx.motionMode,
-        generationTypeMode: ctx.generationTypeMode,
-      };
-      
-      // Step 4: Apply all settings in sequence
-      const results: ApplySettingsService.ApplyResult[] = [];
-      
-      // Replace images first if requested
-      results.push(await ApplySettingsService.replaceImagesIfRequested(
-        settings,
-        replaceImages,
-        inputImages,
-        ctx.selectedShot,
-        ctx.projectId,
-        ctx.simpleFilteredImages,
-        ctx.addImageToShotMutation,
-        ctx.removeImageFromShotMutation
-      ));
-      
-      // CRITICAL: Reload shotGenerations if images were replaced
-      if (replaceImages && inputImages.length > 0 && ctx.selectedShot?.id) {
-
-        try {
-          // Invalidate cache using centralized hook
-          invalidateGenerationsSync(queryClient, ctx.selectedShot.id, {
-            reason: 'apply-settings-from-task',
-            scope: 'all'
-          });
-        } catch (invalidateError) {
-          console.error('[ApplySettings] ❌ Error during query invalidation:', invalidateError);
-          throw invalidateError;
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        await ctx.loadPositions({ silent: true });
-
-        // Query DB for fresh data
-        const { data: freshGens, error: freshGensError } = await supabase
-          .from('shot_generations')
-          .select(`
-            id,
-            timeline_frame,
-            metadata,
-            generation:generations!shot_generations_generation_id_generations_id_fk(id, type, location)
-          `)
-          .eq('shot_id', ctx.selectedShot.id)
-          .not('timeline_frame', 'is', null)
-          .order('timeline_frame', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: true });
-
-        if (freshGensError) {
-          console.error('[ApplySettings] Error fetching fresh data:', freshGensError);
-        } else {
-          pairPromptSnapshot = freshGens || [];
-        }
-      }
-
-      // Get snapshot if not loaded yet
-      if ((!pairPromptSnapshot || pairPromptSnapshot.length === 0) && ctx.selectedShot?.id) {
-        const { data: snapshotRows } = await supabase
-          .from('shot_generations')
-          .select(`id, timeline_frame, metadata, generation:generations!shot_generations_generation_id_generations_id_fk(id, type, location)`)
-          .eq('shot_id', ctx.selectedShot.id)
-          .not('timeline_frame', 'is', null)
-          .order('timeline_frame', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: true });
-        
-        pairPromptSnapshot = snapshotRows || [];
-      }
-
-      // Filter and sort snapshot
-      const preparedPairPromptTargets = pairPromptSnapshot
-        .filter(row => {
-          const generation = row.generation;
-          const isVideo = generation?.type === 'video' ||
-                          generation?.type === 'video_travel_output' ||
-                          generation?.location?.endsWith?.('.mp4');
-          return !isVideo;
-        })
-        .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
-      
-      // Step 5: Apply settings (using actual exported functions)
-
-      results.push(await ApplySettingsService.applyModelSettings(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyPromptSettings(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyGenerationSettings(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyModeSettings(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyAdvancedModeSettings(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyTextPromptAddons(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyMotionSettings(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyLoRAs(settings, applyContext));
-
-      results.push(await ApplySettingsService.applyStructureVideo(settings, applyContext, taskData));
-
-      // Apply pair prompts using frame positions
-      results.push(await ApplySettingsService.applyFramePositionsToExistingImages(
-        settings,
-        preparedPairPromptTargets,
-        ctx.selectedShot?.id || '',
-        ctx.projectId,
-        ctx.updatePairPromptsByIndex
-      ));
-      
-      // Force reload
-      if (ctx.selectedShot?.id) {
-        invalidateGenerationsSync(queryClient, ctx.selectedShot.id, {
-          reason: 'apply-settings-force-reload',
-          scope: 'all',
-          delayMs: 200
-        });
-      }
-      await new Promise(resolve => setTimeout(resolve, 200));
-      await ctx.loadPositions({ silent: true });
-
-    } catch (e) {
-      console.error('[ApplySettings] ❌ Failed to apply settings:', e);
+      await applySettingsFromTask(taskId, replaceImages, inputImages, ctx, queryClient);
+    } catch (error) {
+      console.error('[ApplySettings] Failed to apply settings:', error);
       toast.error('Failed to apply settings from task');
+      return;
     }
-  }, [queryClient]); // ✅ Only depends on queryClient (stable)
+  }, [queryClient]); // stable identity
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/shared/hooks/use-toast';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { isNotFoundError, isUniqueViolationError } from '@/shared/constants/supabaseErrors';
 
 interface UseShareGenerationResult {
@@ -186,7 +186,7 @@ export function useShareGeneration(
           });
           setShareCopied(true);
           setTimeout(() => setShareCopied(false), 2000);
-        } catch (clipboardError) {
+        } catch {
           toast({
             title: "Share found",
             description: "Click the copy button to copy the link",
@@ -289,7 +289,7 @@ export function useShareGeneration(
             };
 
           }
-        } catch (shotFetchError) { /* intentionally ignored */ }
+        } catch { /* intentionally ignored */ }
       }
 
       // Augment task data with cached_shot_data field
@@ -315,8 +315,8 @@ export function useShareGeneration(
       while (attempts < maxAttempts && !newSlug) {
         const candidateSlug = generateShareSlug(10);
 
-        const { data: newShare, error: insertError } = await supabase
-          .from('shared_generations')
+        const { data: newShare, error: insertError } = await (supabase
+          .from('shared_generations') as any)
           .insert({
             share_slug: candidateSlug,
             task_id: taskId || null,  // Optional - share works without task
@@ -383,7 +383,7 @@ export function useShareGeneration(
         });
         setShareCopied(true);
         setTimeout(() => setShareCopied(false), 2000);
-      } catch (clipboardError) {
+      } catch {
         toast({
           title: "Share created",
           description: "Click the copy button to copy the link",
@@ -393,12 +393,12 @@ export function useShareGeneration(
       handleError(error, {
         context: 'useShareGeneration',
         toastTitle: 'Something went wrong',
-        toastDescription: 'Please try again'
+        logData: { message: 'Please try again' }
       });
     } finally {
       setIsCreatingShare(false);
     }
-  }, [shareSlug, generationId, taskId, shotId, toast, options?.onShareCreated]);
+  }, [shareSlug, generationId, taskId, shotId, toast, options]);
 
   return {
     handleShare,
@@ -407,4 +407,3 @@ export function useShareGeneration(
     shareSlug
   };
 }
-

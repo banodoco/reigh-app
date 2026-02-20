@@ -1,6 +1,6 @@
 import { createTask, validateRequiredFields, TaskValidationError, processBatchResults } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { FalLoraConfig } from '@/shared/types/lora';
 
 /**
@@ -32,6 +32,7 @@ interface BatchZImageTurboI2ITaskParams {
   prompt?: string;
   strength?: number;
   enable_prompt_expansion?: boolean;
+  seed?: number;
   numImages: number;           // How many variations to generate (creates multiple tasks)
   loras?: FalLoraConfig[];
   shot_id?: string;
@@ -239,4 +240,3 @@ export async function createBatchZImageTurboI2ITasks(params: BatchZImageTurboI2I
 }
 
 // TaskValidationError is used internally - import from taskCreation.ts if needed externally
-

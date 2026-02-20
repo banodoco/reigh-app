@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useMemo } from 'react';
-import { ShotEditorActions } from '../state';
+import type { ShotEditorActions } from '../state/useShotEditorState';
 import { Shot, GenerationRow } from '@/types/shots';
 
 interface UseModeReadinessProps {
@@ -96,9 +96,7 @@ export function useModeReadiness({
         actions.setModeReady(false);
       }
     }
-    // Note: We intentionally DON'T include contextImages.length in deps
-    // to prevent mode flipping when cache updates temporarily clear images
-  }, [selectedShot?.id, actions]);  
+  }, [selectedShot?.id, actions, contextImages.length]);  
 
   // Compute readiness state
   const readinessState = useMemo(() => ({

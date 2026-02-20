@@ -1,7 +1,6 @@
 import { useRef, useMemo, useEffect } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
-import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { joinClipsSettings, JoinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { ActiveLora } from '@/shared/hooks/useLoraManager';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
@@ -17,6 +16,7 @@ export interface JoinSegmentsSettings extends JoinClipsSettings {
   selectedLoras: ActiveLora[];
   /** Whether to automatically stitch generated clips using Join Segments settings after batch generation */
   stitchAfterGenerate: boolean;
+  [key: string]: unknown;
 }
 
 /**
@@ -122,63 +122,70 @@ export function useJoinSegmentsSettings(
     enabled: !!shotId,
     debounceMs: 300,
   });
+  const {
+    settings,
+    status,
+    entityId,
+    isDirty,
+    error,
+    hasShotSettings,
+    updateField,
+    updateFields,
+    saveImmediate,
+    revert,
+  } = autoSave;
   
   // Save inherited settings to DB immediately if we have them
   // CRITICAL: Only save if the shot doesn't already have settings in DB
   useEffect(() => {
-    if (inheritedSettings && shotId && autoSave.status === 'ready') {
-      if (!autoSave.hasShotSettings) {
-        updateToolSettingsSupabase({
-          scope: 'shot',
-          id: shotId,
-          toolId: 'join-segments',
-          patch: inheritedSettings,
-        }, undefined, 'immediate').catch(err => {
+    if (inheritedSettings && shotId && status === 'ready') {
+      if (!hasShotSettings) {
+        saveImmediate(inheritedSettings).catch(err => {
           console.error('[useJoinSegmentsSettings] Failed to save inherited settings:', err);
         });
       }
     }
-  }, [inheritedSettings, shotId, autoSave.status, autoSave.hasShotSettings]);
+  }, [inheritedSettings, shotId, status, hasShotSettings, saveImmediate]);
   
   // Persist settings to localStorage for future inheritance
   useEffect(() => {
-    if (shotId && projectId && autoSave.status === 'ready' && autoSave.settings) {
+    if (shotId && projectId && status === 'ready' && settings) {
       try {
         // Project-specific key
         const projectStorageKey = STORAGE_KEYS.LAST_ACTIVE_JOIN_SEGMENTS_SETTINGS(projectId);
-        localStorage.setItem(projectStorageKey, JSON.stringify(autoSave.settings));
+        localStorage.setItem(projectStorageKey, JSON.stringify(settings));
         
         // Global key (for cross-project inheritance)
         // Clear prompt when inheriting to new project (shot-specific)
-        const globalSettings = { ...autoSave.settings, prompt: '', negativePrompt: '' };
+        const globalSettings = { ...settings, prompt: '', negativePrompt: '' };
         localStorage.setItem(STORAGE_KEYS.GLOBAL_LAST_ACTIVE_JOIN_SEGMENTS_SETTINGS, JSON.stringify(globalSettings));
       } catch (e) {
         handleError(e, { context: 'useJoinSegmentsSettings', showToast: false });
       }
     }
-  }, [autoSave.settings, shotId, projectId, autoSave.status]);
+  }, [settings, shotId, projectId, status]);
   
   // Memoize return value
   return useMemo(() => ({
-    settings: autoSave.settings,
-    status: autoSave.status as 'idle' | 'loading' | 'ready' | 'saving' | 'error',
-    shotId: autoSave.entityId,
-    isDirty: autoSave.isDirty,
-    error: autoSave.error,
-    updateField: autoSave.updateField,
-    updateFields: autoSave.updateFields,
-    save: autoSave.saveImmediate,
-    saveImmediate: autoSave.saveImmediate,
-    revert: autoSave.revert,
+    settings,
+    status: status as 'idle' | 'loading' | 'ready' | 'saving' | 'error',
+    shotId: entityId,
+    isDirty,
+    error,
+    updateField,
+    updateFields,
+    save: saveImmediate,
+    saveImmediate,
+    revert,
   }), [
-    autoSave.settings,
-    autoSave.status,
-    autoSave.entityId,
-    autoSave.isDirty,
-    autoSave.error,
-    autoSave.updateField,
-    autoSave.updateFields,
-    autoSave.saveImmediate,
-    autoSave.revert,
+    settings,
+    status,
+    entityId,
+    isDirty,
+    error,
+    updateField,
+    updateFields,
+    saveImmediate,
+    revert,
   ]);
 }

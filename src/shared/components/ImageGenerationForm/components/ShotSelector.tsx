@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { PlusCircle, X } from "lucide-react";
+import type { Shot } from "@/types/shots";
 import { 
   Tooltip, 
   TooltipContent, 
@@ -9,12 +10,6 @@ import {
   TooltipTrigger 
 } from "@/shared/components/ui/tooltip";
 import { SectionHeader } from "./SectionHeader";
-
-interface Shot {
-  id: string;
-  name: string;
-  created_at?: string;
-}
 
 interface ShotSelectorProps {
   shots: Shot[] | undefined;
@@ -77,7 +72,11 @@ export const ShotSelector: React.FC<ShotSelectorProps> = ({
         <div className="relative flex-1">
           <Select
             value={associatedShotId || "none"}
-            onValueChange={onChangeShot}
+            onValueChange={(value) => {
+              if (value != null) {
+                onChangeShot(value);
+              }
+            }}
             disabled={isGenerating}
           >
             <SelectTrigger variant="retro" id="associatedShot" className="inline-flex w-full min-w-[200px]">

@@ -21,6 +21,7 @@ import { useVideoTrimming, useTrimSave } from '@/shared/components/VideoTrimEdit
 import { useVideoEditing } from './useVideoEditing';
 import { useVideoEnhance, type VideoEnhanceSettings } from './useVideoEnhance';
 import { useVideoEditModeHandlers } from './useVideoEditModeHandlers';
+import type { TrimState } from '@/shared/types/videoTrim';
 
 interface UseLightboxVideoModeProps {
   // Core
@@ -44,7 +45,7 @@ interface UseLightboxVideoModeProps {
   // Video edit sub-mode state - pass both the state and the wrapper
   videoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
   // The wrapper that handles both local state and persistence - created by the caller
-  setVideoEditSubMode: (mode: 'trim' | 'replace' | 'regenerate' | null) => void;
+  setVideoEditSubMode: (mode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null) => void;
 
   // Persisted settings (only used by handlers, not for wrapper creation)
   persistedVideoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
@@ -52,7 +53,7 @@ interface UseLightboxVideoModeProps {
 
   // Enhance settings
   enhanceSettings: VideoEnhanceSettings;
-  setEnhanceSettings: (settings: VideoEnhanceSettings) => void;
+  setEnhanceSettings: (updates: Partial<VideoEnhanceSettings>) => void;
 
   // Callbacks
   onTrimModeChange?: (isTrimMode: boolean) => void;
@@ -64,11 +65,7 @@ interface UseLightboxVideoModeReturn {
   trimVideoRef: React.RefObject<HTMLVideoElement>;
 
   // Trim state
-  trimState: {
-    startTrim: number;
-    endTrim: number;
-    videoDuration: number;
-  };
+  trimState: TrimState;
   trimCurrentTime: number;
   setTrimCurrentTime: (time: number) => void;
   trimmedDuration: number;
@@ -93,8 +90,8 @@ interface UseLightboxVideoModeReturn {
   // Video enhance
   videoEnhance: {
     settings: VideoEnhanceSettings;
-    updateSetting: <K extends keyof VideoEnhanceSettings>(key: K, value: VideoEnhanceSettings[K]) => void;
-    handleGenerate: () => void;
+    updateSetting: (key: keyof VideoEnhanceSettings, value: VideoEnhanceSettings[keyof VideoEnhanceSettings]) => void;
+    handleGenerate: () => Promise<void>;
     isGenerating: boolean;
     generateSuccess: boolean;
     canSubmit: boolean;
@@ -114,6 +111,121 @@ interface UseLightboxVideoModeReturn {
   isInVideoEditMode: boolean;
   isVideoTrimModeActive: boolean;
   isVideoEditModeActive: boolean;
+}
+
+interface UseTrimPlaybackGuardInput {
+  trimVideoRef: React.RefObject<HTMLVideoElement>;
+  trimState: UseLightboxVideoModeReturn['trimState'];
+  isVideoTrimMode: boolean;
+}
+
+interface BuildLightboxVideoModeReturnInput {
+  trimVideoRef: UseLightboxVideoModeReturn['trimVideoRef'];
+  trimState: UseLightboxVideoModeReturn['trimState'];
+  trimCurrentTime: UseLightboxVideoModeReturn['trimCurrentTime'];
+  setTrimCurrentTime: UseLightboxVideoModeReturn['setTrimCurrentTime'];
+  trimmedDuration: UseLightboxVideoModeReturn['trimmedDuration'];
+  hasTrimChanges: UseLightboxVideoModeReturn['hasTrimChanges'];
+  setStartTrim: UseLightboxVideoModeReturn['setStartTrim'];
+  setEndTrim: UseLightboxVideoModeReturn['setEndTrim'];
+  resetTrim: UseLightboxVideoModeReturn['resetTrim'];
+  setVideoDuration: UseLightboxVideoModeReturn['setVideoDuration'];
+  isSavingTrim: UseLightboxVideoModeReturn['isSavingTrim'];
+  trimSaveProgress: UseLightboxVideoModeReturn['trimSaveProgress'];
+  trimSaveError: UseLightboxVideoModeReturn['trimSaveError'];
+  trimSaveSuccess: UseLightboxVideoModeReturn['trimSaveSuccess'];
+  saveTrimmedVideo: UseLightboxVideoModeReturn['saveTrimmedVideo'];
+  videoEditing: UseLightboxVideoModeReturn['videoEditing'];
+  videoEnhance: ReturnType<typeof useVideoEnhance>;
+  modeHandlers: ReturnType<typeof useVideoEditModeHandlers>;
+  isVideoTrimMode: UseLightboxVideoModeReturn['isVideoTrimMode'];
+  isInVideoEditMode: UseLightboxVideoModeReturn['isInVideoEditMode'];
+  isVideoTrimModeActive: UseLightboxVideoModeReturn['isVideoTrimModeActive'];
+  isVideoEditModeActive: UseLightboxVideoModeReturn['isVideoEditModeActive'];
+}
+
+function useTrimPlaybackGuard({ trimVideoRef, trimState, isVideoTrimMode }: UseTrimPlaybackGuardInput): void {
+  useEffect(() => {
+    const video = trimVideoRef.current;
+    if (!video || !isVideoTrimMode) {
+      return;
+    }
+
+    const keepStart = trimState.startTrim;
+    const keepEnd = trimState.videoDuration - trimState.endTrim;
+    if (video.currentTime < keepStart || video.currentTime >= keepEnd) {
+      video.currentTime = keepStart;
+    }
+
+    if (video.paused) {
+      video.play().catch(() => {});
+    }
+  }, [isVideoTrimMode, trimState.startTrim, trimState.endTrim, trimState.videoDuration, trimVideoRef]);
+}
+
+function buildLightboxVideoModeReturn(input: BuildLightboxVideoModeReturnInput): UseLightboxVideoModeReturn {
+  const {
+    trimVideoRef,
+    trimState,
+    trimCurrentTime,
+    setTrimCurrentTime,
+    trimmedDuration,
+    hasTrimChanges,
+    setStartTrim,
+    setEndTrim,
+    resetTrim,
+    setVideoDuration,
+    isSavingTrim,
+    trimSaveProgress,
+    trimSaveError,
+    trimSaveSuccess,
+    saveTrimmedVideo,
+    videoEditing,
+    videoEnhance,
+    modeHandlers,
+    isVideoTrimMode,
+    isInVideoEditMode,
+    isVideoTrimModeActive,
+    isVideoEditModeActive,
+  } = input;
+
+  return {
+    trimVideoRef,
+    trimState,
+    trimCurrentTime,
+    setTrimCurrentTime,
+    trimmedDuration,
+    hasTrimChanges,
+    setStartTrim,
+    setEndTrim,
+    resetTrim,
+    setVideoDuration,
+    isSavingTrim,
+    trimSaveProgress,
+    trimSaveError,
+    trimSaveSuccess,
+    saveTrimmedVideo,
+    videoEditing,
+    videoEnhance: {
+      settings: videoEnhance.settings,
+      updateSetting: videoEnhance.updateSetting,
+      handleGenerate: videoEnhance.handleGenerate,
+      isGenerating: videoEnhance.isGenerating,
+      generateSuccess: videoEnhance.generateSuccess,
+      canSubmit: videoEnhance.canSubmit,
+    },
+    handleEnterVideoEditMode: modeHandlers.handleEnterVideoEditMode,
+    handleExitVideoEditMode: modeHandlers.handleExitVideoEditMode,
+    handleEnterVideoTrimMode: modeHandlers.handleEnterVideoTrimMode,
+    handleEnterVideoReplaceMode: modeHandlers.handleEnterVideoReplaceMode,
+    handleEnterVideoRegenerateMode: modeHandlers.handleEnterVideoRegenerateMode,
+    handleEnterVideoEnhanceMode: modeHandlers.handleEnterVideoEnhanceMode,
+    handleExitVideoTrimMode: modeHandlers.handleExitVideoTrimMode,
+    isVideoTrimMode,
+    isInVideoEditMode,
+    isVideoTrimModeActive,
+    isVideoEditModeActive,
+  };
 }
 
 export function useLightboxVideoMode(props: UseLightboxVideoModeProps): UseLightboxVideoModeReturn {
@@ -160,22 +272,7 @@ export function useLightboxVideoMode(props: UseLightboxVideoModeProps): UseLight
   const isVideoTrimMode = videoEditSubMode === 'trim';
   const isInVideoEditMode = videoEditSubMode !== null;
 
-  // Keep video playing within constrained region when trim values change
-  useEffect(() => {
-    const video = trimVideoRef.current;
-    if (!video || !isVideoTrimMode) return;
-
-    const keepStart = trimState.startTrim;
-    const keepEnd = trimState.videoDuration - trimState.endTrim;
-
-    if (video.currentTime < keepStart || video.currentTime >= keepEnd) {
-      video.currentTime = keepStart;
-    }
-
-    if (video.paused) {
-      video.play().catch(() => {});
-    }
-  }, [isVideoTrimMode, trimState.startTrim, trimState.endTrim, trimState.videoDuration]);
+  useTrimPlaybackGuard({ trimVideoRef, trimState, isVideoTrimMode });
 
   // Trim save hook
   // Use getGenerationId to get actual generations.id
@@ -217,7 +314,7 @@ export function useLightboxVideoMode(props: UseLightboxVideoModeProps): UseLight
 
   // Video enhance hook
   const videoEnhance = useVideoEnhance({
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? undefined,
     videoUrl: effectiveVideoUrl,
     shotId,
     generationId: actualGenerationId || undefined,
@@ -237,70 +334,31 @@ export function useLightboxVideoMode(props: UseLightboxVideoModeProps): UseLight
     resetTrim,
     setVideoDuration,
   });
-  const {
-    handleEnterVideoEditMode,
-    handleExitVideoEditMode,
-    handleEnterVideoTrimMode,
-    handleEnterVideoReplaceMode,
-    handleEnterVideoRegenerateMode,
-    handleEnterVideoEnhanceMode,
-    handleExitVideoTrimMode,
-  } = videoEditModeHandlers;
-
-  // Track if we're in video edit modes
   const isVideoTrimModeActive = isVideo && isVideoTrimMode;
   const isVideoEditModeActive = isVideo && videoEditing.isVideoEditMode;
 
-  return {
-    // Refs
+  return buildLightboxVideoModeReturn({
     trimVideoRef,
-
-    // Trim state
     trimState,
     trimCurrentTime,
     setTrimCurrentTime,
     trimmedDuration,
     hasTrimChanges,
-
-    // Trim actions
     setStartTrim,
     setEndTrim,
     resetTrim,
     setVideoDuration,
-
-    // Trim save
     isSavingTrim,
     trimSaveProgress,
     trimSaveError,
     trimSaveSuccess,
     saveTrimmedVideo,
-
-    // Video editing
     videoEditing,
-
-    // Video enhance
-    videoEnhance: {
-      settings: videoEnhance.settings,
-      updateSetting: videoEnhance.updateSetting,
-      handleGenerate: videoEnhance.handleGenerate,
-      isGenerating: videoEnhance.isGenerating,
-      generateSuccess: videoEnhance.generateSuccess,
-      canSubmit: videoEnhance.canSubmit,
-    },
-
-    // Mode handlers
-    handleEnterVideoEditMode,
-    handleExitVideoEditMode,
-    handleEnterVideoTrimMode,
-    handleEnterVideoReplaceMode,
-    handleEnterVideoRegenerateMode,
-    handleEnterVideoEnhanceMode,
-    handleExitVideoTrimMode,
-
-    // Derived states
+    videoEnhance,
+    modeHandlers: videoEditModeHandlers,
     isVideoTrimMode,
     isInVideoEditMode,
     isVideoTrimModeActive,
     isVideoEditModeActive,
-  };
+  });
 }

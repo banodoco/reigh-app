@@ -112,11 +112,12 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // For ShotImageManager images, id is shot_generations.id but generation_id is the actual generation ID
   const taskIdFromMetadata = image.metadata?.taskId as string | undefined;
   const actualGenerationId = getGenerationId(image);
-  const { data: taskIdMapping } = useTaskFromUnifiedCache(actualGenerationId);
+  const generationIdForActions = actualGenerationId || image.id;
+  const { data: taskIdMapping } = useTaskFromUnifiedCache(actualGenerationId ?? '');
   const taskIdFromCache = typeof taskIdMapping?.taskId === 'string' ? taskIdMapping.taskId : null;
   const taskId: string | null = taskIdFromMetadata || taskIdFromCache;
 
-  const { data: taskData } = useGetTask(taskId);
+  const { data: taskData } = useGetTask(taskId ?? '');
 
   // Prefetch task data on mouse enter (desktop only)
   const handleMouseEnter = useCallback(() => {
@@ -131,7 +132,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // Only use the actual task type name (like 'wan_2_2_t2i'), not tool_type (like 'image-generation')
   // tool_type and task type name are different concepts - tool_type is a broader category
   const taskType = taskData?.taskType;
-  const { data: taskTypeInfo } = useTaskType(taskType || null);
+  const { data: taskTypeInfo } = useTaskType(taskType || '');
   
   // Determine if this should show task details (GenerationDetails)
   // Use content_type from task_types table. Fallback to legacy tool_type for video travel.
@@ -162,7 +163,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     handleQuickCreateAndAdd,
     handleQuickCreateSuccess,
   } = useQuickShotCreate({
-    generationId: image.id,
+    generationId: generationIdForActions,
     generationPreview: {
       imageUrl: image.url,
       thumbUrl: image.thumbUrl,
@@ -209,9 +210,10 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // Shot actions with retry logic
   const { addToShot, addToShotWithoutPosition } = useShotActions({
     imageId: image.id,
+    generationId: generationIdForActions,
     imageUrl: image.url,
-    thumbUrl: image.thumbUrl,
-    displayUrl,
+    thumbUrl: image.thumbUrl ?? image.url,
+    displayUrl: displayUrl || image.url,
     selectedShotId: selectedShotIdLocal,
     isMobile,
     onAddToLastShot,
@@ -233,7 +235,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
       ? (mobilePopoverOpenImageId === image.id)
       : isInfoOpen;
   }, [image.metadata, isMobile, mobilePopoverOpenImageId, image.id, isInfoOpen]);
-  const isCurrentDeleting = isDeleting;
+  const isCurrentDeleting = isDeleting === true || isDeleting === image.id;
   const imageKey = image.id || `image-${actualDisplayUrl}-${index}`;
 
 
@@ -528,7 +530,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
               setSelectedShotIdLocal={setSelectedShotIdLocal}
               setLastAffectedShotId={setLastAffectedShotId}
               addingToShotImageId={addingToShotImageId}
-              addingToShotWithoutPositionImageId={addingToShotWithoutPositionImageId}
+              addingToShotWithoutPositionImageId={addingToShotWithoutPositionImageId ?? null}
               showTickForImageId={showTickForImageId}
               isAlreadyPositionedInSelectedShot={isAlreadyPositionedInSelectedShot}
               isAlreadyAssociatedWithoutPosition={isAlreadyAssociatedWithoutPosition}
@@ -538,7 +540,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
               onCreateShot={onCreateShot}
               handleQuickCreateAndAdd={handleQuickCreateAndAdd}
               handleQuickCreateSuccess={handleQuickCreateSuccess}
-              onNavigateToShot={(shot) => navigateToShot(shot as { id: string; name: string }, { scrollToTop: true })}
+              onNavigateToShot={(shot) => navigateToShot(shot, { scrollToTop: true })}
               onAddToShot={addToShot}
               onAddToShotWithoutPosition={addToShotWithoutPosition}
             />
@@ -586,8 +588,8 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
 
               {/* Share Button */}
               {showShare && taskId && (
-                <TooltipProvider>
-                  <Tooltip delayDuration={300}>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="secondary"
@@ -650,7 +652,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
           onClose={() => setIsCreateShotModalOpen(false)}
           onSubmit={handleCreateShot}
           isLoading={isCreatingShot}
-          projectId={selectedProjectId}
+          projectId={selectedProjectId ?? undefined}
         />
       )}
     </React.Fragment>
@@ -663,7 +665,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
           onClose={() => setIsCreateShotModalOpen(false)}
           onSubmit={handleCreateShot}
           isLoading={isCreatingShot}
-          projectId={selectedProjectId}
+          projectId={selectedProjectId ?? undefined}
         />
       )}
     </DraggableImage>

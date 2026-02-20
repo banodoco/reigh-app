@@ -32,12 +32,12 @@ export function useHeroVideo(isMobile: boolean) {
     const attemptPlay = async () => {
       try {
         await video.play();
-      } catch (e) {
+      } catch {
         const playOnInteraction = async () => {
           try {
             video.muted = true;
             await video.play();
-          } catch (err) { /* intentionally ignored */ }
+          } catch { /* intentionally ignored */ }
           document.removeEventListener('touchstart', playOnInteraction);
           document.removeEventListener('click', playOnInteraction);
         };

@@ -7,7 +7,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { hasLoadedImage, markImageLoaded } from '@/shared/lib/preloading';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { createSessionId } from '@/shared/lib/sessionId';
 
 type ImagePhase = 'idle' | 'thumb' | 'loadingFull' | 'full' | 'error';
 
@@ -79,7 +80,7 @@ export const useProgressiveImage = (
 
   // Helper function to create new session
   const createSession = useCallback((): LoadingSession => {
-    const sessionId = `prog-img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = createSessionId('prog-img');
     const abortController = new AbortController();
     const timeouts: (NodeJS.Timeout | number)[] = [];
     
@@ -359,6 +360,7 @@ export const useProgressiveImage = (
     loadImage,
     cancelActiveSession,
     createSession,
+    isSessionActive,
     safeSetState
   ]);
 

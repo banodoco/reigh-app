@@ -15,8 +15,8 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
-import { buildTaskParams } from '@/shared/components/segmentSettingsUtils';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { buildTaskParams, type SegmentSettings } from '@/shared/components/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -48,7 +48,7 @@ interface StructureVideoInputs {
  */
 export function buildStructureVideoForTask(
   inputs: StructureVideoInputs,
-  getSettingsForTaskCreation: () => { structureTreatment?: string; structureMotionStrength?: number; structureUni3cEndPercent?: number; [key: string]: unknown },
+  getSettingsForTaskCreation: () => Pick<SegmentSettings, 'structureTreatment' | 'structureMotionStrength' | 'structureUni3cEndPercent'>,
 ): StructureVideoConfig | null {
   const { structureVideoUrl, structureVideoType, structureVideoFrameRange, structureVideoDefaults } = inputs;
   if (!structureVideoUrl || !structureVideoType || !structureVideoFrameRange) {
@@ -71,19 +71,7 @@ export function buildStructureVideoForTask(
 // Segment Task Submission
 // ============================================================================
 
-/** Settings from getSettingsForTaskCreation() */
-interface EffectiveSettings {
-  prompt?: string;
-  negativePrompt?: string;
-  numFrames?: number;
-  textBeforePrompts?: string;
-  textAfterPrompts?: string;
-  structureTreatment?: string;
-  structureMotionStrength?: number;
-  structureUni3cEndPercent?: number;
-  makePrimaryVariant?: boolean;
-  [key: string]: unknown;
-}
+type EffectiveSettings = SegmentSettings;
 
 /** Image context for the segment task */
 interface SegmentTaskImageContext {
@@ -116,7 +104,7 @@ interface SubmitSegmentTaskInput {
   /** Get effective settings from the form hook */
   getSettings: () => EffectiveSettings;
   /** Save persisted settings before task creation */
-  saveSettings: () => Promise<void>;
+  saveSettings: () => Promise<boolean | void>;
   /** Whether to save settings (requires pairShotGenerationId) */
   shouldSaveSettings: boolean;
   /** Current enhance prompt ref value */
@@ -136,6 +124,173 @@ interface SubmitSegmentTaskInput {
   queryClient: QueryClient;
   /** Optional callback when generation starts (for optimistic UI) */
   onGenerateStarted?: () => void;
+}
+
+type IndividualTravelSegmentTaskParams = Parameters<typeof createIndividualTravelSegmentTask>[0];
+type BuildTaskParams = (prompt: string, enhancedPromptParam?: string) => IndividualTravelSegmentTaskParams;
+
+interface SubmitSegmentRuntime {
+  errorContext: string;
+  shouldSaveSettings: boolean;
+  saveSettings: () => Promise<boolean | void>;
+  effectiveSettings: EffectiveSettings;
+  task: SegmentTaskContext;
+  queryClient: QueryClient;
+  buildParams: BuildTaskParams;
+}
+
+function buildSubmitParamsBuilder(
+  effectiveSettings: EffectiveSettings,
+  task: SegmentTaskContext,
+  images: SegmentTaskImageContext,
+): BuildTaskParams {
+  return (prompt: string, enhancedPromptParam?: string) => {
+    const params = buildTaskParams(
+      { ...effectiveSettings, prompt },
+      {
+        projectId: task.projectId,
+        shotId: task.shotId,
+        generationId: task.generationId,
+        childGenerationId: task.childGenerationId,
+        segmentIndex: task.segmentIndex,
+        startImageUrl: images.startImageUrl ?? '',
+        endImageUrl: images.endImageUrl,
+        startImageGenerationId: images.startImageGenerationId,
+        endImageGenerationId: images.endImageGenerationId,
+        startImageVariantId: images.startImageVariantId,
+        endImageVariantId: images.endImageVariantId,
+        pairShotGenerationId: task.pairShotGenerationId,
+        projectResolution: task.projectResolution,
+        ...(enhancedPromptParam ? { enhancedPrompt: enhancedPromptParam } : {}),
+        structureVideo: task.structureVideo,
+      },
+    );
+    return params as unknown as IndividualTravelSegmentTaskParams;
+  };
+}
+
+function applyPromptAffixes(settings: EffectiveSettings, prompt: string): string {
+  const beforeText = settings.textBeforePrompts?.trim() || '';
+  const afterText = settings.textAfterPrompts?.trim() || '';
+  return [beforeText, prompt.trim(), afterText].filter(Boolean).join(' ');
+}
+
+async function createTaskOrThrow(taskParams: ReturnType<BuildTaskParams>): Promise<void> {
+  const result = await createIndividualTravelSegmentTask(taskParams);
+  if (!result.task_id) {
+    throw new Error(result.error || 'Failed to create task');
+  }
+}
+
+async function cleanupSubmission(
+  queryClient: QueryClient,
+  removeIncomingTask: (id: string) => void,
+  incomingTaskId: string,
+): Promise<void> {
+  await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
+  await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+  removeIncomingTask(incomingTaskId);
+}
+
+async function saveEnhancedPromptMetadata(
+  task: SegmentTaskContext,
+  queryClient: QueryClient,
+  enhancedPromptResult: string,
+  promptToEnhance: string,
+  basePrompt: string,
+): Promise<void> {
+  if (!task.pairShotGenerationId || enhancedPromptResult === promptToEnhance) {
+    return;
+  }
+
+  const pairShotGenerationId = task.pairShotGenerationId;
+  const { data: current, error: fetchError } = await supabase
+    .from('shot_generations')
+    .select('metadata')
+    .eq('id', pairShotGenerationId)
+    .single();
+
+  if (fetchError) {
+    handleError(fetchError, { context: 'submitSegmentTask.fetchMetadata' });
+    return;
+  }
+
+  const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
+  const { error: updateError } = await supabase
+    .from('shot_generations')
+    .update({
+      metadata: {
+        ...currentMetadata,
+        enhanced_prompt: enhancedPromptResult,
+        base_prompt_for_enhancement: basePrompt,
+      },
+    })
+    .eq('id', pairShotGenerationId);
+
+  if (updateError) {
+    handleError(updateError, { context: 'submitSegmentTask.saveEnhancedPrompt' });
+    return;
+  }
+
+  queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(pairShotGenerationId) });
+}
+
+async function maybeSaveSettings(runtime: SubmitSegmentRuntime): Promise<void> {
+  if (runtime.shouldSaveSettings) {
+    await runtime.saveSettings();
+  }
+}
+
+async function submitStandardSegmentTask(runtime: SubmitSegmentRuntime): Promise<void> {
+  await maybeSaveSettings(runtime);
+  const finalPrompt = applyPromptAffixes(runtime.effectiveSettings, runtime.effectiveSettings.prompt?.trim() || '');
+  const taskParams = runtime.buildParams(finalPrompt);
+  await createTaskOrThrow(taskParams);
+}
+
+async function enhanceSegmentPrompt(
+  runtime: SubmitSegmentRuntime,
+  promptToEnhance: string,
+  defaultNumFrames: number,
+): Promise<string> {
+  const { data: enhanceResult, error: enhanceError } = await supabase.functions.invoke('ai-prompt', {
+    body: {
+      task: 'enhance_segment_prompt',
+      prompt: promptToEnhance,
+      temperature: 0.7,
+      numFrames: runtime.effectiveSettings.numFrames || defaultNumFrames,
+    },
+  });
+
+  if (enhanceError) {
+    handleError(enhanceError, { context: runtime.errorContext });
+  }
+
+  return enhanceResult?.enhanced_prompt?.trim() || promptToEnhance;
+}
+
+async function submitEnhancedSegmentTask(
+  runtime: SubmitSegmentRuntime,
+  promptToEnhance: string,
+  defaultNumFrames: number,
+): Promise<void> {
+  await maybeSaveSettings(runtime);
+
+  const enhancedPromptResult = await enhanceSegmentPrompt(runtime, promptToEnhance, defaultNumFrames);
+  const originalPrompt = runtime.effectiveSettings.prompt?.trim() || '';
+  const originalPromptWithAffixes = applyPromptAffixes(runtime.effectiveSettings, originalPrompt);
+  const enhancedPromptWithAffixes = applyPromptAffixes(runtime.effectiveSettings, enhancedPromptResult);
+
+  await saveEnhancedPromptMetadata(
+    runtime.task,
+    runtime.queryClient,
+    enhancedPromptResult,
+    promptToEnhance,
+    originalPrompt,
+  );
+
+  const taskParams = runtime.buildParams(originalPromptWithAffixes, enhancedPromptWithAffixes);
+  await createTaskOrThrow(taskParams);
 }
 
 /**
@@ -163,6 +318,7 @@ export function submitSegmentTask(input: SubmitSegmentTaskInput): void {
 
   const effectiveSettings = getSettings();
   const promptToEnhance = enhancedPrompt?.trim() || effectiveSettings.prompt?.trim() || '';
+  const buildParams = buildSubmitParamsBuilder(effectiveSettings, task, images);
 
   // Add placeholder for immediate feedback
   const incomingTaskId = addIncomingTask({
@@ -173,127 +329,28 @@ export function submitSegmentTask(input: SubmitSegmentTaskInput): void {
   // Notify parent for optimistic UI
   onGenerateStarted?.();
 
-  // Build the task params builder closure (shared between both paths)
-  const buildParams = (prompt: string, enhancedPromptParam?: string) => {
-    return buildTaskParams(
-      { ...effectiveSettings, prompt },
-      {
-        projectId: task.projectId,
-        shotId: task.shotId,
-        generationId: task.generationId,
-        childGenerationId: task.childGenerationId,
-        segmentIndex: task.segmentIndex,
-        startImageUrl: images.startImageUrl,
-        endImageUrl: images.endImageUrl,
-        startImageGenerationId: images.startImageGenerationId,
-        endImageGenerationId: images.endImageGenerationId,
-        startImageVariantId: images.startImageVariantId,
-        endImageVariantId: images.endImageVariantId,
-        pairShotGenerationId: task.pairShotGenerationId,
-        projectResolution: task.projectResolution,
-        ...(enhancedPromptParam ? { enhancedPrompt: enhancedPromptParam } : {}),
-        structureVideo: task.structureVideo,
-      }
-    );
-  };
-
-  const cleanup = async () => {
-    await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-    await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
-    removeIncomingTask(incomingTaskId);
+  const runtime: SubmitSegmentRuntime = {
+    errorContext,
+    shouldSaveSettings,
+    saveSettings,
+    effectiveSettings,
+    task,
+    queryClient,
+    buildParams,
   };
 
   // Fire and forget - run in background
-  if (shouldEnhance && promptToEnhance) {
-    // Enhanced prompt path
-    (async () => {
-      try {
-        if (shouldSaveSettings) await saveSettings();
-
-        // 1. Enhance prompt via edge function
-        const { data: enhanceResult, error: enhanceError } = await supabase.functions.invoke('ai-prompt', {
-          body: {
-            task: 'enhance_segment_prompt',
-            prompt: promptToEnhance,
-            temperature: 0.7,
-            numFrames: effectiveSettings.numFrames || defaultNumFrames,
-          },
-        });
-
-        if (enhanceError) {
-          handleError(enhanceError, { context: errorContext });
-        }
-
-        const enhancedPromptResult = enhanceResult?.enhanced_prompt?.trim() || promptToEnhance;
-
-        // 2. Apply before/after text
-        const beforeText = effectiveSettings.textBeforePrompts?.trim() || '';
-        const afterText = effectiveSettings.textAfterPrompts?.trim() || '';
-        const originalPromptWithPrefixes = [beforeText, effectiveSettings.prompt?.trim() || '', afterText].filter(Boolean).join(' ');
-        const enhancedPromptWithPrefixes = [beforeText, enhancedPromptResult, afterText].filter(Boolean).join(' ');
-
-        // 3. Store enhanced prompt in metadata
-        if (task.pairShotGenerationId && enhancedPromptResult !== promptToEnhance) {
-          const { data: current, error: fetchError } = await supabase
-            .from('shot_generations')
-            .select('metadata')
-            .eq('id', task.pairShotGenerationId)
-            .single();
-
-          if (!fetchError) {
-            const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
-            const { error: updateError } = await supabase
-              .from('shot_generations')
-              .update({
-                metadata: {
-                  ...currentMetadata,
-                  enhanced_prompt: enhancedPromptResult,
-                  base_prompt_for_enhancement: effectiveSettings.prompt?.trim() || '',
-                },
-              })
-              .eq('id', task.pairShotGenerationId);
-
-            if (updateError) {
-              handleError(updateError, { context: 'submitSegmentTask.saveEnhancedPrompt' });
-            }
-            queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(task.pairShotGenerationId) });
-          } else {
-            handleError(fetchError, { context: 'submitSegmentTask.fetchMetadata' });
-          }
-        }
-
-        // 4. Build & create task
-        const taskParams = buildParams(originalPromptWithPrefixes, enhancedPromptWithPrefixes);
-        const result = await createIndividualTravelSegmentTask(taskParams);
-        if (!result.task_id) throw new Error(result.error || 'Failed to create task');
-
-      } catch (error) {
-        handleError(error, { context: errorContext, toastTitle: 'Failed to create task' });
-      } finally {
-        await cleanup();
+  void (async () => {
+    try {
+      if (shouldEnhance && promptToEnhance) {
+        await submitEnhancedSegmentTask(runtime, promptToEnhance, defaultNumFrames);
+      } else {
+        await submitStandardSegmentTask(runtime);
       }
-    })();
-  } else {
-    // Standard submission (no enhancement)
-    (async () => {
-      try {
-        if (shouldSaveSettings) await saveSettings();
-
-        // Apply before/after text
-        const beforeText = effectiveSettings.textBeforePrompts?.trim() || '';
-        const afterText = effectiveSettings.textAfterPrompts?.trim() || '';
-        const basePrompt = effectiveSettings.prompt?.trim() || '';
-        const finalPrompt = [beforeText, basePrompt, afterText].filter(Boolean).join(' ');
-
-        const taskParams = buildParams(finalPrompt);
-        const result = await createIndividualTravelSegmentTask(taskParams);
-        if (!result.task_id) throw new Error(result.error || 'Failed to create task');
-
-      } catch (error) {
-        handleError(error, { context: errorContext, toastTitle: 'Failed to create task' });
-      } finally {
-        await cleanup();
-      }
-    })();
-  }
+    } catch (error) {
+      handleError(error, { context: errorContext, toastTitle: 'Failed to create task' });
+    } finally {
+      await cleanupSubmission(queryClient, removeIncomingTask, incomingTaskId);
+    }
+  })();
 }

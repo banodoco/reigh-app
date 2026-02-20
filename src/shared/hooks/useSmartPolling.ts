@@ -12,7 +12,7 @@ interface SmartPollingConfig {
   /**
    * The query key this polling config applies to
    */
-  queryKey: string[];
+  queryKey: readonly string[];
   
   /**
    * Minimum polling interval when realtime is working (default: 5 minutes)
@@ -101,6 +101,7 @@ function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
   const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const throttleTimeout = throttleTimeoutRef.current;
     // Subscribe to freshness manager updates
     const unsubscribe = dataFreshnessManager.subscribe(() => {
       // 🎯 OPTIMIZATION: Only re-render if the calculated polling interval actually changes
@@ -120,8 +121,8 @@ function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
 
     return () => {
       unsubscribe();
-      if (throttleTimeoutRef.current) {
-        clearTimeout(throttleTimeoutRef.current);
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
       }
     };
   }, [queryKeyString, debug]);
@@ -204,7 +205,7 @@ function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
  * By default, minInterval is set to false to allow polling to be completely disabled
  * when realtime is working. Pass minInterval: number if you want a fallback interval.
  */
-export function useSmartPollingConfig(queryKey: string[], debug = false) {
+export function useSmartPollingConfig(queryKey: readonly string[], debug = false) {
   // 🎯 NEW: Default to minInterval: false to allow full polling disable
   const { refetchInterval, staleTime } = useSmartPolling({ 
     queryKey, 

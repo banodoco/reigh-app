@@ -27,7 +27,7 @@ import Layout from './Layout'; // Import the new Layout component
 import { AppEnv } from '@/types/env';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { ToolErrorBoundary } from '@/shared/components/ToolErrorBoundary';
-import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL } from '@/integrations/supabase/config/env';
 
 // Determine the environment
 const currentEnv = (import.meta.env.VITE_APP_ENV?.toLowerCase() || AppEnv.WEB);
@@ -37,13 +37,24 @@ const LazyLoadingFallback = () => (
   <ReighLoading />
 );
 
-// Loader to redirect logged-in users from landing page to tools
-async function authRedirectLoader() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    return redirect('/tools/travel-between-images');
+// Read cached session from localStorage without acquiring navigator.locks.
+// Key format matches GoTrueClient: sb-${hostname[0]}-auth-token
+function hasStoredSession(): boolean {
+  try {
+    const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
+    const raw = localStorage.getItem(`sb-${projectRef}-auth-token`);
+    if (!raw) return false;
+    return !!(JSON.parse(raw) as { access_token?: string })?.access_token;
+  } catch {
+    return false;
   }
-  return null;
+}
+
+// Synchronous loader — no navigator.locks, no network request.
+// Layout handles the authoritative auth check; if the stored session is expired,
+// AuthContext will detect it and Layout will redirect back to /home.
+function authRedirectLoader() {
+  return hasStoredSession() ? redirect('/tools/travel-between-images') : null;
 }
 
 const router = createBrowserRouter([
@@ -177,5 +188,5 @@ const router = createBrowserRouter([
 ]);
 
 export function AppRoutes() {
-  return <RouterProvider router={router} />;
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 } 

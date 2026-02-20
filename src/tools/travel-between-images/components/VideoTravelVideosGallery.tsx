@@ -12,18 +12,19 @@ import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { MediaGallery, type GalleryFilterState } from '@/shared/components/MediaGallery';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
-import { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
+import { Shot } from '@/types/shots';
 
 // =============================================================================
 // PROP TYPES (grouped for clarity)
 // =============================================================================
 
 interface VideosQueryProps {
-  videosData: { items: GenerationRow[]; total: number } | undefined;
+  videosData: GenerationsPaginatedResponse | undefined;
   videosLoading: boolean;
   videosFetching: boolean;
   selectedProjectId: string | null | undefined;
-  projectAspectRatio: string | null | undefined;
+  projectAspectRatio: string | undefined;
   itemsPerPage: number;
   columnsPerRow?: number;
   shots: Shot[] | undefined;
@@ -37,10 +38,10 @@ interface VideosFiltersProps {
 }
 
 interface AddToShotProps {
-  targetShotIdForButton: string | undefined;
+  targetShotIdForButton: string | null | undefined;
   targetShotNameForButtonTooltip: string;
-  handleAddVideoToTargetShot: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  handleAddVideoToTargetShotWithoutPosition: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  handleAddVideoToTargetShot: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  handleAddVideoToTargetShotWithoutPosition: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
 }
 
 interface DeleteProps {
@@ -127,7 +128,7 @@ export const VideoTravelVideosGallery: React.FC<VideoTravelVideosGalleryProps> =
             count={skeletonCount}
             columns={SKELETON_COLUMNS[effectiveColumnsPerRow as keyof typeof SKELETON_COLUMNS] || SKELETON_COLUMNS[5]}
             showControls={true}
-            projectAspectRatio={projectAspectRatio}
+            projectAspectRatio={projectAspectRatio ?? undefined}
           />
         </div>
       </div>
@@ -143,7 +144,7 @@ export const VideoTravelVideosGallery: React.FC<VideoTravelVideosGalleryProps> =
           // Add to Shot functionality
           onAddToLastShot={handleAddVideoToTargetShot}
           onAddToLastShotWithoutPosition={handleAddVideoToTargetShotWithoutPosition}
-          lastShotId={targetShotIdForButton}
+          lastShotId={targetShotIdForButton ?? undefined}
           lastShotNameForTooltip={targetShotNameForButtonTooltip}
           currentToolType={TOOL_IDS.TRAVEL_BETWEEN_IMAGES}
           currentToolTypeName="Travel Between Images"

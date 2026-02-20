@@ -1,6 +1,6 @@
 // Network status integration can be added later if needed
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /**
  * ReconnectScheduler - Centralized manager for realtime reconnection intents

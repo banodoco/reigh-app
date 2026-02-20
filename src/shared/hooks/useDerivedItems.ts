@@ -13,9 +13,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { calculateDerivedCounts } from '@/shared/lib/generationTransformers';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
+import { calculateDerivedCountsSafe } from '@/shared/lib/generationTransformers';
 import { useSmartPollingConfig } from './useSmartPolling';
 import { EDIT_VARIANT_TYPES } from '@/shared/constants/variantTypes';
 
@@ -24,8 +24,8 @@ import { EDIT_VARIANT_TYPES } from '@/shared/constants/variantTypes';
  */
 export interface DerivedItem {
   id: string;
-  thumbUrl: string;
-  url: string;
+  thumbUrl: string | null;
+  url: string | null;
   createdAt: string;
   derivedCount: number;
   starred?: boolean;
@@ -35,13 +35,13 @@ export interface DerivedItem {
   itemType: 'generation' | 'variant';
 
   /** Variant-specific fields */
-  variantType?: string;
-  variantName?: string;
+  variantType?: string | null;
+  variantName?: string | null;
   /** When variant was first viewed (null = not viewed, shows NEW badge) */
   viewedAt?: string | null;
 
   /** Generation-specific fields */
-  basedOn?: string;
+  basedOn?: string | null;
   shot_id?: string;
   timeline_frame?: number | null;
   all_shot_associations?: Array<{ shot_id: string; timeline_frame: number | null; position: number | null }>;
@@ -103,7 +103,7 @@ async function fetchDerivedItems(
 
   // Use centralized function to count variants from both generations and generation_variants tables
   const generationIds = childGenerations.map(d => d.id);
-  const { derivedCounts } = await calculateDerivedCounts(generationIds);
+  const { derivedCounts } = await calculateDerivedCountsSafe(generationIds);
 
   // Normalize generations to DerivedItem format
   const normalizePosition = (timelineFrame: number | null | undefined) => {
@@ -175,10 +175,10 @@ export function useDerivedItems(
   enabled: boolean = true
 ) {
   // Smart polling so new edits appear immediately
-  const smartPollingConfig = useSmartPollingConfig(queryKeys.generations.derived(sourceGenerationId!));
+  const smartPollingConfig = useSmartPollingConfig(generationQueryKeys.derived(sourceGenerationId!));
 
   return useQuery<DerivedItem[], Error>({
-    queryKey: queryKeys.generations.derived(sourceGenerationId!),
+    queryKey: generationQueryKeys.derived(sourceGenerationId!),
     queryFn: () => fetchDerivedItems(sourceGenerationId),
     enabled: !!sourceGenerationId && enabled,
     gcTime: 5 * 60 * 1000, // 5 minutes

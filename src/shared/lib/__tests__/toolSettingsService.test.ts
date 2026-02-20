@@ -5,17 +5,16 @@ const mockMaybeSingle = vi.fn();
 const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
 const mockSelect = vi.fn(() => ({ eq: mockEq }));
 const mockFrom = vi.fn(() => ({ select: mockSelect }));
-const mockGetSession = vi.fn();
-const mockGetUser = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
-    auth: {
-      getSession: () => mockGetSession(),
-      getUser: () => mockGetUser(),
-    },
+    auth: {},
   },
+}));
+
+vi.mock('@/integrations/supabase/config/env', () => ({
+  SUPABASE_URL: 'https://testproject.supabase.co',
 }));
 
 vi.mock('@/tooling/toolDefaultsRegistry', () => ({
@@ -34,71 +33,99 @@ vi.mock('@/shared/lib/deepEqual', () => ({
 vi.mock('@/shared/lib/errorUtils', () => ({
   isCancellationError: (err: unknown) =>
     err instanceof DOMException && err.name === 'AbortError',
-  isAbortError: (err: unknown) =>
-    err instanceof Error && err.name === 'AbortError',
   getErrorMessage: (err: unknown) =>
     err instanceof Error ? err.message : String(err),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
   handleError: vi.fn(),
 }));
 
-import { getUserWithTimeout, fetchToolSettingsSupabase } from '../toolSettingsService';
+import { getUserWithTimeout, fetchToolSettingsSupabase, setCachedUserId, _resetCachedUserForTesting } from '../toolSettingsService';
+
+/** Helper: write a fake Supabase session to localStorage so readUserIdFromStorage works */
+function setStoredSession(userId: string | null) {
+  const key = 'sb-testproject-auth-token';
+  if (userId === null) {
+    localStorage.removeItem(key);
+  } else {
+    localStorage.setItem(key, JSON.stringify({ access_token: 'tok', user: { id: userId } }));
+  }
+}
 
 describe('toolSettingsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    localStorage.clear();
+    _resetCachedUserForTesting();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    localStorage.clear();
   });
 
   describe('getUserWithTimeout', () => {
-    it('returns cached user within cache window', async () => {
-      // First call to populate cache
-      mockGetSession.mockResolvedValueOnce({
-        data: { session: { user: { id: 'user-123' } } },
-      });
-
-      const result1 = await getUserWithTimeout();
-      expect(result1.data.user.id).toBe('user-123');
-
-      // Second call should use cache (no new getSession call)
-      mockGetSession.mockClear();
-      const result2 = await getUserWithTimeout();
-      expect(result2.data.user.id).toBe('user-123');
-      expect(mockGetSession).not.toHaveBeenCalled();
-    });
-
-    it('returns user from session', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: { user: { id: 'session-user' } } },
-      });
-
-      // Advance past cache
-      await vi.advanceTimersByTimeAsync(11000);
+    it('returns user from localStorage when cache is cold', async () => {
+      setStoredSession('user-from-storage');
 
       const result = await getUserWithTimeout();
-      expect(result.data.user.id).toBe('session-user');
+      expect(result.data.user?.id).toBe('user-from-storage');
+      expect(result.error).toBeNull();
     });
 
-    // Note: "falls back to getUser" test skipped — module-level cache
-    // persists between tests making isolated getUser fallback testing unreliable
+    it('returns cached user within cache window without re-reading localStorage', async () => {
+      setCachedUserId('cached-user');
+
+      // Remove from localStorage to confirm cache is used, not storage
+      localStorage.clear();
+
+      const result = await getUserWithTimeout();
+      expect(result.data.user?.id).toBe('cached-user');
+    });
+
+    it('re-reads localStorage when cache expires', async () => {
+      setCachedUserId('old-cached-user');
+
+      // Advance past 10s cache TTL
+      await vi.advanceTimersByTimeAsync(11_000);
+
+      // Update storage with new user (e.g. after re-login)
+      setStoredSession('fresh-user');
+
+      const result = await getUserWithTimeout();
+      expect(result.data.user?.id).toBe('fresh-user');
+    });
+
+    it('returns null user when no session in storage and cache is stale', async () => {
+      setCachedUserId('stale');
+      await vi.advanceTimersByTimeAsync(11_000);
+      // No session in localStorage
+
+      const result = await getUserWithTimeout();
+      expect(result.data.user).toBeNull();
+    });
+
+    it('seeds in-memory cache from localStorage read', async () => {
+      setStoredSession('storage-user');
+      await vi.advanceTimersByTimeAsync(11_000); // ensure cache is cold
+
+      await getUserWithTimeout(); // first call — reads from localStorage
+
+      // Second call — cache should be warm (localStorage not needed)
+      localStorage.clear();
+      const result = await getUserWithTimeout();
+      expect(result.data.user?.id).toBe('storage-user');
+    });
   });
 
   describe('fetchToolSettingsSupabase', () => {
     beforeEach(() => {
-      // Setup auth to return a user
-      mockGetSession.mockResolvedValue({
-        data: { session: { user: { id: 'test-user' } } },
-      });
+      setStoredSession('test-user');
     });
 
     it('returns defaults when no settings exist', async () => {
-      // All queries return null
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 
       const result = await fetchToolSettingsSupabase('test-tool', {});
@@ -111,12 +138,10 @@ describe('toolSettingsService', () => {
     });
 
     it('merges user settings over defaults', async () => {
-      // User has custom setting1
       mockMaybeSingle.mockResolvedValueOnce({
         data: { settings: { 'test-tool': { setting1: 'custom' } } },
         error: null,
       });
-      // Project query - no results
       mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
 
       const result = await fetchToolSettingsSupabase('test-tool', {});
@@ -138,41 +163,21 @@ describe('toolSettingsService', () => {
       ).rejects.toThrow();
     });
 
-    // Note: "reports hasShotSettings" and "throws on auth failure" tests skipped —
-    // module-level cache and single-flight deduplication make isolated testing unreliable
-
     it('skips project query when no projectId provided', async () => {
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 
       await fetchToolSettingsSupabase('test-tool', {});
 
-      // from() should be called for 'users' but not 'projects' or 'shots'
       const fromCalls = mockFrom.mock.calls.map((c: unknown) => c[0]);
       expect(fromCalls).toContain('users');
-      // We can't easily verify projects wasn't called since the mock pattern
-      // is shared, but the code uses Promise.resolve for missing context
     });
 
-    it('returns defaults on auth timeout', async () => {
-      // Simulate auth timeout by making getSession never resolve within the timeout
-      await vi.advanceTimersByTimeAsync(11000); // expire cache
+    it('throws Authentication required when not logged in', async () => {
+      setStoredSession(null); // no session in storage, cache already cleared by beforeEach
 
-      mockGetSession.mockImplementation(
-        () => new Promise(() => {}) // never resolves
-      );
-      mockGetUser.mockImplementation(
-        () => new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Auth timeout')), 100)
-        )
-      );
-
-      const promise = fetchToolSettingsSupabase('test-tool', {});
-      await vi.advanceTimersByTimeAsync(16000); // past the 15s timeout
-
-      // Should return defaults rather than throwing on auth timeout
-      const result = await promise;
-      expect(result.settings).toBeDefined();
-      expect(result.hasShotSettings).toBe(false);
+      await expect(
+        fetchToolSettingsSupabase('test-tool', {})
+      ).rejects.toThrow('Authentication required');
     });
   });
 });

@@ -10,7 +10,7 @@ import { Stage, Layer, Line, Rect } from 'react-konva';
 import Konva from 'konva';
 import { nanoid } from 'nanoid';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { isPointOnShape, getClickedCornerIndex, getRectangleClickType, getRectangleCorners } from '../hooks/inpainting/shapeHelpers';
 
 export type { BrushStroke, StrokeOverlayHandle } from '../hooks/inpainting/types';

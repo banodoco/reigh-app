@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from 'react';
 import { GenerationRow } from '@/types/shots';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 
@@ -7,8 +7,8 @@ interface UseBatchOperationsProps {
   onImageDelete: (id: string) => void;
   onBatchImageDelete?: (ids: string[]) => void;
   onSelectionChange?: (hasSelection: boolean) => void;
-  setSelectedIds: (ids: string[]) => void;
-  setMobileSelectedIds: (ids: string[]) => void;
+  setSelectedIds: Dispatch<SetStateAction<string[]>>;
+  setMobileSelectedIds: Dispatch<SetStateAction<string[]>>;
   setLastSelectedIndex: (index: number | null) => void;
 }
 
@@ -25,21 +25,27 @@ export function useBatchOperations({
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const [skipConfirmationNextTimeVisual, setSkipConfirmationNextTimeVisual] = useState(false);
   const currentDialogSkipChoiceRef = useRef(false);
+  const currentImageIdSet = useMemo(
+    () => new Set(currentImages.map((image) => image.id)),
+    [currentImages],
+  );
   
   const { value: imageDeletionSettings, update: updateImageDeletionSettings } = 
     useUserUIState('imageDeletion', { skipConfirmation: false });
+  const effectiveImageDeletionSettings = imageDeletionSettings ?? { skipConfirmation: false };
   
   // Sync visual state with database state when it loads
   useEffect(() => {
-    if (imageDeletionSettings.skipConfirmation) {
+    if (effectiveImageDeletionSettings.skipConfirmation) {
       setSkipConfirmationNextTimeVisual(true);
       currentDialogSkipChoiceRef.current = true;
     }
-  }, [imageDeletionSettings.skipConfirmation]);
+  }, [effectiveImageDeletionSettings.skipConfirmation]);
   
   // Batch delete function
   const performBatchDelete = useCallback((ids: string[]) => {
-    if (ids.length === 0) return;
+    const existingIds = ids.filter((id) => currentImageIdSet.has(id));
+    if (existingIds.length === 0) return;
     
     // Clear selection and UI state for immediate feedback
     setMobileSelectedIds([]);
@@ -51,14 +57,16 @@ export function useBatchOperations({
     
     // Use batch delete handler if available, otherwise fall back to individual deletes
     if (onBatchImageDelete) {
-      onBatchImageDelete(ids);
+      onBatchImageDelete(existingIds);
     } else {
-      ids.forEach(id => onImageDelete(id));
+      existingIds.forEach(id => onImageDelete(id));
     }
-  }, [onImageDelete, onBatchImageDelete, currentImages, setMobileSelectedIds, setSelectedIds, setLastSelectedIndex, onSelectionChange]);
+  }, [onImageDelete, onBatchImageDelete, currentImageIdSet, setMobileSelectedIds, setSelectedIds, setLastSelectedIndex, onSelectionChange]);
   
   // Individual delete function that clears selection if needed
   const handleIndividualDelete = useCallback((id: string) => {
+    if (!currentImageIdSet.has(id)) return;
+
     
     // Clear selection if the deleted item was selected
     setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
@@ -66,18 +74,18 @@ export function useBatchOperations({
     
     // Execute deletion
     onImageDelete(id);
-  }, [onImageDelete, currentImages, setSelectedIds, setMobileSelectedIds]);
+  }, [onImageDelete, currentImageIdSet, setSelectedIds, setMobileSelectedIds]);
   
   // Handle batch delete request
   const handleBatchDelete = useCallback((ids: string[]) => {
     setPendingDeleteIds([...ids]);
     
-    if (imageDeletionSettings.skipConfirmation) {
+    if (effectiveImageDeletionSettings.skipConfirmation) {
       performBatchDelete(ids);
     } else {
       setConfirmOpen(true);
     }
-  }, [imageDeletionSettings.skipConfirmation, performBatchDelete]);
+  }, [effectiveImageDeletionSettings.skipConfirmation, performBatchDelete]);
   
   return {
     confirmOpen,
@@ -86,11 +94,10 @@ export function useBatchOperations({
     setPendingDeleteIds,
     skipConfirmationNextTimeVisual,
     currentDialogSkipChoiceRef,
-    imageDeletionSettings,
+    imageDeletionSettings: effectiveImageDeletionSettings,
     updateImageDeletionSettings,
     performBatchDelete,
     handleIndividualDelete,
     handleBatchDelete
   };
 }
-

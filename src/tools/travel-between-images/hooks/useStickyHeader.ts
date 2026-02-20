@@ -101,7 +101,7 @@ export const useStickyHeader = ({
       if (rafId !== null) cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-  }, [isMobile, isEditingName, isSticky, enabled]);
+  }, [isMobile, isEditingName, isSticky, enabled, headerRef]);
 
   // Update header bounds during scroll and resize
   useEffect(() => {
@@ -147,7 +147,7 @@ export const useStickyHeader = ({
       window.removeEventListener('resize', handleResize);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [updateHeaderBounds, isSticky, enabled]);
+  }, [updateHeaderBounds, isSticky, enabled, headerRef]);
 
   // Initial bounds calculation
   useEffect(() => {

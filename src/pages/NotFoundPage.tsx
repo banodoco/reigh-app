@@ -1,11 +1,20 @@
+import { useEffect } from 'react';
 import { useRouteError, useNavigate, isRouteErrorResponse } from 'react-router-dom';
 import { Home, Compass, Sparkles } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 export default function NotFoundPage() {
   const error = useRouteError();
   const navigate = useNavigate();
-  console.error(error);
+
+  useEffect(() => {
+    if (!error) return;
+    handleError(error, {
+      context: 'NotFoundPage.routeError',
+      showToast: false,
+    });
+  }, [error]);
 
   // Extract displayable error message with proper narrowing
   const errorMessage = isRouteErrorResponse(error)

@@ -14,10 +14,10 @@ import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 // Type for variant from useVariants hook
 interface Variant {
   id: string;
-  location: string;
+  location?: string | null;
   thumbnail_url?: string | null;
-  variant_type: string;
-  is_primary: boolean;
+  variant_type?: string | null;
+  is_primary?: boolean | null;
   // ... other fields
 }
 
@@ -63,10 +63,10 @@ export function useVariantSelection({
     // Pass generationId for optimistic badge update
     if (variantId) {
       const generationId = getGenerationId(media);
-      markViewed({ variantId, generationId });
+      markViewed({ variantId, generationId: generationId ?? undefined });
     }
     rawSetActiveVariantId(variantId);
-  }, [rawSetActiveVariantId, activeVariant, variants, markViewed, media]);
+  }, [rawSetActiveVariantId, markViewed, media]);
 
   // Set initial variant when variants load and initialVariantId is provided
   useEffect(() => {
@@ -93,7 +93,7 @@ export function useVariantSelection({
     if (!media) return;
     if (activeVariant && activeVariant.id && markedViewedVariantRef.current !== activeVariant.id) {
       const generationId = getGenerationId(media);
-      markViewed({ variantId: activeVariant.id, generationId });
+      markViewed({ variantId: activeVariant.id, generationId: generationId ?? undefined });
       markedViewedVariantRef.current = activeVariant.id;
     }
   }, [activeVariant, media?.generation_id, media?.id, markViewed, media]);

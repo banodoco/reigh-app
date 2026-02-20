@@ -12,7 +12,7 @@
  * @see settings_system.md for the full settings architecture
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 export interface QueuedWrite {
   scope: 'user' | 'project' | 'shot';

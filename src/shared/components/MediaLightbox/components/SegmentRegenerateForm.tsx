@@ -15,6 +15,18 @@ import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { submitSegmentTask, buildStructureVideoForTask } from './submitSegmentTask';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
 export interface SegmentRegenerateFormProps {
   /** Generation params from the current video */
   params: Record<string, unknown>;
@@ -136,6 +148,10 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const orchestratorDetails = asRecord(initialParams.orchestrator_details);
+  const initialNumFrames = asNumber(initialParams.num_frames);
+  const initialModelName = asString(initialParams.model_name) ?? asString(orchestratorDetails.model_name);
+  const initialResolution = asString(initialParams.parsed_resolution_wh);
 
   // For background task submission with placeholder
   const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
@@ -154,7 +170,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     defaults: {
       prompt: '',
       negativePrompt: '',
-      numFrames: currentFrameCount ?? initialParams?.num_frames ?? 25,
+      numFrames: currentFrameCount ?? initialNumFrames ?? 25,
       // When segment has no primary variant (orphaned), default to making new generation primary
       makePrimaryVariant: !hasPrimaryVariant,
     },
@@ -162,8 +178,8 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     segmentIndex,
     startImageUrl,
     endImageUrl,
-    modelName: initialParams?.model_name || initialParams?.orchestrator_details?.model_name,
-    resolution: projectResolution || initialParams?.parsed_resolution_wh,
+    modelName: initialModelName,
+    resolution: projectResolution ?? initialResolution,
     isRegeneration: true,
     buttonLabel: "Regenerate Video",
     showHeader: false,
@@ -236,10 +252,19 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
 
     // Notify parent that we've loaded the params (so it can clear the trigger)
     onVariantParamsLoaded?.();
-  }, [variantParamsToLoad]); // Only re-run when variantParamsToLoad changes
+  }, [
+    variantParamsToLoad,
+    currentFrameCount,
+    settings.numFrames,
+    settings.makePrimaryVariant,
+    updateSettings,
+    onFrameCountChange,
+    pairShotGenerationId,
+    onVariantParamsLoaded,
+  ]);
 
   // Handle form submission
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async (): Promise<void> => {
     if (!projectId) {
       toast({ title: "Error", description: "No project selected", variant: "destructive" });
       return;

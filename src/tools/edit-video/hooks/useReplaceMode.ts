@@ -13,7 +13,7 @@ import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { generateUUID, generateRunId, createTask } from '@/shared/lib/taskCreation';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
@@ -165,7 +165,7 @@ export function useReplaceMode({
       }
       return prev;
     });
-  }, [videoDuration, videoFps]);  
+  }, [videoDuration, videoFps, gapFrameCount]);  
 
   // Add a new selection
   const handleAddSelection = useCallback(() => {
@@ -480,6 +480,10 @@ export function useReplaceMode({
 
       if (lorasForTask.length > 0) {
         orchestratorDetails.loras = lorasForTask;
+      }
+
+      if (!selectedProjectId) {
+        throw new Error('No project selected');
       }
 
       const result = await createTask({

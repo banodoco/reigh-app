@@ -59,15 +59,14 @@ const FileInput: React.FC<FileInputProps> = ({
     .join(',');
 
   useEffect(() => {
-    internalPreviewUrls.forEach(url => URL.revokeObjectURL(url));
-    setInternalPreviewUrls([]);
+    const newObjectUrls = internalFiles.map(file => URL.createObjectURL(file));
+    setInternalPreviewUrls(previousUrls => {
+      previousUrls.forEach(url => URL.revokeObjectURL(url));
+      return newObjectUrls;
+    });
 
-    if (internalFiles.length > 0) {
-      const newObjectUrls = internalFiles.map(file => URL.createObjectURL(file));
-      setInternalPreviewUrls(newObjectUrls);
-    }    
     return () => {
-      internalPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      newObjectUrls.forEach(url => URL.revokeObjectURL(url));
     };
   }, [internalFiles]);
 
@@ -135,7 +134,7 @@ const FileInput: React.FC<FileInputProps> = ({
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
-  }, [acceptTypes, onFileChange, multiple]);
+  }, [acceptTypes, onFileChange, multiple, showLoaderDuringSingleSelection, loaderDurationMs]);
 
   const handleRemoveAllFiles = useCallback(() => {
     setInternalFiles([]);

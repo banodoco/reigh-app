@@ -14,11 +14,11 @@ export const ImageEnhanceDetails: React.FC<TaskDetailsProps> = ({
   isMobile = false,
 }) => {
   const config = getVariantConfig(variant, isMobile, inputImages.length);
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
+  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
 
   // Extract enhancement settings
-  const scaleFactor = parsedParams?.scale_factor ?? 2;
-  const noiseScale = parsedParams?.noise_scale ?? 0.1;
+  const scaleFactor = typeof parsedParams?.scale_factor === 'number' ? parsedParams.scale_factor : 2;
+  const noiseScale = typeof parsedParams?.noise_scale === 'number' ? parsedParams.noise_scale : 0.1;
 
   return (
     <div className={`p-3 bg-muted/30 rounded-lg border space-y-3 ${variant === 'panel' ? '' : variant === 'modal' && isMobile ? 'w-full' : 'w-[300px]'}`}>

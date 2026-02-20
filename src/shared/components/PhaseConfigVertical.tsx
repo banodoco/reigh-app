@@ -233,7 +233,7 @@ const PhaseGlobalSettings: React.FC<PhaseGlobalSettingsProps> = ({
               value={phaseConfig.flow_shift}
               onValueChange={(value) => onPhaseConfigChange({
                 ...phaseConfig,
-                flow_shift: value
+                flow_shift: Array.isArray(value) ? (value[0] ?? phaseConfig.flow_shift) : value
               })}
             />
           </div>
@@ -319,8 +319,11 @@ const PerPhaseCard: React.FC<PerPhaseCardProps> = ({
               step={1}
               value={phaseConfig.steps_per_phase[phaseIdx]}
               onValueChange={(value) => {
+                const nextValue = Array.isArray(value)
+                  ? (value[0] ?? phaseConfig.steps_per_phase[phaseIdx])
+                  : value;
                 const newSteps = [...phaseConfig.steps_per_phase];
-                newSteps[phaseIdx] = value;
+                newSteps[phaseIdx] = nextValue;
                 onPhaseConfigChange({
                   ...phaseConfig,
                   steps_per_phase: newSteps
@@ -753,7 +756,7 @@ export const PhaseConfigVertical: React.FC<PhaseConfigVerticalProps> = ({
         onClose={modals.closePresetModal}
         onSelectPreset={(preset) => {
           if (preset.metadata.phaseConfig && onPhasePresetSelect) {
-            onPhasePresetSelect(preset.id, preset.metadata.phaseConfig, preset.metadata);
+            onPhasePresetSelect(preset.id, preset.metadata.phaseConfig, preset.metadata as PresetMetadata);
           }
           modals.closePresetModal();
         }}

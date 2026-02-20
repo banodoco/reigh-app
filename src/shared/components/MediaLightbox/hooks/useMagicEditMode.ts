@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { GenerationRow } from '@/types/shots';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShotGenerationMetadata } from '@/shared/hooks/useShotGenerationMetadata';
 import { createBatchMagicEditTasks } from '@/shared/lib/tasks/magicEdit';
@@ -55,8 +55,8 @@ interface UseMagicEditModeReturn {
   setMagicEditNumImages: (value: number) => void;
   isCreatingMagicEditTasks: boolean;
   magicEditTasksCreated: boolean;
-  inpaintPanelPosition: 'top' | 'bottom';
-  setInpaintPanelPosition: (value: 'top' | 'bottom') => void;
+  inpaintPanelPosition: 'left' | 'right';
+  setInpaintPanelPosition: (value: 'left' | 'right') => void;
   handleEnterMagicEditMode: () => void;
   handleExitMagicEditMode: () => void;
   handleUnifiedGenerate: () => Promise<void>;
@@ -100,7 +100,7 @@ export const useMagicEditMode = ({
   const [magicEditNumImages, setMagicEditNumImages] = useState(4);
   const [isCreatingMagicEditTasks, setIsCreatingMagicEditTasks] = useState(false);
   const [magicEditTasksCreated, setMagicEditTasksCreated] = useState(false);
-  const [inpaintPanelPosition, setInpaintPanelPosition] = useState<'top' | 'bottom'>('top');
+  const [inpaintPanelPosition, setInpaintPanelPosition] = useState<'left' | 'right'>('right');
 
   const { currentShotId } = useCurrentShot();
   const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
@@ -230,7 +230,7 @@ export const useMagicEditMode = ({
           shot_id: currentShotId || undefined,
           tool_type: toolTypeOverride,
           loras: editModeLoRAs,
-          based_on: actualGenerationId, // Track source generation for lineage (must be generations.id, not shot_generations.id)
+          based_on: actualGenerationId ?? undefined, // Track source generation for lineage (must be generations.id, not shot_generations.id)
           source_variant_id: activeVariantId || undefined, // Track source variant if editing from a variant
           create_as_generation: createAsGeneration, // If true, create a new generation instead of a variant
           hires_fix: convertToHiresFixApiParams(advancedSettings), // Pass hires fix settings if enabled
@@ -259,8 +259,8 @@ export const useMagicEditMode = ({
       } catch (error) {
         handleError(error, { context: 'useMagicEditMode', toastTitle: 'Failed to create magic edit tasks' });
       } finally {
-        await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-        await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+        await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
+        await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });
         removeIncomingTask(incomingTaskId);
         setIsCreatingMagicEditTasks(false);
       }
@@ -276,7 +276,7 @@ export const useMagicEditMode = ({
     imageDimensions,
     currentShotId,
     toolTypeOverride,
-    media.id,
+    media,
     addMagicEditPrompt,
     createAsGeneration,
     advancedSettings,
@@ -306,4 +306,3 @@ export const useMagicEditMode = ({
     isSpecialEditMode
   };
 };
-

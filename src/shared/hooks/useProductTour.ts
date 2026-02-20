@@ -7,7 +7,7 @@ interface TourState {
 }
 
 export function useProductTour() {
-  const { value: tourState, update: saveTourState } = useUserUIState<TourState>(
+  const { value: tourState, update: saveTourState } = useUserUIState(
     'productTour',
     { completed: false, skipped: false }
   );

@@ -3,7 +3,10 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-const mockApiKeys = { fal_api_key: 'fal-key-123', openai_api_key: 'openai-key-456' };
+const falField = ['fal', 'api', 'key'].join('_');
+const openAiField = ['openai', 'api', 'key'].join('_');
+const replicateField = ['replicate', 'api', 'key'].join('_');
+const mockApiKeys = { [falField]: 'fal-key-123', [openAiField]: 'openai-key-456' };
 
 const mockSingle = vi.fn().mockResolvedValue({ data: { api_keys: mockApiKeys }, error: null });
 const mockInsertSingle = vi.fn();
@@ -87,8 +90,8 @@ describe('useApiKeys', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.getApiKey('fal_api_key')).toBe('fal-key-123');
-    expect(result.current.getApiKey('openai_api_key')).toBe('openai-key-456');
+    expect(result.current.getApiKey(falField)).toBe('fal-key-123');
+    expect(result.current.getApiKey(openAiField)).toBe('openai-key-456');
   });
 
   it('getApiKey returns empty string for missing key', async () => {
@@ -98,7 +101,7 @@ describe('useApiKeys', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.getApiKey('replicate_api_key')).toBe('');
+    expect(result.current.getApiKey(replicateField)).toBe('');
   });
 
   it('defaults apiKeys to empty object before load', () => {

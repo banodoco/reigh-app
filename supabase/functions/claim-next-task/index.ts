@@ -67,7 +67,7 @@ serve(async (req) => {
     if (bodyText) {
       requestBody = JSON.parse(bodyText);
     }
-  } catch (e) {
+  } catch {
     logger.debug("No valid JSON body provided, using defaults");
   }
 

@@ -10,7 +10,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { TASK_STATUS } from '@/types/tasks';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 interface PendingSegmentTask {
   id: string;
@@ -67,7 +67,7 @@ export function usePendingSegmentTasks(
 
   // Query pending segment tasks for this shot
   const { data: pendingTasks, isLoading } = useQuery({
-    queryKey: [...queryKeys.tasks.pendingSegment(shotId!), projectId],
+    queryKey: [...taskQueryKeys.pendingSegment(shotId!), projectId],
     queryFn: async () => {
       if (!shotId || !projectId) return [];
 

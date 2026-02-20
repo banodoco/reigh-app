@@ -1,0 +1,71 @@
+{
+  "assessments": {
+    "cross_module_architecture": 82,
+    "convention_outlier": 84,
+    "error_consistency": 83,
+    "abstraction_fitness": 80,
+    "api_surface_coherence": 83,
+    "authorization_consistency": 86,
+    "ai_generated_debt": 84,
+    "incomplete_migration": 82,
+    "high_level_elegance": 80,
+    "mid_level_elegance": 82,
+    "low_level_elegance": 85
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_client_bootstrap_hub",
+      "summary": "Supabase client bootstrap is a high-blast-radius hub with mixed runtime responsibilities",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/auth/AuthStateManager.ts",
+        "src/integrations/supabase/reconnect/ReconnectScheduler.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts"
+      ],
+      "evidence": [
+        "The main client module wires instrumentation, auth state wiring, reconnect policy, and singleton lifecycle in one entrypoint.",
+        "Changes to auth, realtime, or instrumentation behavior all converge through the same bootstrap file, increasing change coupling."
+      ],
+      "suggestion": "Split client bootstrap into narrow initializers (auth bootstrap, realtime bootstrap, instrumentation bootstrap) and keep client.ts as a thin composition layer with explicit startup order.",
+      "reasoning": "Reducing bootstrap coupling lowers regression risk and makes runtime ownership boundaries clearer.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "shared_lib_concentration",
+      "summary": "Core shared-lib modules are overloaded and act as cross-domain utility hubs",
+      "related_files": [
+        "src/shared/lib/errorHandler.ts",
+        "src/shared/lib/utils.ts",
+        "src/shared/lib/queryKeys.ts",
+        "src/shared/lib/errors.ts"
+      ],
+      "evidence": [
+        "errorHandler.ts, utils.ts, and queryKeys.ts are each imported broadly across unrelated feature areas.",
+        "High import concentration indicates these modules are carrying multiple concerns and become default dumping grounds."
+      ],
+      "suggestion": "Split shared/lib by capability (error transport vs user messaging, string/file helpers vs UI helpers, query key families by domain) and introduce narrower module boundaries with explicit ownership.",
+      "reasoning": "More focused abstractions improve locality, reduce accidental dependencies, and make refactors safer.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "ui_primitive_style_islands",
+      "summary": "UI primitive layer shows convention drift in variant naming and styling strategy",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/sonner.tsx",
+        "src/shared/components/ui/toast.tsx"
+      ],
+      "evidence": [
+        "Button variants include legacy aliases and multiple style dialects in one primitive component.",
+        "Sibling UI primitives mix different API/styling conventions, creating local style islands."
+      ],
+      "suggestion": "Define a small, enforced UI-primitive contract (variant taxonomy, naming rules, deprecation window), migrate legacy aliases behind a compatibility shim, and align sibling primitives to the same contract.",
+      "reasoning": "Consistent primitive conventions reduce downstream UI entropy and simplify design-system evolution.",
+      "confidence": "medium"
+    }
+  ]
+}

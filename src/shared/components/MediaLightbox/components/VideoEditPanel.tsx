@@ -199,7 +199,7 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   const modeSelector = (
     <ModeSelector
       items={modeSelectorItems}
-      activeId={videoEditSubMode}
+      activeId={videoEditSubMode ?? 'trim'}
     />
   );
 
@@ -266,7 +266,7 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
           videoUrl={videoUrl}
           fps={16}
           availableLoras={videoEditing.availableLoras}
-          projectId={projectId}
+          projectId={projectId ?? null}
           loraManager={videoEditing.loraManager}
           // Motion settings
           motionMode={(videoEditing.editSettings.settings.motionMode || 'basic') as 'basic' | 'advanced'}

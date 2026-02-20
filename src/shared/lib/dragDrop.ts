@@ -8,7 +8,7 @@
  * - BatchDropZone (drop target)
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 // MIME type for generation drag data
 const GENERATION_MIME_TYPE = 'application/x-generation';

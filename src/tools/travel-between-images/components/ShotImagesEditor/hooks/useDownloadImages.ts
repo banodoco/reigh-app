@@ -4,8 +4,8 @@
 
 import { useCallback, useState } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import type { GenerationRow } from '@/types/shots';
 
 export interface UseDownloadImagesReturn {
@@ -43,8 +43,8 @@ export function useDownloadImages({
 
       // Sort images by position for consistent ordering
       const sortedImages = [...images].sort((a, b) => {
-        const posA = a.position || 0;
-        const posB = b.position || 0;
+        const posA = a.timeline_frame ?? 0;
+        const posB = b.timeline_frame ?? 0;
         return posA - posB;
       });
 

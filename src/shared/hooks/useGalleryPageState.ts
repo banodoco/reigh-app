@@ -40,7 +40,7 @@ import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotConte
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useGalleryFilterState } from '@/shared/hooks/gallery/useGalleryFilterState';
 
 interface UseGenerationsPageLogicOptions {
@@ -191,28 +191,28 @@ function useGenerationsPageLogic({
     toggleStarMutation.mutate({ id, starred });
   };
 
-  const handleAddToShot = async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-    const targetShotId = lastAffectedShotId || currentShotId;
+  const handleAddToShot = async (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
+    const resolvedTargetShotId = targetShotId || lastAffectedShotId || currentShotId;
 
-    if (!targetShotId || !selectedProjectId) {
+    if (!resolvedTargetShotId || !selectedProjectId) {
       toast.error("No shot selected", {
         description: "Please select a shot in the gallery or create one first.",
       });
       return false;
     }
 
-    const shouldPositionExisting = selectedShotFilter === targetShotId && excludePositioned;
+    const shouldPositionExisting = selectedShotFilter === resolvedTargetShotId && excludePositioned;
 
     // Dispatch event to trigger skeleton animation in ShotListDisplay
     window.dispatchEvent(new CustomEvent('shot-pending-upload', {
-      detail: { shotId: targetShotId, expectedCount: 1 }
+      detail: { shotId: resolvedTargetShotId, expectedCount: 1 }
     }));
 
     try {
       if (shouldPositionExisting) {
 
         await positionExistingGenerationMutation.mutateAsync({
-          shot_id: targetShotId,
+          shot_id: resolvedTargetShotId,
           generation_id: generationId,
           project_id: selectedProjectId,
         });
@@ -220,7 +220,7 @@ function useGenerationsPageLogic({
       } else {
 
         await addImageToShotMutation.mutateAsync({
-          shot_id: targetShotId,
+          shot_id: resolvedTargetShotId,
           generation_id: generationId,
           imageUrl: imageUrl,
           thumbUrl: thumbUrl,
@@ -229,6 +229,7 @@ function useGenerationsPageLogic({
 
       }
 
+      setLastAffectedShotId(resolvedTargetShotId);
       return true;
     } catch (error) {
       handleError(error, { context: 'useGenerationsPageLogic', toastTitle: 'Failed to add image to shot' });
@@ -236,10 +237,10 @@ function useGenerationsPageLogic({
     }
   };
 
-  const handleAddToShotWithoutPosition = async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-    const targetShotId = lastAffectedShotId || currentShotId;
+  const handleAddToShotWithoutPosition = async (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
+    const resolvedTargetShotId = targetShotId || lastAffectedShotId || currentShotId;
 
-    if (!targetShotId || !selectedProjectId) {
+    if (!resolvedTargetShotId || !selectedProjectId) {
       toast.error("No shot selected", {
         description: "Please select a shot in the gallery or create one first.",
       });
@@ -248,12 +249,13 @@ function useGenerationsPageLogic({
 
     try {
       await addImageToShotWithoutPositionMutation.mutateAsync({
-        shot_id: targetShotId,
+        shot_id: resolvedTargetShotId,
         generation_id: generationId,
         imageUrl: imageUrl,
         thumbUrl: thumbUrl,
         project_id: selectedProjectId,
       });
+      setLastAffectedShotId(resolvedTargetShotId);
       return true;
     } catch (error) {
       handleError(error, { context: 'useGenerationsPageLogic', toastTitle: 'Failed to add image to shot' });

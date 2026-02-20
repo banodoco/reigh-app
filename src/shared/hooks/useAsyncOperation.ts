@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface AsyncOperationOptions {
   context?: string;
@@ -67,7 +67,7 @@ export function useAsyncOperation<T = void>(): UseAsyncOperationReturn<T> {
         setError(error);
         setIsLoading(false);
       }
-      handleError(error, { context, showToast, toastTitle });
+      handleError(error, { context: context ?? 'useAsyncOperation', showToast, toastTitle });
       return undefined;
     }
   }, []);
@@ -131,7 +131,7 @@ export function useAsyncOperationMap<T = void>(): UseAsyncOperationMapReturn<T> 
           return next;
         });
       }
-      handleError(error, { context, showToast, toastTitle });
+      handleError(error, { context: context ?? 'useAsyncOperationMap', showToast, toastTitle });
       return undefined;
     }
   }, []);

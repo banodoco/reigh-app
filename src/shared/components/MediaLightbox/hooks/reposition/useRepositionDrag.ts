@@ -4,7 +4,7 @@ import type { ImageTransform } from './types';
 interface UseRepositionDragProps {
   transform: ImageTransform;
   imageDimensions: { width: number; height: number } | null;
-  imageContainerRef: React.RefObject<HTMLDivElement>;
+  imageContainerRef: React.RefObject<HTMLDivElement | null>;
   /** Callback to update transform when dragging */
   onTransformChange: (updates: Partial<ImageTransform>) => void;
 }

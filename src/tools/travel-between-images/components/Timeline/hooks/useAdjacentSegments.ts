@@ -7,8 +7,8 @@ interface UseAdjacentSegmentsProps {
   segmentSlots: SegmentSlot[] | undefined;
   onOpenSegmentSlot: ((pairIndex: number) => void) | undefined;
   lightboxIndex: number | null;
-  images: (GenerationRow & { timeline_frame?: number })[];
-  currentImages: (GenerationRow & { timeline_frame?: number })[];
+  images: GenerationRow[];
+  currentImages: GenerationRow[];
   closeLightbox: () => void;
   navigateWithTransition?: (doNavigation: () => void) => void;
 }
@@ -47,7 +47,7 @@ export function useAdjacentSegments({
     const getImageUrl = (position: number): string | undefined => {
       const img = images[position];
       const urlFallback = (img as (typeof img & { url?: string }) | undefined)?.url;
-      return img?.thumbUrl || img?.imageUrl || urlFallback || img?.location;
+      return img?.thumbUrl || img?.imageUrl || urlFallback || img?.location || undefined;
     };
 
     let prevSegment: { pairIndex: number; hasVideo: boolean; startImageUrl?: string; endImageUrl?: string } | undefined;

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback } from "react";
 import { GenerationRow } from "@/types/shots";
-import { getDisplayUrl, cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/lib/utils";
+import { getDisplayUrl } from "@/shared/lib/mediaUrl";
 import { Button } from "@/shared/components/ui/button";
 import { Trash2, Copy, Check, Pencil, Maximize2 } from "lucide-react";
 import { useProgressiveImage } from "@/shared/hooks/useProgressiveImage";

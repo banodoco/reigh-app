@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { deepMerge } from '@/shared/lib/deepEqual';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
 
@@ -13,6 +13,7 @@ const PREFETCH_TOOL_IDS = [
   TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
   'project-image-settings', // Shared settings including reference images
 ];
+const EMPTY_SHOT_IDS: string[] = [];
 
 /**
  * Fetch tool settings using Supabase (for prefetching)
@@ -84,8 +85,13 @@ async function fetchToolSettingsSupabase(toolId: string, ctx: { projectId?: stri
  * @param projectId selected project id
  * @param shotIds  array of shot ids belonging to the project (optional)
  */
-export function usePrefetchToolSettings(projectId?: string | null, shotIds: string[] = []) {
+export function usePrefetchToolSettings(projectId?: string | null, shotIds: string[] = EMPTY_SHOT_IDS) {
   const queryClient = useQueryClient();
+  const shotIdsKey = shotIds.join(',');
+  const shotIdsForPrefetch = useMemo(
+    () => (shotIdsKey ? shotIdsKey.split(',') : EMPTY_SHOT_IDS),
+    [shotIdsKey],
+  );
 
   useEffect(() => {
     if (!projectId) {
@@ -95,7 +101,7 @@ export function usePrefetchToolSettings(projectId?: string | null, shotIds: stri
     // Prefetch project-level settings for each tool.
     PREFETCH_TOOL_IDS.forEach((toolId) => {
       queryClient.prefetchQuery({
-        queryKey: queryKeys.settings.tool(toolId, projectId, undefined),
+        queryKey: settingsQueryKeys.tool(toolId, projectId, undefined),
         queryFn: () => fetchToolSettingsSupabase(toolId, { projectId }),
         staleTime: 5 * 60 * 1000, // keep fresh for 5 min (same as useToolSettings)
       }).then(() => {
@@ -105,16 +111,16 @@ export function usePrefetchToolSettings(projectId?: string | null, shotIds: stri
     });
 
     // Prefetch shot-level settings when shot IDs are provided.
-    if (shotIds.length) {
-      shotIds.forEach((shotId) => {
+    if (shotIdsForPrefetch.length) {
+      shotIdsForPrefetch.forEach((shotId) => {
         PREFETCH_TOOL_IDS.forEach((toolId) => {
           queryClient.prefetchQuery({
-            queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
+            queryKey: settingsQueryKeys.tool(toolId, projectId, shotId),
             queryFn: () => fetchToolSettingsSupabase(toolId, { projectId, shotId }),
             staleTime: 5 * 60 * 1000,
           });
         });
       });
     }
-  }, [projectId, shotIds.join(','), queryClient]);
-} 
+  }, [projectId, shotIdsForPrefetch, queryClient]);
+}

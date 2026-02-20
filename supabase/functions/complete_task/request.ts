@@ -39,7 +39,152 @@ type ParseResult =
   | { success: true; data: ParsedRequest }
   | { success: false; response: Response };
 
+interface CompleteTaskRequestBody {
+  task_id?: unknown;
+  file_data?: unknown;
+  filename?: unknown;
+  first_frame_data?: unknown;
+  first_frame_filename?: unknown;
+  storage_path?: unknown;
+  thumbnail_storage_path?: unknown;
+}
+
 // ===== REQUEST PARSING =====
+
+const badRequest = (message: string): ParseResult => ({
+  success: false,
+  response: new Response(message, { status: 400 }),
+});
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.length > 0 ? value : undefined;
+
+async function parseJsonBody(req: Request): Promise<
+  { success: true; body: CompleteTaskRequestBody }
+  | { success: false; response: Response }
+> {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return { success: false, response: new Response("Invalid JSON body", { status: 400 }) };
+  }
+
+  if (!body || typeof body !== "object") {
+    return { success: false, response: new Response("Invalid JSON body", { status: 400 }) };
+  }
+
+  return { success: true, body: body as CompleteTaskRequestBody };
+}
+
+function parseStoragePathRequest(body: CompleteTaskRequestBody): ParseResult {
+  const taskId = asString(body.task_id);
+  const storagePath = asString(body.storage_path);
+  const thumbnailStoragePath = asString(body.thumbnail_storage_path);
+
+  if (!taskId) {
+    return badRequest("task_id required");
+  }
+  if (!storagePath) {
+    return badRequest("storage_path required");
+  }
+
+  const pathParts = storagePath.split('/');
+  const isMode3Format = pathParts.length >= 4 && pathParts[1] === 'tasks';
+  const mode: UploadMode = isMode3Format ? 'presigned' : 'reference';
+
+  if (mode === 'reference' && pathParts.length < 2) {
+    return badRequest("Invalid storage_path format. Must be at least userId/filename");
+  }
+
+  let requiresOrchestratorCheck = false;
+  let storagePathTaskId: string | undefined;
+
+  if (mode === 'presigned') {
+    storagePathTaskId = pathParts[2];
+    if (storagePathTaskId !== taskId) {
+      requiresOrchestratorCheck = true;
+    }
+
+    if (thumbnailStoragePath) {
+      const thumbParts = thumbnailStoragePath.split('/');
+      if (thumbParts.length < 4 || thumbParts[1] !== 'tasks') {
+        return badRequest("Invalid thumbnail_storage_path format.");
+      }
+      if (thumbParts[2] !== taskId) {
+        requiresOrchestratorCheck = true;
+      }
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      taskId,
+      mode,
+      filename: pathParts[pathParts.length - 1],
+      storagePath,
+      thumbnailStoragePath,
+      storagePathTaskId,
+      requiresOrchestratorCheck,
+    },
+  };
+}
+
+function parseBase64Request(body: CompleteTaskRequestBody): ParseResult {
+  const taskId = asString(body.task_id);
+  const fileData = asString(body.file_data);
+  const filename = asString(body.filename);
+  const firstFrameData = asString(body.first_frame_data);
+  const firstFrameFilename = asString(body.first_frame_filename);
+
+  if (!taskId || !fileData || !filename) {
+    return badRequest(
+      "task_id, file_data (base64), and filename required (or use storage_path for pre-uploaded files)",
+    );
+  }
+
+  if (firstFrameData && !firstFrameFilename) {
+    return badRequest("first_frame_filename required when first_frame_data is provided");
+  }
+  if (firstFrameFilename && !firstFrameData) {
+    return badRequest("first_frame_data required when first_frame_filename is provided");
+  }
+
+  let fileBuffer: Uint8Array;
+  try {
+    fileBuffer = Uint8Array.from(atob(fileData), (c) => c.charCodeAt(0));
+  } catch (error) {
+    console.error("[RequestParser] Base64 decode error:", error);
+    return badRequest("Invalid base64 file_data");
+  }
+
+  let thumbnailBuffer: Uint8Array | undefined;
+  let thumbnailFilename: string | undefined;
+  if (firstFrameData && firstFrameFilename) {
+    try {
+      thumbnailBuffer = Uint8Array.from(atob(firstFrameData), (c) => c.charCodeAt(0));
+      thumbnailFilename = firstFrameFilename;
+    } catch (error) {
+      console.error("[RequestParser] Thumbnail base64 decode error:", error);
+      // Continue without thumbnail - non-fatal
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      taskId,
+      mode: 'base64',
+      filename,
+      fileData: fileBuffer,
+      fileContentType: getContentType(filename),
+      thumbnailData: thumbnailBuffer,
+      thumbnailFilename,
+      thumbnailContentType: thumbnailFilename ? getContentType(thumbnailFilename) : undefined,
+    },
+  };
+}
 
 /**
  * Parse and validate the incoming request
@@ -47,167 +192,24 @@ type ParseResult =
  */
 export async function parseCompleteTaskRequest(req: Request): Promise<ParseResult> {
   const contentType = req.headers.get("content-type") || "";
-  
+
   // Multipart not supported
   if (contentType.includes("multipart/form-data")) {
-    return {
-      success: false,
-      response: new Response(
-        "Multipart upload (MODE 2) is not supported. Use MODE 1 (base64 JSON) or MODE 3 (pre-signed URL).",
-        { status: 400 }
-      )
-    };
+    return badRequest(
+      "Multipart upload (MODE 2) is not supported. Use MODE 1 (base64 JSON) or MODE 3 (pre-signed URL).",
+    );
   }
 
-  // Parse JSON body
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch (e) {
-    return {
-      success: false,
-      response: new Response("Invalid JSON body", { status: 400 })
-    };
+  const parsedBody = await parseJsonBody(req);
+  if (!parsedBody.success) {
+    return { success: false, response: parsedBody.response };
   }
 
-  const {
-    task_id,
-    file_data,
-    filename,
-    first_frame_data,
-    first_frame_filename,
-    storage_path,
-    thumbnail_storage_path
-  } = body;
-
-  // Determine mode and validate accordingly
-  if (storage_path) {
-    // MODE 3 or MODE 4: Pre-uploaded or referenced file
-    if (!task_id) {
-      return {
-        success: false,
-        response: new Response("task_id required", { status: 400 })
-      };
-    }
-
-    const pathParts = storage_path.split('/');
-    const isMode3Format = pathParts.length >= 4 && pathParts[1] === 'tasks';
-    const mode: UploadMode = isMode3Format ? 'presigned' : 'reference';
-
-    // Basic path validation for MODE 4
-    if (mode === 'reference' && pathParts.length < 2) {
-      return {
-        success: false,
-        response: new Response("Invalid storage_path format. Must be at least userId/filename", { status: 400 })
-      };
-    }
-
-    // For MODE 3, check if path task_id matches request task_id
-    let requiresOrchestratorCheck = false;
-    let storagePathTaskId: string | undefined;
-    
-    if (mode === 'presigned') {
-      storagePathTaskId = pathParts[2];
-      if (storagePathTaskId !== task_id) {
-        requiresOrchestratorCheck = true;
-      }
-
-      // Validate thumbnail path format if provided
-      if (thumbnail_storage_path) {
-        const thumbParts = thumbnail_storage_path.split('/');
-        if (thumbParts.length < 4 || thumbParts[1] !== 'tasks') {
-          return {
-            success: false,
-            response: new Response("Invalid thumbnail_storage_path format.", { status: 400 })
-          };
-        }
-        const thumbTaskId = thumbParts[2];
-        if (thumbTaskId !== task_id) {
-          // Will also need orchestrator check for thumbnail
-          requiresOrchestratorCheck = true;
-        }
-      }
-    }
-
-    return {
-      success: true,
-      data: {
-        taskId: String(task_id),
-        mode,
-        filename: pathParts[pathParts.length - 1],
-        storagePath: storage_path,
-        thumbnailStoragePath: thumbnail_storage_path,
-        storagePathTaskId,
-        requiresOrchestratorCheck
-      }
-    };
-
-  } else {
-    // MODE 1: Legacy base64 upload
-
-    if (!task_id || !file_data || !filename) {
-      return {
-        success: false,
-        response: new Response(
-          "task_id, file_data (base64), and filename required (or use storage_path for pre-uploaded files)",
-          { status: 400 }
-        )
-      };
-    }
-
-    // Validate thumbnail parameters consistency
-    if (first_frame_data && !first_frame_filename) {
-      return {
-        success: false,
-        response: new Response("first_frame_filename required when first_frame_data is provided", { status: 400 })
-      };
-    }
-    if (first_frame_filename && !first_frame_data) {
-      return {
-        success: false,
-        response: new Response("first_frame_data required when first_frame_filename is provided", { status: 400 })
-      };
-    }
-
-    // Decode base64 file data
-    let fileBuffer: Uint8Array;
-    try {
-      fileBuffer = Uint8Array.from(atob(file_data), (c) => c.charCodeAt(0));
-    } catch (e) {
-      console.error("[RequestParser] Base64 decode error:", e);
-      return {
-        success: false,
-        response: new Response("Invalid base64 file_data", { status: 400 })
-      };
-    }
-
-    // Decode thumbnail if provided
-    let thumbnailBuffer: Uint8Array | undefined;
-    let thumbnailFilename: string | undefined;
-    if (first_frame_data && first_frame_filename) {
-      try {
-        thumbnailBuffer = Uint8Array.from(atob(first_frame_data), (c) => c.charCodeAt(0));
-        thumbnailFilename = first_frame_filename;
-      } catch (e) {
-        console.error("[RequestParser] Thumbnail base64 decode error:", e);
-        // Continue without thumbnail - non-fatal
-      }
-    }
-
-    return {
-      success: true,
-      data: {
-        taskId: String(task_id),
-        mode: 'base64',
-        filename,
-        fileData: fileBuffer,
-        fileContentType: getContentType(filename),
-        thumbnailData: thumbnailBuffer,
-        thumbnailFilename,
-        thumbnailContentType: thumbnailFilename ? getContentType(thumbnailFilename) : undefined
-      }
-    };
+  if (asString(parsedBody.body.storage_path)) {
+    return parseStoragePathRequest(parsedBody.body);
   }
+
+  return parseBase64Request(parsedBody.body);
 }
 
 // ===== SECURITY VALIDATION =====
@@ -247,4 +249,3 @@ export async function validateStoragePathSecurity(
   console.error(`[SecurityCheck] ❌ Non-orchestrator task attempting to reference different task's output`);
   return { allowed: false, error: "storage_path does not match task_id. Files must be uploaded for the correct task." };
 }
-

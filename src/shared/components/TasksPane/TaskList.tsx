@@ -161,7 +161,7 @@ const TaskListComponent: React.FC<TaskListProps> = ({
   const prevFilterRef = React.useRef<FilterGroup>(activeFilter);
 
   // Use paginated data instead of fetching tasks directly
-  const tasks = paginatedData?.tasks || [];
+  const tasks = useMemo(() => paginatedData?.tasks ?? [], [paginatedData?.tasks]);
   
   // Detect filter changes and show skeleton during transition
   useEffect(() => {
@@ -258,7 +258,7 @@ const TaskListComponent: React.FC<TaskListProps> = ({
     const visible = filterVisibleTasks(tasks);
     
     return visible;
-  }, [tasks, activeFilter]);
+  }, [tasks]);
 
   // Filter incoming tasks to hide those whose real task has arrived
   // This ensures the placeholder disappears in the SAME render cycle as the real task appears,

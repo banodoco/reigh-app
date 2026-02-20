@@ -16,7 +16,7 @@
 
 import { useCallback, useContext } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { Shot } from '@/types/shots';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
@@ -30,7 +30,7 @@ export interface GenerationDropData {
 
 interface UseVideoTravelDropHandlersParams {
   /** Current project ID */
-  selectedProjectId: string | null | undefined;
+  selectedProjectId: string;
   /** Current shots list */
   shots: Shot[] | undefined;
   /** Mutation to add an image to a shot with automatic position */
@@ -38,7 +38,7 @@ interface UseVideoTravelDropHandlersParams {
     mutateAsync: (params: {
       shot_id: string;
       generation_id: string;
-      project_id: string | null | undefined;
+      project_id: string;
       imageUrl: string;
       thumbUrl?: string;
     }) => Promise<unknown>;
@@ -48,7 +48,7 @@ interface UseVideoTravelDropHandlersParams {
     mutateAsync: (params: {
       shot_id: string;
       generation_id: string;
-      project_id: string | null | undefined;
+      project_id: string;
       imageUrl: string;
       thumbUrl?: string;
     }) => Promise<unknown>;
@@ -58,7 +58,7 @@ interface UseVideoTravelDropHandlersParams {
     mutateAsync: (params: {
       imageFiles: File[];
       targetShotId: string | null;
-      currentProjectQueryKey: string | null | undefined;
+      currentProjectQueryKey: string | null;
       currentShotCount: number;
       skipAutoPosition?: boolean;
     }) => Promise<unknown>;
@@ -151,7 +151,7 @@ export const useVideoTravelDropHandlers = ({
     } catch (error) {
       handleError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add to shot' });
     }
-  }, [selectedProjectId, shots, addImageToShotMutation, addImageToShotWithoutPositionMutation, setLastAffectedShotId]);
+  }, [selectedProjectId, addImageToShotMutation, addImageToShotWithoutPositionMutation, setLastAffectedShotId]);
 
   // Handle dropping a generation to create a new shot
   const handleGenerationDropForNewShot = useCallback(async (

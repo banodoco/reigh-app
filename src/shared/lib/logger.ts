@@ -1,4 +1,5 @@
 import { debugConfig } from './debugConfig';
+import type { Json } from '@/integrations/supabase/types';
 
 // Lightweight logging helper that can be enabled/disabled via Vite env
 // Usage:
@@ -74,13 +75,15 @@ let isFlushScheduled = false;
 // ===== HELPERS =====
 
 function getEnvFlag(viteKey: string): string | undefined {
-  // @ts-expect-error - Vite uses import.meta.env which TS may not recognize depending on tsconfig
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    // @ts-expect-error - dynamic key access on import.meta.env
-    return import.meta.env[viteKey] as string | undefined;
+  const env = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env;
+  const viteValue = env?.[viteKey];
+  if (typeof viteValue === 'string') {
+    return viteValue;
   }
-  // @ts-expect-error - process.env may not exist in browser context
-  return typeof process !== 'undefined' ? process.env[viteKey] : undefined;
+  if (typeof process !== 'undefined') {
+    return (process as { env?: Record<string, string | undefined> }).env?.[viteKey];
+  }
+  return undefined;
 }
 
 function shouldLog(): boolean {
@@ -170,7 +173,7 @@ async function flushLogs(): Promise<void> {
     const { supabase } = await import('@/integrations/supabase/client');
     
     const { error } = await supabase.rpc('func_insert_logs_batch', { 
-      logs: logsToSend 
+      logs: logsToSend as unknown as Json,
     });
     
     if (error) {
@@ -217,14 +220,26 @@ export function reactProfilerOnRender(...rawArgs: unknown[]): void {
   }
 
   const [id, phase, actualDuration, baseDuration, startTime, commitTime, interactions] = rawArgs;
+  const formatDurationMs = (value: unknown): string => {
+    if (typeof value === 'number') {
+      return `${value.toFixed(2)}ms`;
+    }
+    return `${String(value)}ms`;
+  };
+  const getSize = (value: unknown): number => {
+    if (!value || typeof value !== 'object') return 0;
+    const candidate = value as { size?: unknown };
+    return typeof candidate.size === 'number' ? candidate.size : 0;
+  };
+
   log('ReactProfiler', {
     id,
     phase,
-    actualDuration: `${actualDuration?.toFixed?.(2) ?? actualDuration}ms`,
-    baseDuration: `${baseDuration?.toFixed?.(2) ?? baseDuration}ms`,
-    startTime: `${startTime?.toFixed?.(2) ?? startTime}ms`,
-    commitTime: `${commitTime?.toFixed?.(2) ?? commitTime}ms`,
-    interactionsCount: interactions?.size ?? 0,
+    actualDuration: formatDurationMs(actualDuration),
+    baseDuration: formatDurationMs(baseDuration),
+    startTime: formatDurationMs(startTime),
+    commitTime: formatDurationMs(commitTime),
+    interactionsCount: getSize(interactions),
   });
 }
 

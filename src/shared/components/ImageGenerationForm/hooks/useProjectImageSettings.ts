@@ -10,7 +10,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useToolSettings, extractSettingsFromCache } from '@/shared/hooks/useToolSettings';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
 import { useHydratedReferences } from '@/shared/hooks/useHydratedReferences';
 import { useReferenceSelection } from './useReferenceSelection';
@@ -44,7 +44,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
     update: updateProjectImageSettings,
     isLoading: isLoadingProjectSettings
   } = useToolSettings<ProjectImageSettings>('project-image-settings', {
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? undefined,
     enabled: !!selectedProjectId
   });
 
@@ -54,7 +54,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
   // Get reference pointers array and selected reference for current shot
   const cachedProjectSettings = selectedProjectId
     ? extractSettingsFromCache<ProjectImageSettings>(
-        queryClient.getQueryData(queryKeys.settings.tool('project-image-settings', selectedProjectId, undefined))
+        queryClient.getQueryData(settingsQueryKeys.tool('project-image-settings', selectedProjectId, undefined))
       )
     : undefined;
 
@@ -93,7 +93,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
     rawStyleReferenceImage,
     isLoadingReferences,
     selectedReferenceIdByShot,
-    projectImageSettings,
+    projectImageSettings: projectImageSettings ?? null,
     updateProjectImageSettings,
     privacyDefaults,
   });
@@ -104,7 +104,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
     projectResolution,
     privacyDefaults,
     isLocalGenerationEnabled,
-    projectImageSettings,
+    projectImageSettings: projectImageSettings ?? null,
     updateProjectImageSettings,
     isLoadingProjectSettings,
     effectiveShotId,

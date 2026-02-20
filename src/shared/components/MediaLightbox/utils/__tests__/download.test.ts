@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@/shared/components/ui/sonner', () => ({
   toast: { info: vi.fn(), error: vi.fn() },

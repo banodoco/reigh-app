@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Label } from '@/shared/components/ui/label';
@@ -62,6 +62,32 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   // Data comes directly from RPC - same format as the hooks
   const { generation, images, settings } = shareData;
 
+  const checkAuth = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setIsAuthenticated(!!session);
+  }, []);
+
+  const handleCopyToAccount = useCallback(() => {
+    if (!isAuthenticated) {
+      sessionStorage.setItem('pending_share', shareSlug);
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to copy this to your account"
+      });
+      navigate('/?action=copy-share');
+      return;
+    }
+    setShowProjectSelector(true);
+  }, [isAuthenticated, shareSlug, toast, navigate]);
+
+  const checkPendingShare = useCallback(() => {
+    const pendingShare = sessionStorage.getItem('pending_share');
+    if (pendingShare) {
+      sessionStorage.removeItem('pending_share');
+      handleCopyToAccount();
+    }
+  }, [handleCopyToAccount]);
+
   // Check authentication status
   useEffect(() => {
     checkAuth();
@@ -76,33 +102,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setIsAuthenticated(!!session);
-  };
-
-  const checkPendingShare = () => {
-    const pendingShare = sessionStorage.getItem('pending_share');
-    if (pendingShare) {
-      sessionStorage.removeItem('pending_share');
-      handleCopyToAccount();
-    }
-  };
-
-  const handleCopyToAccount = () => {
-    if (!isAuthenticated) {
-      sessionStorage.setItem('pending_share', shareSlug);
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to copy this to your account"
-      });
-      navigate('/?action=copy-share');
-      return;
-    }
-    setShowProjectSelector(true);
-  };
+  }, [checkAuth, checkPendingShare]);
 
   const handleProjectSelected = async (projectId: string) => {
     setShowProjectSelector(false);
@@ -206,11 +206,10 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                   selectedShotId={shareData.shot_id}
                   preloadedImages={images}
                   readOnly={true}
-                  projectId={null}
+                  projectId={undefined}
                   shotName={shareData.shot_name || "Shared Generation"}
                   batchVideoFrames={batchVideoFrames}
                   onImageReorder={() => {}}
-                  onContextFramesChange={() => {}}
                   onFramePositionsChange={() => {}}
                   onFileDrop={async () => {}}
                   pendingPositions={new Map()}

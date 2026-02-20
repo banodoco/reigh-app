@@ -26,6 +26,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { storagePaths, MEDIA_BUCKET } from '../_shared/storagePaths.ts';
 import { SystemLogger } from "../_shared/systemLogger.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
 
 declare const Deno: {
   env: {
@@ -270,7 +271,6 @@ serve(async (req) => {
       end_time,
       project_id,
       user_id,
-      generation_id,
       variant_id,
       test_mode = false,
     } = body;
@@ -325,6 +325,20 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'project_id and user_id are required', success: false }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const auth = await authenticateRequest(req, supabase, "[TRIM-VIDEO]", { allowJwtUserAuth: true });
+    if (!auth.success) {
+      return new Response(
+        JSON.stringify({ error: auth.error || 'Authentication failed', success: false }),
+        { status: auth.statusCode || 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!auth.isServiceRole && auth.userId !== user_id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: user_id mismatch', success: false }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

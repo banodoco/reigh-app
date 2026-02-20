@@ -9,7 +9,7 @@ export const safeCopy = async (text: string): Promise<boolean> => {
       await navigator.clipboard.writeText(text);
       return true;
     }
-  } catch (e) {
+  } catch {
     // Fall through to fallback
   }
   try {
@@ -22,7 +22,7 @@ export const safeCopy = async (text: string): Promise<boolean> => {
     document.execCommand('copy');
     document.body.removeChild(textarea);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 };

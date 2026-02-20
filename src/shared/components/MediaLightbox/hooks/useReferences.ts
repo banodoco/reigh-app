@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
 import { nanoid } from 'nanoid';
+import { toast } from '@/shared/components/ui/sonner';
 import { GenerationRow } from '@/types/shots';
+import { supabase } from '@/integrations/supabase/client';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { dataURLtoFile } from '@/shared/lib/fileConversion';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { generateClientThumbnail } from '@/shared/lib/clientThumbnailGenerator';
-import { storagePaths, generateThumbnailFilename, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
+import {
+  generateThumbnailFilename,
+  MEDIA_BUCKET,
+  storagePaths,
+} from '@/shared/lib/storagePaths';
 import { processStyleReferenceForAspectRatioString } from '@/shared/lib/styleReferenceProcessor';
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
-import { dataURLtoFile } from '@/shared/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { useCreateResource, type StyleReferenceMetadata } from '@/shared/hooks/useResources';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
-import { useCreateResource, StyleReferenceMetadata } from '@/shared/hooks/useResources';
 import type { ReferenceImage } from '@/shared/types/referenceImage';
 
 /** Settings shape for project-image-settings tool */
@@ -34,6 +38,145 @@ interface UseReferencesReturn {
   handleAddToReferences: () => Promise<void>;
 }
 
+function getMediaImageUrl(media: GenerationRow): string {
+  const mediaWithUrl = media as unknown as { url?: string | null };
+  const imageUrl = media.location || media.imageUrl || mediaWithUrl.url;
+  if (!imageUrl) {
+    throw new Error('No image URL available');
+  }
+  return imageUrl;
+}
+
+async function fetchImageBlob(imageUrl: string): Promise<Blob> {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.statusText}`);
+  }
+  return response.blob();
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  const reader = new FileReader();
+  return new Promise<string>((resolve, reject) => {
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function uploadThumbnail(originalFile: File, originalUploadedUrl: string): Promise<string> {
+  try {
+    const thumbnailResult = await generateClientThumbnail(originalFile, 300, 0.8);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    const thumbnailFilename = generateThumbnailFilename();
+    const thumbnailPath = storagePaths.thumbnail(session.user.id, thumbnailFilename);
+    const { error: thumbnailUploadError } = await supabase.storage
+      .from(MEDIA_BUCKET)
+      .upload(thumbnailPath, thumbnailResult.thumbnailBlob, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+
+    if (thumbnailUploadError) {
+      handleError(thumbnailUploadError, {
+        context: 'useReferences.thumbnailUpload',
+        showToast: false,
+      });
+      return originalUploadedUrl;
+    }
+
+    const { data: thumbnailUrlData } = supabase.storage
+      .from(MEDIA_BUCKET)
+      .getPublicUrl(thumbnailPath);
+    return thumbnailUrlData.publicUrl;
+  } catch (thumbnailError) {
+    handleError(thumbnailError, { context: 'useReferences.thumbnailGeneration', showToast: false });
+    return originalUploadedUrl;
+  }
+}
+
+async function uploadProcessedReferenceImage(
+  dataURL: string,
+  selectedProjectId: string
+): Promise<string> {
+  let processedDataURL = dataURL;
+  const { aspectRatio } = await resolveProjectResolution(selectedProjectId);
+  const processed = await processStyleReferenceForAspectRatioString(dataURL, aspectRatio);
+  if (processed) {
+    processedDataURL = processed;
+  }
+
+  const processedFile = dataURLtoFile(processedDataURL, `reference-processed-${Date.now()}.png`);
+  if (!processedFile) {
+    throw new Error('Failed to convert processed image to file');
+  }
+
+  return uploadImageToStorage(processedFile);
+}
+
+function buildReferenceMetadata(input: {
+  referenceCount: number;
+  processedUploadedUrl: string;
+  originalUploadedUrl: string;
+  thumbnailUrl: string;
+}): StyleReferenceMetadata {
+  const now = new Date().toISOString();
+
+  return {
+    name: `Reference ${input.referenceCount + 1}`,
+    styleReferenceImage: input.processedUploadedUrl,
+    styleReferenceImageOriginal: input.originalUploadedUrl,
+    thumbnailUrl: input.thumbnailUrl,
+    styleReferenceStrength: 1.1,
+    subjectStrength: 0.0,
+    subjectDescription: '',
+    inThisScene: false,
+    inThisSceneStrength: 0,
+    referenceMode: 'style',
+    styleBoostTerms: '',
+    created_by: { is_you: true },
+    is_public: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function resolveEffectiveShotId(
+  selectedShotId: string | undefined,
+  selectedReferenceIdByShot: Record<string, string | null>
+): string {
+  if (selectedShotId) {
+    return selectedShotId;
+  }
+
+  const existingShots = Object.keys(selectedReferenceIdByShot);
+  if (existingShots.length > 0) {
+    return existingShots[0];
+  }
+
+  return 'shot-1';
+}
+
+function createReferenceUpdatePayload(input: {
+  references: ReferenceImage[];
+  selectedReferenceIdByShot: Record<string, string | null>;
+  selectedShotId: string;
+  newPointer: ReferenceImage;
+}): Pick<ProjectImageSettingsForReferences, 'references' | 'selectedReferenceIdByShot'> {
+  return {
+    references: [...input.references, input.newPointer],
+    selectedReferenceIdByShot: {
+      ...input.selectedReferenceIdByShot,
+      [input.selectedShotId]: input.newPointer.id,
+      none: input.newPointer.id,
+    },
+  };
+}
+
 /**
  * Hook for managing adding images to project references
  * Handles image processing, uploading, and adding to project settings
@@ -48,17 +191,15 @@ export const useReferences = ({
   const [addToReferencesSuccess, setAddToReferencesSuccess] = useState(false);
   const createResource = useCreateResource();
 
-  // Get project image settings
   const {
     settings: projectImageSettings,
     update: updateProjectImageSettings,
   } = useToolSettings<ProjectImageSettingsForReferences>('project-image-settings', {
-    projectId: selectedProjectId,
-    enabled: !!selectedProjectId
+    projectId: selectedProjectId ?? undefined,
+    enabled: !!selectedProjectId,
   });
 
   const handleAddToReferences = async () => {
-
     if (!selectedProjectId || isVideo) {
       toast.error('Cannot add videos to references');
       return;
@@ -66,163 +207,46 @@ export const useReferences = ({
 
     setIsAddingToReferences(true);
     try {
-      // Use location or imageUrl from the media object; fall back to 'url' if present at runtime
-      const imageUrl = media.location || media.imageUrl || (media as Record<string, unknown>).url as string | undefined;
-      if (!imageUrl) {
-        throw new Error('No image URL available');
-      }
-
-      // Fetch the image as blob
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.statusText}`);
-      }
-      const blob = await response.blob();
-      
-      // Convert to File for processing
+      const imageUrl = getMediaImageUrl(media);
+      const blob = await fetchImageBlob(imageUrl);
       const originalFile = new File([blob], `reference-${Date.now()}.png`, { type: 'image/png' });
-      
-      // Upload original image
       const originalUploadedUrl = await uploadImageToStorage(originalFile);
-      
-      // Generate and upload thumbnail for grid display
-      let thumbnailUrl: string | null = null;
-      try {
-        const thumbnailResult = await generateClientThumbnail(originalFile, 300, 0.8);
-        
-        // Upload thumbnail to storage using centralized path utilities
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user?.id) {
-          throw new Error('User not authenticated');
-        }
-        const thumbnailFilename = generateThumbnailFilename();
-        const thumbnailPath = storagePaths.thumbnail(session.user.id, thumbnailFilename);
-        
-        const { error: thumbnailUploadError } = await supabase.storage
-          .from(MEDIA_BUCKET)
-          .upload(thumbnailPath, thumbnailResult.thumbnailBlob, {
-            contentType: 'image/jpeg',
-            upsert: true
-          });
-        
-        if (thumbnailUploadError) {
-          console.error('[AddToReferences] Thumbnail upload error:', thumbnailUploadError);
-          // Use original as fallback
-          thumbnailUrl = originalUploadedUrl;
-        } else {
-          const { data: thumbnailUrlData } = supabase.storage
-            .from(MEDIA_BUCKET)
-            .getPublicUrl(thumbnailPath);
-          thumbnailUrl = thumbnailUrlData.publicUrl;
-        }
-      } catch (thumbnailError) {
-        handleError(thumbnailError, { context: 'useReferences', showToast: false });
-        // Use original as fallback
-        thumbnailUrl = originalUploadedUrl;
-      }
-      
-      // Convert blob to data URL for processing
-      const reader = new FileReader();
-      const dataURL = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      
-      // Process the image to match project aspect ratio
-      let processedDataURL = dataURL;
-      const { aspectRatio } = await resolveProjectResolution(selectedProjectId);
-      
-      const processed = await processStyleReferenceForAspectRatioString(dataURL, aspectRatio);
-      if (processed) {
-        processedDataURL = processed;
-      }
-      
-      // Convert processed data URL back to File for upload
-      const processedFile = dataURLtoFile(processedDataURL, `reference-processed-${Date.now()}.png`);
-      if (!processedFile) {
-        throw new Error('Failed to convert processed image to file');
-      }
-      
-      // Upload processed version
-      const processedUploadedUrl = await uploadImageToStorage(processedFile);
-      
-      // Get existing references
+      const thumbnailUrl = await uploadThumbnail(originalFile, originalUploadedUrl);
+      const dataURL = await blobToDataUrl(blob);
+      const processedUploadedUrl = await uploadProcessedReferenceImage(dataURL, selectedProjectId);
+
       const references = projectImageSettings?.references || [];
       const selectedReferenceIdByShot = projectImageSettings?.selectedReferenceIdByShot || {};
-      
-      // Create new resource metadata
-      const metadata: StyleReferenceMetadata = {
-        name: `Reference ${references.length + 1}`,
-        styleReferenceImage: processedUploadedUrl,
-        styleReferenceImageOriginal: originalUploadedUrl,
-        thumbnailUrl: thumbnailUrl,
-        styleReferenceStrength: 1.1,
-        subjectStrength: 0.0,
-        subjectDescription: '',
-        inThisScene: false,
-        inThisSceneStrength: 0,
-        referenceMode: 'style',
-        styleBoostTerms: '',
-        created_by: { is_you: true },
-        is_public: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Create resource in DB
+      const metadata = buildReferenceMetadata({
+        referenceCount: references.length,
+        processedUploadedUrl,
+        originalUploadedUrl,
+        thumbnailUrl,
+      });
+
       const resource = await createResource.mutateAsync({
         type: 'style-reference',
-        metadata
+        metadata,
       });
-      
-      // Create pointer
+
       const newPointer: ReferenceImage = {
         id: nanoid(),
-        resourceId: resource.id
+        resourceId: resource.id,
       };
-      
-      // Determine the effective shot ID
-      // If selectedShotId is provided, use it.
-      // If not, heuristic: try to match an existing shot ID or default to 'shot-1'
-      // This handles cases where Lightbox is opened without explicit shot context
-      let effectiveShotId = selectedShotId;
-      if (!effectiveShotId) {
-        const existingShots = Object.keys(selectedReferenceIdByShot);
-        if (existingShots.length > 0) {
-           // Pick the first one (often 'shot-1' or the only active shot)
-           effectiveShotId = existingShots[0];
-        } else {
-           effectiveShotId = 'shot-1';
-        }
-      }
-      
-      // Update selections for BOTH the specific shot AND 'none' (global/default)
-      // This ensures the reference is selected regardless of which context you're viewing from
-      const updatedSelections = {
-        ...selectedReferenceIdByShot,
-        [effectiveShotId]: newPointer.id,
-        // Also update 'none' if we're on a specific shot, OR update the specific shot if we're on 'none'
-        // This keeps both contexts in sync
-        'none': newPointer.id
-      };
-      
-      const updatePayload = {
-        references: [...references, newPointer],
-        selectedReferenceIdByShot: updatedSelections
-      };
-      
-      // Add to references array AND set as selected for current shot
+
+      const effectiveShotId = resolveEffectiveShotId(selectedShotId, selectedReferenceIdByShot);
+      const updatePayload = createReferenceUpdatePayload({
+        references,
+        selectedReferenceIdByShot,
+        selectedShotId: effectiveShotId,
+        newPointer,
+      });
+
       await updateProjectImageSettings('project', updatePayload);
-      
-      // Show success state
       setAddToReferencesSuccess(true);
-      
-      // Reset success state after 2 seconds
       setTimeout(() => {
         setAddToReferencesSuccess(false);
       }, 2000);
-      
     } catch (error) {
       handleError(error, { context: 'useReferences', toastTitle: 'Failed to add to references' });
     } finally {
@@ -236,4 +260,3 @@ export const useReferences = ({
     handleAddToReferences,
   };
 };
-

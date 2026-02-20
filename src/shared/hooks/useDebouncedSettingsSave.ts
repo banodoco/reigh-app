@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRenderLogger } from '@/shared/lib/debugRendering';
 import { updateToolSettingsSupabase } from './useToolSettings';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 type AutoSaveStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
@@ -80,7 +81,7 @@ interface UseDebouncedSettingsSaveReturn<T> {
  *
  * @internal Used only by useAutoSaveSettings
  */
-export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
+export function useDebouncedSettingsSave<T extends object>(
   options: UseDebouncedSettingsSaveOptions<T>
 ): UseDebouncedSettingsSaveReturn<T> {
   const {
@@ -96,6 +97,8 @@ export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
 
   const { isCustomMode, scope, toolId, projectId } = flushConfig;
   const queryClient = useQueryClient();
+
+  useRenderLogger(`DebouncedSettingsSave:${toolId}`, { entityId, status });
 
   // Refs owned by this hook
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -180,6 +183,8 @@ export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
     const currentScope = scope;
     const currentToolId = toolId;
     const currentIsCustomMode = isCustomMode;
+    const customSave = customSaveRef.current;
+    const onFlush = onFlushRef.current;
 
     return () => {
       if (saveTimeoutRef.current) {
@@ -193,13 +198,15 @@ export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
       if (pending && pendingForEntity && pendingForEntity === currentEntityId) {
         if (currentIsCustomMode) {
           // Custom mode: fire-and-forget via save ref
-          customSaveRef.current!(pendingForEntity, pending)
-            .then(() => {
-              onFlushRef.current?.(pendingForEntity, pending);
-            })
-            .catch(err => {
-              handleError(err, { context: 'useDebouncedSettingsSave.cleanupFlush', showToast: false });
-            });
+          if (customSave) {
+            customSave(pendingForEntity, pending)
+              .then(() => {
+                onFlush?.(pendingForEntity, pending);
+              })
+              .catch(err => {
+                handleError(err, { context: 'useDebouncedSettingsSave.cleanupFlush', showToast: false });
+              });
+          }
         } else {
           // React Query mode: call updateToolSettingsSupabase directly
           updateToolSettingsSupabase({
@@ -211,7 +218,7 @@ export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
             .then(() => {
               // CRITICAL: Invalidate the React Query cache for this entity after save completes.
               const cacheKey = currentScope === 'shot'
-                ? queryKeys.settings.tool(currentToolId, projectId, pendingForEntity)
+                ? queryKeys.settings.tool(currentToolId, projectId ?? undefined, pendingForEntity)
                 : queryKeys.settings.tool(currentToolId, pendingForEntity, undefined);
               queryClient.invalidateQueries({ queryKey: cacheKey });
 
@@ -233,22 +240,26 @@ export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
       }
     };
     // Only re-run when entityId changes
-  }, [entityId, scope, toolId, isCustomMode, projectId, queryClient]);
+  }, [entityId, scope, toolId, isCustomMode, projectId, queryClient, customSaveRef, onFlushRef]);
 
   /**
    * Handle page close/navigation - save pending settings directly.
    * This is a best-effort save; browsers typically allow ~50-100ms for async ops.
    */
   useEffect(() => {
+    const customSave = customSaveRef.current;
+
     const handleBeforeUnload = () => {
       const pending = pendingSettingsRef.current;
       const pendingForEntity = pendingEntityIdRef.current;
 
       if (pending && pendingForEntity) {
         if (isCustomMode) {
-          customSaveRef.current!(pendingForEntity, pending).catch(err => {
-            handleError(err, { context: 'useDebouncedSettingsSave.unloadFlush', showToast: false });
-          });
+          if (customSave) {
+            customSave(pendingForEntity, pending).catch(err => {
+              handleError(err, { context: 'useDebouncedSettingsSave.unloadFlush', showToast: false });
+            });
+          }
         } else {
           updateToolSettingsSupabase({
             scope,
@@ -264,7 +275,7 @@ export function useDebouncedSettingsSave<T extends Record<string, unknown>>(
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [toolId, scope, isCustomMode]);
+  }, [toolId, scope, isCustomMode, customSaveRef]);
 
   return {
     scheduleSave,

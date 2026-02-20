@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
 import { generateMaskFromCanvas, createCanvasWithBackground } from '@/shared/lib/maskGeneration';
@@ -51,7 +51,7 @@ export function useRepositionTaskCreation({
   loras,
   inpaintPrompt,
   inpaintNumGenerations,
-  transform,
+  transform: _transform,
   hasTransformChanges,
   createAsGeneration,
   advancedSettings,
@@ -142,7 +142,7 @@ export function useRepositionTaskCreation({
         mask_url: maskUrl,
         prompt: effectivePrompt,
         num_generations: inpaintNumGenerations,
-        generation_id: actualGenerationId,
+        generation_id: actualGenerationId ?? undefined,
         shot_id: shotId,
         tool_type: toolTypeOverride,
         loras: loras,
@@ -159,8 +159,8 @@ export function useRepositionTaskCreation({
         setRepositionGenerateSuccess(false);
       }, 1000);
 
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });
       removeIncomingTask(incomingTaskId);
 
     } catch (error) {
@@ -175,7 +175,6 @@ export function useRepositionTaskCreation({
     media,
     inpaintPrompt,
     inpaintNumGenerations,
-    transform,
     shotId,
     toolTypeOverride,
     loras,

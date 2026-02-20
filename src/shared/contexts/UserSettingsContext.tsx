@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserPreferences } from '@/shared/settings/userPreferences';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useAuth } from './AuthContext';
 
 interface UserSettingsContextType {

@@ -4,11 +4,11 @@ import {
   generateRunId,
   createTask,
 } from "../../taskCreation";
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { TravelBetweenImagesTaskParams, TravelBetweenImagesTaskResult } from './types';
 import { validateTravelBetweenImagesParams, buildTravelBetweenImagesPayload } from './payloadBuilder';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { ensureShotParentGenerationId } from '../shotParentGeneration';
 
 /**
  * Creates a travel between images task using the unified approach.
@@ -33,66 +33,14 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
     const orchestratorTaskId = generateTaskId("sm_travel_orchestrator");
     const runId = generateRunId();
 
-    // 4. Ensure we have a parent_generation_id (create placeholder if needed)
-    // This ensures the parent generation exists BEFORE segments start completing
-    let effectiveParentGenerationId = params.parent_generation_id;
-
-    if (!effectiveParentGenerationId && params.shot_id) {
-
-      // Create a placeholder parent generation
-      const newParentId = crypto.randomUUID();
-      const placeholderParams = {
-        tool_type: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
-        created_from: 'travel_orchestrator_upfront',
-        // Include basic orchestrator_details structure so it shows in segment outputs
-        orchestrator_details: {
-          num_new_segments_to_generate: Math.max(1, params.image_urls.length - 1),
-          input_image_paths_resolved: params.image_urls,
-          shot_id: params.shot_id,
-        },
-        // Include generation name if provided
-        ...(params.generation_name ? { generation_name: params.generation_name } : {}),
-      };
-
-      const { error: parentError } = await supabase
-        .from('generations')
-        .insert({
-          id: newParentId,
-          project_id: params.project_id,
-          type: 'video',
-          is_child: false,
-          location: null, // Placeholder - no video yet
-          params: placeholderParams,
-          name: params.generation_name || null,
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (parentError) {
-        console.error("[createTravelBetweenImagesTask] Error creating placeholder parent:", parentError);
-        throw new Error(`Failed to create placeholder parent generation: ${parentError.message}`);
-      }
-
-      effectiveParentGenerationId = newParentId;
-
-      // Link the parent to the shot using the RPC
-      try {
-        const { error: linkError } = await supabase.rpc('add_generation_to_shot', {
-          p_shot_id: params.shot_id,
-          p_generation_id: newParentId,
-          p_with_position: false // Parent videos don't get timeline positions
-        });
-
-        if (linkError) {
-          console.error("[createTravelBetweenImagesTask] Error linking parent to shot:", linkError);
-          // Don't throw - the generation was created, just not linked
-        }
-      } catch (linkErr) {
-        console.error("[createTravelBetweenImagesTask] Exception linking parent to shot:", linkErr);
-        // Don't throw - the generation was created, just not linked
-      }
-    }
+    // 4. Ensure we have a canonical parent generation for this shot.
+    // If one already exists, reuse it. If none exists yet, create exactly one.
+    const effectiveParentGenerationId = await ensureShotParentGenerationId({
+      projectId: params.project_id,
+      shotId: params.shot_id,
+      parentGenerationId: params.parent_generation_id,
+      context: 'TravelBetweenImages',
+    });
 
     // 5. Build orchestrator payload (now includes parent_generation_id)
     const orchestratorPayload = buildTravelBetweenImagesPayload(
@@ -127,7 +75,6 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
     };
 
   } catch (error) {
-    handleError(error, { context: 'TravelBetweenImages', showToast: false });
-    throw error;
+    throw handleError(error, { context: 'TravelBetweenImages', showToast: false });
   }
 }

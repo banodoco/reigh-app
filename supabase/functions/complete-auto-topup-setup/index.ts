@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { SystemLogger } from "../_shared/systemLogger.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,13 +59,7 @@ serve(async (req) => {
   }
 
   // ─── 2. Verify service role authentication ──────────────────────
-  const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  
-  if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== serviceRoleKey) {
-    return jsonResponse({ error: "Unauthorized - service role required" }, 401);
-  }
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   if (!supabaseUrl || !serviceRoleKey) {
     console.error("Missing required environment variables");
@@ -80,6 +75,14 @@ serve(async (req) => {
   });
 
   const logger = new SystemLogger(supabaseAdmin, 'complete-auto-topup-setup');
+
+  const auth = await authenticateRequest(req, supabaseAdmin, "[COMPLETE-AUTO-TOPUP-SETUP]");
+  if (!auth.success) {
+    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
+  }
+  if (!auth.isServiceRole) {
+    return jsonResponse({ error: "Unauthorized - service role required" }, 403);
+  }
 
   try {
     // ─── 4. Initialize Stripe ───────────────────────────────────────

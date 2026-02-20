@@ -68,7 +68,16 @@ export const ShotFilter: React.FC<ShotFilterProps> = ({
           </Label>
         )}
 
-        <Select value={selectedShotId} onValueChange={onShotChange} open={open} onOpenChange={onOpenChange}>
+        <Select
+          value={selectedShotId}
+          onValueChange={(value) => {
+            if (value) {
+              onShotChange(value);
+            }
+          }}
+          open={open}
+          onOpenChange={onOpenChange}
+        >
           <SelectTrigger
             variant={darkSurface ? "retro-dark" : "retro"}
             colorScheme={darkSurface ? "zinc" : "default"}

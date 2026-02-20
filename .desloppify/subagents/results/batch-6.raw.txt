@@ -1,0 +1,96 @@
+{
+  "batch": "AI Debt & Migrations",
+  "assessments": {
+    "ai_generated_debt": 46,
+    "incomplete_migration": 33,
+    "low_level_elegance": 54
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "migration_shims_still_in_active_import_paths",
+      "summary": "Deprecated re-export shim files are still part of active dependency paths",
+      "related_files": [
+        "src/shared/hooks/useGenerationInvalidation.ts",
+        "src/shared/hooks/useSegmentSettings.ts",
+        "src/shared/hooks/useShots.ts",
+        "src/tools/edit-video/components/VideoPortionEditor.tsx",
+        "src/tools/travel-between-images/hooks/useSegmentOutputsForShot.ts",
+        "src/shared/hooks/useSegmentSettingsForm.ts",
+        "src/shared/hooks/useShotImages.ts"
+      ],
+      "evidence": [
+        "Multiple files are pure deprecated pass-through re-exports, not temporary local adapters.",
+        "Active modules in this batch still import through shims (`useSegmentSettingsForm` imports `./useSegmentSettings`; `useShotImages` imports mapper via `@/shared/hooks/useShots`).",
+        "This keeps old and new module paths alive simultaneously and prevents migration completion."
+      ],
+      "suggestion": "Run a scoped import-path migration in these files: replace shim imports with canonical module paths (`./segments/*`, `./shots/*`, `@/shared/components/VideoPortionEditor`), then delete the shim files once no internal imports remain.",
+      "reasoning": "Keeping compatibility shims in live internal paths makes architecture harder to reason about and extends migration debt indefinitely.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "dual_generation_identity_and_legacy_shape_branches",
+      "summary": "Generation/shot identity is duplicated across aliases, increasing mapper branching",
+      "related_files": [
+        "src/shared/lib/generationTransformers.ts",
+        "src/shared/hooks/shots/mappers.ts",
+        "src/shared/components/MediaGallery/types.ts",
+        "src/shared/hooks/useShotImages.ts"
+      ],
+      "evidence": [
+        "`GeneratedImageWithMetadata` carries multiple identity aliases (`generation_id`, `shot_generation_id`, `shotImageEntryId`).",
+        "`mapShotGenerationToRow` accepts both `generation` and `generations` and emits deprecated alias fields.",
+        "`transformGeneration` still supports both `shot_data` and deprecated `shot_generations`, and `transformForTimeline` writes deprecated alias IDs.",
+        "`useShotImages` documentation still references deprecated `shotImageEntryId` as a primary mutation handle."
+      ],
+      "suggestion": "Define one canonical identity contract (`generationId` + `shotGenerationId`), migrate consumers to it, and remove deprecated alias writes plus old-shape fallbacks (`generation/generations`, `shot_generations`) behind a single cleanup PR.",
+      "reasoning": "Alias-heavy mapping logic increases local complexity and raises the chance of subtle cache/update bugs when one path is updated but another is missed.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "deprecated_props_remain_first_class_component_api",
+      "summary": "Deprecated props are still exposed and threaded through current UI component contracts",
+      "related_files": [
+        "src/shared/components/MediaGallery/components/MediaGalleryGrid.tsx",
+        "src/shared/components/MediaGallery/types.ts",
+        "src/tools/travel-between-images/components/VideoTravelVideosGallery.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/ShotFilter.tsx",
+        "src/shared/components/VariantBadge.tsx",
+        "src/shared/components/ImageGenerationForm/types.ts"
+      ],
+      "evidence": [
+        "Media gallery APIs still include deprecated callback/legacy navigation props while newer `generationFilters`/`clearNavigation` paths coexist.",
+        "Filter components continue dual-prop support (`whiteText` + `darkSurface`) instead of enforcing the replacement prop.",
+        "Type surfaces retain deprecated fields for LoRA/reference/prompt structures and badge props, expanding migration surface area."
+      ],
+      "suggestion": "Create strict v2 prop/type interfaces (no deprecated fields), update current callers in this batch to v2, and gate deprecated exports behind a short deprecation window with removal date.",
+      "reasoning": "When deprecated props remain in primary interfaces, teams keep coding against old contracts and migration never converges.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "debug_scaffolding_and_historical_comment_noise_in_runtime_modules",
+      "summary": "Runtime hooks include debug scaffolding and narrative comments that outlive their fixes",
+      "related_files": [
+        "src/shared/hooks/useSmartPolling.ts",
+        "src/shared/lib/debugPolling.ts",
+        "src/shared/hooks/useRenderLogger.ts",
+        "src/shared/hooks/useShotImages.ts",
+        "src/shared/hooks/useProjectGenerations.ts",
+        "src/shared/hooks/useEditVideoSettings.ts"
+      ],
+      "evidence": [
+        "Hooks include verbose fix-history/comment markers and debug toggles in public paths (`useSmartPolling`, `useProjectGenerations`).",
+        "`debugPolling` mutates global `window` at module scope and contains a no-op diagnostic method, indicating unfinished debug-only code in shared runtime.",
+        "`useRenderLogger` emits a log every render with no guard, and `useShotImages` logs raw fetch errors directly to console.",
+        "Several modules carry debug flags/tags even when disabled by default."
+      ],
+      "suggestion": "Move diagnostics into a dedicated dev-only module gated by environment/feature flag, strip historical fix narration from production code comments, and keep only concise WHY comments plus typed telemetry hooks where needed.",
+      "reasoning": "Persistent debug scaffolding and narrative comments are a common AI-generated debt pattern that adds noise, weakens signal in reviews, and obscures real business logic.",
+      "confidence": "medium"
+    }
+  ]
+}

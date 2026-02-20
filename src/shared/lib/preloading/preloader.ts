@@ -8,7 +8,7 @@
 import type { PreloadableImage, PreloadConfig } from './types';
 import { PreloadQueue } from './queue';
 import { setImageLoadStatus, hasLoadedImage, markImageLoaded } from './tracker';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 
 /**
  * Preload a batch of images using the provided queue.

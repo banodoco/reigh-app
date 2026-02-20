@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useMemo, useCallback } from 'react';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
 import { useCreateGeneration } from '@/shared/hooks/useGenerationMutations';
 import { useDeleteGenerationWithConfirm } from '@/shared/hooks/useDeleteGenerationWithConfirm';
@@ -36,141 +36,87 @@ import { useJoinClipsGenerate } from '../hooks/useJoinClipsGenerate';
 import { JoinClipsSettingsForm, type ClipPairInfo, DEFAULT_JOIN_CLIPS_PHASE_CONFIG } from '@/shared/components/JoinClipsSettingsForm';
 import { SortableClip } from '../components/SortableClip';
 
-const JoinClipsPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const { selectedProjectId, projects } = useProject();
-  const isMobile = useIsMobile();
+type JoinSettingsState = ReturnType<typeof useJoinClipsSettings>;
+type ClipManagerState = ReturnType<typeof useClipManager>;
+type JoinGenerateState = ReturnType<typeof useJoinClipsGenerate>;
+type LoraManagerState = ReturnType<typeof useLoraManager>;
 
-  // Get current project for aspect ratio
-  const currentProject = projects.find(p => p.id === selectedProjectId);
-  const projectAspectRatio = currentProject?.aspectRatio;
-
-  // Settings hook
-  const joinSettings = useJoinClipsSettings(selectedProjectId);
-  const {
-    prompt: globalPrompt,
-    negativePrompt,
-    contextFrameCount,
-    gapFrameCount,
-    replaceMode,
-    keepBridgingImages,
-    useIndividualPrompts,
-    enhancePrompt,
-    useInputVideoResolution,
-    useInputVideoFps,
-    noisedInputVideo,
-    loopFirstClip,
-    motionMode,
-    phaseConfig,
-    randomSeed,
-    selectedPhasePresetId,
-  } = joinSettings.settings;
-
-  const settingsLoaded = joinSettings.status !== 'idle' && joinSettings.status !== 'loading';
-
-  // Fetch available LoRAs
-  const { data: availableLoras } = usePublicLoras();
-
-  // Initialize LoRA manager
-  const loraManager = useLoraManager(availableLoras, {
-    projectId: selectedProjectId || undefined,
-    persistenceScope: 'project',
-    enableProjectPersistence: true,
-    persistenceKey: TOOL_IDS.JOIN_CLIPS,
-  });
-
-  // Sync loraManager.selectedLoras → joinSettings.loras for persistence
+function useSyncJoinClipsLoras(
+  settingsLoaded: boolean,
+  selectedLoras: LoraManagerState['selectedLoras'],
+  joinSettings: JoinSettingsState,
+) {
   const lorasSyncStateRef = useRef<{ lastSyncedKey: string }>({ lastSyncedKey: '' });
+
   useEffect(() => {
     if (!settingsLoaded) return;
 
-    const lorasKey = loraManager.selectedLoras.map(l => `${l.id}:${l.strength}`).sort((a, b) => a.localeCompare(b)).join(',');
+    const lorasKey = selectedLoras
+      .map(lora => `${lora.id}:${lora.strength}`)
+      .sort((a, b) => a.localeCompare(b))
+      .join(',');
+
     if (lorasKey === lorasSyncStateRef.current.lastSyncedKey) return;
 
     lorasSyncStateRef.current.lastSyncedKey = lorasKey;
-    joinSettings.updateField('loras', loraManager.selectedLoras.map(l => ({
-      id: l.id,
-      strength: l.strength,
+    joinSettings.updateField('loras', selectedLoras.map(lora => ({
+      id: lora.id,
+      strength: lora.strength,
     })));
-  }, [loraManager.selectedLoras, joinSettings, settingsLoaded]);
+  }, [settingsLoaded, selectedLoras, joinSettings]);
+}
 
-  // Create mutation for uploaded clips (passed to useClipManager)
-  const createGenerationMutation = useCreateGeneration();
-
-  // Clip management hook
-  const clipManager = useClipManager({
-    selectedProjectId,
-    joinSettings,
-    settingsLoaded,
-    loopFirstClip,
-    createGenerationMutation,
-  });
-
-  const {
-    clips,
-    setClips,
-    transitionPrompts,
-    uploadingClipId,
-    draggingOverClipId,
-    isScrolling,
-    lightboxClip,
-    setLightboxClip,
-    isLoadingPersistedMedia,
-    cachedClipsCount,
-    videoRefs,
-    fileInputRefs,
-    handleRemoveClip,
-    handleClearVideo,
-    handleVideoUpload,
-    handleDragOver,
-    handleDragEnter,
-    handleDragLeave,
-    handleDrop,
-    handlePromptChange,
-    sensors,
-    handleDragEnd,
-  } = clipManager;
-
-  // Initialize keepBridgingImages to false if undefined (new field for existing projects)
+function useEnsureKeepBridgingImages(
+  keepBridgingImages: boolean | undefined,
+  settingsLoaded: boolean,
+  joinSettings: JoinSettingsState,
+) {
   useEffect(() => {
     if (keepBridgingImages === undefined && settingsLoaded) {
       joinSettings.updateField('keepBridgingImages', false);
     }
   }, [keepBridgingImages, settingsLoaded, joinSettings]);
+}
 
-  // Calculate validation result based on current settings and clip durations
-  const validationResult = useMemo((): ValidationResult | null => {
-    const validClips = clips.filter(c => c.url);
+function useJoinValidationResult(
+  clips: ClipManagerState['clips'],
+  contextFrameCount: number,
+  gapFrameCount: number,
+  replaceMode: boolean,
+  useInputVideoFps: boolean,
+): ValidationResult | null {
+  return useMemo(() => {
+    const validClips = clips.filter(clip => clip.url);
     if (validClips.length < 2) return null;
 
-    const stillLoading = validClips.some(c => c.metadataLoading || c.durationSeconds === undefined);
+    const stillLoading = validClips.some(clip => clip.metadataLoading || clip.durationSeconds === undefined);
     if (stillLoading) return null;
 
-    const clipFrameInfos: ClipFrameInfo[] = validClips.map((clip, index) => {
-      const frameCount = clip.durationSeconds
+    const clipFrameInfos: ClipFrameInfo[] = validClips.map((clip, index) => ({
+      index,
+      name: `Clip #${index + 1}`,
+      frameCount: clip.durationSeconds
         ? calculateEffectiveFrameCount(clip.durationSeconds, useInputVideoFps)
-        : 0;
-
-      return {
-        index,
-        name: `Clip #${index + 1}`,
-        frameCount,
-        durationSeconds: clip.durationSeconds,
-        source: clip.durationSeconds ? 'estimated' : 'unknown',
-      };
-    });
+        : 0,
+      durationSeconds: clip.durationSeconds,
+      source: clip.durationSeconds ? 'estimated' : 'unknown',
+    }));
 
     return validateClipsForJoin(
       clipFrameInfos,
       contextFrameCount,
       gapFrameCount,
-      replaceMode
+      replaceMode,
     );
   }, [clips, contextFrameCount, gapFrameCount, replaceMode, useInputVideoFps]);
+}
 
-  // Build clip pairs for visualization
-  const clipPairs = useMemo((): ClipPairInfo[] => {
-    const validClips = clips.filter(c => c.url);
+function useJoinClipPairs(
+  clips: ClipManagerState['clips'],
+  useInputVideoFps: boolean,
+): ClipPairInfo[] {
+  return useMemo(() => {
+    const validClips = clips.filter(clip => clip.url);
     if (validClips.length < 2) return [];
 
     const pairs: ClipPairInfo[] = [];
@@ -199,28 +145,390 @@ const JoinClipsPage: React.FC = () => {
         },
       });
     }
+
     return pairs;
   }, [clips, useInputVideoFps]);
+}
 
-  // Generate hook
-  const {
-    generateJoinClipsMutation,
-    handleGenerate,
-    showSuccessState,
-    generateButtonText,
-    isGenerateDisabled,
-    handleRestoreDefaults,
-  } = useJoinClipsGenerate({
+function useRefreshOnVisibility(
+  selectedProjectId: string | null,
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedProjectId) {
+        queryClient.invalidateQueries({
+          queryKey: unifiedGenerationQueryKeys.projectPrefix(selectedProjectId),
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedProjectId, queryClient]);
+}
+
+function JoinClipsSkeletonGrid({ cachedClipsCount }: { cachedClipsCount: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: Math.max(2, cachedClipsCount) + 1 }).map((_, index) => (
+        <div key={index} className="space-y-3">
+          <div className="relative border rounded-lg p-3 space-y-3 bg-card">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-5 w-16" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="aspect-video bg-muted rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                <div className="text-center space-y-2">
+                  <Skeleton className="h-8 w-8 rounded-full mx-auto" />
+                  <Skeleton className="h-4 w-32 mx-auto" />
+                  <Skeleton className="h-3 w-24 mx-auto" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface JoinClipsGridProps {
+  joinSettings: JoinSettingsState;
+  clipManager: ClipManagerState;
+  settingsLoaded: boolean;
+}
+
+function JoinClipsGrid({ joinSettings, clipManager, settingsLoaded }: JoinClipsGridProps) {
+  const showSkeleton = joinSettings.status === 'loading' ||
+    clipManager.isLoadingPersistedMedia ||
+    (settingsLoaded && joinSettings.settings?.clips?.length > 0 && clipManager.clips.length === 0);
+
+  if (showSkeleton) {
+    return <JoinClipsSkeletonGrid cachedClipsCount={clipManager.cachedClipsCount} />;
+  }
+
+  return (
+    <DndContext
+      sensors={clipManager.sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={clipManager.handleDragEnd}
+    >
+      <SortableContext
+        items={clipManager.clips.map(clip => clip.id)}
+        strategy={rectSortingStrategy}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {clipManager.clips.map((clip, index) => (
+            <SortableClip
+              key={clip.id}
+              clip={clip}
+              index={index}
+              clips={clipManager.clips}
+              uploadingClipId={clipManager.uploadingClipId}
+              draggingOverClipId={clipManager.draggingOverClipId}
+              isScrolling={clipManager.isScrolling}
+              settingsLoaded={settingsLoaded}
+              videoRefs={clipManager.videoRefs}
+              fileInputRefs={clipManager.fileInputRefs}
+              transitionPrompts={clipManager.transitionPrompts}
+              useIndividualPrompts={joinSettings.settings.useIndividualPrompts}
+              loopFirstClip={joinSettings.settings.loopFirstClip}
+              firstClipFinalFrameUrl={clipManager.clips[0]?.finalFrameUrl}
+              onLoopFirstClipChange={(checked) => joinSettings.updateField('loopFirstClip', checked)}
+              onRemoveClip={clipManager.handleRemoveClip}
+              onClearVideo={clipManager.handleClearVideo}
+              onVideoUpload={clipManager.handleVideoUpload}
+              onDragOver={clipManager.handleDragOver}
+              onDragEnter={clipManager.handleDragEnter}
+              onDragLeave={clipManager.handleDragLeave}
+              onDrop={clipManager.handleDrop}
+              onPromptChange={clipManager.handlePromptChange}
+              setClips={clipManager.setClips}
+              onOpenInLightbox={clipManager.setLightboxClip}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+interface JoinClipsResultsProps {
+  videosData: GenerationsPaginatedResponse | undefined;
+  videosLoading: boolean;
+  videosFetching: boolean;
+  projectAspectRatio: string | undefined;
+  isMobile: boolean;
+  deletingId: string | null;
+  handleDeleteGeneration: (id: string) => void;
+}
+
+function JoinClipsResults({
+  videosData,
+  videosLoading,
+  videosFetching,
+  projectAspectRatio,
+  isMobile,
+  deletingId,
+  handleDeleteGeneration,
+}: JoinClipsResultsProps) {
+  const hasValidData = videosData?.items && videosData.items.length > 0;
+  const isLoadingOrFetching = videosLoading || videosFetching;
+  const shouldShowSkeleton = isLoadingOrFetching && !hasValidData;
+
+  if (shouldShowSkeleton) {
+    const skeletonCount = videosData?.items?.length || 6;
+    return (
+      <div className="space-y-4 pt-4 border-t">
+        <h2 className="text-xl font-medium">
+          {hasValidData ? `Previous Results (${videosData.items.length})` : 'Loading Results...'}
+        </h2>
+        <SkeletonGallery
+          count={skeletonCount}
+          columns={SKELETON_COLUMNS[3]}
+          showControls={true}
+          projectAspectRatio={projectAspectRatio}
+        />
+      </div>
+    );
+  }
+
+  if (hasValidData) {
+    return (
+      <div className="space-y-4 pt-4 border-t">
+        <h2 className="text-xl font-medium">Previous Results ({videosData.items.length})</h2>
+        <MediaGallery
+          images={videosData.items || []}
+          allShots={[]}
+          onAddToLastShot={async () => false}
+          onAddToLastShotWithoutPosition={async () => false}
+          onDelete={handleDeleteGeneration}
+          isDeleting={deletingId}
+          currentToolType={TOOL_IDS.JOIN_CLIPS}
+          defaultFilters={{ mediaType: 'video', toolTypeFilter: true, shotFilter: 'all' }}
+          columnsPerRow={3}
+          itemsPerPage={isMobile ? 20 : 12}
+          config={{
+            reducedSpacing: true,
+            hidePagination: videosData.items.length <= (isMobile ? 20 : 12),
+            hideBottomPagination: true,
+            hideMediaTypeFilter: true,
+            showShare: false,
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!isLoadingOrFetching) {
+    return (
+      <div className="text-sm text-muted-foreground text-center pt-4 border-t">
+        No joined clips yet. Create your first one above!
+      </div>
+    );
+  }
+
+  return null;
+}
+
+interface JoinClipsPageLayoutProps {
+  selectedProjectId: string;
+  projectAspectRatio: string | undefined;
+  isMobile: boolean;
+  joinSettings: JoinSettingsState;
+  settingsLoaded: boolean;
+  availableLoras: ReturnType<typeof usePublicLoras>['data'];
+  loraManager: LoraManagerState;
+  clipManager: ClipManagerState;
+  validationResult: ValidationResult | null;
+  clipPairs: ClipPairInfo[];
+  generateState: JoinGenerateState;
+  videosData: GenerationsPaginatedResponse | undefined;
+  videosLoading: boolean;
+  videosFetching: boolean;
+  deletingId: string | null;
+  handleDeleteGeneration: (id: string) => void;
+  DeleteConfirmDialog: ReturnType<typeof useDeleteGenerationWithConfirm>['DeleteConfirmDialog'];
+}
+
+function JoinClipsPageLayout({
+  selectedProjectId,
+  projectAspectRatio,
+  isMobile,
+  joinSettings,
+  settingsLoaded,
+  availableLoras,
+  loraManager,
+  clipManager,
+  validationResult,
+  clipPairs,
+  generateState,
+  videosData,
+  videosLoading,
+  videosFetching,
+  deletingId,
+  handleDeleteGeneration,
+  DeleteConfirmDialog,
+}: JoinClipsPageLayoutProps) {
+  const settings = joinSettings.settings;
+
+  return (
+    <PageFadeIn>
+      <div className="flex flex-col gap-y-6 pb-6 px-4 max-w-7xl mx-auto pt-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-light tracking-tight text-foreground">Join Clips</h1>
+        </div>
+
+        <JoinClipsGrid
+          joinSettings={joinSettings}
+          clipManager={clipManager}
+          settingsLoaded={settingsLoaded}
+        />
+
+        <Card className="p-6 sm:p-8 shadow-sm border">
+          <JoinClipsSettingsForm
+            gapFrames={settings.gapFrameCount}
+            setGapFrames={(value) => joinSettings.updateField('gapFrameCount', value)}
+            contextFrames={settings.contextFrameCount}
+            setContextFrames={(value) => joinSettings.updateField('contextFrameCount', value)}
+            replaceMode={settings.replaceMode}
+            setReplaceMode={(value) => joinSettings.updateField('replaceMode', value)}
+            keepBridgingImages={settings.keepBridgingImages}
+            setKeepBridgingImages={(value) => joinSettings.updateField('keepBridgingImages', value)}
+            prompt={settings.prompt}
+            setPrompt={(value) => joinSettings.updateField('prompt', value)}
+            negativePrompt={settings.negativePrompt}
+            setNegativePrompt={(value) => joinSettings.updateField('negativePrompt', value)}
+            useIndividualPrompts={settings.useIndividualPrompts}
+            setUseIndividualPrompts={(value) => joinSettings.updateField('useIndividualPrompts', value)}
+            clipCount={clipManager.clips.filter(clip => clip.url).length}
+            enhancePrompt={settings.enhancePrompt}
+            setEnhancePrompt={(value) => joinSettings.updateField('enhancePrompt', value)}
+            useInputVideoResolution={settings.useInputVideoResolution}
+            setUseInputVideoResolution={(value) => joinSettings.updateField('useInputVideoResolution', value)}
+            showResolutionToggle={true}
+            useInputVideoFps={settings.useInputVideoFps}
+            setUseInputVideoFps={(value) => joinSettings.updateField('useInputVideoFps', value)}
+            showFpsToggle={true}
+            noisedInputVideo={settings.noisedInputVideo}
+            setNoisedInputVideo={(value) => joinSettings.updateField('noisedInputVideo', value)}
+            availableLoras={availableLoras}
+            projectId={selectedProjectId}
+            loraPersistenceKey={TOOL_IDS.JOIN_CLIPS}
+            loraManager={loraManager}
+            onGenerate={generateState.handleGenerate}
+            isGenerating={generateState.generateJoinClipsMutation.isPending}
+            generateSuccess={generateState.showSuccessState}
+            generateButtonText={generateState.generateButtonText}
+            isGenerateDisabled={generateState.isGenerateDisabled}
+            onRestoreDefaults={generateState.handleRestoreDefaults}
+            shortestClipFrames={validationResult?.shortestClipFrames}
+            clipPairs={clipPairs}
+            motionMode={settings.motionMode as 'basic' | 'advanced'}
+            onMotionModeChange={(mode) => joinSettings.updateField('motionMode', mode)}
+            phaseConfig={settings.phaseConfig ?? DEFAULT_JOIN_CLIPS_PHASE_CONFIG}
+            onPhaseConfigChange={(config) => joinSettings.updateField('phaseConfig', config)}
+            randomSeed={settings.randomSeed}
+            onRandomSeedChange={(value) => joinSettings.updateField('randomSeed', value)}
+            selectedPhasePresetId={settings.selectedPhasePresetId}
+            onPhasePresetSelect={(presetId, config) => {
+              joinSettings.updateFields({
+                selectedPhasePresetId: presetId,
+                phaseConfig: config,
+              });
+            }}
+            onPhasePresetRemove={() => {
+              joinSettings.updateField('selectedPhasePresetId', null);
+            }}
+          />
+        </Card>
+
+        <JoinClipsResults
+          videosData={videosData}
+          videosLoading={videosLoading}
+          videosFetching={videosFetching}
+          projectAspectRatio={projectAspectRatio}
+          isMobile={isMobile}
+          deletingId={deletingId}
+          handleDeleteGeneration={handleDeleteGeneration}
+        />
+      </div>
+
+      {clipManager.lightboxClip && (
+        <MediaLightbox
+          media={{
+            id: clipManager.lightboxClip.id,
+            imageUrl: clipManager.lightboxClip.url,
+            location: clipManager.lightboxClip.url,
+            thumbUrl: clipManager.lightboxClip.posterUrl,
+            type: 'video',
+          }}
+          onClose={() => clipManager.setLightboxClip(null)}
+          showNavigation={false}
+          showDownload
+        />
+      )}
+
+      <DeleteConfirmDialog />
+    </PageFadeIn>
+  );
+}
+
+const JoinClipsPage: React.FC = () => {
+  const queryClient = useQueryClient();
+  const { selectedProjectId, projects } = useProject();
+  const isMobile = useIsMobile();
+
+  const currentProject = projects.find(project => project.id === selectedProjectId);
+  const projectAspectRatio = currentProject?.aspectRatio;
+
+  const joinSettings = useJoinClipsSettings(selectedProjectId);
+  const settings = joinSettings.settings;
+  const settingsLoaded = joinSettings.status !== 'idle' && joinSettings.status !== 'loading';
+
+  const { data: availableLoras } = usePublicLoras();
+  const loraManager = useLoraManager(availableLoras, {
+    projectId: selectedProjectId || undefined,
+    persistenceScope: 'project',
+    enableProjectPersistence: true,
+    persistenceKey: TOOL_IDS.JOIN_CLIPS,
+  });
+
+  useSyncJoinClipsLoras(settingsLoaded, loraManager.selectedLoras, joinSettings);
+  useEnsureKeepBridgingImages(settings.keepBridgingImages, settingsLoaded, joinSettings);
+
+  const createGenerationMutation = useCreateGeneration();
+  const clipManager = useClipManager({
     selectedProjectId,
-    clips,
-    transitionPrompts,
+    joinSettings,
+    settingsLoaded,
+    loopFirstClip: settings.loopFirstClip,
+    createGenerationMutation,
+  });
+
+  const validationResult = useJoinValidationResult(
+    clipManager.clips,
+    settings.contextFrameCount,
+    settings.gapFrameCount,
+    settings.replaceMode,
+    settings.useInputVideoFps,
+  );
+
+  const clipPairs = useJoinClipPairs(clipManager.clips, settings.useInputVideoFps);
+
+  const generateState = useJoinClipsGenerate({
+    selectedProjectId,
+    clips: clipManager.clips,
+    transitionPrompts: clipManager.transitionPrompts,
     joinSettings,
     loraManager,
     projectAspectRatio,
     validationResult,
   });
 
-  // Fetch all videos - only parent generations created from Join Clips page
   const generationsQuery = useProjectGenerations(
     selectedProjectId,
     1,
@@ -231,7 +539,7 @@ const JoinClipsPage: React.FC = () => {
       mediaType: 'video',
     },
     {
-      disablePolling: true
+      disablePolling: true,
     }
   );
 
@@ -239,25 +547,18 @@ const JoinClipsPage: React.FC = () => {
   const videosLoading = generationsQuery.isLoading;
   const videosFetching = generationsQuery.isFetching;
 
-  // Delete mutation for gallery items (with confirmation dialog)
   const { requestDelete: requestDeleteGeneration, DeleteConfirmDialog, deletingId } = useDeleteGenerationWithConfirm();
   const handleDeleteGeneration = useCallback((id: string) => {
     requestDeleteGeneration(id);
   }, [requestDeleteGeneration]);
 
-  // Refresh gallery when returning to the page
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && selectedProjectId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.unified.projectPrefix(selectedProjectId)
-        });
-      }
-    };
+    if (generateState.videosViewJustEnabled && videosData?.items) {
+      generateState.setVideosViewJustEnabled(false);
+    }
+  }, [generateState, videosData?.items]);
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [selectedProjectId, queryClient]);
+  useRefreshOnVisibility(selectedProjectId, queryClient);
 
   if (!selectedProjectId) {
     return (
@@ -268,224 +569,25 @@ const JoinClipsPage: React.FC = () => {
   }
 
   return (
-    <PageFadeIn>
-      <div className="flex flex-col gap-y-6 pb-6 px-4 max-w-7xl mx-auto pt-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-light tracking-tight text-foreground">Join Clips</h1>
-        </div>
-
-        {/* Clips Grid */}
-        {(joinSettings.status === 'loading' || isLoadingPersistedMedia || (settingsLoaded && joinSettings.settings?.clips?.length > 0 && clips.length === 0)) ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: Math.max(2, cachedClipsCount) + 1 }).map((_, i) => (
-              <div key={i} className="space-y-3">
-                <div className="relative border rounded-lg p-3 space-y-3 bg-card">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-5 w-16" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="aspect-video bg-muted rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                      <div className="text-center space-y-2">
-                        <Skeleton className="h-8 w-8 rounded-full mx-auto" />
-                        <Skeleton className="h-4 w-32 mx-auto" />
-                        <Skeleton className="h-3 w-24 mx-auto" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={clips.map(c => c.id)}
-              strategy={rectSortingStrategy}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {clips.map((clip, index) => (
-                  <SortableClip
-                    key={clip.id}
-                    clip={clip}
-                    index={index}
-                    clips={clips}
-                    uploadingClipId={uploadingClipId}
-                    draggingOverClipId={draggingOverClipId}
-                    isScrolling={isScrolling}
-                    settingsLoaded={settingsLoaded}
-                    videoRefs={videoRefs}
-                    fileInputRefs={fileInputRefs}
-                    transitionPrompts={transitionPrompts}
-                    useIndividualPrompts={useIndividualPrompts}
-                    loopFirstClip={loopFirstClip}
-                    firstClipFinalFrameUrl={clips[0]?.finalFrameUrl}
-                    onLoopFirstClipChange={(checked) => joinSettings.updateField('loopFirstClip', checked)}
-                    onRemoveClip={handleRemoveClip}
-                    onClearVideo={handleClearVideo}
-                    onVideoUpload={handleVideoUpload}
-                    onDragOver={handleDragOver}
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onPromptChange={handlePromptChange}
-                    setClips={setClips}
-                    onOpenInLightbox={setLightboxClip}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-
-        {/* Global Settings using JoinClipsSettingsForm */}
-        <Card className="p-6 sm:p-8 shadow-sm border">
-                          <JoinClipsSettingsForm
-                            gapFrames={gapFrameCount}
-                            setGapFrames={(val) => joinSettings.updateField('gapFrameCount', val)}
-                            contextFrames={contextFrameCount}
-                            setContextFrames={(val) => joinSettings.updateField('contextFrameCount', val)}
-                            replaceMode={replaceMode}
-                            setReplaceMode={(val) => joinSettings.updateField('replaceMode', val)}
-                            keepBridgingImages={keepBridgingImages}
-                            setKeepBridgingImages={(val) => joinSettings.updateField('keepBridgingImages', val)}
-                            prompt={globalPrompt}
-                            setPrompt={(val) => joinSettings.updateField('prompt', val)}
-                            negativePrompt={negativePrompt}
-                            setNegativePrompt={(val) => joinSettings.updateField('negativePrompt', val)}
-                            useIndividualPrompts={useIndividualPrompts}
-                            setUseIndividualPrompts={(val) => joinSettings.updateField('useIndividualPrompts', val)}
-                            clipCount={clips.filter(c => c.url).length}
-                            enhancePrompt={enhancePrompt}
-                            setEnhancePrompt={(val) => joinSettings.updateField('enhancePrompt', val)}
-                            useInputVideoResolution={useInputVideoResolution}
-                            setUseInputVideoResolution={(val) => joinSettings.updateField('useInputVideoResolution', val)}
-                            showResolutionToggle={true}
-                            useInputVideoFps={useInputVideoFps}
-                            setUseInputVideoFps={(val) => joinSettings.updateField('useInputVideoFps', val)}
-                            showFpsToggle={true}
-                            noisedInputVideo={noisedInputVideo}
-                            setNoisedInputVideo={(val) => joinSettings.updateField('noisedInputVideo', val)}
-                            availableLoras={availableLoras}
-                            projectId={selectedProjectId}
-                            loraPersistenceKey={TOOL_IDS.JOIN_CLIPS}
-                            loraManager={loraManager}
-                            onGenerate={handleGenerate}
-                            isGenerating={generateJoinClipsMutation.isPending}
-                            generateSuccess={showSuccessState}
-                            generateButtonText={generateButtonText}
-                            isGenerateDisabled={isGenerateDisabled}
-                            onRestoreDefaults={handleRestoreDefaults}
-                            shortestClipFrames={validationResult?.shortestClipFrames}
-                            clipPairs={clipPairs}
-                            motionMode={motionMode as 'basic' | 'advanced'}
-                            onMotionModeChange={(mode) => joinSettings.updateField('motionMode', mode)}
-                            phaseConfig={phaseConfig ?? DEFAULT_JOIN_CLIPS_PHASE_CONFIG}
-                            onPhaseConfigChange={(config) => joinSettings.updateField('phaseConfig', config)}
-                            randomSeed={randomSeed}
-                            onRandomSeedChange={(val) => joinSettings.updateField('randomSeed', val)}
-                            selectedPhasePresetId={selectedPhasePresetId}
-                            onPhasePresetSelect={(presetId, config, _metadata) => {
-                              joinSettings.updateFields({
-                                selectedPhasePresetId: presetId,
-                                phaseConfig: config,
-                              });
-                            }}
-                            onPhasePresetRemove={() => {
-                              joinSettings.updateField('selectedPhasePresetId', null);
-                            }}
-                          />
-        </Card>
-
-        {/* Results Gallery */}
-        {(() => {
-          const hasValidData = videosData?.items && videosData.items.length > 0;
-          const isLoadingOrFetching = videosLoading || videosFetching;
-          const shouldShowSkeleton = isLoadingOrFetching && !hasValidData;
-
-          if (shouldShowSkeleton) {
-            const skeletonCount = videosData?.items?.length || 6;
-            return (
-              <div className="space-y-4 pt-4 border-t">
-                <h2 className="text-xl font-medium">
-                  {hasValidData ? `Previous Results (${videosData.items.length})` : 'Loading Results...'}
-                </h2>
-                <SkeletonGallery
-                  count={skeletonCount}
-                  columns={SKELETON_COLUMNS[3]}
-                  showControls={true}
-                  projectAspectRatio={projectAspectRatio}
-                />
-              </div>
-            );
-          }
-
-          if (hasValidData) {
-            return (
-              <div className="space-y-4 pt-4 border-t">
-                <h2 className="text-xl font-medium">
-                  Previous Results ({videosData.items.length})
-                </h2>
-                <MediaGallery
-                  images={videosData.items || []}
-                  allShots={[]}
-                  onAddToLastShot={async () => false}
-                  onAddToLastShotWithoutPosition={async () => false}
-                  onDelete={handleDeleteGeneration}
-                  isDeleting={deletingId}
-                  currentToolType={TOOL_IDS.JOIN_CLIPS}
-                  defaultFilters={{ mediaType: 'video', toolTypeFilter: true, shotFilter: 'all' }}
-                  columnsPerRow={3}
-                  itemsPerPage={isMobile ? 20 : 12}
-                  config={{
-                    reducedSpacing: true,
-                    hidePagination: videosData.items.length <= (isMobile ? 20 : 12),
-                    hideBottomPagination: true,
-                    hideMediaTypeFilter: true,
-                    showShare: false,
-                  }}
-                />
-              </div>
-            );
-          }
-
-          if (!isLoadingOrFetching) {
-            return (
-              <div className="text-sm text-muted-foreground text-center pt-4 border-t">
-                No joined clips yet. Create your first one above!
-              </div>
-            );
-          }
-
-          return null;
-        })()}
-      </div>
-
-      {/* Lightbox for viewing clips */}
-      {lightboxClip && (
-        <MediaLightbox
-          media={{
-            id: lightboxClip.id,
-            imageUrl: lightboxClip.url,
-            location: lightboxClip.url,
-            thumbUrl: lightboxClip.posterUrl,
-            type: 'video',
-          }}
-          onClose={() => setLightboxClip(null)}
-          showNavigation={false}
-          showDownload
-        />
-      )}
-
-      {/* Delete generation confirmation dialog */}
-      <DeleteConfirmDialog />
-    </PageFadeIn>
+    <JoinClipsPageLayout
+      selectedProjectId={selectedProjectId}
+      projectAspectRatio={projectAspectRatio}
+      isMobile={isMobile}
+      joinSettings={joinSettings}
+      settingsLoaded={settingsLoaded}
+      availableLoras={availableLoras}
+      loraManager={loraManager}
+      clipManager={clipManager}
+      validationResult={validationResult}
+      clipPairs={clipPairs}
+      generateState={generateState}
+      videosData={videosData}
+      videosLoading={videosLoading}
+      videosFetching={videosFetching}
+      deletingId={deletingId}
+      handleDeleteGeneration={handleDeleteGeneration}
+      DeleteConfirmDialog={DeleteConfirmDialog}
+    />
   );
 };
 

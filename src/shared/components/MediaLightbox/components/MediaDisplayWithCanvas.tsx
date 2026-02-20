@@ -63,7 +63,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
   const repositionRotation = repositionTransform?.rotation ?? 0;
   const repositionScale = repositionTransform?.scale ?? 1;
   const repositionTransformStyle = editMode === 'reposition'
-    ? { transform: getTransformStyle() } as React.CSSProperties
+    ? getTransformStyle()
     : undefined;
 
   // Track the display size AND position of the image for Konva overlay
@@ -393,7 +393,7 @@ export const MediaDisplayWithCanvas: React.FC<MediaDisplayWithCanvasProps> = ({
   return (
     <div
       data-lightbox-bg
-      ref={imageContainerRef}
+      ref={imageContainerRef as React.RefObject<HTMLDivElement>}
       className={`relative flex items-center justify-center w-full h-full ${containerClassName}`}
       style={{
         touchAction: 'none',

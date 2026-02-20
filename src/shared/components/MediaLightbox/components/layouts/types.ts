@@ -1,12 +1,8 @@
 import type { ReactNode, RefObject } from 'react';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from '../../types';
+import type { ButtonGroupProps } from '../../hooks/useButtonGroupProps';
 
-interface LayoutButtonGroupProps {
-  topLeft: ReactNode;
-  topRight: ReactNode;
-  bottomLeft: ReactNode;
-  bottomRight: ReactNode;
-}
+type LayoutButtonGroupProps = ButtonGroupProps;
 
 interface LayoutWorkflowBarProps {
   onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;

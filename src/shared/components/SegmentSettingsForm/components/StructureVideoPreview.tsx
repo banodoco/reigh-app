@@ -12,7 +12,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface StructureVideoPreviewProps {
   videoUrl: string;

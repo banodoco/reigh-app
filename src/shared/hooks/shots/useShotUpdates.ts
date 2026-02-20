@@ -1,61 +1,11 @@
 /**
- * Shot field update hooks.
- * Provides a generic field updater with backwards-compatible wrappers.
+ * Shot update hooks.
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
-
-type ShotField = 'name' | 'aspect_ratio';
-
-// ============================================================================
-// GENERIC FIELD UPDATER
-// ============================================================================
-
-/**
- * Generic hook for updating a single shot field.
- * Use the specific wrappers (useUpdateShotName, useUpdateShotAspectRatio) for type safety.
- * @internal Not currently used externally.
- */
-const useUpdateShotField = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      shotId,
-      projectId,
-      field,
-      value,
-    }: {
-      shotId: string;
-      projectId: string;
-      field: ShotField;
-      value: string;
-    }) => {
-      const { error } = await supabase
-        .from('shots')
-        .update({ [field]: value })
-        .eq('id', shotId);
-
-      if (error) throw error;
-      return { shotId, projectId, field, value };
-    },
-
-    onSuccess: ({ projectId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(projectId) });
-    },
-
-    onError: (error: Error, { field }) => {
-      handleError(error, { context: 'useUpdateShotField', toastTitle: `Failed to update shot ${field}` });
-    },
-  });
-};
-
-// ============================================================================
-// BACKWARDS-COMPATIBLE WRAPPERS
-// ============================================================================
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 
 /**
  * Update shot name.
@@ -91,7 +41,7 @@ export const useUpdateShotName = () => {
     },
 
     onSuccess: ({ projectId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(projectId) });
     },
 
     onError: (error: Error) => {
@@ -99,39 +49,3 @@ export const useUpdateShotName = () => {
     },
   });
 };
-
-/**
- * Update shot aspect ratio.
- * @internal Not currently used externally.
- */
-const useUpdateShotAspectRatio = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      shotId,
-      aspectRatio,
-      projectId,
-    }: {
-      shotId: string;
-      aspectRatio: string;
-      projectId: string;
-    }) => {
-      const { error } = await supabase
-        .from('shots')
-        .update({ aspect_ratio: aspectRatio })
-        .eq('id', shotId);
-
-      if (error) throw error;
-      return { shotId, aspectRatio, projectId };
-    },
-
-    onSuccess: ({ projectId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(projectId) });
-    },
-  });
-};
-
-// Keep for potential future use
-void useUpdateShotField;
-void useUpdateShotAspectRatio;

@@ -1,22 +1,199 @@
-import { supabase } from "@/integrations/supabase/client";
-import { SUPABASE_URL } from "@/integrations/supabase/config/env";
-import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from "./storagePaths";
-import { handleError } from '@/shared/lib/errorHandler';
+import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL } from '@/integrations/supabase/config/env';
+import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from './storagePaths';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
-/**
- * Helper function to wait for a specified amount of time
- */
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Default timeouts
-const DEFAULT_TIMEOUT_MS = 60000; // 60 seconds for images
-const STALL_TIMEOUT_MS = 15000; // 15 seconds without progress = stalled
+const DEFAULT_TIMEOUT_MS = 60000;
+const STALL_TIMEOUT_MS = 15000;
 
 interface UploadOptions {
   maxRetries?: number;
   onProgress?: (progress: number) => void;
   signal?: AbortSignal;
   timeoutMs?: number;
+}
+
+interface ResolvedUploadOptions {
+  maxRetries: number;
+  onProgress?: (progress: number) => void;
+  signal?: AbortSignal;
+  timeoutMs: number;
+}
+
+function resolveUploadOptions(
+  maxRetriesOrOptions?: number | UploadOptions,
+  onProgress?: (progress: number) => void,
+): ResolvedUploadOptions {
+  if (typeof maxRetriesOrOptions === 'object') {
+    return {
+      maxRetries: maxRetriesOrOptions.maxRetries ?? 3,
+      onProgress: maxRetriesOrOptions.onProgress,
+      signal: maxRetriesOrOptions.signal,
+      timeoutMs: maxRetriesOrOptions.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    };
+  }
+
+  return {
+    maxRetries: maxRetriesOrOptions ?? 3,
+    onProgress,
+    signal: undefined,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+  };
+}
+
+function isCancelledError(message: string): boolean {
+  return message.includes('cancelled');
+}
+
+function isFileTooLargeError(message: string): boolean {
+  return message.includes('413') || message.includes('too large');
+}
+
+function getRetryDelay(attempt: number): number {
+  return 1000 * Math.pow(2, attempt - 1);
+}
+
+async function requireSessionUserId(): Promise<string> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user?.id) {
+    throw new Error('User not authenticated');
+  }
+
+  return session.user.id;
+}
+
+async function requireAccessToken(): Promise<string> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error('Session expired - please sign in again');
+  }
+
+  return session.access_token;
+}
+
+async function uploadFileWithXhr(input: {
+  file: File;
+  filePath: string;
+  accessToken: string;
+  timeoutMs: number;
+  signal?: AbortSignal;
+  onProgress?: (progress: number) => void;
+}): Promise<void> {
+  const { file, filePath, accessToken, timeoutMs, signal, onProgress } = input;
+  const bucketUrl = `${SUPABASE_URL}/storage/v1/object/${MEDIA_BUCKET}/${filePath}`;
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let lastProgressTime = Date.now();
+    let stallCheckInterval: ReturnType<typeof setInterval> | null = null;
+    let overallTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const cleanup = () => {
+      if (stallCheckInterval) {
+        clearInterval(stallCheckInterval);
+      }
+      if (overallTimeout) {
+        clearTimeout(overallTimeout);
+      }
+    };
+
+    const fail = (error: Error) => {
+      cleanup();
+      signal?.removeEventListener('abort', abortHandler);
+      reject(error);
+    };
+
+    const abortHandler = () => {
+      xhr.abort();
+      fail(new Error('Upload cancelled'));
+    };
+
+    overallTimeout = setTimeout(() => {
+      xhr.abort();
+      fail(new Error(`Upload timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    stallCheckInterval = setInterval(() => {
+      const timeSinceLastProgress = Date.now() - lastProgressTime;
+      if (timeSinceLastProgress > STALL_TIMEOUT_MS) {
+        xhr.abort();
+        fail(new Error(`Upload stalled - no progress for ${STALL_TIMEOUT_MS}ms`));
+      }
+    }, 5000);
+
+    signal?.addEventListener('abort', abortHandler);
+
+    xhr.upload.addEventListener('progress', (event) => {
+      lastProgressTime = Date.now();
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        onProgress?.(percentComplete);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      cleanup();
+      signal?.removeEventListener('abort', abortHandler);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      fail(new Error('Network error'));
+    });
+
+    xhr.addEventListener('abort', () => {
+      fail(new Error('Upload aborted'));
+    });
+
+    xhr.open('POST', bucketUrl);
+    xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    xhr.setRequestHeader('Content-Type', file.type);
+    xhr.setRequestHeader('Cache-Control', '3600');
+    xhr.send(file);
+  });
+}
+
+function getPublicUrlFromPath(path: string): string {
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+
+  if (!publicUrl) {
+    throw new Error('Failed to obtain a public URL for the uploaded image.');
+  }
+
+  return publicUrl;
+}
+
+function buildUploadFailureMessage(
+  lastError: unknown,
+  fileName: string,
+  fileSizeMB: string,
+  maxRetries: number,
+): string {
+  const lastErrorMsg = lastError instanceof Error ? lastError.message : String(lastError);
+  if (isCancelledError(lastErrorMsg)) {
+    return 'Upload cancelled';
+  }
+
+  if (lastErrorMsg.includes('timed out') || lastErrorMsg.includes('stalled')) {
+    return `Upload failed: ${fileName} (${fileSizeMB}MB) - connection too slow or unstable. Please check your connection and try again.`;
+  }
+
+  return `Failed to upload image after ${maxRetries} attempts: ${lastErrorMsg || 'Unknown error'}`;
 }
 
 /**
@@ -26,228 +203,63 @@ interface UploadOptions {
 export const uploadImageToStorage = async (
   file: File,
   maxRetriesOrOptions?: number | UploadOptions,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
 ): Promise<string> => {
-  // Handle both old signature (maxRetries, onProgress) and new signature (options)
-  let options: UploadOptions;
-  if (typeof maxRetriesOrOptions === 'object') {
-    options = maxRetriesOrOptions;
-  } else {
-    options = {
-      maxRetries: maxRetriesOrOptions ?? 3,
-      onProgress,
-    };
-  }
+  const options = resolveUploadOptions(maxRetriesOrOptions, onProgress);
+  const { maxRetries, onProgress: progressCallback, signal, timeoutMs } = options;
 
-  const {
-    maxRetries = 3,
-    onProgress: progressCallback,
-    signal,
-    timeoutMs = DEFAULT_TIMEOUT_MS
-  } = options;
   if (!file) {
-    throw new Error("No file provided");
+    throw new Error('No file provided');
   }
 
-  // Check if already aborted
   if (signal?.aborted) {
     throw new Error('Upload cancelled');
   }
 
-  // Get current user ID for storage path organization (initial check)
-  const { data: { session: initialSession } } = await supabase.auth.getSession();
-  if (!initialSession?.user?.id) {
-    throw new Error('User not authenticated');
-  }
-  const userId = initialSession.user.id;
-
-  // Generate storage path using centralized utilities
+  const userId = await requireSessionUserId();
   const fileExtension = getFileExtension(file.name, file.type);
   const filename = generateUniqueFilename(fileExtension);
   const filePath = storagePaths.upload(userId, filename);
-
-  // Add debug logging for large file uploads
   const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
 
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    // Check abort before each attempt
     if (signal?.aborted) {
       throw new Error('Upload cancelled');
     }
 
-    // Refresh session token before each attempt (tokens can expire during retries)
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      throw new Error('Session expired - please sign in again');
-    }
-
     try {
+      const accessToken = await requireAccessToken();
+      await uploadFileWithXhr({
+        file,
+        filePath,
+        accessToken,
+        timeoutMs,
+        signal,
+        onProgress: progressCallback,
+      });
 
-      let data: { path: string } | null, error: Error | null;
+      return getPublicUrlFromPath(filePath);
+    } catch (error) {
+      lastError = error;
+      const errorMsg = error instanceof Error ? error.message : String(error);
 
-      // Always use XHR for timeout/abort/stall support
-      try {
-        const bucketUrl = `${SUPABASE_URL}/storage/v1/object/${MEDIA_BUCKET}/${filePath}`;
-
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          let lastProgressTime = Date.now();
-          let stallCheckInterval: ReturnType<typeof setInterval> | null = null;
-          let overallTimeout: ReturnType<typeof setTimeout> | null = null;
-
-          const cleanup = () => {
-            if (stallCheckInterval) clearInterval(stallCheckInterval);
-            if (overallTimeout) clearTimeout(overallTimeout);
-          };
-
-          // Overall timeout
-          overallTimeout = setTimeout(() => {
-            cleanup();
-            xhr.abort();
-            reject(new Error(`Upload timed out after ${timeoutMs}ms`));
-          }, timeoutMs);
-
-          // Stall detection - check every 5 seconds if we've had progress
-          stallCheckInterval = setInterval(() => {
-            const timeSinceLastProgress = Date.now() - lastProgressTime;
-            if (timeSinceLastProgress > STALL_TIMEOUT_MS) {
-              cleanup();
-              xhr.abort();
-              reject(new Error(`Upload stalled - no progress for ${STALL_TIMEOUT_MS}ms`));
-            }
-          }, 5000);
-
-          // Handle abort signal
-          const abortHandler = () => {
-            cleanup();
-            xhr.abort();
-            reject(new Error('Upload cancelled'));
-          };
-          signal?.addEventListener('abort', abortHandler);
-
-          xhr.upload.addEventListener('progress', (e) => {
-            lastProgressTime = Date.now();
-            if (e.lengthComputable) {
-              const percentComplete = Math.round((e.loaded / e.total) * 100);
-              progressCallback?.(percentComplete);
-            }
-          });
-
-          xhr.addEventListener('load', () => {
-            cleanup();
-            signal?.removeEventListener('abort', abortHandler);
-            if (xhr.status >= 200 && xhr.status < 300) {
-              progressCallback?.(100);
-              resolve();
-            } else {
-              reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
-            }
-          });
-
-          xhr.addEventListener('error', () => {
-            cleanup();
-            signal?.removeEventListener('abort', abortHandler);
-            reject(new Error('Network error'));
-          });
-
-          xhr.addEventListener('abort', () => {
-            cleanup();
-            signal?.removeEventListener('abort', abortHandler);
-            // Reject if not already rejected by timeout/stall/signal handlers
-            reject(new Error('Upload aborted'));
-          });
-
-          xhr.open('POST', bucketUrl);
-          xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
-          xhr.setRequestHeader('Content-Type', file.type);
-          xhr.setRequestHeader('Cache-Control', '3600');
-
-          xhr.send(file);
-        });
-
-        data = { path: filePath };
-        error = null;
-      } catch (xhrError) {
-        error = xhrError instanceof Error ? xhrError : new Error(String(xhrError));
-        data = null;
+      if (isFileTooLargeError(errorMsg)) {
+        throw new Error(`File too large: ${file.name} (${fileSizeMB}MB) exceeds the maximum allowed size.`);
+      }
+      if (isCancelledError(errorMsg)) {
+        throw error;
       }
 
-      if (error) {
-        lastError = error;
-
-        // Don't retry for certain permanent errors or user cancellation
-        if (error.message?.includes('413') || error.message?.includes('too large')) {
-          throw new Error(`File too large: ${file.name} (${fileSizeMB}MB) exceeds the maximum allowed size.`);
-        }
-        if (error.message?.includes('cancelled')) {
-          throw error; // Don't retry user cancellations
-        }
-
-        // If this was the last attempt, we'll throw after the loop
-        if (attempt === maxRetries) {
-          break;
-        }
-
-        // Wait before retrying (exponential backoff: 1s, 2s, 4s...)
-        const waitTime = 1000 * Math.pow(2, attempt - 1);
-        await wait(waitTime);
-        continue;
+      if (attempt < maxRetries) {
+        await wait(getRetryDelay(attempt));
       }
-
-      if (!data || !data.path) {
-        console.error(`[ImageUpload] No data or path returned for ${file.name}`);
-        throw new Error("Upload did not return a path.");
-      }
-
-      // Retrieve the public URL for the newly-uploaded object
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(data.path);
-
-      if (!publicUrl) {
-        console.error(`[ImageUpload] Failed to get public URL for ${file.name}, path: ${data.path}`);
-        throw new Error('Failed to obtain a public URL for the uploaded image.');
-      }
-
-      return publicUrl;
-
-    } catch (uploadError: unknown) {
-      lastError = uploadError;
-      const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError);
-
-      // Don't retry for certain permanent errors or user cancellation
-      if (errorMsg.includes('413') || errorMsg.includes('too large')) {
-        throw uploadError;
-      }
-      if (errorMsg.includes('cancelled')) {
-        throw uploadError; // Don't retry user cancellations
-      }
-
-      // If this was the last attempt, we'll throw after the loop
-      if (attempt === maxRetries) {
-        break;
-      }
-
-      // Wait before retrying (exponential backoff)
-      const waitTime = 1000 * Math.pow(2, attempt - 1);
-      await wait(waitTime);
     }
   }
 
-  // If we get here, all retries failed
   handleError(lastError, { context: `ImageUpload:allRetriesFailed:${file.name}`, showToast: false });
-
-  // Provide more specific error messages based on the error type
-  const lastErrorMsg = lastError instanceof Error ? lastError.message : String(lastError);
-  if (lastErrorMsg.includes('cancelled')) {
-    throw new Error('Upload cancelled');
-  } else if (lastErrorMsg.includes('timed out') || lastErrorMsg.includes('stalled')) {
-    throw new Error(`Upload failed: ${file.name} (${fileSizeMB}MB) - connection too slow or unstable. Please check your connection and try again.`);
-  } else {
-    throw new Error(`Failed to upload image after ${maxRetries} attempts: ${lastErrorMsg || 'Unknown error'}`);
-  }
+  throw new Error(buildUploadFailureMessage(lastError, file.name, fileSizeMB, maxRetries));
 };
 
 /**
@@ -257,9 +269,8 @@ export const uploadBlobToStorage = (
   blob: Blob,
   filename: string,
   contentType: string,
-  options: UploadOptions = {}
+  options: UploadOptions = {},
 ): Promise<string> => {
-  // Convert blob to file for consistent handling
   const file = new File([blob], filename, { type: contentType });
   return uploadImageToStorage(file, options);
 };

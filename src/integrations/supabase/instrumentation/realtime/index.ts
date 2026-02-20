@@ -1,7 +1,7 @@
 import { __CORRUPTION_TRACE_ENABLED__, __REALTIME_DOWN_FIX_ENABLED__ } from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Realtime client with instrumentation properties
@@ -11,6 +11,14 @@ interface RealtimeClientWithInstrumentation {
   __REFERENCE_TRACKING_INSTALLED__?: boolean;
   setAuth: (token: string | null) => void;
   __setAuth?: (token: string | null) => void;
+}
+
+function reportRealtimeCorruption(message: string, logData: Record<string, unknown>) {
+  handleError(new Error(message), {
+    context: 'RealtimeInstrumentation',
+    showToast: false,
+    logData,
+  });
 }
 
 export function installRealtimeInstrumentation(supabase: SupabaseClient) {
@@ -32,12 +40,25 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
         set(value) {
           const before = captureRealtimeSnapshot();
           if (_socket && !value) {
-            console.error('[RealtimeCorruptionTrace] 🎯 realtime.socket SET TO NULL!', { previousValue: _socket, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, corruptionTimeline: [...__CORRUPTION_TIMELINE__], timestamp: Date.now() });
+            reportRealtimeCorruption('[RealtimeCorruptionTrace] realtime.socket set to null', {
+              previousValue: _socket,
+              newValue: value,
+              stackTrace: new Error().stack,
+              realtimeStateBefore: before,
+              corruptionTimeline: [...__CORRUPTION_TIMELINE__],
+              timestamp: Date.now(),
+            });
             addCorruptionEvent('SOCKET_SET_TO_NULL', { previousValue: _socket, newValue: value });
           } else if (!_socket && value) {
             addCorruptionEvent('SOCKET_SET_TO_WEBSOCKET', { newValue: value });
           } else if (_socket !== value) {
-            console.error('[RealtimeCorruptionTrace] 🔄 realtime.socket REPLACED:', { previousValue: _socket, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, timestamp: Date.now() });
+            reportRealtimeCorruption('[RealtimeCorruptionTrace] realtime.socket replaced', {
+              previousValue: _socket,
+              newValue: value,
+              stackTrace: new Error().stack,
+              realtimeStateBefore: before,
+              timestamp: Date.now(),
+            });
             addCorruptionEvent('SOCKET_REPLACED', { previousValue: _socket, newValue: value });
           }
           _socket = value as WebSocket | null;
@@ -52,12 +73,25 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
           set(value) {
             const before = captureRealtimeSnapshot();
             if (_transport && !value) {
-              console.error('[RealtimeCorruptionTrace] 🎯 conn.transport SET TO NULL!', { previousValue: _transport, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, corruptionTimeline: [...__CORRUPTION_TIMELINE__], timestamp: Date.now() });
+              reportRealtimeCorruption('[RealtimeCorruptionTrace] conn.transport set to null', {
+                previousValue: _transport,
+                newValue: value,
+                stackTrace: new Error().stack,
+                realtimeStateBefore: before,
+                corruptionTimeline: [...__CORRUPTION_TIMELINE__],
+                timestamp: Date.now(),
+              });
               addCorruptionEvent('TRANSPORT_SET_TO_NULL', { previousValue: _transport, newValue: value });
             } else if (!_transport && value) {
               addCorruptionEvent('TRANSPORT_SET_TO_WEBSOCKET', { newValue: value });
             } else if (_transport !== value) {
-              console.error('[RealtimeCorruptionTrace] 🔄 conn.transport REPLACED:', { previousValue: _transport, newValue: value, stackTrace: new Error().stack, realtimeStateBefore: before, timestamp: Date.now() });
+              reportRealtimeCorruption('[RealtimeCorruptionTrace] conn.transport replaced', {
+                previousValue: _transport,
+                newValue: value,
+                stackTrace: new Error().stack,
+                realtimeStateBefore: before,
+                timestamp: Date.now(),
+              });
               addCorruptionEvent('TRANSPORT_REPLACED', { previousValue: _transport, newValue: value });
             }
             _transport = value as typeof _transport;
@@ -105,4 +139,3 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
     }
   }
 }
-

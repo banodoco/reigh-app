@@ -173,7 +173,7 @@ export const calculateNextAvailableFrame = (
  * @returns Array of valid frame numbers
  */
 export const extractExistingFrames = (
-  items: Array<{ timeline_frame?: number | null; type?: string }>
+  items: Array<{ timeline_frame?: number | null; type?: string | null }>
 ): number[] => {
   return items
     .filter(item => {
@@ -187,4 +187,3 @@ export const extractExistingFrames = (
     })
     .map(item => item.timeline_frame as number);
 };
-

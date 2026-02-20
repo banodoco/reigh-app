@@ -24,16 +24,14 @@ vi.mock('@tanstack/react-query', () => ({
   QueryClient: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/queryKeys', () => ({
-  queryKeys: {
-    tasks: {
-      all: ['tasks'],
-      generationMapping: (id: string) => ['tasks', 'generation-mapping', id],
-    },
+vi.mock('@/shared/lib/queryKeys/tasks', () => ({
+  taskQueryKeys: {
+    all: ['tasks'],
+    generationMapping: (id: string) => ['generation-task-mapping', id],
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
   handleError: vi.fn(),
 }));
 
@@ -72,11 +70,11 @@ describe('preloadGenerationTaskMappings', () => {
 
     expect(mockQueryClient.setQueryData).toHaveBeenCalledTimes(2);
     expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
-      ['tasks', 'generation-mapping', 'gen-1'],
+      ['generation-task-mapping', 'gen-1'],
       { taskId: 'task-1' }
     );
     expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
-      ['tasks', 'generation-mapping', 'gen-2'],
+      ['generation-task-mapping', 'gen-2'],
       { taskId: 'task-2' }
     );
   });
@@ -90,7 +88,7 @@ describe('preloadGenerationTaskMappings', () => {
     await preloadGenerationTaskMappings(['gen-1'], mockQueryClient as unknown);
 
     expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
-      ['tasks', 'generation-mapping', 'gen-1'],
+      ['generation-task-mapping', 'gen-1'],
       { taskId: null }
     );
   });
@@ -133,7 +131,12 @@ describe('enhanceGenerationsWithTaskData', () => {
 
   it('adds taskId from cache', () => {
     mockQueryClient.getQueryData.mockImplementation((key: string[]) => {
-      if (key[2] === 'gen-1') return { taskId: 'task-1' };
+      if (key[0] === 'generation-task-mapping' && key[1] === 'gen-1') {
+        return { taskId: 'task-1' };
+      }
+      if (key[0] === 'tasks' && key[1] === 'single' && key[2] === 'task-1') {
+        return { id: 'task-1' };
+      }
       return null;
     });
 

@@ -7,7 +7,7 @@ import { Task } from '@/types/tasks';
 import { Check, Copy, CornerDownLeft, ImageIcon } from 'lucide-react';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface TaskDetailsPanelProps {
   task: Task | null;

@@ -33,14 +33,14 @@ interface RealtimeSnapshotError {
 // Helper: locate the effective Supabase WebSocket regardless of where it is stored
 function getEffectiveRealtimeSocket(): WebSocket | null {
   try {
-    const rt = (window as Record<string, unknown>).supabase as { realtime?: RealtimeDebugClient } | undefined;
+    const rt = (window as unknown as Record<string, unknown>).supabase as { realtime?: RealtimeDebugClient } | undefined;
     const realtime = rt?.realtime;
     if (!realtime) return null;
     const direct = realtime.socket;
     if (direct && typeof direct.readyState === 'number') return direct;
     const transport = realtime.conn?.transport;
     if (transport && typeof transport.readyState === 'number') return transport;
-    const instances = ((window as Record<string, unknown>).__SUPABASE_WEBSOCKET_INSTANCES__ || []) as TrackedWSInstance[];
+    const instances = ((window as unknown as Record<string, unknown>).__SUPABASE_WEBSOCKET_INSTANCES__ || []) as TrackedWSInstance[];
     for (const inst of instances) {
       const ref = inst?.websocketRef;
       const url = inst?.url || ref?.url || '';
@@ -60,7 +60,7 @@ function getEffectiveRealtimeSocket(): WebSocket | null {
 // Capture detailed realtime state as JSON (not "Object")
 export function captureRealtimeSnapshot(): RealtimeSnapshot | RealtimeSnapshotError {
   try {
-    const supabaseObj = (window as Record<string, unknown>).supabase as { realtime?: RealtimeDebugClient } | undefined;
+    const supabaseObj = (window as unknown as Record<string, unknown>).supabase as { realtime?: RealtimeDebugClient } | undefined;
     const rt = supabaseObj?.realtime;
     if (!rt) return { error: 'NO_REALTIME_CLIENT' };
 
@@ -102,5 +102,4 @@ export function captureRealtimeSnapshot(): RealtimeSnapshot | RealtimeSnapshotEr
     return { error: 'SNAPSHOT_FAILED', message: (error as Error)?.message };
   }
 }
-
 

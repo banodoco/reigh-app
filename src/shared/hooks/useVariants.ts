@@ -12,8 +12,8 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidation';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 /**
  * A variant of a generation (from generation_variants table)
@@ -71,7 +71,7 @@ export const useVariants = ({
     error,
     refetch,
   } = useQuery({
-    queryKey: queryKeys.generations.variants(generationId),
+    queryKey: generationId ? generationQueryKeys.variants(generationId) : ['generation-variants', null],
     queryFn: async () => {
       if (!generationId) return [];
 
@@ -309,4 +309,3 @@ export const useVariants = ({
     deleteVariant,
   };
 };
-

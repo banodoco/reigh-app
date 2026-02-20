@@ -1,6 +1,7 @@
 // Import API types from shared (used in interfaces below, re-exported at bottom)
 import { ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
 import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ReferenceImage } from '@/shared/types/referenceImage';
 
 export type GenerationMode = 'wan-local' | 'qwen-image';
 
@@ -41,20 +42,7 @@ export interface PromptEntry {
   selected?: boolean;
 }
 
-interface LoraDataEntry {
-  "Model ID": string;
-  Name: string;
-  Author: string;
-  Images: Array<{ url: string; alt_text: string; [key: string]: unknown; }>;
-  "Model Files": Array<{ url: string; path: string; [key: string]: unknown; }>;
-  [key: string]: unknown;
-}
-
-interface LoraData {
-  models: LoraDataEntry[];
-}
-
-export interface PersistedFormSettings {
+interface PersistedFormSettings {
   // Project-level settings (NOT shot-specific)
   imagesPerPrompt?: number;
   selectedLoras?: ActiveLora[];
@@ -82,7 +70,7 @@ export interface PersistedFormSettings {
  * Stored per-shot in shots.settings['image-gen-prompts']
  * Uses useAutoSaveSettings for automatic persistence.
  */
-export interface ImageGenShotSettings {
+export interface ImageGenShotSettings extends Record<string, unknown> {
   /** Prompts for this shot */
   prompts: PromptEntry[];
   /** Master prompt for automated mode */
@@ -134,7 +122,7 @@ export function getLoraCategoryForModel(model: TextToImageModel): LoraCategory {
 // Note: Prompt-related no-shot settings (prompts, masterPrompt, promptMode, beforeEachPromptText,
 // afterEachPromptText, associatedShotId) are persisted via usePersistentToolState with toolId='image-generation'.
 // This interface stores model selection and reference image settings in 'project-image-settings'.
-export interface ProjectImageSettings {
+export interface ProjectImageSettings extends Record<string, unknown> {
   selectedModel?: GenerationMode;
 
   // Generation source: by-reference or just-text
@@ -340,12 +328,14 @@ const REFERENCE_MODE_DEFAULTS: Record<'local' | 'cloud', Record<ReferenceMode, R
   local: {
     style: { styleReferenceStrength: 1.1, subjectStrength: 0, inThisSceneStrength: 0, inThisScene: false },
     subject: { styleReferenceStrength: 0.4, subjectStrength: 1.0, inThisSceneStrength: 0, inThisScene: false },
+    'style-character': { styleReferenceStrength: 0.4, subjectStrength: 1.0, inThisSceneStrength: 0, inThisScene: false },
     scene: { styleReferenceStrength: 0.4, subjectStrength: 0, inThisSceneStrength: 1.0, inThisScene: true },
     custom: { styleReferenceStrength: 0.8, subjectStrength: 0.8, inThisSceneStrength: 0, inThisScene: false },
   },
   cloud: {
     style: { styleReferenceStrength: 1.1, subjectStrength: 0, inThisSceneStrength: 0, inThisScene: false },
     subject: { styleReferenceStrength: 1.1, subjectStrength: 0.4, inThisSceneStrength: 0, inThisScene: false },
+    'style-character': { styleReferenceStrength: 1.1, subjectStrength: 0.4, inThisSceneStrength: 0, inThisScene: false },
     scene: { styleReferenceStrength: 1.1, subjectStrength: 0, inThisSceneStrength: 0.4, inThisScene: true },
     custom: { styleReferenceStrength: 0.8, subjectStrength: 0.8, inThisSceneStrength: 0, inThisScene: false },
   },

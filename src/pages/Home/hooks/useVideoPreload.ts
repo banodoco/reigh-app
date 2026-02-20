@@ -24,7 +24,6 @@ export const useVideoPreload = ({ showPhilosophy, videoUrl }: UseVideoPreloadPro
       } else if (link.href !== videoUrl) {
         link.href = videoUrl;
       }
-    } catch (e) { /* intentionally ignored */ }
+    } catch { /* intentionally ignored */ }
   }, [showPhilosophy, videoUrl]);
 };
-

@@ -3,7 +3,7 @@ import { useRenderLogger } from '@/shared/hooks/useRenderLogger';
 import { useSlidingPane } from '@/shared/hooks/useSlidingPane';
 import { cn } from '@/shared/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Label } from '@/shared/components/ui/label';
@@ -158,7 +158,9 @@ const GenerationsPaneComponent: React.FC = () => {
       dispatchSkeletonEvents: files.length > 0,
       onSuccess: () => {
         // Invalidate and refetch shots to update the list
-        queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(selectedProjectId) });
+        if (selectedProjectId) {
+          void queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(selectedProjectId) });
+        }
       },
     });
 
@@ -207,12 +209,13 @@ const GenerationsPaneComponent: React.FC = () => {
     onToggleLock: () => setIsGenerationsPaneLocked(!isGenerationsPaneLocked),
     additionalRefs: [shotFilterContentRef, mediaTypeContentRef],
   });
+  const paneIsOpen = Boolean(isOpen);
 
   // Delay pointer events until animation completes to prevent tap bleed-through on mobile
   const [isPointerEventsEnabled, setIsPointerEventsEnabled] = useState(false);
   
   useEffect(() => {
-    if (isOpen) {
+    if (paneIsOpen) {
       // Delay enabling pointer events by 300ms (matching the transition duration)
       const timeoutId = setTimeout(() => {
         setIsPointerEventsEnabled(true);
@@ -222,7 +225,7 @@ const GenerationsPaneComponent: React.FC = () => {
       // Disable immediately when closing
       setIsPointerEventsEnabled(false);
     }
-  }, [isOpen]);
+  }, [paneIsOpen]);
 
   // Listen for custom event to open the pane (used on mobile from other components)
   useEffect(() => {
@@ -238,26 +241,26 @@ const GenerationsPaneComponent: React.FC = () => {
   const [isInteractionDisabled, setIsInteractionDisabled] = useState(false);
   
   useEffect(() => {
-    if (isOpen) {
+    if (paneIsOpen) {
       setIsInteractionDisabled(true);
       setShotFilterOpen(false); // Ensure shot filter is closed when pane opens
       setMediaTypeFilterOpen(false); // Ensure media type filter is closed when pane opens
       const timer = setTimeout(() => setIsInteractionDisabled(false), 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [paneIsOpen]);
 
   // Sync open state with context so Layout can access it
   useEffect(() => {
-    setIsGenerationsPaneOpen(isOpen);
-  }, [isOpen, setIsGenerationsPaneOpen]);
+    setIsGenerationsPaneOpen(paneIsOpen);
+  }, [paneIsOpen, setIsGenerationsPaneOpen]);
 
   // Close the pane when navigating to generations page or image generation tool page
   useEffect(() => {
-    if ((isOnImageGenerationPage) && (isOpen || isLocked)) {
+    if ((isOnImageGenerationPage) && (paneIsOpen || isLocked)) {
       setIsGenerationsPaneLocked(false);
     }
-  }, [isOnImageGenerationPage, isOpen, isLocked, setIsGenerationsPaneLocked]);
+  }, [isOnImageGenerationPage, paneIsOpen, isLocked, setIsGenerationsPaneLocked]);
 
   return (
     <>
@@ -281,10 +284,10 @@ const GenerationsPaneComponent: React.FC = () => {
       )}
       {/* Hide the control tab when on the generations page or image generation tool page */}
       {!isOnImageGenerationPage && (
-        <PaneControlTab
-          side="bottom"
-          isLocked={isLocked}
-          isOpen={isOpen}
+          <PaneControlTab
+            side="bottom"
+            isLocked={isLocked}
+            isOpen={paneIsOpen}
           toggleLock={toggleLock}
           openPane={openPane}
           paneDimension={generationsPaneHeight}
@@ -484,7 +487,11 @@ const GenerationsPaneComponent: React.FC = () => {
                       <div className="flex items-center gap-1">
                         <Select
                           value={page.toString()}
-                          onValueChange={(value) => handleServerPageChange(parseInt(value))}
+                          onValueChange={(value) => {
+                            if (value) {
+                              handleServerPageChange(parseInt(value, 10));
+                            }
+                          }}
                         >
                           <SelectTrigger variant="retro-dark" colorScheme="zinc" size="sm" className="h-6 w-9 text-xs px-1 !justify-center [&>span]:!text-center" hideIcon>
                             <SelectValue />
@@ -559,7 +566,7 @@ const GenerationsPaneComponent: React.FC = () => {
             )}
         </div>
         <div
-          ref={galleryContainerRef}
+          ref={galleryContainerRef as React.RefObject<HTMLDivElement>}
           className="flex-grow px-1 sm:px-3 overflow-y-auto overscroll-contain flex flex-col"
           style={{ WebkitOverflowScrolling: 'touch' }}
           data-tour="gallery-section"
@@ -589,11 +596,11 @@ const GenerationsPaneComponent: React.FC = () => {
                     filters={galleryFilters}
                     onFiltersChange={handleGalleryFiltersChange}
                     columnsPerRow={paneLayout.columns}
-                    onAddToLastShot={(generationId, imageUrl, thumbUrl) => {
-                      return handleAddToShot(generationId, imageUrl, thumbUrl);
+                    onAddToLastShot={(targetShotId, generationId, imageUrl, thumbUrl) => {
+                      return handleAddToShot(targetShotId, generationId, imageUrl, thumbUrl);
                     }}
-                    onAddToLastShotWithoutPosition={(generationId, imageUrl, thumbUrl) => {
-                      return handleAddToShotWithoutPosition(generationId, imageUrl, thumbUrl);
+                    onAddToLastShotWithoutPosition={(targetShotId, generationId, imageUrl, thumbUrl) => {
+                      return handleAddToShotWithoutPosition(targetShotId, generationId, imageUrl, thumbUrl);
                     }}
                     offset={(page - 1) * GENERATIONS_PER_PAGE}
                     totalCount={totalCount}

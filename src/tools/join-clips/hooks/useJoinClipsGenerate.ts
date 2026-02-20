@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { joinClipsSettings } from '../settings';
@@ -39,6 +39,7 @@ export function useJoinClipsGenerate({
   const incomingTaskIdRef = useRef<string | null>(null);
 
   const [showSuccessState, setShowSuccessState] = useState(false);
+  const [videosViewJustEnabled, setVideosViewJustEnabled] = useState(false);
 
   const {
     prompt: globalPrompt,
@@ -158,6 +159,7 @@ export function useJoinClipsGenerate({
 
       setShowSuccessState(true);
       setTimeout(() => setShowSuccessState(false), 1500);
+      setVideosViewJustEnabled(true);
 
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
@@ -244,6 +246,8 @@ export function useJoinClipsGenerate({
     generateJoinClipsMutation,
     handleGenerate,
     showSuccessState,
+    videosViewJustEnabled,
+    setVideosViewJustEnabled,
     generateButtonText,
     isGenerateDisabled,
     handleRestoreDefaults,

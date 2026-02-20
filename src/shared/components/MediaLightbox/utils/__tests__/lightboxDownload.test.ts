@@ -12,6 +12,7 @@ import { handleLightboxDownload } from '../lightboxDownload';
 import { downloadMedia } from '../download';
 import { readSegmentOverrides } from '@/shared/utils/settingsMigration';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationRow } from '@/types/shots';
 
 const mockDownloadMedia = vi.mocked(downloadMedia);
 const mockReadSegmentOverrides = vi.mocked(readSegmentOverrides);
@@ -24,10 +25,10 @@ describe('handleLightboxDownload', () => {
     mockReadSegmentOverrides.mockReturnValue({});
   });
 
-  const makeMedia = (overrides: Record<string, unknown> = {}) => ({
+  const makeMedia = (overrides: Partial<GenerationRow> = {}): GenerationRow => ({
     id: 'media-123',
     params: { prompt: 'a beautiful sunset' },
-    metadata: null,
+    metadata: undefined,
     contentType: 'image/png',
     ...overrides,
   });
@@ -47,7 +48,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: 'v1',
       variants,
       fallbackUrl: 'https://example.com/fallback.png',
-      media: media as unknown,
+      media,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -68,7 +69,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: 'nonexistent',
       variants: [],
       fallbackUrl: 'https://example.com/fallback.png',
-      media: media as unknown,
+      media,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -89,7 +90,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [makeVariant('v1', 'https://example.com/variant.png')],
       fallbackUrl: 'https://example.com/fallback.png',
-      media: media as unknown,
+      media,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -110,7 +111,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: '',
-      media: media as unknown,
+      media,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -126,7 +127,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: 'https://example.com/img.png',
-      media: media as unknown,
+      media,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -144,7 +145,7 @@ describe('handleLightboxDownload', () => {
         intendedVariantId: null,
         variants: [],
         fallbackUrl: 'https://example.com/img.png',
-        media: media as unknown,
+        media,
         isVideo: false,
         setIsDownloading: mockSetIsDownloading,
       })
@@ -163,7 +164,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: 'https://example.com/img.png',
-      media: media as unknown,
+      media,
       isVideo: false,
       setIsDownloading: mockSetIsDownloading,
     });
@@ -184,7 +185,7 @@ describe('handleLightboxDownload', () => {
       intendedVariantId: null,
       variants: [],
       fallbackUrl: 'https://example.com/video.mp4',
-      media: media as unknown,
+      media,
       isVideo: true,
       setIsDownloading: mockSetIsDownloading,
     });

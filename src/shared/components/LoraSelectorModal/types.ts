@@ -1,60 +1,13 @@
 import { UseQueryResult, UseMutationResult } from '@tanstack/react-query';
 import { Resource, ResourceType, CreateResourceArgs, UpdateResourceArgs } from '@/shared/hooks/useResources';
+import type { LoraModel as SharedLoraModel } from '@/shared/types/lora';
 
 // Model filter categories - broad matching
 export type ModelFilterCategory = 'all' | 'qwen' | 'wan' | 'z-image';
 
 export type SortOption = 'default' | 'downloads' | 'likes' | 'lastModified' | 'name';
 
-interface LoraModelImage {
-  alt_text: string;
-  url: string;
-  type?: string;
-  source?: string;
-}
-
-interface LoraModelFile {
-  path: string;
-  url: string;
-  size?: number;
-  last_modified?: string;
-}
-
-export interface LoraModel {
-  "Model ID": string;
-  Name: string;
-  Author: string;
-  Images: LoraModelImage[];
-  "Model Files": LoraModelFile[];
-  Description?: string;
-  Tags?: string[];
-  "Last Modified"?: string;
-  Downloads?: number;
-  Likes?: number;
-  lora_type?: string;
-  // New fields
-  created_by?: {
-    is_you: boolean;
-    username?: string;
-  };
-  huggingface_url?: string;
-  filename?: string;
-  base_model?: string;
-  sample_generations?: {
-    url: string;
-    type: 'image' | 'video';
-    alt_text?: string;
-  }[];
-  main_generation?: string; // URL to the main generation
-  is_public?: boolean;
-  trigger_word?: string; // New field for trigger word
-  // Multi-stage LoRA support (for Wan 2.2 I2V)
-  high_noise_url?: string; // URL for high-noise phases
-  low_noise_url?: string;  // URL for low-noise (final) phase
-  // Internal fields
-  _resourceId?: string;
-  [key: string]: unknown;
-}
+export type LoraModel = SharedLoraModel;
 
 export interface LoraSelectorModalProps {
   isOpen: boolean;

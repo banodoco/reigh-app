@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { Shot, GenerationRow } from '@/types/shots';
+import type { Project } from '@/types/project';
 import {
   ShotSettingsContextValue,
   GenerationModeState,
@@ -64,7 +65,7 @@ export interface UseShotSettingsValueProps {
   projectId: string;
   selectedProjectId: string;
   effectiveAspectRatio: string | undefined;
-  projects: Array<{ id: string; aspectRatio?: string }>;
+  projects: Project[];
 
   // UI state
   state: ShotEditorState;

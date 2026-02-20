@@ -9,7 +9,7 @@
 
 import { useProgressiveImage } from './useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 
 interface UseBatchImageLoadingOptions {
   /** Thumb URL for progressive loading */

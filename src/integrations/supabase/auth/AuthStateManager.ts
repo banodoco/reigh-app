@@ -1,4 +1,4 @@
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 
 type AuthCallback = (event: string, session: Session | null) => void;
@@ -68,7 +68,7 @@ export class AuthStateManager {
     if (this.isInitialized) {
       return;
     }
-    
+
     try {
       this.supabase.auth.onAuthStateChange((event, session) => {
         this.handleCoreAuth(event, session);

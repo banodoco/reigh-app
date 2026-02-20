@@ -67,7 +67,10 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
         {/* Page selector dropdown */}
         <Select
           value={currentPage.toString()}
-          onValueChange={(value) => onPageChange(parseInt(value))}
+          onValueChange={(value) => {
+            if (!value) return;
+            onPageChange(parseInt(value, 10));
+          }}
           disabled={isLoading}
         >
           <SelectTrigger variant="retro-dark" colorScheme="zinc" size="sm" className="h-6 w-9 text-xs px-1 !justify-center [&>span]:!text-center" hideIcon>

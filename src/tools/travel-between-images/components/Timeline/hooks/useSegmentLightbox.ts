@@ -49,9 +49,13 @@ export function useSegmentLightbox({ displaySlots, pairDataByIndex, selectedPare
 
   const lightboxMedia = useMemo(() => {
     if (!currentLightboxMedia) return null;
+    const fallbackParentId = selectedParentId && !currentLightboxMedia.parent_generation_id
+      ? { parent_generation_id: selectedParentId }
+      : {};
+
     return {
       ...currentLightboxMedia,
-      ...(selectedParentId ? { parent_generation_id: selectedParentId } : {}),
+      ...fallbackParentId,
     } as GenerationRow;
   }, [currentLightboxMedia, selectedParentId]);
 

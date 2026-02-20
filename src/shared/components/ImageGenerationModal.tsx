@@ -15,10 +15,10 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TOOL_ROUTES } from '@/shared/lib/toolConstants';
@@ -45,16 +45,16 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
 
   const openaiApiKey = getApiKey('openai_api_key');
 
-  const handleGenerate = useCallback(async (taskParams: BatchImageGenerationTaskParams) => {
+  const handleGenerate = useCallback(async (taskParams: BatchImageGenerationTaskParams): Promise<string[]> => {
 
     if (!selectedProjectId) {
       toast.error("No project selected. Please select a project before generating images.");
-      return;
+      return [];
     }
 
     const incomingTaskId = addIncomingTask({
       taskType: 'image_generation',
-      label: taskParams.prompts?.[0]?.text?.substring(0, 50) || 'Generating images...',
+      label: taskParams.prompts?.[0]?.fullPrompt?.substring(0, 50) || 'Generating images...',
     });
     try {
       await createBatchImageGenerationTasks(taskParams);
@@ -69,6 +69,7 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
       await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
       removeIncomingTask(incomingTaskId);
     }
+    return [];
   }, [selectedProjectId, queryClient, addIncomingTask, removeIncomingTask]);
 
   const handleNavigateToTool = useCallback(() => {
@@ -117,16 +118,18 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
         <DialogHeader className={modal.headerClass}>
           <div className="flex items-center gap-2">
             <DialogTitle className="text-xl font-light">Generate Images</DialogTitle>
-            <Tooltip delayDuration={500}>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={handleNavigateToTool} className="h-7 w-7">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Open Tool</p>
-              </TooltipContent>
-            </Tooltip>
+            <TooltipProvider delayDuration={500}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={handleNavigateToTool} className="h-7 w-7">
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Open Tool</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </DialogHeader>
 

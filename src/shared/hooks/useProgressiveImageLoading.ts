@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { hasLoadedImage } from '@/shared/lib/preloading';
+import { createSessionId } from '@/shared/lib/sessionId';
 
 interface ImageWithId {
   id: string;
@@ -120,7 +121,7 @@ export const useProgressiveImageLoading = ({
     const currentReconciliationId = reconciliationIdRef.current;
 
     // Create new loading session with proper cancellation support
-    const sessionId = `prog-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = createSessionId('prog');
     const abortController = new AbortController();
     const timeouts: (NodeJS.Timeout | number)[] = [];
     const rafIds: number[] = [];
@@ -200,7 +201,7 @@ export const useProgressiveImageLoading = ({
         cancelActiveSession('effect cleanup');
       }
     };
-  }, [imageSetId, page, enabled, isMobile, useIntersectionObserver, isLightboxOpen]);
+  }, [imageSetId, page, enabled, isMobile, useIntersectionObserver, isLightboxOpen, images]);
   
   // Cleanup on unmount - ensure all sessions are properly canceled
   useEffect(() => {

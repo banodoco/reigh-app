@@ -1,0 +1,43 @@
+{
+  "assessments": {
+    "abstraction_fitness": 82,
+    "ai_generated_debt": 83,
+    "api_surface_coherence": 80,
+    "authorization_consistency": 85,
+    "contract_coherence": 84,
+    "convention_outlier": 82,
+    "cross_module_architecture": 80,
+    "dependency_health": 82,
+    "error_consistency": 84,
+    "high_level_elegance": 84,
+    "incomplete_migration": 70,
+    "initialization_coupling": 82,
+    "logic_clarity": 83,
+    "low_level_elegance": 82,
+    "mid_level_elegance": 82,
+    "naming_quality": 84,
+    "package_organization": 83,
+    "test_strategy": 82,
+    "type_safety": 84
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "segment_travel_migration_tail_remains",
+      "summary": "Legacy segment/travel migration paths are reduced but still not fully retired",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/hooks/useSegmentSettingsForm.ts",
+        "src/tools/travel-between-images/hooks/useSegmentOutputsForShot.ts"
+      ],
+      "evidence": [
+        "Deprecated markers and compatibility scaffolding remain concentrated in travel-between-images and segment settings pathways.",
+        "Runtime paths still include migration adapters beyond boundary-only translation points."
+      ],
+      "suggestion": "Schedule one migration-closure pass to collapse remaining adapters into a single edge shim and remove legacy branches from active business-flow modules.",
+      "reasoning": "Finishing the migration tail removes hidden branch complexity and improves long-term contract clarity.",
+      "confidence": "high"
+    }
+  ]
+}

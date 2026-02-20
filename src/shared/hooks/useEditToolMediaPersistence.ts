@@ -110,20 +110,21 @@ export function useEditToolMediaPersistence({
   }, [projectId, uiSettings?.lastEditedMediaId, isUISettingsLoading, selectedMedia, updateUISettings, preloadMedia, onSettingsLoaded, uiSettings, extraClearData]);
 
   // Persist selected media ID to database settings (or clear it when media is removed)
+  const selectedMediaId = selectedMedia?.id;
   useEffect(() => {
     if (!projectId || isUISettingsLoading || !hasLoadedFromSettings.current) return;
 
-    if (selectedMedia && selectedMedia.id !== (uiSettings?.lastEditedMediaId as string | undefined)) {
-      updateUISettings('project', { lastEditedMediaId: selectedMedia.id });
+    if (selectedMediaId && selectedMediaId !== (uiSettings?.lastEditedMediaId as string | undefined)) {
+      updateUISettings('project', { lastEditedMediaId: selectedMediaId });
       userClosedEditor.current = false; // Reset close flag when new media selected
-    } else if (!selectedMedia && uiSettings?.lastEditedMediaId && userClosedEditor.current) {
+    } else if (!selectedMediaId && uiSettings?.lastEditedMediaId && userClosedEditor.current) {
       // Only clear when user explicitly closed the editor, not on initial mount
       updateUISettings('project', {
         lastEditedMediaId: undefined,
         ...extraClearData,
       });
     }
-  }, [selectedMedia?.id, projectId, isUISettingsLoading, uiSettings?.lastEditedMediaId, updateUISettings, extraClearData]);
+  }, [selectedMediaId, projectId, isUISettingsLoading, uiSettings?.lastEditedMediaId, updateUISettings, extraClearData]);
 
   // Wrapper to set media from outside (e.g. gallery selection, upload result)
   const setSelectedMedia = useCallback((media: GenerationRow | null) => {

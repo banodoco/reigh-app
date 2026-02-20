@@ -32,7 +32,8 @@ interface DebugConfig {
 // Environment-based configuration
 const getEnvFlag = (key: string, defaultValue: boolean = false): boolean => {
   try {
-    const value = (import.meta as unknown)?.env?.[key];
+    const env = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env;
+    const value = env?.[key];
     if (typeof value === 'string') {
       return value === 'true' || value === '1';
     }
@@ -151,5 +152,5 @@ export const debugConfig = {
 
 // Make debug config available globally for runtime control
 if (typeof window !== 'undefined') {
-  (window as unknown).debugConfig = debugConfig;
+  (window as Window & { debugConfig?: typeof debugConfig }).debugConfig = debugConfig;
 }

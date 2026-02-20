@@ -8,7 +8,7 @@ import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControl
 import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
 import { GeneratePromptsParams, AIModelType } from '@/types/ai';
 import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
@@ -23,9 +23,9 @@ type GenerationControlValues = PGC_GenerationControlValues;
 type BulkEditControlValues = BEC_BulkEditControlValues;
 
 interface PersistedEditorControlsSettings {
-  generationSettings?: GenerationControlValues;
-  bulkEditSettings?: BulkEditControlValues;
-  activeTab?: EditorMode;
+  generationSettings: GenerationControlValues;
+  bulkEditSettings: BulkEditControlValues;
+  activeTab: EditorMode;
 }
 
 interface PromptEditorModalProps {
@@ -116,9 +116,18 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     'prompt-editor-controls',
     { projectId: selectedProjectId ?? undefined },
     {
-      generationSettings: [generationControlValues, setGenerationControlValues],
-      bulkEditSettings: [bulkEditControlValues, setBulkEditControlValues],
-      activeTab: [activeTab, setActiveTab],
+      generationSettings: [
+        generationControlValues,
+        setGenerationControlValues,
+      ],
+      bulkEditSettings: [
+        bulkEditControlValues,
+        setBulkEditControlValues,
+      ],
+      activeTab: [
+        activeTab,
+        setActiveTab,
+      ],
     },
     { defaults: { generationSettings: {}, bulkEditSettings: {}, activeTab: 'generate' } }
   );
@@ -138,7 +147,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
       // Initialize last-saved signature to current to avoid immediate auto-save
       lastSavedSignatureRef.current = JSON.stringify(initialPrompts);
     }
-  }, [isOpen, openWithAIExpanded, selectedProjectId]); // Add selectedProjectId to dependencies to reset when project changes
+  }, [isOpen, openWithAIExpanded, selectedProjectId, initialPrompts, scrollRef]); // Add selectedProjectId to dependencies to reset when project changes
 
   // Auto-save while open: every 3s if changes detected
   useEffect(() => {
@@ -176,7 +185,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
         scrollRef.current.scrollTop = 0;
     }
     onClose();
-  }, [internalPrompts, onSave, onClose]);
+  }, [internalPrompts, onSave, onClose, scrollRef]);
 
   const handleInternalUpdatePrompt = useCallback((id: string, updates: Partial<Omit<PromptEntry, 'id'>>) => {
     setInternalPrompts(currentPrompts => {
@@ -235,7 +244,9 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     }));
     
     // Check if all existing prompts are empty
-    const allExistingPromptsAreEmpty = internalPrompts.every(p => !p.fullPrompt.trim() && !p.shortPrompt.trim());
+    const allExistingPromptsAreEmpty = internalPrompts.every(
+      (p) => !p.fullPrompt.trim() && !(p.shortPrompt ?? '').trim(),
+    );
     
     // Auto-replace if user explicitly chose replace, OR if all existing prompts are empty
     const shouldReplace = params.replaceCurrentPrompts || allExistingPromptsAreEmpty;
@@ -302,7 +313,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     }));
 
     // We will update prompts one by one to show progress and handle partial failures
-    let successCount = 0;
     const originalPromptIds = promptsToUpdate.map(p => p.id);
 
     for (let i = 0; i < editRequests.length; i++) {
@@ -318,7 +328,6 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
             );
             return updatedPrompts;
           });
-          successCount++;
         }
       } catch (error) {
         handleError(error, { context: 'PromptEditorModal', toastTitle: `Error editing prompt ${promptIdToUpdate.substring(0,8)}...` });
@@ -371,13 +380,13 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     if (!isDragging.current) {
       setIsAIPromptSectionExpanded(prev => !prev);
     }
-  }, []);
+  }, [isDragging]);
 
   const handleModalClose = useCallback((open: boolean) => {
     if (!open) {
       handleFinalSaveAndClose();
     }
-  }, [isOpen, handleFinalSaveAndClose]);
+  }, [handleFinalSaveAndClose]);
 
   return (
     <Dialog
@@ -387,9 +396,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
       <DialogContent
         className={`${modal.className} gap-2`}
         style={modal.style}
-        ref={(el) => {
-          modalContentRef.current = el;
-        }}
+        ref={modalContentRef}
       >
         <div className={modal.headerClass}>
           <DialogHeader className={`${modal.isMobile ? 'px-2 pt-2 pb-2' : 'px-6 pt-4 pb-2'} flex-shrink-0`}>

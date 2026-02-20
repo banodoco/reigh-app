@@ -2,11 +2,12 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Task, TaskStatus, TASK_STATUS } from '@/types/tasks';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { filterVisibleTasks, getVisibleTaskTypes } from '@/shared/lib/taskConfig';
 // Removed invalidationRouter - DataFreshnessManager handles all invalidation logic
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 
 // Re-export extracted modules for backwards compatibility
@@ -46,8 +47,8 @@ export interface PaginatedTasksResponse {
 interface TaskDbRow {
   id: string;
   task_type: string;
-  params: Record<string, unknown> | null;
-  status: string;
+  params: Json | null;
+  status: TaskStatus;
   dependant_on?: string[] | null;
   output_location?: string | null;
   created_at: string;
@@ -59,12 +60,226 @@ interface TaskDbRow {
   error_message?: string | null;
 }
 
+interface PaginatedQueryFilters {
+  allProjects?: boolean;
+  allProjectIds?: string[];
+  effectiveProjectId: string | null;
+  status?: TaskStatus[];
+  taskType?: string | null;
+  visibleTaskTypes: string[];
+}
+
+interface PaginatedDataQueryFilters extends PaginatedQueryFilters {
+  limit: number;
+  offset: number;
+  page: number;
+}
+
+const EMPTY_PAGINATED_TASKS_RESPONSE: PaginatedTasksResponse = {
+  tasks: [],
+  total: 0,
+  hasMore: false,
+  totalPages: 0,
+};
+
+function isProcessingStatusFilter(status?: TaskStatus[]): boolean {
+  return !!status?.some((value) => value === TASK_STATUS.QUEUED || value === TASK_STATUS.IN_PROGRESS);
+}
+
+function isSucceededOnlyStatus(status?: TaskStatus[]): boolean {
+  return !!status && status.length === 1 && status[0] === TASK_STATUS.COMPLETE;
+}
+
+function buildCountQuery(filters: PaginatedQueryFilters) {
+  let query = supabase
+    .from('tasks')
+    .select('*', { count: 'exact', head: true })
+    .is('params->orchestrator_task_id_ref', null)
+    .in('task_type', filters.visibleTaskTypes);
+
+  if (filters.allProjects && filters.allProjectIds) {
+    query = query.in('project_id', filters.allProjectIds);
+  } else {
+    query = query.eq('project_id', filters.effectiveProjectId!);
+  }
+
+  if (filters.status?.length) {
+    query = query.in('status', filters.status);
+  }
+
+  if (filters.taskType) {
+    query = query.eq('task_type', filters.taskType);
+  }
+
+  return query;
+}
+
+function buildDataQuery(filters: PaginatedDataQueryFilters) {
+  const needsCustomSorting = isProcessingStatusFilter(filters.status);
+  const succeededOnly = isSucceededOnlyStatus(filters.status);
+
+  let query = supabase
+    .from('tasks')
+    .select('*')
+    .is('params->orchestrator_task_id_ref', null)
+    .in('task_type', filters.visibleTaskTypes);
+
+  if (filters.allProjects && filters.allProjectIds) {
+    query = query.in('project_id', filters.allProjectIds);
+  } else {
+    query = query.eq('project_id', filters.effectiveProjectId!);
+  }
+
+  if (succeededOnly) {
+    query = query
+      .order('generation_processed_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false });
+  } else {
+    query = query.order('created_at', { ascending: false });
+  }
+
+  if (filters.status?.length) {
+    query = query.in('status', filters.status);
+  }
+
+  if (filters.taskType) {
+    query = query.eq('task_type', filters.taskType);
+  }
+
+  if (needsCustomSorting) {
+    const effectiveBaseLimit = Math.max(filters.limit, PAGINATION_CONFIG.DEFAULT_LIMIT);
+    const fetchLimit = filters.page === 1
+      ? Math.min(
+        effectiveBaseLimit * PAGINATION_CONFIG.PROCESSING_FETCH_MULTIPLIER,
+        PAGINATION_CONFIG.PROCESSING_MAX_FETCH
+      )
+      : effectiveBaseLimit;
+
+    return query.limit(fetchLimit);
+  }
+
+  return query.range(filters.offset, filters.offset + filters.limit - 1);
+}
+
+function sortProcessingTasks(tasks: Task[]): Task[] {
+  const getStatusPriority = (status: string): number => {
+    switch (status) {
+      case TASK_STATUS.IN_PROGRESS:
+        return 1;
+      case TASK_STATUS.QUEUED:
+        return 2;
+      default:
+        return 3;
+    }
+  };
+
+  return [...tasks].sort((a, b) => {
+    const aPriority = getStatusPriority(a.status);
+    const bPriority = getStatusPriority(b.status);
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+
+    return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+  });
+}
+
+function buildPaginatedTasksResponse(
+  visibleTasks: Task[],
+  needsCustomSorting: boolean,
+  count: number | null,
+  offset: number,
+  limit: number
+): PaginatedTasksResponse {
+  const paginatedTasks = needsCustomSorting
+    ? sortProcessingTasks(visibleTasks).slice(offset, offset + limit)
+    : visibleTasks;
+  const total = count !== null ? count : Math.max(paginatedTasks.length, offset + paginatedTasks.length);
+  const totalPages = Math.ceil(total / limit);
+  const hasMore = count !== null ? offset + limit < total : paginatedTasks.length >= limit;
+
+  return {
+    tasks: paginatedTasks,
+    total,
+    hasMore,
+    totalPages,
+  };
+}
+
+function createPaginatedTasksQueryFn(filters: PaginatedDataQueryFilters) {
+  return async (): Promise<PaginatedTasksResponse> => {
+    if (filters.allProjects && (!filters.allProjectIds || filters.allProjectIds.length === 0)) {
+      return EMPTY_PAGINATED_TASKS_RESPONSE;
+    }
+    if (!filters.allProjects && !filters.effectiveProjectId) {
+      return EMPTY_PAGINATED_TASKS_RESPONSE;
+    }
+
+    const needsCustomSorting = isProcessingStatusFilter(filters.status);
+    const [countResult, { data, error: dataError }] = await Promise.all([
+      buildCountQuery(filters),
+      buildDataQuery(filters),
+    ]);
+    const { count, error: countError } = countResult;
+
+    if (countError) {
+      dataFreshnessManager.onFetchFailure(taskQueryKeys.paginated(filters.effectiveProjectId!), countError as Error);
+      throw countError;
+    }
+    if (dataError) {
+      dataFreshnessManager.onFetchFailure(taskQueryKeys.paginated(filters.effectiveProjectId!), dataError as Error);
+      throw dataError;
+    }
+
+    dataFreshnessManager.onFetchSuccess(taskQueryKeys.paginated(filters.effectiveProjectId!));
+    const allTasks = (data || []).map(mapDbTaskToTask);
+    const visibleTasks = filterVisibleTasks(allTasks);
+
+    return buildPaginatedTasksResponse(
+      visibleTasks,
+      needsCustomSorting,
+      count,
+      filters.offset,
+      filters.limit
+    );
+  };
+}
+
+function shouldForceProcessingRefetch(
+  status: TaskStatus[] | undefined,
+  query: {
+    data?: PaginatedTasksResponse;
+    isFetching: boolean;
+    status: string;
+    dataUpdatedAt: number;
+  },
+  timeSinceLastRefetch: number
+): boolean {
+  const processingFilterSelected = !!status
+    && status.includes(TASK_STATUS.QUEUED)
+    && status.includes(TASK_STATUS.IN_PROGRESS);
+  const hasStaleEmptyData = !!query.data && query.data.tasks.length === 0 && !query.isFetching;
+  const dataAge = query.dataUpdatedAt ? Date.now() - query.dataUpdatedAt : Infinity;
+  const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+  const minBackoffMs = isHidden ? 60000 : 10000;
+  const staleThresholdMs = isHidden ? 60000 : 30000;
+  const meetsStaleThreshold = dataAge > staleThresholdMs;
+
+  return processingFilterSelected
+    && hasStaleEmptyData
+    && query.status === 'success'
+    && meetsStaleThreshold
+    && timeSinceLastRefetch > minBackoffMs;
+}
+
 // Helper to convert DB row (snake_case) to Task interface (camelCase)
 // Exported for use in prefetch utilities
 export const mapDbTaskToTask = (row: TaskDbRow): Task => ({
   id: row.id,
   taskType: row.task_type,
-  params: row.params,
+  params: (row.params && typeof row.params === 'object' && !Array.isArray(row.params))
+    ? (row.params as Record<string, unknown>)
+    : {},
   status: row.status,
   dependantOn: row.dependant_on ?? undefined,
   outputLocation: row.output_location ?? undefined,
@@ -81,7 +296,7 @@ export const mapDbTaskToTask = (row: TaskDbRow): Task => ({
 // Uses IMMUTABLE_PRESET since task data rarely changes after creation
 export const useGetTask = (taskId: string) => {
   return useQuery<Task, Error>({
-    queryKey: queryKeys.tasks.single(taskId),
+    queryKey: taskQueryKeys.single(taskId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
@@ -105,222 +320,39 @@ export const useGetTask = (taskId: string) => {
 export const usePaginatedTasks = (params: PaginatedTasksParams) => {
   const { projectId, status, limit = 50, offset = 0, taskType, allProjects, allProjectIds } = params;
   const page = Math.floor(offset / limit) + 1;
-
-  // SMART POLLING: Use DataFreshnessManager for intelligent polling decisions
-  const smartPollingConfig = useSmartPollingConfig(queryKeys.tasks.paginated(projectId!));
-
-  // [TasksPaneCountMismatch] Debug unexpected limit values
-  if (limit < 10) {
-    // Limit too small for processing view - check for cache collision
-  }
-
-  const effectiveProjectId = projectId ?? (typeof window !== 'undefined' ? window.__PROJECT_CONTEXT__?.selectedProjectId : null);
-
-  // For cache key: use 'all' when querying all projects, otherwise use effectiveProjectId
+  const effectiveProjectId: string | null = projectId
+    ?? (typeof window !== 'undefined' ? window.__PROJECT_CONTEXT__?.selectedProjectId ?? null : null);
   const cacheProjectKey = allProjects ? 'all' : effectiveProjectId;
+  const safeCacheProjectKey = cacheProjectKey ?? '__no-project__';
+  const visibleTaskTypes = getVisibleTaskTypes();
+  const smartPollingConfig = useSmartPollingConfig(taskQueryKeys.paginated(safeCacheProjectKey));
 
   const query = useQuery<PaginatedTasksResponse, Error>({
-    // CRITICAL: Use page-based cache keys like gallery
-    queryKey: [...queryKeys.tasks.paginated(cacheProjectKey as string), page, limit, status, taskType],
-    queryFn: async () => {
-
-      // For all projects mode, we need allProjectIds; otherwise we need effectiveProjectId
-      if (allProjects && (!allProjectIds || allProjectIds.length === 0)) {
-        return { tasks: [], total: 0, hasMore: false, totalPages: 0, distinctTaskTypes: [] };
-      }
-      if (!allProjects && !effectiveProjectId) {
-        return { tasks: [], total: 0, hasMore: false, totalPages: 0, distinctTaskTypes: [] };
-      }
-
-      // GALLERY PATTERN: Get count and data separately, efficiently
-      // Always get accurate count - the approximation was causing 10x multiplication bug
-      const shouldSkipCount = false;
-
-      // 1. Get total count with lightweight query (skip if fast polling likely)
-      // IMPORTANT: Filter to only visible task types at DB level to match what's displayed
-      const visibleTaskTypes = getVisibleTaskTypes();
-
-      let countQuery = supabase
-        .from('tasks')
-        .select('*', { count: 'exact', head: true })
-        .is('params->orchestrator_task_id_ref', null) // Only parent tasks
-        .in('task_type', visibleTaskTypes); // Only visible task types
-
-      // Apply project filter: either single project or multiple projects
-      if (allProjects && allProjectIds) {
-        countQuery = countQuery.in('project_id', allProjectIds);
-      } else {
-        countQuery = countQuery.eq('project_id', effectiveProjectId!);
-      }
-
-      if (status && status.length > 0) {
-        countQuery = countQuery.in('status', status);
-      }
-
-      // Apply task type filter to count query (server-side filter)
-      if (taskType) {
-        countQuery = countQuery.eq('task_type', taskType);
-      }
-
-      // 2. Get paginated data with proper database pagination
-      // Strategy: Use database pagination for most cases, only fetch extra for Processing status that needs sorting
-      const needsCustomSorting = status?.some(s => s === TASK_STATUS.QUEUED || s === TASK_STATUS.IN_PROGRESS);
-
-      let dataQuery = supabase
-        .from('tasks')
-        .select('*')
-        .is('params->orchestrator_task_id_ref', null) // Only parent tasks
-        .in('task_type', visibleTaskTypes); // Only visible task types
-
-      // Apply project filter: either single project or multiple projects
-      if (allProjects && allProjectIds) {
-        dataQuery = dataQuery.in('project_id', allProjectIds);
-      } else {
-        dataQuery = dataQuery.eq('project_id', effectiveProjectId!);
-      }
-
-      // For Succeeded view, order by completion time (most recent first)
-      const succeededOnly = status && status.length === 1 && status[0] === TASK_STATUS.COMPLETE;
-      if (succeededOnly) {
-        dataQuery = dataQuery
-          .order('generation_processed_at', { ascending: false, nullsFirst: false })
-          .order('created_at', { ascending: false }); // tie-breaker
-      } else {
-        // Default DB ordering; Processing will use client-side custom sort
-        dataQuery = dataQuery.order('created_at', { ascending: false });
-      }
-
-      if (status && status.length > 0) {
-        dataQuery = dataQuery.in('status', status);
-      }
-
-      // Apply task type filter to data query (server-side filter)
-      if (taskType) {
-        dataQuery = dataQuery.eq('task_type', taskType);
-      }
-
-      if (needsCustomSorting) {
-        // For Processing tasks: Use progressive loading strategy
-        // Start with a reasonable chunk size, expand if needed for first page
-        const effectiveBaseLimit = Math.max(limit, PAGINATION_CONFIG.DEFAULT_LIMIT);
-        let fetchLimit;
-
-        if (page === 1) {
-          // First page: fetch more to get a good sample for sorting, but cap it reasonably
-          fetchLimit = Math.min(effectiveBaseLimit * PAGINATION_CONFIG.PROCESSING_FETCH_MULTIPLIER, PAGINATION_CONFIG.PROCESSING_MAX_FETCH);
-        } else {
-          // Subsequent pages: use standard pagination since first page established sort order
-          fetchLimit = effectiveBaseLimit;
-        }
-
-        dataQuery = dataQuery.limit(fetchLimit);
-      } else {
-        // For Succeeded/Failed: use proper database pagination - no client sorting needed
-        dataQuery = dataQuery.range(offset, offset + limit - 1);
-      }
-
-      // Execute queries (skip count for fast polling scenarios)
-      const [countResult, { data, error: dataError }] = await Promise.all([
-        shouldSkipCount ? Promise.resolve({ count: null, error: null }) : countQuery,
-        dataQuery,
-      ]);
-
-      const { count, error: countError } = countResult;
-
-      if (countError) {
-        console.error('[TaskPollingDebug] Count query failed:', countError);
-        // Track failure for circuit breaker
-        dataFreshnessManager.onFetchFailure(queryKeys.tasks.paginated(effectiveProjectId), countError as Error);
-        throw countError;
-      }
-      if (dataError) {
-        console.error('[TaskPollingDebug] Data query failed:', dataError);
-        // Track failure for circuit breaker
-        dataFreshnessManager.onFetchFailure(queryKeys.tasks.paginated(effectiveProjectId), dataError as Error);
-        throw dataError;
-      }
-
-      // Track success for circuit breaker
-      dataFreshnessManager.onFetchSuccess(queryKeys.tasks.paginated(effectiveProjectId));
-
-      // Apply client-side filtering and sorting
-      const allTasks = (data || []).map(mapDbTaskToTask);
-      const visibleTasks = filterVisibleTasks(allTasks);
-
-      let paginatedTasks: typeof allTasks;
-
-      if (needsCustomSorting) {
-        // In Progress first, then Queued; within each, oldest to newest by created_at
-        const sortedTasks = visibleTasks.sort((a, b) => {
-          const getStatusPriority = (status: string) => {
-            switch (status) {
-              case TASK_STATUS.IN_PROGRESS: return 1;
-              case TASK_STATUS.QUEUED: return 2;
-              default: return 3;
-            }
-          };
-          const aPriority = getStatusPriority(a.status);
-          const bPriority = getStatusPriority(b.status);
-          if (aPriority !== bPriority) {
-            return aPriority - bPriority; // lower is higher priority
-          }
-          const aDate = new Date(a.createdAt || 0);
-          const bDate = new Date(b.createdAt || 0);
-          return aDate.getTime() - bDate.getTime(); // oldest first
-        });
-        paginatedTasks = sortedTasks.slice(offset, offset + limit);
-      } else {
-        // For Succeeded/Failed: data is already paginated by database
-        paginatedTasks = visibleTasks;
-      }
-
-      // Use approximation when count is skipped during fast polling
-      // For Processing tasks, use a more reasonable approximation based on current page
-      const total = count !== null ? count : Math.max(paginatedTasks.length, offset + paginatedTasks.length);
-      const totalPages = Math.ceil(total / limit);
-      const hasMore = count !== null ? offset + limit < total : paginatedTasks.length >= limit;
-
-      const result: PaginatedTasksResponse = {
-        tasks: paginatedTasks,
-        total,
-        hasMore,
-        totalPages,
-      };
-
-      return result;
-    },
+    queryKey: [...taskQueryKeys.paginated(safeCacheProjectKey), page, limit, status, taskType],
+    queryFn: createPaginatedTasksQueryFn({
+      allProjects,
+      allProjectIds,
+      effectiveProjectId,
+      status,
+      taskType,
+      visibleTaskTypes,
+      limit,
+      offset,
+      page,
+    }),
     enabled: !!effectiveProjectId,
-    // Keep previous page's data visible during refetches to avoid UI blanks
     placeholderData: (previousData: PaginatedTasksResponse | undefined) => previousData,
-    // Use realtimeBacked preset - tasks updated via realtime + mutations
     ...QUERY_PRESETS.realtimeBacked,
-    // SMART POLLING: Intelligent polling based on realtime health
     ...smartPollingConfig,
-    refetchIntervalInBackground: true, // Enable background polling
-    // Enhanced retry logic for transient network errors
+    refetchIntervalInBackground: true,
     retry: STANDARD_RETRY,
     retryDelay: STANDARD_RETRY_DELAY,
   });
 
-  // NUCLEAR OPTION: Force refetch if query has data but no tasks for Processing view
-  // SAFETY: Only trigger if data is genuinely stale (older than 30 seconds) to prevent infinite loops
-  const isProcessingFilter = status && status.includes('Queued') && status.includes('In Progress');
-  const hasStaleEmptyData = query.data && query.data.tasks && query.data.tasks.length === 0 && !query.isFetching;
-  const dataAge = query.dataUpdatedAt ? Date.now() - query.dataUpdatedAt : Infinity;
-
-  // Use React ref to prevent rapid refetches
   const lastRefetchRef = React.useRef<number>(0);
   const timeSinceLastRefetch = Date.now() - lastRefetchRef.current;
-
-  // When backgrounded, dampen nuclear refetches to avoid thrash under timer clamping
-  const isHidden = typeof document !== 'undefined' ? document.hidden : false;
-  const minBackoffMs = isHidden ? 60000 : 10000;
-  const hiddenStaleThresholdMs = isHidden ? 60000 : 30000;
-  const meetsStaleThreshold = dataAge > hiddenStaleThresholdMs;
-
-  if (isProcessingFilter && hasStaleEmptyData && query.status === 'success' && meetsStaleThreshold && timeSinceLastRefetch > minBackoffMs) {
+  if (shouldForceProcessingRefetch(status, query, timeSinceLastRefetch)) {
     lastRefetchRef.current = Date.now();
-    // Force immediate refetch
     query.refetch();
   }
 

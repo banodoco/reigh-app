@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import type { Json } from '@/integrations/supabase/types';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 type ExternalService = 'huggingface' | 'replicate' | 'civitai';
 
@@ -8,7 +9,7 @@ interface ExternalApiKey {
   id: string;
   service: ExternalService;
   key_value?: string;  // Not fetched client-side (stored in Vault)
-  metadata: Record<string, unknown>;
+  metadata: Record<string, Json | undefined>;
   created_at: string;
   updated_at: string;
 }
@@ -44,7 +45,7 @@ async function fetchExternalApiKey(service: ExternalService): Promise<ExternalAp
 async function saveExternalApiKey(
   service: ExternalService,
   keyValue: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, Json | undefined>
 ): Promise<ExternalApiKey> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
@@ -106,7 +107,7 @@ function useExternalApiKey(service: ExternalService) {
 
   // Mutation to save/update the API key
   const saveMutation = useMutation({
-    mutationFn: ({ keyValue, metadata }: { keyValue: string; metadata?: Record<string, unknown> }) =>
+    mutationFn: ({ keyValue, metadata }: { keyValue: string; metadata?: Record<string, Json | undefined> }) =>
       saveExternalApiKey(service, keyValue, metadata),
     onSuccess: (savedKey) => {
       queryClient.setQueryData(queryKey, savedKey);
@@ -133,7 +134,7 @@ function useExternalApiKey(service: ExternalService) {
     isLoading,
     error,
     refetch,
-    save: (keyValue: string, metadata?: Record<string, unknown>) =>
+    save: (keyValue: string, metadata?: Record<string, Json | undefined>) =>
       saveMutation.mutateAsync({ keyValue, metadata }),
     delete: () => deleteMutation.mutateAsync(),
     isSaving: saveMutation.isPending,
@@ -183,7 +184,7 @@ export function useHuggingFaceToken() {
         valid: true,
         username: data.name,
       };
-    } catch (err) {
+    } catch {
       return { valid: false, error: 'Failed to connect to HuggingFace' };
     }
   };

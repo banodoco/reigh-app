@@ -189,7 +189,7 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
       playTravelVideo(selectedTravelExample);
     }
      
-  }, [isOpen, isOpening, selectedTravelExample]);
+  }, [isOpen, isOpening, selectedTravelExample, playTravelVideo]);
 
   // Reset when pane closes
   useEffect(() => {
@@ -205,7 +205,7 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
       resetAll();
     }
      
-  }, [isOpen, isClosing]);
+  }, [isOpen, isClosing, resetAll]);
 
   // Preload critical images when pane opens
   useEffect(() => {
@@ -232,7 +232,7 @@ export const PhilosophyPane: React.FC<PhilosophyPaneProps> = ({
         if (img.complete) handleImageLoad(src);
       });
     }
-  }, [isOpen, currentExample.image1, currentExample.image2]);
+  }, [isOpen, currentExample.image1, currentExample.image2, handleImageLoad]);
 
   return (
     <GlassSidePane isOpen={isOpen} onClose={onClose} side="right" zIndex={60}>

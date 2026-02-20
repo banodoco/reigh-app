@@ -22,4 +22,7 @@ export type { UseDownloadImagesReturn } from './useDownloadImages';
 
 export { useSmoothContinuations } from './useSmoothContinuations';
 
+export { useShotImagesEditorModel } from './useShotImagesEditorModel';
+export type { ShotImagesEditorDataModel, ShotImagesEditorModeModel } from './useShotImagesEditorModel';
+
 // Note: usePairData and useFrameCountUpdater are internal - used by useSegmentSlotMode

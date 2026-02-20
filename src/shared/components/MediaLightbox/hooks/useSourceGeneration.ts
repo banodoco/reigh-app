@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { GenerationRow } from '@/types/shots';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -31,21 +31,22 @@ interface UseSourceGenerationReturn {
  * Fetches the generation that this media was derived from, plus its primary variant
  */
 export const useSourceGeneration = ({
-  media,
-  onOpenExternalGeneration
+  media
 }: UseSourceGenerationParams): UseSourceGenerationReturn => {
   const [sourceGenerationData, setSourceGenerationData] = useState<SourceGenerationWithAssociations | null>(null);
   const [sourcePrimaryVariant, setSourcePrimaryVariant] = useState<SourceVariantData | null>(null);
+  const metadataBasedOnId = (media.metadata as Record<string, unknown> | null)?.based_on as string | undefined;
 
   useEffect(() => {
     const basedOnId = media.based_on;
-    const basedOnFromMetadata = (media.metadata as Record<string, unknown> | null)?.based_on as string | undefined;
+    const basedOnFromMetadata = metadataBasedOnId;
 
     // Check both direct field and metadata
     const effectiveBasedOnId = basedOnId || basedOnFromMetadata;
     
     if (!effectiveBasedOnId) {
       setSourceGenerationData(null);
+      setSourcePrimaryVariant(null);
       return;
     }
     
@@ -103,12 +104,11 @@ export const useSourceGeneration = ({
       }
     };
     
-    fetchSourceGeneration();
-  }, [media.id, media.based_on, (media.metadata as Record<string, unknown> | null)?.based_on, onOpenExternalGeneration]);
+    void fetchSourceGeneration();
+  }, [media.based_on, metadataBasedOnId]);
 
   return {
     sourceGenerationData,
     sourcePrimaryVariant
   };
 };
-

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { GenerationRow, GenerationParams } from '@/types/shots';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/shared/hooks/use-toast';
@@ -6,7 +6,7 @@ import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
@@ -41,161 +41,182 @@ interface UseVideoItemJoinClipsResult {
   joinSettings: JoinSettings;
 }
 
-export function useVideoItemJoinClips(
-  video: GenerationRow,
-  projectId: string | null | undefined,
-  projectAspectRatio: string | undefined
-): UseVideoItemJoinClipsResult {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
+interface UseConfirmJoinHandlerParams {
+  projectId: string | null | undefined;
+  canJoinClips: boolean;
+  childGenerations: GenerationRow[];
+  projectAspectRatio: string | undefined;
+  video: GenerationRow;
+  joinPrompt: string;
+  joinNegativePrompt: string;
+  joinContextFrames: number;
+  joinGapFrames: number;
+  joinReplaceMode: boolean;
+  keepBridgingImages: boolean;
+  setIsJoiningClips: (value: boolean) => void;
+  setShowJoinModal: (value: boolean) => void;
+  setJoinClipsSuccess: (value: boolean) => void;
+  addIncomingTask: ReturnType<typeof useIncomingTasks>['addIncomingTask'];
+  removeIncomingTask: ReturnType<typeof useIncomingTasks>['removeIncomingTask'];
+  queryClient: ReturnType<typeof useQueryClient>;
+  toast: ReturnType<typeof useToast>['toast'];
+}
 
-  // State for join clips feature
+function deduplicateChildGenerations(children: GenerationRow[]): GenerationRow[] {
+  const seenChildOrders = new Set<number>();
+  return children.filter(child => {
+    const rawChildOrder = child.child_order;
+    if (rawChildOrder === undefined || rawChildOrder === null) return true;
+
+    const childOrder = typeof rawChildOrder === 'number'
+      ? rawChildOrder
+      : parseInt(String(rawChildOrder), 10);
+
+    if (Number.isNaN(childOrder)) return true;
+    if (seenChildOrders.has(childOrder)) return false;
+
+    seenChildOrders.add(childOrder);
+    return true;
+  });
+}
+
+async function fetchChildGenerations(parentGenerationId: string): Promise<GenerationRow[]> {
+  const { data, error } = await supabase
+    .from('generations')
+    .select('*')
+    .eq('parent_generation_id', parentGenerationId)
+    .order('child_order', { ascending: true })
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  if (!data) return [];
+
+  const mapped = data.map(gen => ({
+    id: gen.id,
+    location: gen.location || '',
+    imageUrl: gen.location || '',
+    thumbUrl: gen.thumbnail_url || '',
+    type: gen.type || 'video',
+    created_at: gen.created_at || new Date().toISOString(),
+    createdAt: gen.created_at || new Date().toISOString(),
+    params: gen.params as GenerationParams,
+    parent_generation_id: gen.parent_generation_id,
+    child_order: gen.child_order,
+  })) as GenerationRow[];
+
+  return deduplicateChildGenerations(mapped);
+}
+
+function useParentChildGenerations(video: GenerationRow) {
   const [childGenerations, setChildGenerations] = useState<GenerationRow[]>([]);
   const [isLoadingChildren, setIsLoadingChildren] = useState(false);
-  const [isJoiningClips, setIsJoiningClips] = useState(false);
-  const [joinClipsSuccess, setJoinClipsSuccess] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
 
-  // Join settings state (matches JoinClipsPage defaults)
-  const [joinPrompt, setJoinPrompt] = useState('');
-  const [joinNegativePrompt, setJoinNegativePrompt] = useState('');
-  const [joinContextFrames, setJoinContextFrames] = useState(8);
-  const [joinGapFrames, setJoinGapFrames] = useState(12);
-  const [joinReplaceMode, setJoinReplaceMode] = useState(true);
-  const [keepBridgingImages, setKeepBridgingImages] = useState(false);
-
-  // Fetch child generations for parent videos (to show "View X Segments" CTA)
   useEffect(() => {
-    const shouldCheckForChildren = !video.parent_generation_id && video.id;
-
-    if (shouldCheckForChildren) {
-      setIsLoadingChildren(true);
-
-      let cancelled = false;
-
-      const fetchChildren = async () => {
-        try {
-          // Fetch child generations ordered by child_order
-          const { data, error } = await supabase
-            .from('generations')
-            .select('*')
-            .eq('parent_generation_id', video.id)
-            .order('child_order', { ascending: true })
-            .order('created_at', { ascending: false }); // Within same child_order, newest first
-
-          if (cancelled) return;
-
-          if (error) {
-            handleError(error, { context: 'JoinClips', showToast: false });
-            return;
-          }
-
-          if (!data) {
-            setChildGenerations([]);
-            return;
-          }
-
-          // Transform to GenerationRow format
-          const allChildren = data.map(gen => ({
-            id: gen.id,
-            location: gen.location || '',
-            imageUrl: gen.location || '',
-            thumbUrl: gen.thumbnail_url || '',
-            type: gen.type || 'video',
-            created_at: gen.created_at || new Date().toISOString(),
-            createdAt: gen.created_at || new Date().toISOString(),
-            params: gen.params as GenerationParams,
-            parent_generation_id: gen.parent_generation_id,
-            child_order: gen.child_order,
-          })) as GenerationRow[];
-
-          // Deduplicate by child_order - keep the newest (first) for each unique child_order
-          // This handles the case where a segment was regenerated (creating a variant with the same child_order)
-          const seenChildOrders = new Set<number>();
-          const uniqueChildren = allChildren.filter(child => {
-            const rawChildOrder = child.child_order;
-            if (rawChildOrder === undefined || rawChildOrder === null) {
-              return true; // Keep children without child_order (shouldn't happen but be safe)
-            }
-            const childOrder = typeof rawChildOrder === 'number' ? rawChildOrder : parseInt(String(rawChildOrder), 10);
-            if (Number.isNaN(childOrder)) {
-              return true;
-            }
-            if (seenChildOrders.has(childOrder)) {
-              return false; // Skip duplicates
-            }
-            seenChildOrders.add(childOrder);
-            return true;
-          });
-
-          setChildGenerations(uniqueChildren);
-        } finally {
-          if (!cancelled) {
-            setIsLoadingChildren(false);
-          }
-        }
-      };
-
-      fetchChildren();
-
-      return () => {
-        cancelled = true;
-      };
+    const shouldCheckForChildren = !video.parent_generation_id && !!video.id;
+    if (!shouldCheckForChildren) {
+      setChildGenerations([]);
+      setIsLoadingChildren(false);
+      return;
     }
+
+    let cancelled = false;
+    setIsLoadingChildren(true);
+
+    const run = async () => {
+      try {
+        const children = await fetchChildGenerations(video.id);
+        if (!cancelled) {
+          setChildGenerations(children);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          handleError(error, { context: 'JoinClips', showToast: false });
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingChildren(false);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [video.id, video.parent_generation_id, video.location]);
 
-  // Determine if we should show "Join clips" button (always show for parent generations without output)
-  const shouldShowJoinButton = !video.parent_generation_id && !video.location;
+  return { childGenerations, isLoadingChildren };
+}
 
-  // Determine if join is ready (all conditions met)
-  const canJoinClips = shouldShowJoinButton &&
-                       childGenerations.length >= 2 &&
-                       childGenerations.every(child => child.location);
+function buildJoinTooltipMessage(
+  childGenerations: GenerationRow[],
+  isLoadingChildren: boolean,
+  isJoiningClips: boolean,
+  joinClipsSuccess: boolean,
+): string {
+  if (joinClipsSuccess) return 'Join task created!';
+  if (isJoiningClips) return 'Creating join task...';
+  if (isLoadingChildren) return 'Checking for segments...';
+  if (childGenerations.length === 0) return 'No segments found - generate segments first';
+  if (childGenerations.length === 1) return 'Need at least 2 segments to join';
 
-  // Check if we should show collage (parent with no output but has segments)
-  const showCollage = !video.location && childGenerations.length > 0;
+  const segmentsWithoutOutput = childGenerations.filter(child => !child.location).length;
+  if (segmentsWithoutOutput > 0) {
+    return `Waiting for ${segmentsWithoutOutput} segment${segmentsWithoutOutput > 1 ? 's' : ''} to finish generating`;
+  }
 
-  // Generate helpful tooltip message
-  const getJoinTooltipMessage = () => {
-    if (joinClipsSuccess) {
-      return 'Join task created!';
-    }
-    if (isJoiningClips) {
-      return 'Creating join task...';
-    }
-    if (isLoadingChildren) {
-      return 'Checking for segments...';
-    }
-    if (childGenerations.length === 0) {
-      return 'No segments found - generate segments first';
-    }
-    if (childGenerations.length === 1) {
-      return 'Need at least 2 segments to join';
-    }
-    const segmentsWithoutOutput = childGenerations.filter(c => !c.location).length;
-    if (segmentsWithoutOutput > 0) {
-      return `Waiting for ${segmentsWithoutOutput} segment${segmentsWithoutOutput > 1 ? 's' : ''} to finish generating`;
-    }
-    return `Join ${childGenerations.length} segments into one video`;
-  };
+  return `Join ${childGenerations.length} segments into one video`;
+}
 
-  // Handler for opening join modal
-  const handleJoinClipsClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+function resolveResolutionTuple(projectAspectRatio: string | undefined): [number, number] | undefined {
+  if (!projectAspectRatio) return undefined;
 
-    if (!canJoinClips) {
-      return;
-    }
+  const resolutionStr = ASPECT_RATIO_TO_RESOLUTION[projectAspectRatio];
+  if (!resolutionStr) return undefined;
 
-    setShowJoinModal(true);
-  };
+  const [width, height] = resolutionStr.split('x').map(Number);
+  if (!width || !height) return undefined;
 
-  // Handler for confirming join with settings
-  const handleConfirmJoin = async () => {
-    if (!projectId || !canJoinClips) {
-      return;
-    }
+  return [width, height];
+}
+
+function getVideoShotId(video: GenerationRow): string | undefined {
+  const videoParams = video.params;
+  const directShotId = videoParams?.shot_id;
+  if (typeof directShotId === 'string') {
+    return directShotId;
+  }
+
+  const orchestratorDetails = videoParams?.orchestrator_details as Record<string, unknown> | undefined;
+  const orchestratorShotId = orchestratorDetails?.shot_id;
+  return typeof orchestratorShotId === 'string' ? orchestratorShotId : undefined;
+}
+
+function useConfirmJoinHandler(params: UseConfirmJoinHandlerParams) {
+  const {
+    projectId,
+    canJoinClips,
+    childGenerations,
+    projectAspectRatio,
+    video,
+    joinPrompt,
+    joinNegativePrompt,
+    joinContextFrames,
+    joinGapFrames,
+    joinReplaceMode,
+    keepBridgingImages,
+    setIsJoiningClips,
+    setShowJoinModal,
+    setJoinClipsSuccess,
+    addIncomingTask,
+    removeIncomingTask,
+    queryClient,
+    toast,
+  } = params;
+
+  return useCallback(async () => {
+    if (!projectId || !canJoinClips) return;
 
     setIsJoiningClips(true);
     setShowJoinModal(false);
@@ -206,32 +227,19 @@ export function useVideoItemJoinClips(
     });
 
     try {
-      // Create clips array from child generations
-      const clips = childGenerations.map((child, idx) => ({
-        url: child.location,
-        name: `Segment ${idx + 1}`,
-      }));
+      const clips = childGenerations
+        .map((child, idx) => ({
+          url: child.location,
+          name: `Segment ${idx + 1}`,
+        }))
+        .filter((clip): clip is { url: string; name: string } => typeof clip.url === 'string' && clip.url.length > 0);
 
-      // Calculate resolution from project's aspect ratio
-      let resolutionTuple: [number, number] | undefined;
-      if (projectAspectRatio) {
-        const resolutionStr = ASPECT_RATIO_TO_RESOLUTION[projectAspectRatio];
-        if (resolutionStr) {
-          const [width, height] = resolutionStr.split('x').map(Number);
-          if (width && height) {
-            resolutionTuple = [width, height];
-          }
-        }
-      }
+      const resolutionTuple = resolveResolutionTuple(projectAspectRatio);
+      const videoShotId = getVideoShotId(video);
 
-      // Extract shot_id from video params for "Visit Shot" button in TasksPane
-      const videoParams = video.params;
-      const videoShotId = videoParams?.shot_id || (videoParams?.orchestrator_details as Record<string, unknown> | undefined)?.shot_id;
-
-      // Create the join clips task with user settings
       await createJoinClipsTask({
         project_id: projectId,
-        ...(videoShotId && { shot_id: videoShotId }), // For "Visit Shot" button in TasksPane
+        ...(videoShotId && { shot_id: videoShotId }),
         clips,
         prompt: joinPrompt,
         negative_prompt: joinNegativePrompt,
@@ -244,8 +252,6 @@ export function useVideoItemJoinClips(
         guidance_scale: VACE_GENERATION_DEFAULTS.guidanceScale,
         seed: VACE_GENERATION_DEFAULTS.seed,
         parent_generation_id: video.id,
-        // IMPORTANT: This join is initiated from within Travel Between Images,
-        // so the resulting output should be attributed to this tool for filtering/counting.
         tool_type: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
         ...(resolutionTuple && { resolution: resolutionTuple }),
       });
@@ -255,14 +261,11 @@ export function useVideoItemJoinClips(
         description: `Joining ${clips.length} segments into one video`,
       });
 
-      // Show success state
       setJoinClipsSuccess(true);
       setTimeout(() => setJoinClipsSuccess(false), 1500);
 
-      // Invalidate queries to refresh task list
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(projectId) });
-
     } catch (error) {
       handleError(error, { context: 'JoinClips', toastTitle: 'Failed to create join task' });
     } finally {
@@ -271,7 +274,85 @@ export function useVideoItemJoinClips(
       removeIncomingTask(incomingTaskId);
       setIsJoiningClips(false);
     }
-  };
+  }, [
+    projectId,
+    canJoinClips,
+    childGenerations,
+    projectAspectRatio,
+    video,
+    joinPrompt,
+    joinNegativePrompt,
+    joinContextFrames,
+    joinGapFrames,
+    joinReplaceMode,
+    keepBridgingImages,
+    setIsJoiningClips,
+    setShowJoinModal,
+    setJoinClipsSuccess,
+    addIncomingTask,
+    removeIncomingTask,
+    queryClient,
+    toast,
+  ]);
+}
+
+export function useVideoItemJoinClips(
+  video: GenerationRow,
+  projectId: string | null | undefined,
+  projectAspectRatio: string | undefined,
+): UseVideoItemJoinClipsResult {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
+  const { childGenerations, isLoadingChildren } = useParentChildGenerations(video);
+
+  const [isJoiningClips, setIsJoiningClips] = useState(false);
+  const [joinClipsSuccess, setJoinClipsSuccess] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+
+  const [joinPrompt, setJoinPrompt] = useState('');
+  const [joinNegativePrompt, setJoinNegativePrompt] = useState('');
+  const [joinContextFrames, setJoinContextFrames] = useState(8);
+  const [joinGapFrames, setJoinGapFrames] = useState(12);
+  const [joinReplaceMode, setJoinReplaceMode] = useState(true);
+  const [keepBridgingImages, setKeepBridgingImages] = useState(false);
+
+  const shouldShowJoinButton = !video.parent_generation_id && !video.location;
+  const canJoinClips = shouldShowJoinButton &&
+    childGenerations.length >= 2 &&
+    childGenerations.every(child => child.location);
+  const showCollage = !video.location && childGenerations.length > 0;
+
+  const getJoinTooltipMessage = useCallback(() => (
+    buildJoinTooltipMessage(childGenerations, isLoadingChildren, isJoiningClips, joinClipsSuccess)
+  ), [childGenerations, isLoadingChildren, isJoiningClips, joinClipsSuccess]);
+
+  const handleJoinClipsClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canJoinClips) return;
+    setShowJoinModal(true);
+  }, [canJoinClips]);
+
+  const handleConfirmJoin = useConfirmJoinHandler({
+    projectId,
+    canJoinClips,
+    childGenerations,
+    projectAspectRatio,
+    video,
+    joinPrompt,
+    joinNegativePrompt,
+    joinContextFrames,
+    joinGapFrames,
+    joinReplaceMode,
+    keepBridgingImages,
+    setIsJoiningClips,
+    setShowJoinModal,
+    setJoinClipsSuccess,
+    addIncomingTask,
+    removeIncomingTask,
+    queryClient,
+    toast,
+  });
 
   return {
     childGenerations,

@@ -143,11 +143,6 @@ export const QUERY_PRESETS = {
 } as const;
 
 /**
- * Type helper for extracting preset keys
- */
-type QueryPresetKey = keyof typeof QUERY_PRESETS;
-
-/**
  * Classify an error to determine retry strategy
  */
 const classifyNetworkError = (error: Error): {
@@ -232,4 +227,3 @@ export const STANDARD_RETRY_DELAY = (attemptIndex: number, error?: Error) => {
 
   return Math.min(exponentialDelay + jitter, maxDelay);
 };
-

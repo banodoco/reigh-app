@@ -1,8 +1,7 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
-import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { VideoTravelSettings, DEFAULT_PHASE_CONFIG, videoTravelSettings } from '../settings';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { supabase } from '@/integrations/supabase/client';
@@ -101,6 +100,17 @@ export const useShotSettings = (
     enabled: !!shotId,
     debounceMs: 300,
   });
+  const {
+    settings,
+    status,
+    entityId,
+    isDirty,
+    error,
+    hasShotSettings,
+    updateFields: autoSaveUpdateFields,
+    saveImmediate,
+    revert,
+  } = autoSave;
   
   // Save inherited settings to DB immediately if we have them
   // CRITICAL: Only save if the shot doesn't already have settings in DB
@@ -111,37 +121,32 @@ export const useShotSettings = (
     // 1. We have inherited settings
     // 2. Status is ready
     // 3. DB did NOT have existing settings (hasShotSettings is false)
-    if (inheritedSettings && shotId && autoSave.status === 'ready') {
-      if (!autoSave.hasShotSettings) {
-        // Use 'immediate' mode - inherited settings should persist right away
-        updateToolSettingsSupabase({
-          scope: 'shot',
-          id: shotId,
-          toolId: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
-          patch: inheritedSettings,
-        }, undefined, 'immediate').catch(err => {
+    if (inheritedSettings && shotId && status === 'ready') {
+      if (!hasShotSettings) {
+        // Persist inherited settings immediately via the canonical auto-save boundary.
+        saveImmediate(inheritedSettings).catch(err => {
           console.error('[useShotSettings] Failed to save inherited settings:', err);
         });
       }
     }
-  }, [inheritedSettings, shotId, autoSave.status, autoSave.hasShotSettings]);
+  }, [inheritedSettings, shotId, status, hasShotSettings, saveImmediate]);
   
   // Persist settings to localStorage for future inheritance
   useEffect(() => {
-    if (shotId && projectId && autoSave.status === 'ready' && autoSave.settings) {
+    if (shotId && projectId && status === 'ready' && settings) {
       try {
         // Project-specific key
         const projectStorageKey = STORAGE_KEYS.LAST_ACTIVE_SHOT_SETTINGS(projectId);
-        localStorage.setItem(projectStorageKey, JSON.stringify(autoSave.settings));
+        localStorage.setItem(projectStorageKey, JSON.stringify(settings));
         
         // Global key (without pairConfigs which are shot-specific)
-        const globalSettings = { ...autoSave.settings, pairConfigs: [] };
+        const globalSettings = { ...settings, pairConfigs: [] };
         localStorage.setItem(STORAGE_KEYS.GLOBAL_LAST_ACTIVE_SHOT_SETTINGS, JSON.stringify(globalSettings));
       } catch (e) {
         handleError(e, { context: 'useShotSettings', showToast: false });
       }
     }
-  }, [autoSave.settings, shotId, projectId, autoSave.status]);
+  }, [settings, shotId, projectId, status]);
   
   // Wrapped updateField with special handling for advancedMode/phaseConfig
   const updateField = useCallback(<K extends keyof VideoTravelSettings>(
@@ -237,29 +242,29 @@ export const useShotSettings = (
   
   // Memoize return value
   return useMemo(() => ({
-    settings: autoSave.settings,
-    status: autoSave.status as 'idle' | 'loading' | 'ready' | 'saving' | 'error',
-    shotId: autoSave.entityId,
-    isDirty: autoSave.isDirty,
-    error: autoSave.error,
+    settings,
+    status: status as 'idle' | 'loading' | 'ready' | 'saving' | 'error',
+    shotId: entityId,
+    isDirty,
+    error,
     updateField,
-    updateFields: autoSave.updateFields,
+    updateFields: autoSaveUpdateFields,
     applyShotSettings,
     applyProjectDefaults,
     resetToDefaults,
-    save: autoSave.saveImmediate,
-    saveImmediate: autoSave.saveImmediate,
-    revert: autoSave.revert,
+    save: saveImmediate,
+    saveImmediate,
+    revert,
   }), [
-    autoSave.settings,
-    autoSave.status,
-    autoSave.entityId,
-    autoSave.isDirty,
-    autoSave.error,
+    settings,
+    status,
+    entityId,
+    isDirty,
+    error,
     updateField,
-    autoSave.updateFields,
-    autoSave.saveImmediate,
-    autoSave.revert,
+    autoSaveUpdateFields,
+    saveImmediate,
+    revert,
     applyShotSettings,
     applyProjectDefaults,
     resetToDefaults,

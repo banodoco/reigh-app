@@ -15,6 +15,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useShotImages, useTimelineImages, useUnpositionedImages, useVideoOutputs } from '@/shared/hooks/useShotImages';
 import { Shot, GenerationRow } from '@/types/shots';
+import type { Project } from '@/types/project';
 
 export interface UseShotEditorSetupProps {
   selectedShotId: string;
@@ -31,7 +32,7 @@ export interface UseShotEditorSetupReturn {
 
   // Project data
   selectedProjectId: string;
-  projects: { id: string; aspectRatio?: string }[];
+  projects: Project[];
 
   // Aspect ratio
   effectiveAspectRatio: string | undefined;
@@ -117,7 +118,10 @@ export function useShotEditorSetup({
   // ============================================================================
   // PERFORMANCE OPTIMIZATION: Use context images when available since they're already loaded
   // Only fall back to detailed query if context data is insufficient
-  const contextImages = selectedShot?.images || [];
+  const contextImages = useMemo(
+    () => selectedShot?.images ?? [],
+    [selectedShot?.images]
+  );
 
   // [ShotNavPerf] PERFORMANCE FIX: Always fetch full data in background, but don't block UI
   // We'll use context images immediately while the query runs asynchronously
@@ -138,7 +142,10 @@ export function useShotEditorSetup({
     disableRefetch: false, // Let it fetch normally, we'll use context images as placeholder
   });
 
-  const fullShotImages = fullImagesQueryResult.data || [];
+  const fullShotImages = useMemo(
+    () => fullImagesQueryResult.data ?? [],
+    [fullImagesQueryResult.data]
+  );
   const isLoadingFullImages = fullImagesQueryResult.isLoading;
 
   // [SelectorPattern] Use selector hooks for filtered views of shot data.
@@ -213,7 +220,7 @@ export function useShotEditorSetup({
     shots,
 
     // Project data
-    selectedProjectId,
+    selectedProjectId: selectedProjectId ?? projectId,
     projects,
 
     // Aspect ratio

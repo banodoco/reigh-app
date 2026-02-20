@@ -8,7 +8,7 @@
  * ## When to Use
  * - Displaying images in a shot's timeline or image grid
  * - You need timeline_frame positioning data
- * - You need pair_prompt or other shot-specific metadata
+ * - You need pair-level segment overrides or other shot-specific metadata
  * - Working in ShotImageManager, Timeline, or shot editors
  *
  * ## When NOT to Use
@@ -30,7 +30,7 @@
  * Returns `GenerationRow` which includes:
  * - `timeline_frame: number | null` - Position on timeline (null if unpositioned)
  * - `shotImageEntryId: string` - The shot_generations.id (needed for mutations)
- * - `metadata: { pair_prompt, enhanced_prompt, ... }` - Shot-specific metadata
+ * - `metadata: { segmentOverrides, enhanced_prompt, ... }` - Shot-specific metadata
  *
  * @module useShotImages
  */
@@ -39,7 +39,7 @@ import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/types/shots';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import React from 'react';
 
 import { mapShotGenerationToRow } from '@/shared/hooks/useShots';
@@ -54,7 +54,7 @@ import { mapShotGenerationToRow } from '@/shared/hooks/useShots';
  * **Data Loaded:**
  * - All shot_generations for the shot (positioned + unpositioned)
  * - Full generation data (location, type, starred, etc.)
- * - Metadata (pair_prompt, enhanced_prompt, timeline positioning data)
+ * - Metadata (segmentOverrides, enhanced_prompt, timeline positioning data)
  * - shotImageEntryId (required for mutations)
  * 
  * **Cache Sync:**
@@ -103,7 +103,7 @@ const useAllShotGenerations = (
   // This replaces the previous two-phase approach for simpler, more reliable data
   // ============================================================================
   const mainQuery = useQuery<GenerationRow[], Error>({
-    queryKey: queryKeys.generations.byShot(stableShotId!),
+    queryKey: generationQueryKeys.byShot(stableShotId!),
     enabled: isEnabled,
     // Use realtimeBacked preset - data freshness from realtime + mutations
     // (invalidated by RealtimeProvider + useGenerationInvalidation)
@@ -150,7 +150,7 @@ const useAllShotGenerations = (
       if (response.error) {
         // Abort errors are expected during rapid invalidations - silently return cached data
         if (response.error.code === '20' || response.error.message?.includes('abort')) {
-          const cachedData = queryClient.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(stableShotId!));
+          const cachedData = queryClient.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(stableShotId!));
           return cachedData || [];
         }
         console.error('[DataTrace] ❌ NETWORK FETCH ERROR:', response.error);
@@ -219,7 +219,7 @@ export const useTimelineImages = (
       .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
 
     return result;
-  }, [baseQuery.data, shotId]);
+  }, [baseQuery.data]);
 
   return { ...baseQuery, data: filtered } as UseQueryResult<GenerationRow[]>;
 };
@@ -304,11 +304,11 @@ const usePrimeShotGenerationsCache = (
   React.useEffect(() => {
     if (!shotId || !contextImages || contextImages.length === 0) return;
 
-    const existingData = queryClient.getQueryData<GenerationRow[]>(queryKeys.generations.byShot(shotId));
+    const existingData = queryClient.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(shotId));
     if (existingData && existingData.length > 0) return;
 
     // Prime the cache with context data
-    queryClient.setQueryData(queryKeys.generations.byShot(shotId), contextImages);
+    queryClient.setQueryData(generationQueryKeys.byShot(shotId), contextImages);
   }, [shotId, contextImages, queryClient]);
 };
 

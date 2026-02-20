@@ -15,7 +15,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { calculateDerivedCounts, DerivedCountsResult } from '@/shared/lib/generationTransformers';
+import { calculateDerivedCountsSafe, DerivedCountsResult } from '@/shared/lib/generationTransformers';
 
 interface VariantBadgeData {
   derivedCount: number;
@@ -59,15 +59,26 @@ export function useVariantBadges(
       if (generationIds.length === 0) {
         return { derivedCounts: {}, hasUnviewedVariants: {}, unviewedVariantCounts: {} };
       }
-      return calculateDerivedCounts(generationIds);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[VariantBadges] fetching badge data for', generationIds.length, 'ids');
+      }
+      return calculateDerivedCountsSafe(generationIds);
     },
     enabled: enabled && generationIds.length > 0,
     staleTime: 30000, // Cache for 30 seconds
     gcTime: 60000, // Keep in cache for 1 minute
   });
 
-  // Consider loading if: query is loading, query is fetching, or data hasn't loaded yet
-  const isEffectivelyLoading = isLoading || isFetching || !data;
+  // Only treat as loading when we have NO data yet (initial load or new page of IDs).
+  // Deliberately exclude isFetching: background refetches (triggered by realtime
+  // variants-changed invalidation, window focus, etc.) set isFetching=true while
+  // keeping the old cached data available. Including isFetching here was causing
+  // badges to be stripped on every task completion event.
+  const isEffectivelyLoading = isLoading || !data;
+
+  if (process.env.NODE_ENV === 'development' && isFetching && data) {
+    console.log('[VariantBadges] background refetch in progress (badges kept visible, isFetching=true but data exists)');
+  }
 
   const getBadgeData = useCallback((generationId: string): VariantBadgeData => {
     const derivedCount = data?.derivedCounts[generationId] || 0;

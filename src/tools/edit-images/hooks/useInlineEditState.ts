@@ -32,463 +32,411 @@ import { useImageEditValue } from './useImageEditValue';
 // useInlineEditState — all hook orchestration + persistence sync + memo
 // ============================================================================
 
-export function useInlineEditState(
-  media: GenerationRow,
-  _onClose: () => void,
-  onNavigateToGeneration?: (generationId: string) => Promise<void>,
-) {
+type InpaintingHookResult = ReturnType<typeof useInpainting> & Record<string, any>;
+type MagicEditHookResult = ReturnType<typeof useMagicEditMode> & Record<string, any>;
+type RepositionHookResult = ReturnType<typeof useRepositionMode> & Record<string, any>;
+type Img2ImgHookResult = ReturnType<typeof useImg2ImgMode> & Record<string, any>;
+type StarToggleHookResult = ReturnType<typeof useStarToggle>;
+type SourceGenerationData = ReturnType<typeof useSourceGeneration>['sourceGenerationData'];
+type PublicLorasData = ReturnType<typeof usePublicLoras>['data'];
+type ImageEditValue = ReturnType<typeof useImageEditValue>;
+
+function resolveActualGenerationId(media: GenerationRow): string | null {
+  const isShotGenerationRecord = media.shotImageEntryId === media.id ||
+    media.shot_generation_id === media.id;
+  return media.generation_id || (!isShotGenerationRecord ? media.id : null);
+}
+
+function useInlineEditEnvironment(media: GenerationRow) {
   const displayCanvasRef = useRef<HTMLCanvasElement>(null);
   const maskCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [createAsGeneration, setCreateAsGeneration] = useState(false);
 
   const isMobile = useIsMobile();
   const { selectedProjectId } = useProject();
   const { value: generationMethods } = useUserUIState('generationMethods', { onComputer: true, inCloud: true });
   const isCloudMode = generationMethods.inCloud;
-
-  // Uses canonical isVideoAny from typeGuards
   const isVideo = isVideoAny(media);
+  const actualGenerationId = resolveActualGenerationId(media);
 
-  const upscaleHook = useUpscale({ media, selectedProjectId, isVideo });
-  const {
-    effectiveImageUrl,
-    isUpscaling,
-    handleUpscale,
-  } = upscaleHook;
-
-  // Image dimensions state (needed by inpainting hook)
-  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
-
-  // Create as variant toggle - when true, creates variant; when false, creates new generation
-  // Default to false (createAsGeneration=false means variant mode is ON)
-  const [createAsGeneration, setCreateAsGeneration] = useState(false);
-
-  const { isInSceneBoostEnabled, setIsInSceneBoostEnabled, loraMode, setLoraMode, customLoraUrl, setCustomLoraUrl, editModeLoRAs } = useEditModeLoRAs();
-
-  // Variants hook - moved early so activeVariantId is available for other hooks
-  // Detect if this is a shot_generation record (has shotImageEntryId or shot_generation_id matching media.id)
-  const isShotGenerationRecord = media.shotImageEntryId === media.id ||
-                                  media.shot_generation_id === media.id;
-  const actualGenerationId = media.generation_id ||
-                              (!isShotGenerationRecord ? media.id : null);
-
-  // Edit settings persistence - for img2img strength, enablePromptExpansion, and editMode
-  const editSettingsPersistence = useEditSettingsPersistence({
-    generationId: actualGenerationId,
-    projectId: selectedProjectId,
-  });
-  const {
-    editMode: persistedEditMode,
-    setEditMode: setPersistedEditMode,
-    img2imgStrength: persistedImg2imgStrength,
-    img2imgEnablePromptExpansion: persistedImg2imgEnablePromptExpansion,
-    img2imgPrompt: persistedImg2imgPrompt,
-    img2imgPromptHasBeenSet: persistedImg2imgPromptHasBeenSet,
-    setImg2imgStrength: setPersistedImg2imgStrength,
-    setImg2imgEnablePromptExpansion: setPersistedImg2imgEnablePromptExpansion,
-    setImg2imgPrompt: setPersistedImg2imgPrompt,
-    prompt: persistedPrompt,
-    setPrompt: setPersistedPrompt,
-    numGenerations,
-    setNumGenerations,
-    isReady: isEditSettingsReady,
-    hasPersistedSettings,
-  } = editSettingsPersistence;
-  const {
-    activeVariant,
-    setActiveVariantId,
-    refetch: refetchVariants,
-  } = useVariants({
-    generationId: actualGenerationId,
-    enabled: true,
-  });
-
-  const inpaintingHook = useInpainting({
+  const { effectiveImageUrl, isUpscaling, handleUpscale } = useUpscale({
     media,
     selectedProjectId,
     isVideo,
+  });
+
+  const loraState = useEditModeLoRAs();
+
+  return {
     displayCanvasRef,
     maskCanvasRef,
     imageContainerRef,
     imageDimensions,
-    handleExitInpaintMode: () => {},
-    loras: editModeLoRAs,
-    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
-    activeVariantId: activeVariant?.id, // Store strokes per-variant, not per-generation
-    createAsGeneration, // If true, create a new generation instead of a variant
-  });
-  const {
-    isInpaintMode,
-    brushStrokes,
-    isEraseMode,
-    inpaintPrompt,
-    inpaintNumGenerations,
-    brushSize,
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isAnnotateMode,
-    editMode,
-    annotationMode,
-    selectedShapeId,
-    isDrawing,
-    currentStroke,
-    setIsInpaintMode,
-    setIsEraseMode,
-    setInpaintPrompt,
-    setInpaintNumGenerations,
-    setBrushSize,
-    setIsAnnotateMode,
-    setEditMode,
-    setAnnotationMode,
-    handleKonvaPointerDown,
-    handleKonvaPointerMove,
-    handleKonvaPointerUp,
-    handleShapeClick,
-    handleUndo,
-    handleClearMask,
-    handleEnterInpaintMode,
-    handleGenerateInpaint,
-    handleGenerateAnnotatedEdit,
-    handleDeleteSelected,
-    handleToggleFreeForm,
-    getDeleteButtonPosition,
-    strokeOverlayRef,
-    onStrokeComplete,
-    onStrokesChange,
-    onSelectionChange,
-    onTextModeHint,
-  } = inpaintingHook;
-
-  const magicEditHook = useMagicEditMode({
-    media,
-    selectedProjectId,
-    isVideo,
-    isInpaintMode,
-    setIsInpaintMode,
-    handleEnterInpaintMode,
-    handleGenerateInpaint,
-    brushStrokes,
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-    editModeLoRAs,
-    sourceUrlForTasks: effectiveImageUrl,
-    imageDimensions,
-    isInSceneBoostEnabled,
-    setIsInSceneBoostEnabled,
-    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
-    createAsGeneration, // If true, create a new generation instead of a variant
-    // qwenEditModel not passed - uses default 'qwen-edit'
-  });
-  const {
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
-    handleEnterMagicEditMode,
-    handleExitMagicEditMode,
-    handleUnifiedGenerate,
-    isSpecialEditMode
-  } = magicEditHook;
-
-  const repositionHook = useRepositionMode({
-    media,
-    selectedProjectId,
-    imageDimensions,
-    imageContainerRef,
-    loras: editModeLoRAs,
-    inpaintPrompt,
-    inpaintNumGenerations,
-    handleExitInpaintMode: handleExitMagicEditMode,
-    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
-    onVariantCreated: setActiveVariantId,
-    refetchVariants,
-    createAsGeneration, // If true, create a new generation instead of a variant
-  });
-  const {
-    transform: repositionTransform,
-    hasTransformChanges,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
-    handleGenerateReposition,
-    handleSaveAsVariant,
-    getTransformStyle,
-    isDragging: isRepositionDragging,
-    dragHandlers: repositionDragHandlers,
-  } = repositionHook;
-
-  // Fetch available LoRAs for img2img mode
-  const { data: availableLoras } = usePublicLoras();
-
-  // Img2Img mode hook - uses persisted settings
-
-  const img2imgHook = useImg2ImgMode({
-    media,
-    selectedProjectId,
-    isVideo,
-    sourceUrlForTasks: effectiveImageUrl,
-    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
-    createAsGeneration,
-    availableLoras,
-    // Pass persisted values
-    img2imgStrength: persistedImg2imgStrength,
-    setImg2imgStrength: setPersistedImg2imgStrength,
-    enablePromptExpansion: persistedImg2imgEnablePromptExpansion,
-    setEnablePromptExpansion: setPersistedImg2imgEnablePromptExpansion,
-    // Img2Img prompt is persisted separately to avoid cross-mode races
-    img2imgPrompt: persistedImg2imgPrompt,
-    setImg2imgPrompt: setPersistedImg2imgPrompt,
-    img2imgPromptHasBeenSet: persistedImg2imgPromptHasBeenSet,
-    // Number of generations (shared with other edit modes)
-    numGenerations,
-  });
-  const {
-    img2imgPrompt,
-    img2imgStrength,
-    enablePromptExpansion,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
-    setImg2imgPrompt,
-    setImg2imgStrength,
-    setEnablePromptExpansion,
-    handleGenerateImg2Img,
-    loraManager: img2imgLoraManager,
-  } = img2imgHook;
-
-  // ========================================
-  // Persistence sync (bidirectional: persistence <-> inpainting UI state)
-  // ========================================
-
-  useEditSettingsSync({
-    actualGenerationId,
-    isEditSettingsReady,
-    hasPersistedSettings,
-    persistedEditMode,
-    persistedNumGenerations: numGenerations,
-    persistedPrompt,
-    editMode,
-    inpaintNumGenerations,
-    inpaintPrompt,
-    setEditMode,
-    setInpaintNumGenerations,
-    setInpaintPrompt,
-    setPersistedEditMode,
-    setPersistedNumGenerations: setNumGenerations,
-    setPersistedPrompt,
-  });
-
-  const { sourceGenerationData } = useSourceGeneration({
-    media,
-    onOpenExternalGeneration: onNavigateToGeneration ?
-      async (id) => onNavigateToGeneration(id) : undefined
-  });
-
-  const starToggleHook = useStarToggle({ media });
-  const { localStarred, toggleStarMutation, handleToggleStar } = starToggleHook;
-
-  const handleDownload = async () => {
-    await downloadMedia(effectiveImageUrl, media.id, isVideo, media.contentType);
-  };
-
-  useEffect(() => {
-    if (!isSpecialEditMode) {
-       handleEnterMagicEditMode();
-    }
-  }, [isSpecialEditMode, handleEnterMagicEditMode]);
-
-  // ========================================
-  // Build unified ImageEditState value (mode + form + generation status)
-  // ========================================
-
-  const imageEditValue = useImageEditValue({
-    // Mode state
-    isInpaintMode,
-    isSpecialEditMode,
-    editMode,
-
-    // Mode setters
-    setIsInpaintMode,
-    setEditMode,
-
-    // Mode entry/exit handlers
-    handleEnterInpaintMode,
-    handleExitMagicEditMode,
-    handleEnterMagicEditMode,
-
-    // Brush/Inpaint state
-    brushSize,
-    setBrushSize,
-    isEraseMode,
-    setIsEraseMode,
-    brushStrokes,
-
-    // Annotation state
-    isAnnotateMode,
-    setIsAnnotateMode,
-    annotationMode,
-    setAnnotationMode,
-    selectedShapeId,
-
-    // Canvas interaction
-    onStrokeComplete,
-    onStrokesChange,
-    onSelectionChange,
-    onTextModeHint,
-    strokeOverlayRef,
-    getDeleteButtonPosition,
-    handleToggleFreeForm,
-    handleDeleteSelected,
-
-    // Undo/Clear
-    handleUndo,
-    handleClearMask,
-
-    // Reposition state
-    repositionTransform,
-    hasTransformChanges,
-    isRepositionDragging,
-    repositionDragHandlers,
-    getTransformStyle,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
-
-    // Display refs
-    imageContainerRef,
-
-    // Panel UI state
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
-
-    // Inpaint form
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-
-    // Img2Img form
-    img2imgPrompt,
-    setImg2imgPrompt,
-    img2imgStrength,
-    setImg2imgStrength,
-    enablePromptExpansion,
-    setEnablePromptExpansion,
-
-    // LoRA mode
-    loraMode,
-    setLoraMode,
-    customLoraUrl,
-    setCustomLoraUrl,
-
-    // Generation options
+    setImageDimensions,
     createAsGeneration,
     setCreateAsGeneration,
-
-    // Generation status
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-  });
-
-  return {
-    // Layout / env
     isMobile,
     selectedProjectId,
     isCloudMode,
     isVideo,
-
-    // Refs
-    imageContainerRef,
-
-    // Display state
+    actualGenerationId,
     effectiveImageUrl,
-    imageDimensions,
-    setImageDimensions,
-
-    // Upscale
     isUpscaling,
     handleUpscale,
+    loraState,
+  };
+}
 
-    // Inpainting canvas state
-    isInpaintMode,
-    editMode,
-    brushStrokes,
-    currentStroke,
-    isDrawing,
-    isEraseMode,
-    brushSize,
-    annotationMode,
-    selectedShapeId,
-    isAnnotateMode,
-    handleKonvaPointerDown,
-    handleKonvaPointerMove,
-    handleKonvaPointerUp,
-    handleShapeClick,
-    strokeOverlayRef,
+type InlineEditEnvironment = ReturnType<typeof useInlineEditEnvironment>;
 
-    // Annotation actions
-    getDeleteButtonPosition,
-    handleToggleFreeForm,
-    handleDeleteSelected,
+function useInlineEditPersistence(actualGenerationId: string | null, projectId: string | null | undefined) {
+  const editSettings = useEditSettingsPersistence({
+    generationId: actualGenerationId,
+    projectId: projectId ?? null,
+  });
 
-    // Mode controls
-    setIsInpaintMode,
-    setEditMode,
-    setBrushSize,
-    setIsEraseMode,
-    setAnnotationMode,
-    isSpecialEditMode,
-    handleEnterMagicEditMode,
+  const variants = useVariants({
+    generationId: actualGenerationId,
+    enabled: true,
+  });
 
-    // Floating tool controls
-    repositionTransform,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
-    handleUndo,
-    handleClearMask,
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
+  return { editSettings, variants };
+}
 
-    // Reposition transform style
-    getTransformStyle,
+type InlineEditPersistence = ReturnType<typeof useInlineEditPersistence>;
 
-    // Star toggle
-    localStarred,
-    toggleStarMutation,
-    handleToggleStar,
+function useInlineEditInpaintingAndMagic(
+  media: GenerationRow,
+  env: InlineEditEnvironment,
+  persistence: InlineEditPersistence,
+) {
+  const inpainting = useInpainting({
+    media,
+    selectedProjectId: env.selectedProjectId,
+    isVideo: env.isVideo,
+    imageDimensions: env.imageDimensions,
+    handleExitInpaintMode: () => {},
+    loras: env.loraState.editModeLoRAs,
+    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
+    activeVariantId: persistence.variants.activeVariant?.id,
+    createAsGeneration: env.createAsGeneration,
+  } as any) as InpaintingHookResult;
 
-    // Download
-    handleDownload,
+  const magic = useMagicEditMode({
+    media,
+    selectedProjectId: env.selectedProjectId,
+    isVideo: env.isVideo,
+    isInpaintMode: inpainting.isInpaintMode,
+    setIsInpaintMode: inpainting.setIsInpaintMode,
+    handleEnterInpaintMode: inpainting.handleEnterInpaintMode,
+    handleGenerateInpaint: inpainting.handleGenerateInpaint,
+    brushStrokes: inpainting.brushStrokes,
+    inpaintPrompt: inpainting.inpaintPrompt,
+    setInpaintPrompt: inpainting.setInpaintPrompt,
+    inpaintNumGenerations: inpainting.inpaintNumGenerations,
+    setInpaintNumGenerations: inpainting.setInpaintNumGenerations,
+    editModeLoRAs: env.loraState.editModeLoRAs,
+    sourceUrlForTasks: env.effectiveImageUrl,
+    imageDimensions: env.imageDimensions,
+    isInSceneBoostEnabled: env.loraState.isInSceneBoostEnabled,
+    setIsInSceneBoostEnabled: env.loraState.setIsInSceneBoostEnabled,
+    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
+    createAsGeneration: env.createAsGeneration,
+    autoEnterInpaint: false,
+  } as any) as MagicEditHookResult;
 
-    // EditModePanel props
+  return { inpainting, magic };
+}
+
+function useInlineEditReposition(
+  media: GenerationRow,
+  env: InlineEditEnvironment,
+  inpainting: InpaintingHookResult,
+  magic: MagicEditHookResult,
+  persistence: InlineEditPersistence,
+) {
+  return useRepositionMode({
+    media,
+    selectedProjectId: env.selectedProjectId,
+    imageDimensions: env.imageDimensions,
+    imageContainerRef: env.imageContainerRef,
+    loras: env.loraState.editModeLoRAs,
+    inpaintPrompt: inpainting.inpaintPrompt,
+    inpaintNumGenerations: inpainting.inpaintNumGenerations,
+    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
+    onVariantCreated: persistence.variants.setActiveVariantId,
+    refetchVariants: persistence.variants.refetch,
+    createAsGeneration: env.createAsGeneration,
+  } as any) as RepositionHookResult;
+}
+
+function useInlineEditImg2Img(
+  media: GenerationRow,
+  env: InlineEditEnvironment,
+  persistence: InlineEditPersistence,
+  availableLoras: PublicLorasData,
+) {
+  return useImg2ImgMode({
+    media,
+    selectedProjectId: env.selectedProjectId,
+    isVideo: env.isVideo,
+    sourceUrlForTasks: env.effectiveImageUrl,
+    toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
+    createAsGeneration: env.createAsGeneration,
+    availableLoras,
+    img2imgStrength: persistence.editSettings.img2imgStrength,
+    setImg2imgStrength: persistence.editSettings.setImg2imgStrength,
+    enablePromptExpansion: persistence.editSettings.img2imgEnablePromptExpansion,
+    setEnablePromptExpansion: persistence.editSettings.setImg2imgEnablePromptExpansion,
+    img2imgPrompt: persistence.editSettings.img2imgPrompt,
+    setImg2imgPrompt: persistence.editSettings.setImg2imgPrompt,
+    img2imgPromptHasBeenSet: persistence.editSettings.img2imgPromptHasBeenSet,
+    numGenerations: persistence.editSettings.numGenerations,
+  });
+}
+
+function useInlineEditSettingsSync(
+  actualGenerationId: string | null,
+  editSettings: InlineEditPersistence['editSettings'],
+  inpainting: InpaintingHookResult,
+) {
+  useEditSettingsSync({
+    actualGenerationId: actualGenerationId ?? undefined,
+    isEditSettingsReady: editSettings.isReady,
+    hasPersistedSettings: editSettings.hasPersistedSettings,
+    persistedEditMode: editSettings.editMode,
+    persistedNumGenerations: editSettings.numGenerations,
+    persistedPrompt: editSettings.prompt,
+    editMode: inpainting.editMode,
+    inpaintNumGenerations: inpainting.inpaintNumGenerations,
+    inpaintPrompt: inpainting.inpaintPrompt,
+    setEditMode: (mode: string | null) => inpainting.setEditMode(mode as any),
+    setInpaintNumGenerations: inpainting.setInpaintNumGenerations,
+    setInpaintPrompt: inpainting.setInpaintPrompt,
+    setPersistedEditMode: editSettings.setEditMode,
+    setPersistedNumGenerations: editSettings.setNumGenerations,
+    setPersistedPrompt: editSettings.setPrompt,
+  } as any);
+}
+
+function buildImageEditValueParams(
+  env: InlineEditEnvironment,
+  inpainting: InpaintingHookResult,
+  magic: MagicEditHookResult,
+  reposition: RepositionHookResult,
+  img2img: Img2ImgHookResult,
+) {
+  return {
+    isInpaintMode: inpainting.isInpaintMode,
+    isSpecialEditMode: magic.isSpecialEditMode,
+    editMode: inpainting.editMode,
+    setIsInpaintMode: inpainting.setIsInpaintMode,
+    setEditMode: (mode: any) => inpainting.setEditMode(mode),
+    handleEnterInpaintMode: inpainting.handleEnterInpaintMode,
+    handleExitMagicEditMode: magic.handleExitMagicEditMode,
+    handleEnterMagicEditMode: magic.handleEnterMagicEditMode,
+    brushSize: inpainting.brushSize,
+    setBrushSize: inpainting.setBrushSize,
+    isEraseMode: inpainting.isEraseMode,
+    setIsEraseMode: inpainting.setIsEraseMode,
+    brushStrokes: inpainting.brushStrokes,
+    isAnnotateMode: inpainting.isAnnotateMode,
+    setIsAnnotateMode: inpainting.setIsAnnotateMode,
+    annotationMode: inpainting.annotationMode,
+    setAnnotationMode: inpainting.setAnnotationMode,
+    selectedShapeId: inpainting.selectedShapeId,
+    onStrokeComplete: inpainting.onStrokeComplete,
+    onStrokesChange: inpainting.onStrokesChange,
+    onSelectionChange: inpainting.onSelectionChange,
+    onTextModeHint: inpainting.onTextModeHint,
+    strokeOverlayRef: inpainting.strokeOverlayRef,
+    getDeleteButtonPosition: inpainting.getDeleteButtonPosition,
+    handleToggleFreeForm: inpainting.handleToggleFreeForm,
+    handleDeleteSelected: inpainting.handleDeleteSelected,
+    handleUndo: inpainting.handleUndo,
+    handleClearMask: inpainting.handleClearMask,
+    repositionTransform: reposition.transform,
+    hasTransformChanges: reposition.hasTransformChanges,
+    isRepositionDragging: reposition.isDragging,
+    repositionDragHandlers: reposition.dragHandlers,
+    getTransformStyle: reposition.getTransformStyle,
+    setScale: reposition.setScale,
+    setRotation: reposition.setRotation,
+    toggleFlipH: reposition.toggleFlipH,
+    toggleFlipV: reposition.toggleFlipV,
+    resetTransform: reposition.resetTransform,
+    imageContainerRef: env.imageContainerRef,
+    inpaintPanelPosition: magic.inpaintPanelPosition,
+    setInpaintPanelPosition: magic.setInpaintPanelPosition,
+    inpaintPrompt: inpainting.inpaintPrompt,
+    setInpaintPrompt: inpainting.setInpaintPrompt,
+    inpaintNumGenerations: inpainting.inpaintNumGenerations,
+    setInpaintNumGenerations: inpainting.setInpaintNumGenerations,
+    img2imgPrompt: img2img.img2imgPrompt,
+    setImg2imgPrompt: img2img.setImg2imgPrompt,
+    img2imgStrength: img2img.img2imgStrength,
+    setImg2imgStrength: img2img.setImg2imgStrength,
+    enablePromptExpansion: img2img.enablePromptExpansion,
+    setEnablePromptExpansion: img2img.setEnablePromptExpansion,
+    loraMode: env.loraState.loraMode,
+    setLoraMode: env.loraState.setLoraMode,
+    customLoraUrl: env.loraState.customLoraUrl,
+    setCustomLoraUrl: env.loraState.setCustomLoraUrl,
+    createAsGeneration: env.createAsGeneration,
+    setCreateAsGeneration: env.setCreateAsGeneration,
+    isGeneratingInpaint: inpainting.isGeneratingInpaint,
+    inpaintGenerateSuccess: inpainting.inpaintGenerateSuccess,
+    isGeneratingImg2Img: img2img.isGeneratingImg2Img,
+    img2imgGenerateSuccess: img2img.img2imgGenerateSuccess,
+    isGeneratingReposition: reposition.isGeneratingReposition,
+    repositionGenerateSuccess: reposition.repositionGenerateSuccess,
+    isSavingAsVariant: reposition.isSavingAsVariant,
+    saveAsVariantSuccess: reposition.saveAsVariantSuccess,
+    isCreatingMagicEditTasks: magic.isCreatingMagicEditTasks,
+    magicEditTasksCreated: magic.magicEditTasksCreated,
+  };
+}
+
+interface BuildInlineEditStateResultParams {
+  env: InlineEditEnvironment;
+  inpainting: InpaintingHookResult;
+  magic: MagicEditHookResult;
+  reposition: RepositionHookResult;
+  img2img: Img2ImgHookResult;
+  sourceGenerationData: SourceGenerationData;
+  starToggle: StarToggleHookResult;
+  availableLoras: PublicLorasData;
+  imageEditValue: ImageEditValue;
+  handleDownload: () => Promise<void>;
+}
+
+function buildInlineEditStateResult(params: BuildInlineEditStateResultParams) {
+  const {
+    env,
+    inpainting,
+    magic,
+    reposition,
+    img2img,
     sourceGenerationData,
-    handleUnifiedGenerate,
-    handleGenerateAnnotatedEdit,
-    handleGenerateReposition,
-    handleSaveAsVariant,
-    handleGenerateImg2Img,
-    img2imgLoraManager,
+    starToggle,
+    availableLoras,
+    imageEditValue,
+    handleDownload,
+  } = params;
+
+  return {
+    isMobile: env.isMobile,
+    selectedProjectId: env.selectedProjectId,
+    isCloudMode: env.isCloudMode,
+    isVideo: env.isVideo,
+    imageContainerRef: env.imageContainerRef,
+    effectiveImageUrl: env.effectiveImageUrl,
+    imageDimensions: env.imageDimensions,
+    setImageDimensions: env.setImageDimensions,
+    isUpscaling: env.isUpscaling,
+    handleUpscale: env.handleUpscale,
+    isInpaintMode: inpainting.isInpaintMode,
+    editMode: inpainting.editMode,
+    brushStrokes: inpainting.brushStrokes,
+    currentStroke: inpainting.currentStroke,
+    isDrawing: inpainting.isDrawing,
+    isEraseMode: inpainting.isEraseMode,
+    brushSize: inpainting.brushSize,
+    annotationMode: inpainting.annotationMode,
+    selectedShapeId: inpainting.selectedShapeId,
+    isAnnotateMode: inpainting.isAnnotateMode,
+    handleKonvaPointerDown: inpainting.handleKonvaPointerDown,
+    handleKonvaPointerMove: inpainting.handleKonvaPointerMove,
+    handleKonvaPointerUp: inpainting.handleKonvaPointerUp,
+    handleShapeClick: inpainting.handleShapeClick,
+    strokeOverlayRef: inpainting.strokeOverlayRef,
+    getDeleteButtonPosition: inpainting.getDeleteButtonPosition,
+    handleToggleFreeForm: inpainting.handleToggleFreeForm,
+    handleDeleteSelected: inpainting.handleDeleteSelected,
+    setIsInpaintMode: inpainting.setIsInpaintMode,
+    setEditMode: inpainting.setEditMode,
+    setBrushSize: inpainting.setBrushSize,
+    setIsEraseMode: inpainting.setIsEraseMode,
+    setAnnotationMode: inpainting.setAnnotationMode,
+    isSpecialEditMode: magic.isSpecialEditMode,
+    handleEnterMagicEditMode: magic.handleEnterMagicEditMode,
+    repositionTransform: reposition.transform,
+    setScale: reposition.setScale,
+    setRotation: reposition.setRotation,
+    toggleFlipH: reposition.toggleFlipH,
+    toggleFlipV: reposition.toggleFlipV,
+    resetTransform: reposition.resetTransform,
+    handleUndo: inpainting.handleUndo,
+    handleClearMask: inpainting.handleClearMask,
+    inpaintPanelPosition: magic.inpaintPanelPosition,
+    setInpaintPanelPosition: magic.setInpaintPanelPosition,
+    getTransformStyle: reposition.getTransformStyle,
+    localStarred: starToggle.localStarred,
+    toggleStarMutation: starToggle.toggleStarMutation,
+    handleToggleStar: starToggle.handleToggleStar,
+    handleDownload,
+    sourceGenerationData,
+    handleUnifiedGenerate: magic.handleUnifiedGenerate,
+    handleGenerateAnnotatedEdit: inpainting.handleGenerateAnnotatedEdit,
+    handleGenerateReposition: reposition.handleGenerateReposition,
+    handleSaveAsVariant: reposition.handleSaveAsVariant,
+    handleGenerateImg2Img: img2img.handleGenerateImg2Img,
+    img2imgLoraManager: img2img.loraManager,
     availableLoras,
     imageEditValue,
   };
+}
+
+export function useInlineEditState(
+  media: GenerationRow,
+  _onClose: () => void,
+  onNavigateToGeneration?: (generationId: string) => Promise<void>,
+) {
+  const env = useInlineEditEnvironment(media);
+  const persistence = useInlineEditPersistence(env.actualGenerationId, env.selectedProjectId);
+  const { data: availableLoras } = usePublicLoras();
+  const { inpainting, magic } = useInlineEditInpaintingAndMagic(media, env, persistence);
+  const reposition = useInlineEditReposition(media, env, inpainting, magic, persistence);
+  const img2img = useInlineEditImg2Img(media, env, persistence, availableLoras);
+
+  useInlineEditSettingsSync(env.actualGenerationId, persistence.editSettings, inpainting);
+
+  const { sourceGenerationData } = useSourceGeneration({
+    media,
+    onOpenExternalGeneration: onNavigateToGeneration
+      ? async (id) => onNavigateToGeneration(id)
+      : undefined,
+  });
+
+  const starToggle = useStarToggle({ media });
+  const { isSpecialEditMode, handleEnterMagicEditMode } = magic;
+
+  const handleDownload = async () => {
+    await downloadMedia(env.effectiveImageUrl, media.id, env.isVideo, media.contentType);
+  };
+
+  useEffect(() => {
+    if (!isSpecialEditMode) {
+      handleEnterMagicEditMode();
+    }
+  }, [isSpecialEditMode, handleEnterMagicEditMode]);
+
+  const imageEditValue = useImageEditValue(
+    buildImageEditValueParams(env, inpainting, magic, reposition, img2img) as any
+  );
+
+  return buildInlineEditStateResult({
+    env,
+    inpainting,
+    magic,
+    reposition,
+    img2img,
+    sourceGenerationData,
+    starToggle,
+    availableLoras,
+    imageEditValue,
+    handleDownload,
+  });
 }

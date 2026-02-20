@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 interface CascadedTaskInfo {
   error_message: string | null;
@@ -31,7 +31,7 @@ export function useTaskErrorDisplay(task: Task): TaskErrorDisplay {
   }, [task.errorMessage]);
 
   const { data: cascadedTask = null, isLoading: isCascadedTaskLoading } = useQuery({
-    queryKey: queryKeys.tasks.cascadedError(cascadedTaskId!),
+    queryKey: taskQueryKeys.cascadedError(cascadedTaskId!),
     queryFn: async () => {
       if (!cascadedTaskId) return null;
       const { data, error } = await supabase

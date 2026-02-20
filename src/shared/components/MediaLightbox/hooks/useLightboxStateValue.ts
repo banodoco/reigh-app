@@ -36,8 +36,8 @@ interface UseLightboxStateValueInput {
   primaryVariant: GenerationVariant | null;
   isLoadingVariants: boolean;
   setActiveVariantId: (id: string) => void;
-  setPrimaryVariant: (id: string) => void;
-  deleteVariant: (id: string) => void;
+  setPrimaryVariant: (id: string) => Promise<void>;
+  deleteVariant: (id: string) => Promise<void>;
   onLoadVariantSettings?: (variantParams: Record<string, unknown>) => void;
   onLoadVariantImages?: (variant: GenerationVariant) => void;
   currentSegmentImages?: CurrentSegmentImagesData;
@@ -132,28 +132,7 @@ export function useLightboxStateValue(
     unviewedVariantCount: input.unviewedVariantCount,
     onMarkAllViewed: input.onMarkAllViewed,
     variantsSectionRef: input.variantsSectionRef,
-  }), [
-    input.variants,
-    input.activeVariant,
-    input.primaryVariant,
-    input.isLoadingVariants,
-    input.setActiveVariantId,
-    input.setPrimaryVariant,
-    input.deleteVariant,
-    input.onLoadVariantSettings,
-    input.onLoadVariantImages,
-    input.currentSegmentImages,
-    input.promoteSuccess,
-    input.isPromoting,
-    input.handlePromoteToGeneration,
-    input.isMakingMainVariant,
-    input.canMakeMainVariant,
-    input.handleMakeMainVariant,
-    input.pendingTaskCount,
-    input.unviewedVariantCount,
-    input.onMarkAllViewed,
-    input.variantsSectionRef,
-  ]);
+  }), [input]);
 
   // Build navigation state
   const navigation = useMemo(() => ({

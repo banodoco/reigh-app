@@ -85,7 +85,10 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
           .single();
 
         if (data && !error) {
-          setReferralStats(data);
+          setReferralStats({
+            total_visits: data.total_visits ?? 0,
+            successful_referrals: data.successful_referrals ?? 0,
+          });
         } else {
           // No stats yet, show zeros
           setReferralStats({ total_visits: 0, successful_referrals: 0 });

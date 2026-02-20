@@ -14,13 +14,15 @@
 
 import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { fetchGenerations } from '@/shared/hooks/useProjectGenerations';
 import {
   preloadingService,
   clearLoadedImages,
   PRIORITY_VALUES,
 } from '@/shared/lib/preloading';
+
+type GenerationFilters = NonNullable<Parameters<typeof fetchGenerations>[3]>;
 
 interface UseAdjacentPagePreloaderProps {
   /** Project ID to scope queries */
@@ -30,7 +32,7 @@ interface UseAdjacentPagePreloaderProps {
   /** Items per page */
   itemsPerPage: number;
   /** Filters object (will be stringified for cache key) */
-  filters?: Record<string, unknown>;
+  filters?: GenerationFilters;
   /** Total items (for calculating total pages) */
   totalItems?: number;
   /** Whether preloading is enabled */
@@ -97,8 +99,7 @@ export function useAdjacentPagePreloader({
   // Use shared service for config
   const config = preloadingService.getConfig();
 
-  // Stable filters string for dependency array (to detect when filters change)
-  // We stringify for the dependency array but pass the object to query keys
+  // Stable filters string for dependency array + query key consistency.
   const filtersString = useMemo(
     () => (filters ? JSON.stringify(filters) : null),
     [filters]
@@ -126,20 +127,16 @@ export function useAdjacentPagePreloader({
       const hasPrevPage = currentPage > 1;
       const hasNextPage = currentPage < totalPages;
 
-      // IMPORTANT: Pass the filters object directly to query keys (not stringified)
-      // This must match how useProjectGenerations creates its query keys
-      // The filtersString is only used for the effect dependency array
-
       // Prefetch next page (higher priority)
       if (hasNextPage) {
         const nextPage = currentPage + 1;
         try {
           await queryClient.prefetchQuery({
-            queryKey: queryKeys.unified.byProject(
+            queryKey: unifiedGenerationQueryKeys.byProject(
               projectId,
               nextPage,
               itemsPerPage,
-              filters // Pass object, not string
+              filtersString
             ),
             queryFn: () =>
               fetchGenerations(
@@ -153,12 +150,12 @@ export function useAdjacentPagePreloader({
 
           // Preload images from prefetched data
           const cached = queryClient.getQueryData<PaginatedResponse>(
-            queryKeys.unified.byProject(projectId, nextPage, itemsPerPage, filters)
+            unifiedGenerationQueryKeys.byProject(projectId, nextPage, itemsPerPage, filtersString)
           );
           if (cached?.items) {
             preloadingService.preloadImages(cached.items, PRIORITY_VALUES.high);
           }
-        } catch (err) {
+        } catch {
           // Prefetch failures are non-critical, just log
         }
       }
@@ -168,11 +165,11 @@ export function useAdjacentPagePreloader({
         const prevPage = currentPage - 1;
         try {
           await queryClient.prefetchQuery({
-            queryKey: queryKeys.unified.byProject(
+            queryKey: unifiedGenerationQueryKeys.byProject(
               projectId,
               prevPage,
               itemsPerPage,
-              filters // Pass object, not string
+              filtersString
             ),
             queryFn: () =>
               fetchGenerations(
@@ -185,12 +182,12 @@ export function useAdjacentPagePreloader({
           });
 
           const cached = queryClient.getQueryData<PaginatedResponse>(
-            queryKeys.unified.byProject(projectId, prevPage, itemsPerPage, filters)
+            unifiedGenerationQueryKeys.byProject(projectId, prevPage, itemsPerPage, filtersString)
           );
           if (cached?.items) {
             preloadingService.preloadImages(cached.items, PRIORITY_VALUES.normal);
           }
-        } catch (err) { /* intentionally ignored */ }
+        } catch { /* intentionally ignored */ }
       }
 
       // Clean up distant pages

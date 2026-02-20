@@ -302,7 +302,7 @@ export const useMediaGalleryPagination = ({
       }
       // Loading will be cleared by onImagesReady when images render
     }
-  }, [navigationState.status, navigationState.direction, isServerPagination, onServerPageChange, isMobile, page, serverPage, galleryTopRef]);
+  }, [navigationState.status, isServerPagination, onServerPageChange, isMobile, galleryTopRef]);
 
   // Clean up safety timeout on unmount
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { createTask, buildHiresFixParams } from '../taskCreation';
 import type { HiresFixApiParams } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { ComfyLoraConfig } from '@/shared/types/lora';
 
 interface CreateAnnotatedImageEditTaskParams {

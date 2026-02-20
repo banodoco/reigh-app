@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { Shot, GenerationRow } from '@/types/shots';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
@@ -20,7 +20,7 @@ const SHOTS_CACHE_VARIANTS = [undefined, 0, 2, 5] as const;
  *
  * @internal Used only within cacheUtils.ts
  */
-function getShotsCacheKeys(projectId: string): readonly (string | number | undefined)[][] {
+function getShotsCacheKeys(projectId: string): readonly QueryKey[] {
   return SHOTS_CACHE_VARIANTS.map(variant =>
     variant === undefined
       ? [...queryKeys.shots.all, projectId] as const

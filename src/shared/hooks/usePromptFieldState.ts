@@ -123,7 +123,6 @@ export function usePromptFieldState({
   // Derived state
   const hasEnhancedPrompt = !!enhancedPrompt?.trim();
   const hasSettingsPrompt = settingsPrompt !== undefined;
-  const hasDefaultPrompt = defaultPrompt !== undefined;
 
   // Check if user has edited AFTER enhancement was created
   // This is true if:
@@ -141,7 +140,7 @@ export function usePromptFieldState({
     // Fallback: if no base stored (older data), compare against enhanced prompt itself
     // User has edited if their prompt differs from the displayed enhanced value
     return enhancedPrompt ? settingsPrompt.trim() !== enhancedPrompt.trim() : false;
-  }, [hasSettingsPrompt, hasEnhancedPrompt, settingsPrompt, basePromptForEnhancement, enhancedPrompt]);
+  }, [hasEnhancedPrompt, settingsPrompt, basePromptForEnhancement, enhancedPrompt]);
 
   // Calculate display value and badge type
   const { displayValue, badgeType } = useMemo(() => {
@@ -172,9 +171,6 @@ export function usePromptFieldState({
     settingsPrompt,
     enhancedPrompt,
     defaultPrompt,
-    hasEnhancedPrompt,
-    hasSettingsPrompt,
-    hasDefaultPrompt,
   ]);
 
   // Handlers

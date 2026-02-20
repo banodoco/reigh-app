@@ -71,6 +71,7 @@ export const TimeStamp: React.FC<TimeStampProps> = ({
     if (!date) {
       return null;
     }
+    void updateTrigger;
 
     if (isMobile && showOnHover && !isHovered) {
       return null; // Skip formatting until hovered
@@ -85,7 +86,7 @@ export const TimeStamp: React.FC<TimeStampProps> = ({
       .replace(" hour", " hr")
       .replace(" seconds", " secs")
       .replace(" second", " sec");
-  }, [date?.getTime(), isMobile, showOnHover, isHovered, updateTrigger]);
+  }, [date, isMobile, showOnHover, isHovered, updateTrigger]);
 
   // Early return AFTER all hooks are called
   if (!date) return null;

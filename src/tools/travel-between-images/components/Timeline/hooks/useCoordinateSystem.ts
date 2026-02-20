@@ -1,8 +1,4 @@
 
-interface CoordinateSystemProps {
-  positions: Map<string, number>;
-}
-
 interface CoordinateSystemData {
   fullMin: number;
   fullMax: number;

@@ -8,7 +8,7 @@ import { calculateNewVideoPlacement } from '../../utils/timeline-utils';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import { extractVideoMetadata, uploadVideoToStorage, type VideoMetadata } from '@/shared/lib/videoUploader';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface GuidanceVideoControlsProps {
   shotId: string;

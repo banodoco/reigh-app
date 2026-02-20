@@ -58,7 +58,11 @@ export const GenerateControls: React.FC<GenerateControlsProps> = ({
             <div className="w-14 flex-shrink-0">
               <Select
                 value={promptMultiplier.toString()}
-                onValueChange={(value) => onChangePromptMultiplier?.(parseInt(value, 10))}
+                onValueChange={(value) => {
+                  if (value) {
+                    onChangePromptMultiplier?.(parseInt(value, 10));
+                  }
+                }}
                 disabled={isGenerating}
               >
                 <SelectTrigger variant="retro" className="h-9">

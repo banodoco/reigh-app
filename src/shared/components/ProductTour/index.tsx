@@ -123,144 +123,143 @@ function CustomTooltip({
   );
 }
 
-export function ProductTour() {
-  const { isRunning, completeTour, skipTour } = useProductTour();
-  const {
-    setIsGenerationsPaneLocked,
-    setIsTasksPaneLocked,
-    resetAllPaneLocks
-  } = usePanes();
-  const navigate = useNavigate();
+const SHORT_DELAY_MS = 400;
+const LONG_DELAY_MS = 1500;
+const WAIT_FOR_TARGET_DELAY_MS = 800;
 
-  // Controlled step index for managing transitions
+function pauseThenAdvance(
+  nextIndex: number,
+  setStepIndex: (value: number) => void,
+  setIsPaused: (value: boolean) => void,
+  delayMs: number
+) {
+  setIsPaused(true);
+  setTimeout(() => {
+    setStepIndex(nextIndex);
+    setIsPaused(false);
+  }, delayMs);
+}
+
+function dispatchTourEvent(name: 'openGenerationModal' | 'closeGenerationModal') {
+  window.dispatchEvent(new CustomEvent(name));
+}
+
+function useTourProgressState(isRunning: boolean, resetAllPaneLocks: () => void) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-
-  // Track if we've done the initial setup for this tour run
   const hasInitializedRef = useRef(false);
 
-  // Reset step index and close/unlock all panes when tour starts
   useEffect(() => {
     if (isRunning && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
       setStepIndex(0);
       setIsPaused(false);
-      // Reset all pane locks (updates both local state and database immediately)
       resetAllPaneLocks();
     } else if (!isRunning) {
-      // Reset the flag when tour stops
       hasInitializedRef.current = false;
     }
   }, [isRunning, resetAllPaneLocks]);
 
-  // Helper to open generation modal via custom event
-  const openGenerationModal = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('openGenerationModal'));
-  }, []);
+  return { stepIndex, setStepIndex, isPaused, setIsPaused };
+}
 
-  // Helper to close generation modal via custom event
-  const closeGenerationModal = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('closeGenerationModal'));
-  }, []);
+function useSpotlightClickAdvance(input: {
+  isRunning: boolean;
+  isPaused: boolean;
+  stepIndex: number;
+  setStepIndex: (value: number) => void;
+  setIsPaused: (value: boolean) => void;
+  setIsTasksPaneLocked: (locked: boolean) => void;
+}) {
+  const {
+    isRunning,
+    isPaused,
+    stepIndex,
+    setStepIndex,
+    setIsPaused,
+    setIsTasksPaneLocked,
+  } = input;
 
-  // Add click listeners to spotlightClicks targets to advance tour
   useEffect(() => {
-    if (!isRunning || isPaused) return;
+    if (!isRunning || isPaused) {
+      return;
+    }
 
     const currentStep = tourSteps[stepIndex];
-    if (!currentStep?.spotlightClicks) return;
+    if (!currentStep?.spotlightClicks) {
+      return;
+    }
 
     const target = document.querySelector(currentStep.target as string);
-    if (!target) return;
+    if (!target) {
+      return;
+    }
 
     const handleClick = () => {
       const nextIndex = stepIndex + 1;
 
-      // Step 0: Lock button clicked - locks the generations pane
-      if (stepIndex === 0) {
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 400);
+      if (stepIndex === 4) {
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS);
+        return;
       }
-      // Step 2: Sparkles button clicked - opens generation modal
-      else if (stepIndex === 2) {
-        // Modal opens naturally from the button click
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 400);
-      }
-      // Step 4: First shot click - navigates to shot editor (needs longer delay for page to render)
-      else if (stepIndex === 4) {
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 1500);
-      }
-      // Step 8: Tasks pane tab clicked - lock the tasks pane
-      else if (stepIndex === 8) {
+
+      if (stepIndex === 8) {
         setIsTasksPaneLocked(true);
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 400);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+        return;
       }
-      // Default: just advance
-      else {
-        setStepIndex(nextIndex);
+
+      if (stepIndex === 0 || stepIndex === 2) {
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+        return;
       }
+
+      setStepIndex(nextIndex);
     };
 
     target.addEventListener('click', handleClick);
     return () => target.removeEventListener('click', handleClick);
-  }, [isRunning, isPaused, stepIndex, setIsTasksPaneLocked]);
+  }, [isPaused, isRunning, setIsPaused, setIsTasksPaneLocked, setStepIndex, stepIndex]);
+}
 
-  // NOTE: Auto-start is handled by Layout.tsx after OnboardingModal closes
-  // This prevents the tour from starting on every visit to the shot editor
-  // The tour is explicitly started via startTour() after welcome modal closes
+function useJoyrideCallback(input: {
+  completeTour: () => void;
+  skipTour: () => void;
+  setIsGenerationsPaneLocked: (locked: boolean) => void;
+  setIsTasksPaneLocked: (locked: boolean) => void;
+  setStepIndex: (value: number) => void;
+  setIsPaused: (value: boolean) => void;
+  navigate: (path: string) => void;
+}) {
+  const {
+    completeTour,
+    skipTour,
+    setIsGenerationsPaneLocked,
+    setIsTasksPaneLocked,
+    setStepIndex,
+    setIsPaused,
+    navigate,
+  } = input;
 
-  const handleCallback = useCallback((data: CallBackProps) => {
+  return useCallback((data: CallBackProps) => {
     const { status, index, type, action } = data;
 
-    // Handle step navigation
     if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
       const nextIndex = index + (action === ACTIONS.PREV ? -1 : 1);
 
-      // Step 0: Lock button - locks generations pane
       if (index === 0 && action !== ACTIONS.PREV) {
         setIsGenerationsPaneLocked(true);
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 400);
-      }
-      // Step 1: Gallery view - just advance
-      else if (index === 1 && action !== ACTIONS.PREV) {
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+      } else if (index === 1 && action !== ACTIONS.PREV) {
         setStepIndex(nextIndex);
-      }
-      // Step 2: Sparkles button - open the modal when clicking Next
-      else if (index === 2 && action !== ACTIONS.PREV) {
-        openGenerationModal();
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 400);
-      }
-      // Step 3: How It Works - close modal, unlock pane, AND advance
-      else if (index === 3 && action !== ACTIONS.PREV) {
-        closeGenerationModal();
+      } else if (index === 2 && action !== ACTIONS.PREV) {
+        dispatchTourEvent('openGenerationModal');
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+      } else if (index === 3 && action !== ACTIONS.PREV) {
+        dispatchTourEvent('closeGenerationModal');
         setIsGenerationsPaneLocked(false);
-        // Use longer delay to ensure modal fully closes and first-shot element is visible
         setIsPaused(true);
         setTimeout(() => {
-          // Wait for first-shot element to be available
           const waitForTarget = () => {
             const target = document.querySelector('[data-tour="first-shot"]');
             if (target) {
@@ -271,47 +270,69 @@ export function ProductTour() {
             }
           };
           waitForTarget();
-        }, 800);
-      }
-      // Step 4: First shot click - page navigation (needs longer delay for shot editor to render)
-      else if (index === 4 && action !== ACTIONS.PREV) {
-        // Programmatically click the first shot to navigate into it
+        }, WAIT_FOR_TARGET_DELAY_MS);
+      } else if (index === 4 && action !== ACTIONS.PREV) {
         const firstShot = document.querySelector('[data-tour="first-shot"]') as HTMLElement;
         if (firstShot) {
           firstShot.click();
         }
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 1500);
-      }
-      // Step 8: Tasks pane - lock the pane
-      else if (index === 8 && action !== ACTIONS.PREV) {
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS);
+      } else if (index === 8 && action !== ACTIONS.PREV) {
         setIsTasksPaneLocked(true);
-        setIsPaused(true);
-        setTimeout(() => {
-          setStepIndex(nextIndex);
-          setIsPaused(false);
-        }, 400);
-      }
-      // Default: just advance
-      else {
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+      } else {
         setStepIndex(nextIndex);
       }
     }
 
-    // Handle tour completion/skip
     if (status === STATUS.FINISHED) {
       completeTour();
-      // Navigate to main tool page (out of any shot)
       navigate(TOOL_ROUTES.TRAVEL_BETWEEN_IMAGES);
     } else if (status === STATUS.SKIPPED) {
       skipTour();
     }
-  }, [completeTour, skipTour, setIsGenerationsPaneLocked, setIsTasksPaneLocked, openGenerationModal, closeGenerationModal, navigate]);
+  }, [
+    completeTour,
+    navigate,
+    setIsGenerationsPaneLocked,
+    setIsPaused,
+    setIsTasksPaneLocked,
+    setStepIndex,
+    skipTour,
+  ]);
+}
 
-  if (!isRunning) return null;
+export function ProductTour() {
+  const { isRunning, completeTour, skipTour } = useProductTour();
+  const { setIsGenerationsPaneLocked, setIsTasksPaneLocked, resetAllPaneLocks } = usePanes();
+  const navigate = useNavigate();
+  const { stepIndex, setStepIndex, isPaused, setIsPaused } = useTourProgressState(
+    isRunning,
+    resetAllPaneLocks
+  );
+
+  useSpotlightClickAdvance({
+    isRunning,
+    isPaused,
+    stepIndex,
+    setStepIndex,
+    setIsPaused,
+    setIsTasksPaneLocked,
+  });
+
+  const handleCallback = useJoyrideCallback({
+    completeTour,
+    skipTour,
+    setIsGenerationsPaneLocked,
+    setIsTasksPaneLocked,
+    setStepIndex,
+    setIsPaused,
+    navigate,
+  });
+
+  if (!isRunning) {
+    return null;
+  }
 
   return (
     <Joyride

@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { creditQueryKeys } from '@/shared/lib/queryKeys/credits';
 
 interface AutoTopupPreferences {
   enabled: boolean;
@@ -95,7 +95,7 @@ async function updateAutoTopupPreferences(params: UpdateAutoTopupParams): Promis
 }
 
 // Disable auto-top-up (convenience function)
-async function disableAutoTopup(): Promise<void> {
+function disableAutoTopup(): Promise<void> {
   return updateAutoTopupPreferences({ enabled: false });
 }
 
@@ -108,7 +108,7 @@ export function useAutoTopup() {
     isLoading: isLoadingPreferences,
     error: preferencesError,
   } = useQuery<AutoTopupPreferences>({
-    queryKey: queryKeys.credits.autoTopupPreferences,
+    queryKey: creditQueryKeys.autoTopupPreferences,
     queryFn: fetchAutoTopupPreferences,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
@@ -118,8 +118,8 @@ export function useAutoTopup() {
   const updatePreferencesMutation = useMutation<void, Error, UpdateAutoTopupParams>({
     mutationFn: updateAutoTopupPreferences,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.autoTopupPreferences });
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.all }); // Refresh credits info
+      queryClient.invalidateQueries({ queryKey: creditQueryKeys.autoTopupPreferences });
+      queryClient.invalidateQueries({ queryKey: creditQueryKeys.all }); // Refresh credits info
       // Removed toast notification for smoother UX
     },
     onError: (error, _variables) => {
@@ -132,8 +132,8 @@ export function useAutoTopup() {
   const disableMutation = useMutation<void, Error>({
     mutationFn: disableAutoTopup,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.autoTopupPreferences });
-      queryClient.invalidateQueries({ queryKey: queryKeys.credits.all }); // Refresh credits info
+      queryClient.invalidateQueries({ queryKey: creditQueryKeys.autoTopupPreferences });
+      queryClient.invalidateQueries({ queryKey: creditQueryKeys.all }); // Refresh credits info
       // Removed toast notification for smoother UX
     },
     onError: (error) => {

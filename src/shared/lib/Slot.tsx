@@ -10,12 +10,16 @@ const Slot = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
       return null
     }
 
-    return React.cloneElement(children as React.ReactElement, {
-      ...mergeProps(props, (children as React.ReactElement).props),
+    const child = children as React.ReactElement<Record<string, unknown>> & {
+      ref?: React.Ref<HTMLElement>
+    }
+
+    return React.cloneElement(child, {
+      ...mergeProps(props, child.props),
       ref: forwardedRef
-        ? composeRefs(forwardedRef, (children as unknown).ref)
-        : (children as unknown).ref,
-    })
+        ? composeRefs(forwardedRef, child.ref)
+        : child.ref,
+    } as Record<string, unknown>)
   }
 )
 Slot.displayName = "Slot"
@@ -23,8 +27,8 @@ Slot.displayName = "Slot"
 function mergeProps(
   slotProps: Record<string, unknown>,
   childProps: Record<string, unknown>
-) {
-  const overrideProps = { ...childProps }
+): Record<string, unknown> {
+  const overrideProps: Record<string, unknown> = { ...childProps }
 
   for (const propName in childProps) {
     const slotPropValue = slotProps[propName]
@@ -32,16 +36,18 @@ function mergeProps(
 
     const isHandler = /^on[A-Z]/.test(propName)
     if (isHandler) {
-      if (slotPropValue && childPropValue) {
+      if (typeof slotPropValue === "function" && typeof childPropValue === "function") {
         overrideProps[propName] = (...args: unknown[]) => {
-          childPropValue(...args)
-          slotPropValue(...args)
+          ;(childPropValue as (...eventArgs: unknown[]) => void)(...args)
+          ;(slotPropValue as (...eventArgs: unknown[]) => void)(...args)
         }
-      } else if (slotPropValue) {
+      } else if (typeof slotPropValue === "function") {
         overrideProps[propName] = slotPropValue
       }
     } else if (propName === "style") {
-      overrideProps[propName] = { ...slotPropValue, ...childPropValue }
+      const slotStyle = typeof slotPropValue === "object" && slotPropValue ? slotPropValue : {}
+      const childStyle = typeof childPropValue === "object" && childPropValue ? childPropValue : {}
+      overrideProps[propName] = { ...slotStyle, ...childStyle }
     } else if (propName === "className") {
       overrideProps[propName] = [slotPropValue, childPropValue]
         .filter(Boolean)

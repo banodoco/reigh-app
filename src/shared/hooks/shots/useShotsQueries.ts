@@ -25,7 +25,7 @@ export const useListShots = (
   const { maxImagesPerShot = 0 } = options;
 
   return useQuery({
-    queryKey: projectId ? queryKeys.shots.list(projectId, maxImagesPerShot) : ['shots', projectId, maxImagesPerShot],
+    queryKey: queryKeys.shots.list(projectId ?? '', maxImagesPerShot),
     queryFn: async () => {
       if (!projectId) {
         return [];
@@ -46,67 +46,55 @@ export const useListShots = (
         return [];
       }
 
-      // Fetch images for each shot in batches
-      const BATCH_SIZE = 10;
-      const imagesPerShot: { shotId: string; images: GenerationRow[] }[] = [];
+      // Fetch all shot_generations in a single query instead of one per shot
+      const shotIds = shots.map(shot => shot.id);
+      const { data: allShotGenerations, error: sgError } = await supabase
+        .from('shot_generations')
+        .select(`
+          id,
+          shot_id,
+          timeline_frame,
+          generation_id,
+          generation:generations!shot_generations_generation_id_generations_id_fk (
+            id,
+            location,
+            thumbnail_url,
+            type,
+            created_at,
+            starred,
+            name,
+            based_on,
+            params,
+            primary_variant_id,
+            primary_variant:generation_variants!generations_primary_variant_id_fkey (
+              location,
+              thumbnail_url
+            )
+          )
+        `)
+        .in('shot_id', shotIds)
+        .order('timeline_frame', { ascending: true, nullsFirst: false });
 
-      for (let i = 0; i < shots.length; i += BATCH_SIZE) {
-        const batch = shots.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.all(
-          batch.map(async (shot) => {
-            let query = supabase
-              .from('shot_generations')
-              .select(`
-                id,
-                shot_id,
-                timeline_frame,
-                generation_id,
-                generation:generations!shot_generations_generation_id_generations_id_fk (
-                  id,
-                  location,
-                  thumbnail_url,
-                  type,
-                  created_at,
-                  starred,
-                  name,
-                  based_on,
-                  params,
-                  primary_variant_id,
-                  primary_variant:generation_variants!generations_primary_variant_id_fkey (
-                    location,
-                    thumbnail_url
-                  )
-                )
-              `)
-              .eq('shot_id', shot.id)
-              .order('timeline_frame', { ascending: true, nullsFirst: false });
-
-            if (maxImagesPerShot > 0) {
-              query = query.limit(maxImagesPerShot);
-            }
-
-            const { data: shotGenerations, error: sgError } = await query;
-
-            if (sgError) {
-              console.error(`Error fetching generations for shot ${shot.id}:`, sgError);
-              return { shotId: shot.id, images: [] };
-            }
-
-            const images: GenerationRow[] = (shotGenerations || [])
-              .map(mapShotGenerationToRow)
-              .filter(Boolean) as GenerationRow[];
-
-            return { shotId: shot.id, images };
-          })
-        );
-        imagesPerShot.push(...batchResults);
+      if (sgError) {
+        throw sgError;
       }
 
-      // Build lookup map
+      // Group by shot_id
       const imagesByShot: Record<string, GenerationRow[]> = {};
-      imagesPerShot.forEach(({ shotId, images }) => {
-        imagesByShot[shotId] = images;
-      });
+      for (const sg of allShotGenerations ?? []) {
+        const mapped = mapShotGenerationToRow(sg);
+        if (!mapped) continue;
+        const shotId = sg.shot_id;
+        if (!imagesByShot[shotId]) imagesByShot[shotId] = [];
+        imagesByShot[shotId].push(mapped);
+      }
+
+      // Apply maxImagesPerShot client-side if needed
+      if (maxImagesPerShot > 0) {
+        for (const shotId of Object.keys(imagesByShot)) {
+          imagesByShot[shotId] = imagesByShot[shotId].slice(0, maxImagesPerShot);
+        }
+      }
 
       // Attach images to shots with pre-computed stats
       return shots.map(shot => {
@@ -115,16 +103,12 @@ export const useListShots = (
         // Count UNIQUE generation_ids
         const uniqueGenIds = new Set<string>();
         const unpositionedGenIds = new Set<string>();
-        const positionedGenIds = new Set<string>();
 
         images.forEach(img => {
           const genId = getGenerationId(img);
+          if (!genId) return;
           uniqueGenIds.add(genId);
-          if (img.timeline_frame == null) {
-            unpositionedGenIds.add(genId);
-          } else {
-            positionedGenIds.add(genId);
-          }
+          if (img.timeline_frame == null) unpositionedGenIds.add(genId);
         });
 
         const unpositionedCount = unpositionedGenIds.size;
@@ -133,7 +117,7 @@ export const useListShots = (
           ...shot,
           images,
           imageCount: uniqueGenIds.size,
-          positionedImageCount: positionedGenIds.size,
+          positionedImageCount: uniqueGenIds.size - unpositionedCount,
           unpositionedImageCount: unpositionedCount,
           hasUnpositionedImages: unpositionedCount > 0,
         };
@@ -154,7 +138,7 @@ export const useListShots = (
  */
 export const useProjectImageStats = (projectId?: string | null) => {
   return useQuery({
-    queryKey: queryKeys.projectStats.images(projectId),
+    queryKey: projectId ? queryKeys.projectStats.images(projectId) : ['project-image-stats', null],
     queryFn: async () => {
       if (!projectId) return { allCount: 0, noShotCount: 0 };
 

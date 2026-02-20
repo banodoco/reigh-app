@@ -77,7 +77,7 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
   // Props not in context
   generationSource = "by-reference",
   onGenerationSourceChange,
-  selectedTextModel = "flux-dev",
+  selectedTextModel = "qwen-image",
   onTextModelChange,
   onOpenLoraModal,
   isLoadingReferenceData = false,

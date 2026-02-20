@@ -14,21 +14,21 @@ export const VideoEnhanceDetails: React.FC<TaskDetailsProps> = ({
   isMobile = false,
 }) => {
   const config = getVariantConfig(variant, isMobile, inputImages.length);
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
+  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
 
   // Extract enhancement settings
-  const enableInterpolation = parsedParams?.enable_interpolation ?? false;
-  const enableUpscale = parsedParams?.enable_upscale ?? false;
+  const enableInterpolation = Boolean(parsedParams?.enable_interpolation);
+  const enableUpscale = Boolean(parsedParams?.enable_upscale);
 
   // Interpolation settings
-  const interpolation = parsedParams?.interpolation;
-  const numFrames = interpolation?.num_frames ?? 1;
+  const interpolation = parsedParams?.interpolation as Record<string, any> | undefined;
+  const numFrames = typeof interpolation?.num_frames === 'number' ? interpolation.num_frames : 1;
 
   // Upscale settings
-  const upscale = parsedParams?.upscale;
-  const upscaleFactor = upscale?.upscale_factor ?? 2;
-  const colorFix = upscale?.color_fix ?? true;
-  const outputQuality = upscale?.output_quality ?? 'high';
+  const upscale = parsedParams?.upscale as Record<string, any> | undefined;
+  const upscaleFactor = typeof upscale?.upscale_factor === 'number' ? upscale.upscale_factor : 2;
+  const colorFix = typeof upscale?.color_fix === 'boolean' ? upscale.color_fix : true;
+  const outputQuality = typeof upscale?.output_quality === 'string' ? upscale.output_quality : 'high';
 
   return (
     <div className={`p-3 bg-muted/30 rounded-lg border space-y-3 ${variant === 'panel' ? '' : variant === 'modal' && isMobile ? 'w-full' : 'w-[300px]'}`}>

@@ -1,0 +1,65 @@
+{
+  "batch": "Package Organization",
+  "assessments": {
+    "package_organization": 65,
+    "high_level_elegance": 62
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_test_layout_is_inconsistent",
+      "summary": "Shared-layer tests use two competing placement strategies",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx",
+        "src/shared/hooks/__tests__/use-debounce.test.ts",
+        "src/shared/hooks/__tests__/use-mobile.test.ts"
+      ],
+      "evidence": [
+        "Component tests are co-located at `src/shared/components/*.test.tsx` while hook tests are grouped under `src/shared/hooks/__tests__/`.",
+        "The component tests here are smoke-only import checks, while hook tests are full behavioral suites, so test artifacts are split by both location and intent.",
+        "Within one `src/shared` boundary, this creates inconsistent directory semantics for where tests should live."
+      ],
+      "suggestion": "Standardize on one shared test layout. A practical move is `src/shared/components/__tests__/` for component tests and keep behavioral parity (not smoke stubs), while retaining `src/shared/hooks/__tests__/` for hooks, or fully co-locate both patterns consistently across shared packages.",
+      "reasoning": "Predictable test placement is part of package organization; mixed patterns increase navigation cost and make ownership boundaries less legible.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "device_detection_subsystem_flattened_in_single_hook_file",
+      "summary": "Device-detection subsystem is flattened into one generic hooks file",
+      "related_files": [
+        "src/shared/hooks/use-mobile.tsx",
+        "src/shared/hooks/__tests__/use-mobile.test.ts",
+        "src/shared/hooks/use-debounce.ts"
+      ],
+      "evidence": [
+        "`use-mobile.tsx` combines pure environment detection helpers, a backward-compat utility (`isMobileUA`), three focused hooks, and a composite `useDeviceInfo` API.",
+        "Its paired test file validates multiple behaviors across all those concerns, indicating this is a subsystem rather than a single hook.",
+        "Sibling files like `use-debounce.ts` remain single-purpose, so this module is an architectural outlier inside a flat hooks package."
+      ],
+      "suggestion": "Split into a `src/shared/hooks/device/` package (`detection.ts`, `useIsMobile.ts`, `useIsTablet.ts`, `useIsTouchDevice.ts`, `useDeviceInfo.ts`) and keep `use-mobile.tsx` as a thin compatibility re-export during migration.",
+      "reasoning": "High-level elegance improves when subsystem boundaries are explicit; decomposition localizes change and makes ownership of device logic clearer.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_hooks_mixes_core_and_ui_boundaries",
+      "summary": "Hooks package mixes headless utilities with UI-bound adapter hooks",
+      "related_files": [
+        "src/shared/hooks/use-toast.ts",
+        "src/shared/hooks/use-debounce.ts",
+        "src/shared/hooks/use-mobile.tsx",
+        "src/shared/components/ActiveLoRAsDisplay.tsx"
+      ],
+      "evidence": [
+        "`use-toast.ts` depends on `@/shared/components/ui/toast`, so it is effectively a UI adapter living in a generic hooks package.",
+        "Other hooks in the same directory (`use-debounce`, `use-mobile`) are headless utility hooks with no component-layer dependency.",
+        "`ActiveLoRAsDisplay.tsx` imports UI primitives directly, while toast also has a hook indirection path, creating mixed access patterns to UI concerns."
+      ],
+      "suggestion": "Separate hooks by boundary: keep headless hooks in `src/shared/hooks/` and move UI-bound hooks (like toast) under a UI-oriented package (for example `src/shared/components/ui/hooks/`) with a single canonical export path.",
+      "reasoning": "Package boundaries are clearer when dependency direction is explicit; mixing core and UI adapters in one hooks folder obscures layering and future refactor scope.",
+      "confidence": "medium"
+    }
+  ]
+}

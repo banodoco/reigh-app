@@ -40,6 +40,10 @@ interface JoinSettingsForHook {
   replaceMode: boolean;
   keepBridgingImages: boolean;
   enhancePrompt: boolean;
+  model: string;
+  numInferenceSteps: number;
+  guidanceScale: number;
+  seed: number;
   motionMode: 'basic' | 'advanced';
   phaseConfig: PhaseConfig | undefined;
   selectedPhasePresetId: string | null;
@@ -77,7 +81,7 @@ interface UseJoinSegmentsSetupReturn {
   joinNumInferenceSteps: number;
   joinGuidanceScale: number;
   joinSeed: number;
-  joinMotionMode: string;
+  joinMotionMode: 'basic' | 'advanced';
   joinPhaseConfig: PhaseConfig | undefined;
   joinSelectedPhasePresetId: string | null;
   joinRandomSeed: boolean;
@@ -176,6 +180,10 @@ export function useJoinSegmentsSetup({
     replaceMode: joinReplaceMode,
     keepBridgingImages: joinKeepBridgingImages,
     enhancePrompt: joinEnhancePrompt,
+    model: joinModel,
+    numInferenceSteps: joinNumInferenceSteps,
+    guidanceScale: joinGuidanceScale,
+    seed: joinSeed,
     motionMode: joinMotionMode as 'basic' | 'advanced',
     phaseConfig: joinPhaseConfig,
     selectedPhasePresetId: joinSelectedPhasePresetId,
@@ -184,7 +192,8 @@ export function useJoinSegmentsSetup({
     updateFields: joinSettings.updateFields,
   }), [
     joinPrompt, joinNegativePrompt, joinContextFrames, joinGapFrames, joinReplaceMode,
-    joinKeepBridgingImages, joinEnhancePrompt, joinMotionMode, joinPhaseConfig,
+    joinKeepBridgingImages, joinEnhancePrompt, joinModel, joinNumInferenceSteps,
+    joinGuidanceScale, joinSeed, joinMotionMode, joinPhaseConfig,
     joinSelectedPhasePresetId, joinRandomSeed, joinSettings.updateField, joinSettings.updateFields,
   ]);
 
@@ -213,7 +222,7 @@ export function useJoinSegmentsSetup({
         const newLora: SelectedLora = {
           id: loraToAdd["Model ID"],
           name: loraName,
-          path: hasHighNoise ? loraToAdd.high_noise_url : primaryPath,
+          path: (hasHighNoise ? loraToAdd.high_noise_url : primaryPath) ?? '',
           strength: initialStrength || 1.0,
           previewImageUrl: loraToAdd.Images?.[0]?.url,
           trigger_word: loraToAdd.trigger_word,
@@ -252,7 +261,7 @@ export function useJoinSegmentsSetup({
     joinNumInferenceSteps,
     joinGuidanceScale,
     joinSeed,
-    joinMotionMode,
+    joinMotionMode: joinMotionMode as 'basic' | 'advanced',
     joinPhaseConfig,
     joinSelectedPhasePresetId,
     joinRandomSeed,

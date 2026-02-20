@@ -6,10 +6,10 @@ import {
 import type { TaskCreationResult } from "../taskCreation";
 import { supabase } from '@/integrations/supabase/client';
 import { PhaseConfig, buildBasicModePhaseConfig } from '@/shared/types/phaseConfig';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import type { PathLoraConfig } from '@/shared/types/lora';
+import { ensureShotParentGenerationId } from './shotParentGeneration';
 
 /**
  * Interface for individual travel segment regeneration task parameters
@@ -113,7 +113,11 @@ function validateIndividualTravelSegmentParams(params: IndividualTravelSegmentPa
   // When not provided, the GPU worker will generate video from just the start image
 
   // Enforce 81-frame limit per segment
-  const numFrames = params.num_frames ?? params.originalParams?.num_frames ?? 49;
+  const numFrames = (
+    typeof params.num_frames === 'number'
+      ? params.num_frames
+      : (typeof params.originalParams?.num_frames === 'number' ? params.originalParams.num_frames : undefined)
+  ) ?? 49;
   if (numFrames > MAX_SEGMENT_FRAMES) {
     errors.push(`num_frames (${numFrames}) exceeds maximum of ${MAX_SEGMENT_FRAMES} frames per segment`);
   }
@@ -127,418 +131,479 @@ function validateIndividualTravelSegmentParams(params: IndividualTravelSegmentPa
  * Builds the task params for an individual travel segment
  * Matches the exact structure of travel_segment tasks
  */
-function buildIndividualTravelSegmentParams(
-  params: IndividualTravelSegmentParams,
-  finalResolution: string
-): Record<string, unknown> {
-  const orig = params.originalParams || {};
-  const orchDetails = orig.orchestrator_details || {};
-  
-  // Handle random seed generation
-  const baseSeed = orig.seed_to_use || orig.seed || orchDetails.seed_base || 789;
-  const finalSeed = params.random_seed 
-    ? Math.floor(Math.random() * 1000000) 
-    : (params.seed ?? baseSeed);
-  
-  // Build additional_loras from params.loras or original
-  // If params.loras is explicitly provided (even as empty array), use it - user may have removed all LoRAs
-  // Only fall back to original if params.loras is undefined
-  const additionalLoras: Record<string, number> = {};
-  if (params.loras !== undefined) {
-    // User explicitly provided loras (could be empty array to clear them)
-    params.loras.forEach(lora => {
-      additionalLoras[lora.path] = lora.strength;
-    });
-  } else if (orig.additional_loras) {
-    Object.assign(additionalLoras, orig.additional_loras);
-  } else if (orchDetails.additional_loras) {
-    Object.assign(additionalLoras, orchDetails.additional_loras);
-  }
+const DEFAULT_I2V_MODEL = "wan_2_2_i2v_lightning_baseline_2_2_2";
+const STRUCTURE_PREPROCESSING_MAP: Record<string, string> = {
+  flow: 'flow',
+  canny: 'canny',
+  depth: 'depth',
+  raw: 'none',
+};
+const LEGACY_STRUCTURE_PARAMS = [
+  'structure_type',
+  'structure_videos',
+  'structure_video_path',
+  'structure_video_treatment',
+  'structure_video_motion_strength',
+  'structure_video_type',
+  'structure_canny_intensity',
+  'structure_depth_contrast',
+  'structure_guidance_video_url',
+  'structure_guidance_frame_offset',
+  'use_uni3c',
+  'uni3c_guide_video',
+  'uni3c_strength',
+  'uni3c_start_percent',
+  'uni3c_end_percent',
+  'uni3c_guidance_frame_offset',
+] as const;
 
-  // Determine model settings FIRST (needed for basic mode phase config)
-  // Get structure_guidance from new unified format (preferred)
-  // Also check params.structure_videos (passed directly from buildTaskParams)
-  const structureGuidance = orig.structure_guidance || orchDetails.structure_guidance;
+type UnknownRecord = Record<string, unknown>;
 
-  // VACE model is no longer supported - always use I2V
-  // Structure video type is hardcoded to uni3c, which uses I2V
-  const useVaceModel = false;
+interface SegmentBuildState {
+  orig: UnknownRecord;
+  orchDetails: UnknownRecord;
+  inputImages: string[];
+  allInputImages: unknown;
+  finalSeed: number;
+  additionalLoras: Record<string, number>;
+  motionMode: 'basic' | 'presets' | 'advanced';
+  amountOfMotion: number;
+  phaseConfig: PhaseConfig;
+  advancedMode: boolean;
+  loraMultipliers: Array<{ url: string; multiplier: number }>;
+  modelName: string;
+  flowShift: number;
+  sampleSolver: string;
+  guidanceScale: number;
+  guidance2Scale: number;
+  guidancePhases: number;
+  numInferenceSteps: number;
+  modelSwitchPhase: number;
+  switchThreshold: unknown;
+  numFrames: number;
+  basePrompt: string;
+  negativePrompt: string;
+  enhancedPrompt?: string;
+  fpsHelpers: number;
+  segmentFramesExpanded: unknown;
+  frameOverlapExpanded: unknown;
+  structureGuidance?: UnknownRecord;
+}
 
-  // Determine motion settings
-  const motionMode = params.motion_mode ?? orig.motion_mode ?? orchDetails.motion_mode ?? 'basic';
-  const isBasicMode = motionMode === 'basic';
-  const amountOfMotion = params.amount_of_motion ?? orig.amount_of_motion ?? orchDetails.amount_of_motion ?? 0.5;
-  const userLoras = params.loras ?? [];
+function asRecord(value: unknown): UnknownRecord {
+  return value && typeof value === 'object' ? (value as UnknownRecord) : {};
+}
 
-  // Phase config is ALWAYS built and sent (matches batch mode behavior)
-  // - Basic mode: build from defaults with user LoRAs
-  // - Advanced mode: use explicit if provided, otherwise build from defaults
-  const explicitPhaseConfig = params.phase_config || orig.phase_config || orchDetails.phase_config;
-  const phaseConfig: PhaseConfig = explicitPhaseConfig || buildBasicModePhaseConfig(useVaceModel, amountOfMotion, userLoras);
-
-  // advanced_mode indicates whether user provided explicit config (true) or we computed it (false)
-  const advancedMode = isBasicMode ? false : (params.advanced_mode ?? orig.advanced_mode ?? orchDetails.advanced_mode ?? !!explicitPhaseConfig);
-
-  // Build lora_multipliers from phase_config (always available now)
-  const loraMultipliers = phaseConfig.phases.flatMap((phase) =>
-    (phase.loras || []).map((lora) => ({ url: lora.url, multiplier: lora.multiplier }))
-  );
-  const defaultModelName = useVaceModel
-    ? VACE_GENERATION_DEFAULTS.model
-    : "wan_2_2_i2v_lightning_baseline_2_2_2";
-  const modelName = orig.model_name || orchDetails.model_name || defaultModelName;
-  
-  // Extract flat fields from phaseConfig (when available) or fallback to orig/orchDetails
-  const flowShift = phaseConfig?.flow_shift ?? orig.flow_shift ?? orchDetails.flow_shift ?? 5;
-  const sampleSolver = phaseConfig?.sample_solver ?? orig.sample_solver ?? orchDetails.sample_solver ?? "euler";
-  const guidanceScale = phaseConfig?.phases?.[0]?.guidance_scale ?? orig.guidance_scale ?? orchDetails.guidance_scale ?? 1;
-  const guidance2Scale = phaseConfig?.phases?.[1]?.guidance_scale ?? orig.guidance2_scale ?? orchDetails.guidance2_scale ?? 1;
-  const guidancePhases = phaseConfig?.num_phases ?? orig.guidance_phases ?? orchDetails.guidance_phases ?? 2;
-  const numInferenceSteps = phaseConfig?.steps_per_phase
-    ? phaseConfig.steps_per_phase.reduce((sum: number, steps: number) => sum + steps, 0)
-    : (orig.num_inference_steps ?? orchDetails.num_inference_steps ?? 6);
-  const modelSwitchPhase = phaseConfig?.model_switch_phase ?? orig.model_switch_phase ?? orchDetails.model_switch_phase ?? 1;
-  const switchThreshold = orig.switch_threshold ?? orchDetails.switch_threshold;
-  
-  // Segment-specific settings (UI overrides take precedence)
-  // Clamp to MAX_SEGMENT_FRAMES (81) as a safety measure even if validation passed
-  const rawNumFrames = params.num_frames ?? orig.num_frames ?? 49;
-  const numFrames = Math.min(rawNumFrames, MAX_SEGMENT_FRAMES);
-  
-  // CRITICAL: User-input prompts from UI MUST take precedence
-  // params.base_prompt is the explicit override from the SegmentCard UI
-  const basePrompt = params.base_prompt ?? orig.base_prompt ?? orig.prompt ?? "";
-  const negativePrompt = params.negative_prompt ?? orig.negative_prompt ?? "";
-  // AI-enhanced prompt (kept separate from base_prompt)
-  // When present, worker should prefer this over base_prompt
-  const enhancedPrompt = params.enhanced_prompt ?? orig.enhanced_prompt;
-
-  // Build input_image_paths_resolved for orchestrator_details
-  // Include all input images from the original orchestrator if available
-  // For trailing segments (single-image-to-video), end_image_url is undefined
-  const inputImages = params.end_image_url
+function buildInputImages(params: IndividualTravelSegmentParams): string[] {
+  return params.end_image_url
     ? [params.start_image_url, params.end_image_url]
     : [params.start_image_url];
-  const allInputImages = orchDetails.input_image_paths_resolved || inputImages;
-  
-  // Build orchestrator_details to match travel_segment structure exactly
-  // IMPORTANT: Remove orchestrator references so this task is billed as a standalone task
-  // (otherwise complete_task thinks it's a sub-task and skips billing)
-  const { 
-    orchestrator_task_id: _removedOrchTaskId, 
+}
+
+function resolveFinalSeed(
+  params: IndividualTravelSegmentParams,
+  orig: UnknownRecord,
+  orchDetails: UnknownRecord
+): number {
+  const baseSeed = (orig.seed_to_use as number | undefined)
+    ?? (orig.seed as number | undefined)
+    ?? (orchDetails.seed_base as number | undefined)
+    ?? 789;
+
+  return params.random_seed
+    ? Math.floor(Math.random() * 1000000)
+    : (params.seed ?? baseSeed);
+}
+
+function mergeAdditionalLoraMap(
+  target: Record<string, number>,
+  source: unknown
+): void {
+  if (!source || typeof source !== 'object') return;
+
+  for (const [path, strength] of Object.entries(source as UnknownRecord)) {
+    if (typeof strength === 'number') {
+      target[path] = strength;
+    }
+  }
+}
+
+function buildAdditionalLoras(
+  params: IndividualTravelSegmentParams,
+  orig: UnknownRecord,
+  orchDetails: UnknownRecord
+): Record<string, number> {
+  const additionalLoras: Record<string, number> = {};
+
+  if (params.loras !== undefined) {
+    for (const lora of params.loras) {
+      additionalLoras[lora.path] = lora.strength;
+    }
+    return additionalLoras;
+  }
+
+  mergeAdditionalLoraMap(additionalLoras, orig.additional_loras);
+  if (Object.keys(additionalLoras).length === 0) {
+    mergeAdditionalLoraMap(additionalLoras, orchDetails.additional_loras);
+  }
+  return additionalLoras;
+}
+
+function buildStructureGuidanceFromVideos(
+  videos: UnknownRecord[],
+  defaultUni3cEndPercent: number
+): UnknownRecord {
+  const firstVideo = videos[0];
+  const structureType = (firstVideo.structure_type as string | undefined) ?? 'flow';
+  const isUni3c = structureType === 'uni3c';
+
+  const cleanedVideos = videos.map((video) => ({
+    path: video.path,
+    start_frame: video.start_frame ?? 0,
+    end_frame: video.end_frame ?? null,
+    treatment: video.treatment ?? 'adjust',
+  }));
+
+  const guidance: UnknownRecord = {
+    target: isUni3c ? 'uni3c' : 'vace',
+    videos: cleanedVideos,
+    strength: firstVideo.motion_strength ?? 1.0,
+  };
+
+  if (isUni3c) {
+    guidance.step_window = [
+      firstVideo.uni3c_start_percent ?? 0,
+      firstVideo.uni3c_end_percent ?? defaultUni3cEndPercent,
+    ];
+    guidance.frame_policy = 'fit';
+    guidance.zero_empty_frames = true;
+    return guidance;
+  }
+
+  guidance.preprocessing = STRUCTURE_PREPROCESSING_MAP[structureType] ?? 'flow';
+  return guidance;
+}
+
+function resolveStructureGuidance(
+  params: IndividualTravelSegmentParams,
+  orig: UnknownRecord,
+  orchDetails: UnknownRecord
+): UnknownRecord | undefined {
+  const existingGuidance = orig.structure_guidance ?? orchDetails.structure_guidance;
+  if (existingGuidance && typeof existingGuidance === 'object') {
+    return existingGuidance as UnknownRecord;
+  }
+
+  const directStructureVideos = (params as unknown as UnknownRecord).structure_videos as UnknownRecord[] | undefined;
+  if (directStructureVideos?.length) {
+    return buildStructureGuidanceFromVideos(directStructureVideos, 0.1);
+  }
+
+  const legacyStructureVideos = (
+    (orchDetails.structure_videos as UnknownRecord[] | undefined)
+    ?? (orig.structure_videos as UnknownRecord[] | undefined)
+  );
+
+  if (legacyStructureVideos?.length) {
+    return buildStructureGuidanceFromVideos(legacyStructureVideos, 1.0);
+  }
+
+  return undefined;
+}
+
+function stripOrchestratorReferences(orchDetails: UnknownRecord): UnknownRecord {
+  const {
+    orchestrator_task_id: _removedOrchTaskId,
     orchestrator_task_id_ref: _removedOrchTaskIdRef,
     run_id: _removedRunId,
     orchestrator_run_id: _removedOrchRunId,
-    ...orchDetailsWithoutOrchestratorRefs 
+    ...remainingDetails
   } = orchDetails;
-  
-  // Explicitly preserve critical orchestrator fields
-  // These are REQUIRED for the GPU worker to handle individual segment generation correctly
-  const fpsHelpers = orig.fps_helpers ?? orchDetails.fps_helpers ?? 16;
+  return remainingDetails;
+}
+
+function buildSegmentState(params: IndividualTravelSegmentParams): SegmentBuildState {
+  const orig = asRecord(params.originalParams);
+  const orchDetails = asRecord(orig.orchestrator_details);
+  const inputImages = buildInputImages(params);
+  const allInputImages = orchDetails.input_image_paths_resolved ?? inputImages;
+  const finalSeed = resolveFinalSeed(params, orig, orchDetails);
+  const additionalLoras = buildAdditionalLoras(params, orig, orchDetails);
+  const motionMode = (
+    params.motion_mode
+    ?? (orig.motion_mode as SegmentBuildState['motionMode'] | undefined)
+    ?? (orchDetails.motion_mode as SegmentBuildState['motionMode'] | undefined)
+    ?? 'basic'
+  );
+  const amountOfMotion = (params.amount_of_motion as number | undefined)
+    ?? (orig.amount_of_motion as number | undefined)
+    ?? (orchDetails.amount_of_motion as number | undefined)
+    ?? 0.5;
+  const explicitPhaseConfig = (
+    params.phase_config
+    ?? (orig.phase_config as PhaseConfig | undefined)
+    ?? (orchDetails.phase_config as PhaseConfig | undefined)
+  );
+  const phaseConfig = explicitPhaseConfig
+    ?? buildBasicModePhaseConfig(false, amountOfMotion, params.loras ?? []);
+  const advancedMode = motionMode === 'basic'
+    ? false
+    : (
+      params.advanced_mode
+      ?? (orig.advanced_mode as boolean | undefined)
+      ?? (orchDetails.advanced_mode as boolean | undefined)
+      ?? !!explicitPhaseConfig
+    );
+  const loraMultipliers = phaseConfig.phases.flatMap((phase) =>
+    (phase.loras || []).map((lora) => ({
+      url: lora.url,
+      multiplier: typeof lora.multiplier === 'number' ? lora.multiplier : Number(lora.multiplier) || 0,
+    }))
+  );
+  const modelName = (orig.model_name as string | undefined)
+    ?? (orchDetails.model_name as string | undefined)
+    ?? DEFAULT_I2V_MODEL
+    ?? VACE_GENERATION_DEFAULTS.model;
+  const flowShift = (phaseConfig.flow_shift as number | undefined)
+    ?? (orig.flow_shift as number | undefined)
+    ?? (orchDetails.flow_shift as number | undefined)
+    ?? 5;
+  const sampleSolver = (phaseConfig.sample_solver as string | undefined)
+    ?? (orig.sample_solver as string | undefined)
+    ?? (orchDetails.sample_solver as string | undefined)
+    ?? 'euler';
+  const guidanceScale = (phaseConfig.phases?.[0]?.guidance_scale as number | undefined)
+    ?? (orig.guidance_scale as number | undefined)
+    ?? (orchDetails.guidance_scale as number | undefined)
+    ?? 1;
+  const guidance2Scale = (phaseConfig.phases?.[1]?.guidance_scale as number | undefined)
+    ?? (orig.guidance2_scale as number | undefined)
+    ?? (orchDetails.guidance2_scale as number | undefined)
+    ?? 1;
+  const guidancePhases = (phaseConfig.num_phases as number | undefined)
+    ?? (orig.guidance_phases as number | undefined)
+    ?? (orchDetails.guidance_phases as number | undefined)
+    ?? 2;
+  const numInferenceSteps = phaseConfig.steps_per_phase
+    ? phaseConfig.steps_per_phase.reduce((sum: number, steps: number) => sum + steps, 0)
+    : (
+      (orig.num_inference_steps as number | undefined)
+      ?? (orchDetails.num_inference_steps as number | undefined)
+      ?? 6
+    );
+  const modelSwitchPhase = (phaseConfig.model_switch_phase as number | undefined)
+    ?? (orig.model_switch_phase as number | undefined)
+    ?? (orchDetails.model_switch_phase as number | undefined)
+    ?? 1;
+  const switchThreshold = orig.switch_threshold ?? orchDetails.switch_threshold;
+  const rawNumFrames = (params.num_frames as number | undefined)
+    ?? (orig.num_frames as number | undefined)
+    ?? 49;
+  const numFrames = Math.min(rawNumFrames, MAX_SEGMENT_FRAMES);
+  const basePrompt = params.base_prompt
+    ?? (orig.base_prompt as string | undefined)
+    ?? (orig.prompt as string | undefined)
+    ?? "";
+  const negativePrompt = params.negative_prompt
+    ?? (orig.negative_prompt as string | undefined)
+    ?? "";
+  const enhancedPrompt = params.enhanced_prompt
+    ?? (orig.enhanced_prompt as string | undefined);
+  const fpsHelpers = (orig.fps_helpers as number | undefined)
+    ?? (orchDetails.fps_helpers as number | undefined)
+    ?? 16;
   const segmentFramesExpanded = orchDetails.segment_frames_expanded;
   const frameOverlapExpanded = orchDetails.frame_overlap_expanded;
-  
-  // UNIFIED STRUCTURE GUIDANCE FORMAT: Ensure we use the new format
-  // Priority:
-  // 1. params.structure_videos - passed directly from UI via buildTaskParams (new flow)
-  // 2. structure_guidance (new unified format from originalParams)
-  // 3. legacy structure_videos from originalParams/orchDetails
-  let finalStructureGuidance = structureGuidance;
+  const structureGuidance = resolveStructureGuidance(params, orig, orchDetails);
 
-  // Check for structure_videos passed directly from UI (highest priority)
-  const directStructureVideos = (params as Record<string, unknown>).structure_videos as Array<Record<string, unknown>> | undefined;
-  if (!finalStructureGuidance && directStructureVideos?.length > 0) {
-    // Build unified format from UI-provided structure_videos
-    const firstVideo = directStructureVideos[0];
-    const isUni3cDirect = firstVideo.structure_type === 'uni3c';
+  return {
+    orig,
+    orchDetails,
+    inputImages,
+    allInputImages,
+    finalSeed,
+    additionalLoras,
+    motionMode,
+    amountOfMotion,
+    phaseConfig,
+    advancedMode,
+    loraMultipliers,
+    modelName,
+    flowShift,
+    sampleSolver,
+    guidanceScale,
+    guidance2Scale,
+    guidancePhases,
+    numInferenceSteps,
+    modelSwitchPhase,
+    switchThreshold,
+    numFrames,
+    basePrompt,
+    negativePrompt,
+    enhancedPrompt,
+    fpsHelpers,
+    segmentFramesExpanded,
+    frameOverlapExpanded,
+    structureGuidance,
+  };
+}
 
-    const cleanedVideos = directStructureVideos.map((v: Record<string, unknown>) => ({
-      path: v.path,
-      start_frame: v.start_frame ?? 0,
-      end_frame: v.end_frame ?? null,
-      treatment: v.treatment ?? 'adjust',
-    }));
-
-    finalStructureGuidance = {
-      target: isUni3cDirect ? 'uni3c' : 'vace',
-      videos: cleanedVideos,
-      strength: firstVideo.motion_strength ?? 1.0,
-    } as Record<string, unknown>;
-
-    if (isUni3cDirect) {
-      finalStructureGuidance.step_window = [
-        firstVideo.uni3c_start_percent ?? 0,
-        firstVideo.uni3c_end_percent ?? 0.1,
-      ];
-      finalStructureGuidance.frame_policy = 'fit';
-      finalStructureGuidance.zero_empty_frames = true;
-    } else {
-      const preprocessingMap: Record<string, string> = {
-        'flow': 'flow', 'canny': 'canny', 'depth': 'depth', 'raw': 'none',
-      };
-      finalStructureGuidance.preprocessing = preprocessingMap[firstVideo.structure_type ?? 'flow'] ?? 'flow';
-    }
-
-  }
-
-  if (!finalStructureGuidance) {
-    // Check for legacy separate structure_videos array from originalParams
-    const legacyStructureVideos = orchDetails.structure_videos ?? orig.structure_videos;
-    if (legacyStructureVideos?.length > 0) {
-      // Build unified format from legacy structure_videos
-      const firstVideo = legacyStructureVideos[0];
-      const isUni3cLegacy = firstVideo.structure_type === 'uni3c';
-
-      const cleanedVideos = legacyStructureVideos.map((v: Record<string, unknown>) => ({
-        path: v.path,
-        start_frame: v.start_frame ?? 0,
-        end_frame: v.end_frame ?? null,
-        treatment: v.treatment ?? 'adjust',
-      }));
-
-      finalStructureGuidance = {
-        target: isUni3cLegacy ? 'uni3c' : 'vace',
-        videos: cleanedVideos,
-        strength: firstVideo.motion_strength ?? 1.0,
-      } as Record<string, unknown>;
-
-      if (isUni3cLegacy) {
-        finalStructureGuidance.step_window = [
-          firstVideo.uni3c_start_percent ?? 0,
-          firstVideo.uni3c_end_percent ?? 1.0,
-        ];
-        finalStructureGuidance.frame_policy = 'fit';
-        finalStructureGuidance.zero_empty_frames = true;
-      } else {
-        const preprocessingMap: Record<string, string> = {
-          'flow': 'flow', 'canny': 'canny', 'depth': 'depth', 'raw': 'none',
-        };
-        finalStructureGuidance.preprocessing = preprocessingMap[firstVideo.structure_type ?? 'flow'] ?? 'flow';
-      }
-
-    }
-  }
-  
-  const orchestratorDetails: Record<string, unknown> = {
-    ...orchDetailsWithoutOrchestratorRefs,
-    // Common identifier for comparing batch vs individual segment generation
+function buildOrchestratorDetails(
+  params: IndividualTravelSegmentParams,
+  state: SegmentBuildState,
+  finalResolution: string
+): UnknownRecord {
+  const orchestratorDetails: UnknownRecord = {
+    ...stripOrchestratorReferences(state.orchDetails),
     generation_source: 'individual_segment',
-    // Ensure key fields are set
     parsed_resolution_wh: finalResolution,
-    input_image_paths_resolved: allInputImages,
-    seed_base: finalSeed,
-    model_name: modelName,
-    flow_shift: flowShift,
-    sample_solver: sampleSolver,
-    guidance_scale: guidanceScale,
-    guidance2_scale: guidance2Scale,
-    guidance_phases: guidancePhases,
-    num_inference_steps: numInferenceSteps,
-    model_switch_phase: modelSwitchPhase,
-    additional_loras: additionalLoras,
-    advanced_mode: advancedMode,
-    motion_mode: params.motion_mode ?? orchDetails.motion_mode ?? 'basic',
-    amount_of_motion: amountOfMotion,
-    // Add parent_generation_id for variant creation
+    input_image_paths_resolved: state.allInputImages,
+    seed_base: state.finalSeed,
+    model_name: state.modelName,
+    flow_shift: state.flowShift,
+    sample_solver: state.sampleSolver,
+    guidance_scale: state.guidanceScale,
+    guidance2_scale: state.guidance2Scale,
+    guidance_phases: state.guidancePhases,
+    num_inference_steps: state.numInferenceSteps,
+    model_switch_phase: state.modelSwitchPhase,
+    additional_loras: state.additionalLoras,
+    advanced_mode: state.advancedMode,
+    motion_mode: params.motion_mode ?? state.orchDetails.motion_mode ?? 'basic',
+    amount_of_motion: state.amountOfMotion,
     parent_generation_id: params.parent_generation_id,
-    
-    // Explicitly preserve critical fields for position calculation
-    fps_helpers: fpsHelpers,
-    // Preserve segment frame counts and overlaps for position calculation
-    ...(segmentFramesExpanded ? { segment_frames_expanded: segmentFramesExpanded } : {}),
-    ...(frameOverlapExpanded ? { frame_overlap_expanded: frameOverlapExpanded } : {}),
-    // UNIFIED FORMAT: Only inject structure_guidance (contains videos inside)
-    // NO separate structure_videos array - everything is in structure_guidance.videos
-    ...(finalStructureGuidance ? { structure_guidance: finalStructureGuidance } : {}),
+    fps_helpers: state.fpsHelpers,
+    ...(state.segmentFramesExpanded ? { segment_frames_expanded: state.segmentFramesExpanded } : {}),
+    ...(state.frameOverlapExpanded ? { frame_overlap_expanded: state.frameOverlapExpanded } : {}),
+    ...(state.structureGuidance ? { structure_guidance: state.structureGuidance } : {}),
   };
 
-  // HARDCODED: SVI (smooth continuations) feature has been removed from UX
-  // Always disable SVI - override any inherited value from original orchestrator_details
   orchestratorDetails.use_svi = false;
   delete orchestratorDetails.svi_predecessor_video_url;
   delete orchestratorDetails.svi_strength_1;
   delete orchestratorDetails.svi_strength_2;
-  
-  // CLEANUP: Remove legacy structure video params that are now replaced by unified structure_guidance
-  // These may be inherited from parent orchestrator_details and are no longer needed
-  const legacyStructureParams = [
-    'structure_type',
-    'structure_videos',
-    'structure_video_path',
-    'structure_video_treatment',
-    'structure_video_motion_strength',
-    'structure_video_type',
-    'structure_canny_intensity',
-    'structure_depth_contrast',
-    'structure_guidance_video_url',
-    'structure_guidance_frame_offset',
-    'use_uni3c',
-    'uni3c_guide_video',
-    'uni3c_strength',
-    'uni3c_start_percent',
-    'uni3c_end_percent',
-    'uni3c_guidance_frame_offset',
-  ];
-  for (const param of legacyStructureParams) {
+  for (const param of LEGACY_STRUCTURE_PARAMS) {
     delete orchestratorDetails[param];
   }
 
-  if (phaseConfig) {
-    orchestratorDetails.phase_config = phaseConfig;
+  orchestratorDetails.phase_config = state.phaseConfig;
+  if (state.switchThreshold !== undefined) {
+    orchestratorDetails.switch_threshold = state.switchThreshold;
   }
-  if (switchThreshold !== undefined) {
-    orchestratorDetails.switch_threshold = switchThreshold;
-  }
-  if (loraMultipliers.length > 0) {
-    orchestratorDetails.lora_multipliers = loraMultipliers;
+  if (state.loraMultipliers.length > 0) {
+    orchestratorDetails.lora_multipliers = state.loraMultipliers;
   }
 
-  // Build task params matching travel_segment structure exactly
-  const taskParams: Record<string, unknown> = {
-    // Core settings matching travel_segment
-    flow_shift: flowShift,
-    lora_names: orig.lora_names || orchDetails.lora_names || [],
-    model_name: modelName,
+  return orchestratorDetails;
+}
+
+function buildTaskParamsPayload(
+  params: IndividualTravelSegmentParams,
+  state: SegmentBuildState,
+  finalResolution: string,
+  orchestratorDetails: UnknownRecord
+): UnknownRecord {
+  const taskParams: UnknownRecord = {
+    flow_shift: state.flowShift,
+    lora_names: state.orig.lora_names || state.orchDetails.lora_names || [],
+    model_name: state.modelName,
     project_id: params.project_id,
-    shot_id: params.shot_id, // CRITICAL: Include shot_id for "Open Shot" button in TasksPane
-    base_prompt: basePrompt,
-    // AI-enhanced prompt (kept separate from base_prompt, worker should prefer this when present)
-    ...(enhancedPrompt ? { enhanced_prompt: enhancedPrompt } : {}),
-    fps_helpers: orig.fps_helpers ?? orchDetails.fps_helpers ?? 16,
-    seed_to_use: finalSeed,
-    
-    // Solver and guidance settings
-    cfg_zero_step: orig.cfg_zero_step ?? -1,
-    sample_solver: sampleSolver,
+    shot_id: params.shot_id,
+    base_prompt: state.basePrompt,
+    ...(state.enhancedPrompt ? { enhanced_prompt: state.enhancedPrompt } : {}),
+    fps_helpers: state.orig.fps_helpers ?? state.orchDetails.fps_helpers ?? 16,
+    seed_to_use: state.finalSeed,
+    cfg_zero_step: state.orig.cfg_zero_step ?? -1,
+    sample_solver: state.sampleSolver,
     segment_index: params.segment_index,
-    guidance_scale: guidanceScale,
-    // UNIFIED FORMAT: Include structure_guidance at top level (contains videos inside)
-    // NO separate structure_type - worker reads from structure_guidance.target + preprocessing
-    ...(finalStructureGuidance ? { structure_guidance: finalStructureGuidance } : {}),
-    cfg_star_switch: orig.cfg_star_switch ?? 0,
-    guidance2_scale: guidance2Scale,
-    guidance_phases: guidancePhases,
-    
-    // Segment position flags
-    // Check params.is_last_segment first (from buildTaskParams trailing segment detection),
-    // then fall back to orig.is_last_segment (from originalParams)
-    is_last_segment: params.is_last_segment ?? orig.is_last_segment ?? false,
-    negative_prompt: negativePrompt,
-    is_first_segment: orig.is_first_segment ?? (params.segment_index === 0),
-    
-    // LoRA settings
-    additional_loras: additionalLoras,
-    lora_multipliers: loraMultipliers,
-    
-    // Model settings
-    switch_threshold: switchThreshold,
-    debug_mode_enabled: orig.debug_mode_enabled ?? orchDetails.debug_mode_enabled ?? false,
-    model_switch_phase: modelSwitchPhase,
-    num_inference_steps: numInferenceSteps,
-    
-    // Resolution
+    guidance_scale: state.guidanceScale,
+    ...(state.structureGuidance ? { structure_guidance: state.structureGuidance } : {}),
+    cfg_star_switch: state.orig.cfg_star_switch ?? 0,
+    guidance2_scale: state.guidance2Scale,
+    guidance_phases: state.guidancePhases,
+    is_last_segment: params.is_last_segment ?? state.orig.is_last_segment ?? false,
+    negative_prompt: state.negativePrompt,
+    is_first_segment: state.orig.is_first_segment ?? (params.segment_index === 0),
+    additional_loras: state.additionalLoras,
+    lora_multipliers: state.loraMultipliers,
+    switch_threshold: state.switchThreshold,
+    debug_mode_enabled: state.orig.debug_mode_enabled ?? state.orchDetails.debug_mode_enabled ?? false,
+    model_switch_phase: state.modelSwitchPhase,
+    num_inference_steps: state.numInferenceSteps,
     parsed_resolution_wh: finalResolution,
-    
-    // Frame settings
-    num_frames: numFrames,
-    
-    // Motion settings (UI override)
-    amount_of_motion: amountOfMotion,
-    
-    // The full orchestrator_details object
+    num_frames: state.numFrames,
+    amount_of_motion: state.amountOfMotion,
     orchestrator_details: orchestratorDetails,
-    
-    // For individual_travel_segment, include parent_generation_id at top level too
     parent_generation_id: params.parent_generation_id,
     child_generation_id: params.child_generation_id,
-    // Track lineage for UI - new variant is based on the child generation being regenerated
-    // (only set when creating a variant on an existing child)
     ...(params.child_generation_id ? { based_on: params.child_generation_id } : {}),
-    
-    // Input images at top level for TaskItem image display
-    // For trailing segments (single-image-to-video), end_image_url is undefined
-    input_image_paths_resolved: inputImages,
-    
-    // Image tethering IDs - stored at top level so they're on the generation params
+    input_image_paths_resolved: state.inputImages,
     ...(params.start_image_generation_id && { start_image_generation_id: params.start_image_generation_id }),
     ...(params.end_image_generation_id && { end_image_generation_id: params.end_image_generation_id }),
     ...(params.pair_shot_generation_id && { pair_shot_generation_id: params.pair_shot_generation_id }),
-    
-    // Post-processing
-    after_first_post_generation_saturation: orig.after_first_post_generation_saturation ?? 
-      orchDetails.after_first_post_generation_saturation ?? 1,
-    after_first_post_generation_brightness: orig.after_first_post_generation_brightness ?? 
-      orchDetails.after_first_post_generation_brightness ?? 0,
+    after_first_post_generation_saturation: state.orig.after_first_post_generation_saturation
+      ?? state.orchDetails.after_first_post_generation_saturation
+      ?? 1,
+    after_first_post_generation_brightness: state.orig.after_first_post_generation_brightness
+      ?? state.orchDetails.after_first_post_generation_brightness
+      ?? 0,
   };
 
-  // Don't add phase_config at top level - it goes in individual_segment_params (per-segment override)
-  // The worker checks individual_segment_params first, then falls back to orchestrator_details
-
-  // Add generation name if provided
   if (params.generation_name) {
     taskParams.generation_name = params.generation_name;
   }
-
-  // Add make_primary_variant flag (defaults to true for backward compatibility)
   taskParams.make_primary_variant = params.make_primary_variant ?? true;
 
-  // Build individual_segment_params - all UI overrides in one place
-  // GPU worker should check these first before falling back to top-level values
-  const individualSegmentParams: Record<string, unknown> = {
-    // Input images for this segment
-    // For trailing segments (single-image-to-video), end_image_url is undefined
-    input_image_paths_resolved: inputImages,
+  return taskParams;
+}
+
+function buildIndividualSegmentParamsPayload(
+  params: IndividualTravelSegmentParams,
+  state: SegmentBuildState
+): UnknownRecord {
+  const individualSegmentParams: UnknownRecord = {
+    input_image_paths_resolved: state.inputImages,
     start_image_url: params.start_image_url,
     ...(params.end_image_url && { end_image_url: params.end_image_url }),
-    
-    // Shot generation IDs for image tethering (video follows its source image on timeline)
     ...(params.start_image_generation_id && { start_image_generation_id: params.start_image_generation_id }),
     ...(params.end_image_generation_id && { end_image_generation_id: params.end_image_generation_id }),
     ...(params.pair_shot_generation_id && { pair_shot_generation_id: params.pair_shot_generation_id }),
-
-    // Primary variant IDs (for "Load Images" feature to restore source images)
     ...(params.start_image_variant_id && { start_image_variant_id: params.start_image_variant_id }),
     ...(params.end_image_variant_id && { end_image_variant_id: params.end_image_variant_id }),
-    
-    // Prompts
-    base_prompt: basePrompt,
-    // AI-enhanced prompt (kept separate from base_prompt, worker should prefer this when present)
-    ...(enhancedPrompt ? { enhanced_prompt: enhancedPrompt } : {}),
-    negative_prompt: negativePrompt,
-
-    // Frame settings
-    num_frames: numFrames,
-    
-    // Seed settings
-    seed_to_use: finalSeed,
+    base_prompt: state.basePrompt,
+    ...(state.enhancedPrompt ? { enhanced_prompt: state.enhancedPrompt } : {}),
+    negative_prompt: state.negativePrompt,
+    num_frames: state.numFrames,
+    seed_to_use: state.finalSeed,
     random_seed: params.random_seed ?? false,
-    
-    // Motion settings
-    amount_of_motion: amountOfMotion,
-    motion_mode: params.motion_mode ?? orchDetails.motion_mode ?? 'basic',
-    advanced_mode: advancedMode,
-    
-    // LoRA settings
-    additional_loras: additionalLoras,
-    
-    // Post-processing
-    after_first_post_generation_saturation: orig.after_first_post_generation_saturation ?? 
-      orchDetails.after_first_post_generation_saturation ?? 1,
-    after_first_post_generation_brightness: orig.after_first_post_generation_brightness ?? 
-      orchDetails.after_first_post_generation_brightness ?? 0,
+    amount_of_motion: state.amountOfMotion,
+    motion_mode: params.motion_mode ?? state.orchDetails.motion_mode ?? 'basic',
+    advanced_mode: state.advancedMode,
+    additional_loras: state.additionalLoras,
+    after_first_post_generation_saturation: state.orig.after_first_post_generation_saturation
+      ?? state.orchDetails.after_first_post_generation_saturation
+      ?? 1,
+    after_first_post_generation_brightness: state.orig.after_first_post_generation_brightness
+      ?? state.orchDetails.after_first_post_generation_brightness
+      ?? 0,
+    phase_config: state.phaseConfig,
   };
 
-  // Always add phase_config
-  individualSegmentParams.phase_config = phaseConfig;
-
-  // Preserve selected_phase_preset_id for UI state restoration
   if (params.selected_phase_preset_id) {
     individualSegmentParams.selected_phase_preset_id = params.selected_phase_preset_id;
   }
 
-  // Add the individual_segment_params to task params
-  taskParams.individual_segment_params = individualSegmentParams;
+  return individualSegmentParams;
+}
 
+function buildIndividualTravelSegmentParams(
+  params: IndividualTravelSegmentParams,
+  finalResolution: string
+): Record<string, unknown> {
+  const state = buildSegmentState(params);
+  const orchestratorDetails = buildOrchestratorDetails(params, state, finalResolution);
+  const taskParams = buildTaskParamsPayload(params, state, finalResolution, orchestratorDetails);
+  taskParams.individual_segment_params = buildIndividualSegmentParamsPayload(params, state);
   return taskParams;
 }
 
@@ -549,9 +614,6 @@ function buildIndividualTravelSegmentParams(
  * a single segment and creates a variant on the parent generation when complete.
  * The task params match the exact structure of travel_segment for GPU worker compatibility.
  * 
- * If no parent_generation_id is provided but shot_id is, a placeholder parent
- * generation will be created and linked to the shot.
- * 
  * @param params - Individual travel segment parameters
  * @returns Promise resolving to the created task
  */
@@ -560,65 +622,14 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
     // 1. Validate parameters
     validateIndividualTravelSegmentParams(params);
 
-    // 2. Ensure we have a parent_generation_id (create placeholder if needed)
-    let effectiveParentGenerationId = params.parent_generation_id;
-
-    if (!effectiveParentGenerationId && params.shot_id) {
-
-      // Create a placeholder parent generation
-      const newParentId = crypto.randomUUID();
-      // Build input images array (end_image_url is optional for trailing segments)
-      const placeholderInputImages = params.end_image_url
-        ? [params.start_image_url, params.end_image_url]
-        : [params.start_image_url];
-
-      const placeholderParams = {
-        tool_type: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
-        created_from: 'individual_segment_first_generation',
-        // Include basic orchestrator_details structure so it shows in segment outputs
-        orchestrator_details: {
-          num_new_segments_to_generate: 1, // Will be updated as more segments are generated
-          input_image_paths_resolved: placeholderInputImages,
-        },
-      };
-
-      const { error: parentError } = await supabase
-        .from('generations')
-        .insert({
-          id: newParentId,
-          project_id: params.project_id,
-          type: 'video',
-          is_child: false,
-          location: null, // Placeholder - no video yet
-          params: placeholderParams,
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-      
-      if (parentError) {
-        console.error("[IndividualTravelSegment] Error creating placeholder parent:", parentError);
-        throw new Error(`Failed to create placeholder parent generation: ${parentError.message}`);
-      }
-      
-      effectiveParentGenerationId = newParentId;
-      
-      // Link the parent to the shot using the RPC
-      const { error: linkError } = await supabase.rpc('add_generation_to_shot', {
-        p_shot_id: params.shot_id,
-        p_generation_id: newParentId,
-        p_with_position: false, // Don't add to timeline position
-      });
-      
-      if (linkError) {
-        handleError(linkError, { context: 'IndividualTravelSegment:linkParentToShot', showToast: false });
-        // Don't fail - the generation was created, just not linked
-      }
-    }
-    
-    if (!effectiveParentGenerationId) {
-      throw new Error("Could not determine or create parent_generation_id");
-    }
+    // 2. Ensure we have a canonical parent generation for this shot.
+    // If one already exists, reuse it. If none exists yet, create exactly one.
+    const effectiveParentGenerationId = await ensureShotParentGenerationId({
+      projectId: params.project_id,
+      shotId: params.shot_id,
+      parentGenerationId: params.parent_generation_id,
+      context: 'IndividualTravelSegment',
+    });
 
     // 3. Look up existing child to create variant on
     // Priority: pair_shot_generation_id match > child_order match
@@ -668,8 +679,11 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
     };
 
     // 4. Resolve project resolution (use original if available)
-    const origResolution = params.originalParams?.parsed_resolution_wh ||
-                          params.originalParams?.orchestrator_details?.parsed_resolution_wh;
+    const originalParams = asRecord(params.originalParams);
+    const originalOrchestratorDetails = asRecord(originalParams.orchestrator_details);
+    const origResolutionValue =
+      originalParams.parsed_resolution_wh ?? originalOrchestratorDetails.parsed_resolution_wh;
+    const origResolution = typeof origResolutionValue === 'string' ? origResolutionValue : undefined;
     const { resolution: finalResolution } = await resolveProjectResolution(
       params.project_id,
       origResolution

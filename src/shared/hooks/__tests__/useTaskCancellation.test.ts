@@ -14,16 +14,14 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
   handleError: mockHandleError,
 }));
 
-vi.mock('@/shared/lib/queryKeys', () => ({
-  queryKeys: {
-    tasks: {
-      paginatedAll: ['tasks', 'paginated'],
-      statusCountsAll: ['tasks', 'statusCounts'],
-    },
+vi.mock('@/shared/lib/queryKeys/tasks', () => ({
+  taskQueryKeys: {
+    paginatedAll: ['tasks', 'paginated'],
+    statusCountsAll: ['task-status-counts'],
   },
 }));
 
@@ -114,7 +112,7 @@ describe('useCancelTask', () => {
       queryKey: ['tasks', 'paginated'],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ['tasks', 'statusCounts'],
+      queryKey: ['task-status-counts'],
     });
     expect(
       invalidateSpy.mock.calls.some(
@@ -331,7 +329,7 @@ describe('useCancelAllPendingTasks', () => {
       queryKey: ['tasks', 'paginated'],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ['tasks', 'statusCounts'],
+      queryKey: ['task-status-counts'],
     });
     expect(mockHandleError).not.toHaveBeenCalled();
   });

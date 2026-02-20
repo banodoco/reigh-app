@@ -1,13 +1,12 @@
-// deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
-import { checkRateLimit, rateLimitResponse, getClientIp, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { buildTaskInsertObject, getErrorMessage, parseCreateTaskBody } from "./request.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
-// Helper function to create responses with CORS headers
 function createCorsResponse(body: string, status: number = 200) {
   return new Response(body, {
     status,
@@ -18,41 +17,18 @@ function createCorsResponse(body: string, status: number = 200) {
   });
 }
 
-/**
- * Edge function: create-task
- * 
- * Creates a new task in the queue.
- * - Service-role key: can create tasks for any project_id
- * - User token: can only create tasks for their own project_id
- * 
- * POST /functions/v1/create-task
- * Headers: Authorization: Bearer <JWT or PAT>
- * Body: { task_id?, params, task_type, project_id?, dependant_on?, idempotency_key? }
- *   - task_id is optional, auto-generated if not provided
- *   - idempotency_key is optional; if provided and a task with that key already exists, returns the existing task
- * 
- * Returns:
- * - 200 OK with success message
- * - 401 Unauthorized if no valid token
- * - 403 Forbidden if token invalid or user not authorized
- * - 500 Internal Server Error
- */
 serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  
+
   if (!serviceKey || !supabaseUrl) {
     console.error("[CREATE-TASK] Missing required environment variables");
     return createCorsResponse("Server configuration error", 500);
   }
 
-  // Create admin client for database operations
   const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-  
-  // Create logger (task_id will be set after we know it)
-  const logger = new SystemLogger(supabaseAdmin, 'create-task');
+  const logger = new SystemLogger(supabaseAdmin, "create-task");
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: {
@@ -69,55 +45,36 @@ serve(async (req) => {
     return createCorsResponse("Method not allowed", 405);
   }
 
-  // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: unknown;
+  let rawBody: unknown;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
     logger.error("Invalid JSON body");
     await logger.flush();
     return createCorsResponse("Invalid JSON body", 400);
   }
 
-  const { task_id, params, task_type, project_id, dependant_on, idempotency_key } = body;
-
-  // Set task_id for logs if provided by client
-  if (task_id) {
-    logger.setDefaultTaskId(task_id);
-  }
-
-  if (!params || !task_type) {
-    logger.error("Missing required fields", { has_params: !!params, has_task_type: !!task_type });
+  const parsedBody = parseCreateTaskBody(rawBody);
+  if (!parsedBody.ok) {
+    logger.error("Invalid request body", { error: parsedBody.error });
     await logger.flush();
-    return createCorsResponse("params, task_type required", 400);
+    return createCorsResponse(parsedBody.error, 400);
   }
 
-  // Normalize dependant_on to array format (supports both single value and array input)
-  // - null/undefined -> null (no dependencies)
-  // - "uuid-string" -> ["uuid-string"]
-  // - ["uuid1", "uuid2"] -> ["uuid1", "uuid2"]
-  // - [] -> null (empty array = no dependencies)
-  let normalizedDependantOn: string[] | null = null;
-  if (dependant_on) {
-    if (Array.isArray(dependant_on)) {
-      // Filter out any null/undefined/empty values
-      const filtered = dependant_on.filter((id: unknown) => id && typeof id === 'string');
-      normalizedDependantOn = filtered.length > 0 ? filtered : null;
-    } else if (typeof dependant_on === 'string') {
-      normalizedDependantOn = [dependant_on];
-    }
+  const requestBody = parsedBody.value;
+
+  if (requestBody.task_id) {
+    logger.setDefaultTaskId(requestBody.task_id);
   }
 
   logger.info("Creating task", {
-    task_type,
-    project_id,
-    has_dependant_on: !!normalizedDependantOn,
-    dependency_count: normalizedDependantOn?.length ?? 0,
-    client_provided_id: !!task_id
+    task_type: requestBody.task_type,
+    project_id: requestBody.project_id,
+    has_dependant_on: !!requestBody.normalizedDependantOn,
+    dependency_count: requestBody.normalizedDependantOn?.length ?? 0,
+    client_provided_id: !!requestBody.task_id,
   });
 
-  // ─── 2. Authenticate using shared auth module ────────────────────
-  // Enable JWT user auth for frontend users (extracts user ID from Supabase JWT)
   const auth = await authenticateRequest(req, supabaseAdmin, "[CREATE-TASK]", { allowJwtUserAuth: true });
 
   if (!auth.success) {
@@ -137,16 +94,15 @@ serve(async (req) => {
     logger.debug("Authenticated via PAT", { user_id: callerId });
   }
 
-  // ─── 3. Rate limit check (skip for service role) ────────────────────
   if (!isServiceRole && callerId) {
     const rateLimitResult = await checkRateLimit(
       supabaseAdmin,
-      'create-task',
+      "create-task",
       callerId,
       RATE_LIMITS.taskCreation,
-      '[CREATE-TASK]'
+      "[CREATE-TASK]"
     );
-    
+
     if (!rateLimitResult.allowed) {
       logger.warn("Rate limit exceeded", { user_id: callerId, retry_after: rateLimitResult.retryAfter });
       await logger.flush();
@@ -154,95 +110,91 @@ serve(async (req) => {
     }
   }
 
-  // ─── 4. Determine final project_id and validate permissions ─────
-  let finalProjectId;
+  let finalProjectId: string;
   if (isServiceRole) {
-    if (!project_id) {
+    if (!requestBody.project_id) {
       logger.error("project_id required for service role");
       await logger.flush();
       return createCorsResponse("project_id required for service role", 400);
     }
-    finalProjectId = project_id;
+    finalProjectId = requestBody.project_id;
   } else {
     if (!callerId) {
       logger.error("Could not determine user ID");
       await logger.flush();
       return createCorsResponse("Could not determine user ID", 401);
     }
-    if (!project_id) {
+
+    if (!requestBody.project_id) {
       logger.error("project_id required", { user_id: callerId });
       await logger.flush();
       return createCorsResponse("project_id required", 400);
     }
 
-    // Verify user owns the specified project
     const { data: projectData, error: projectError } = await supabaseAdmin
       .from("projects")
       .select("user_id")
-      .eq("id", project_id)
+      .eq("id", requestBody.project_id)
       .single();
 
     if (projectError) {
-      logger.error("Project lookup error", { project_id, error: projectError.message });
+      logger.error("Project lookup error", { project_id: requestBody.project_id, error: projectError.message });
       await logger.flush();
       return createCorsResponse("Project not found", 404);
     }
 
-    if (projectData.user_id !== callerId) {
-      logger.error("User doesn't own project", { 
-        user_id: callerId, 
-        project_id, 
-        owner_id: projectData.user_id 
+    const ownerId = projectData?.user_id;
+    if (typeof ownerId !== "string") {
+      logger.error("Project missing owner", { project_id: requestBody.project_id });
+      await logger.flush();
+      return createCorsResponse("Project not found", 404);
+    }
+
+    if (ownerId !== callerId) {
+      logger.error("User doesn't own project", {
+        user_id: callerId,
+        project_id: requestBody.project_id,
+        owner_id: ownerId,
       });
       await logger.flush();
       return createCorsResponse("Forbidden: You don't own this project", 403);
     }
 
-    finalProjectId = project_id;
+    finalProjectId = requestBody.project_id;
   }
 
-  // ─── 5. Insert row using admin client ───────────────────────────
   try {
-    const insertObject: unknown = {
-      params,
-      task_type,
-      project_id: finalProjectId,
-      dependant_on: normalizedDependantOn,  // Now an array or null
-      status: "Queued",
-      created_at: new Date().toISOString()
-    };
-
-    if (task_id) {
-      insertObject.id = task_id;
-    }
-
-    // Include idempotency_key if provided by the client
-    if (idempotency_key && typeof idempotency_key === 'string') {
-      insertObject.idempotency_key = idempotency_key;
-    }
+    const insertObject = buildTaskInsertObject({
+      request: requestBody,
+      finalProjectId,
+    });
 
     const { data: insertedTask, error } = await supabaseAdmin
       .from("tasks")
       .insert(insertObject)
-      .select()
+      .select("id")
       .single();
 
     if (error) {
-      // Handle idempotency: unique violation on idempotency_key means this is a duplicate request
-      // PostgreSQL error code 23505 = unique_violation
-      if (error.code === '23505' && idempotency_key && error.message?.includes('idempotency_key')) {
-        logger.info("Idempotent duplicate detected, returning existing task", { idempotency_key });
+      if (
+        error.code === "23505" &&
+        requestBody.idempotency_key &&
+        error.message?.includes("idempotency_key")
+      ) {
+        logger.info("Idempotent duplicate detected, returning existing task", {
+          idempotency_key: requestBody.idempotency_key,
+        });
 
         const { data: existingTask, error: fetchError } = await supabaseAdmin
           .from("tasks")
           .select("id, status")
-          .eq("idempotency_key", idempotency_key)
+          .eq("idempotency_key", requestBody.idempotency_key)
           .single();
 
-        if (fetchError || !existingTask) {
+        if (fetchError || typeof existingTask?.id !== "string") {
           logger.error("Failed to fetch existing task for idempotency key", {
-            idempotency_key,
-            error: fetchError?.message
+            idempotency_key: requestBody.idempotency_key,
+            error: fetchError?.message,
           });
           await logger.flush();
           return createCorsResponse("Duplicate task detected but could not retrieve it", 500);
@@ -250,11 +202,14 @@ serve(async (req) => {
 
         logger.setDefaultTaskId(existingTask.id);
         await logger.flush();
-        return createCorsResponse(JSON.stringify({
-          task_id: existingTask.id,
-          status: "Task queued",
-          deduplicated: true
-        }), 200);
+        return createCorsResponse(
+          JSON.stringify({
+            task_id: existingTask.id,
+            status: "Task queued",
+            deduplicated: true,
+          }),
+          200
+        );
       }
 
       logger.error("Task creation failed", { error: error.message, code: error.code });
@@ -262,27 +217,35 @@ serve(async (req) => {
       return createCorsResponse(error.message, 500);
     }
 
-    // Set task_id for final log entry
+    if (!insertedTask || typeof insertedTask.id !== "string") {
+      logger.error("Task creation returned invalid payload", { insertedTask });
+      await logger.flush();
+      return createCorsResponse("Task creation failed", 500);
+    }
+
     logger.setDefaultTaskId(insertedTask.id);
     logger.info("Task created successfully", {
       task_id: insertedTask.id,
-      task_type,
+      task_type: requestBody.task_type,
       project_id: finalProjectId,
-      created_by: isServiceRole ? 'service-role' : callerId,
-      has_dependency: !!normalizedDependantOn,
-      dependency_count: normalizedDependantOn?.length ?? 0,
-      has_idempotency_key: !!idempotency_key
+      created_by: isServiceRole ? "service-role" : callerId,
+      has_dependency: !!requestBody.normalizedDependantOn,
+      dependency_count: requestBody.normalizedDependantOn?.length ?? 0,
+      has_idempotency_key: !!requestBody.idempotency_key,
     });
 
     await logger.flush();
-    return createCorsResponse(JSON.stringify({
-      task_id: insertedTask.id,
-      status: "Task queued"
-    }), 200);
-
+    return createCorsResponse(
+      JSON.stringify({
+        task_id: insertedTask.id,
+        status: "Task queued",
+      }),
+      200
+    );
   } catch (error: unknown) {
-    logger.critical("Unexpected error", { error: error?.message });
+    const message = getErrorMessage(error);
+    logger.critical("Unexpected error", { error: message });
     await logger.flush();
-    return createCorsResponse(`Internal server error: ${error?.message}`, 500);
+    return createCorsResponse(`Internal server error: ${message}`, 500);
   }
 });

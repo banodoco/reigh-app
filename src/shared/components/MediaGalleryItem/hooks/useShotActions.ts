@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useToast } from "@/shared/hooks/use-toast";
+import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 /**
  * Check if an error is retryable (network-related but not auth/server errors)
@@ -26,13 +27,13 @@ function isRetryableNetworkError(err: unknown): boolean {
 }
 
 interface UseAddToShotWithRetryOptions {
-  imageId: string;
+  generationId: string;
   imageUrl: string;
   thumbUrl: string;
   displayUrl: string;
   selectedShotId: string;
   isMobile: boolean;
-  onAddToShot: (id: string, url?: string, thumb?: string) => Promise<boolean>;
+  onAddToShot: AddToShotHandler;
   onSuccess: () => void;
   onStartLoading: () => void;
   onEndLoading: () => void;
@@ -48,10 +49,11 @@ async function executeWithRetry(
   toast: ReturnType<typeof useToast>['toast']
 ): Promise<void> {
   const {
-    imageId,
+    generationId,
     imageUrl,
     thumbUrl,
     displayUrl,
+    selectedShotId,
     isMobile,
     onAddToShot,
     onSuccess,
@@ -72,7 +74,7 @@ async function executeWithRetry(
         const imageUrlToUse = imageUrl || displayUrl;
         const thumbUrlToUse = thumbUrl || imageUrlToUse;
 
-        success = await onAddToShot(imageId, imageUrlToUse, thumbUrlToUse);
+        success = await onAddToShot(selectedShotId, generationId, imageUrlToUse, thumbUrlToUse);
 
         if (success) {
           onSuccess();
@@ -85,7 +87,6 @@ async function executeWithRetry(
             toast({
               title: "Retrying...",
               description: "Network issue detected, trying again.",
-              duration: 1500
             });
           }
 
@@ -109,13 +110,14 @@ async function executeWithRetry(
 
 interface UseShotActionsProps {
   imageId: string;
+  generationId: string;
   imageUrl: string;
   thumbUrl: string;
   displayUrl: string;
   selectedShotId: string;
   isMobile: boolean;
-  onAddToLastShot: (id: string, url?: string, thumb?: string) => Promise<boolean>;
-  onAddToLastShotWithoutPosition?: (id: string, url?: string, thumb?: string) => Promise<boolean>;
+  onAddToLastShot?: AddToShotHandler;
+  onAddToLastShotWithoutPosition?: AddToShotHandler;
   onShowTick: (id: string) => void;
   onShowSecondaryTick?: (id: string) => void;
   onOptimisticPositioned?: (id: string, shotId: string) => void;
@@ -131,6 +133,7 @@ export function useShotActions(props: UseShotActionsProps) {
   const { toast } = useToast();
   const {
     imageId,
+    generationId,
     imageUrl,
     thumbUrl,
     displayUrl,
@@ -147,6 +150,10 @@ export function useShotActions(props: UseShotActionsProps) {
   } = props;
 
   const addToShot = useCallback(async () => {
+    if (!onAddToLastShot) {
+      return;
+    }
+
     if (!selectedShotId) {
       toast({
         title: "Select a Shot",
@@ -157,7 +164,7 @@ export function useShotActions(props: UseShotActionsProps) {
     }
 
     await executeWithRetry({
-      imageId,
+      generationId,
       imageUrl,
       thumbUrl,
       displayUrl,
@@ -173,7 +180,7 @@ export function useShotActions(props: UseShotActionsProps) {
       errorMessage: "Could not add image to shot.",
     }, toast);
   }, [
-    imageId, imageUrl, thumbUrl, displayUrl, selectedShotId, isMobile,
+    imageId, generationId, imageUrl, thumbUrl, displayUrl, selectedShotId, isMobile,
     onAddToLastShot, onShowTick, onOptimisticPositioned,
     setAddingToShotImageId, toast
   ]);
@@ -184,7 +191,7 @@ export function useShotActions(props: UseShotActionsProps) {
     }
 
     await executeWithRetry({
-      imageId,
+      generationId,
       imageUrl,
       thumbUrl,
       displayUrl,
@@ -200,7 +207,7 @@ export function useShotActions(props: UseShotActionsProps) {
       errorMessage: "Could not add image to shot without position.",
     }, toast);
   }, [
-    imageId, imageUrl, thumbUrl, displayUrl, selectedShotId, isMobile,
+    imageId, generationId, imageUrl, thumbUrl, displayUrl, selectedShotId, isMobile,
     onAddToLastShotWithoutPosition, onShowSecondaryTick, onOptimisticUnpositioned,
     setAddingToShotWithoutPositionImageId, toast
   ]);

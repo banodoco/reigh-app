@@ -7,11 +7,12 @@
  * - Realtime connection health status
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { toast } from '@/shared/components/ui/sonner';
 
 type RealtimeStatus = 'connected' | 'disconnected' | 'error';
 type PollingInterval = number | false; // false = no polling
+type QueryKeyLike = readonly unknown[];
 
 interface DataFreshnessState {
   realtimeStatus: RealtimeStatus;
@@ -39,6 +40,14 @@ class DataFreshnessManager {
   private lastErrorToastTime = 0;
   private readonly ERROR_TOAST_THROTTLE_MS = 30_000; // Only show error toast every 30 seconds
 
+  private parseQueryKey(rawKey: string): unknown {
+    try {
+      return JSON.parse(rawKey);
+    } catch {
+      return rawKey;
+    }
+  }
+
   /**
    * Report realtime connection status change
    */
@@ -63,7 +72,7 @@ class DataFreshnessManager {
   /**
    * Report that realtime events were received for specific queries
    */
-  onRealtimeEvent(_eventType: string, affectedQueries: string[][]) {
+  onRealtimeEvent(_eventType: string, affectedQueries: readonly QueryKeyLike[]) {
     const now = Date.now();
 
     affectedQueries.forEach(queryKey => {
@@ -79,7 +88,7 @@ class DataFreshnessManager {
    * Get the appropriate polling interval for a query
    * Returns false to disable polling when realtime is working well
    */
-  getPollingInterval(queryKey: string[]): PollingInterval {
+  getPollingInterval(queryKey: QueryKeyLike): PollingInterval {
     const key = JSON.stringify(queryKey);
     const lastEvent = this.state.lastEventTimes.get(key);
     const now = Date.now();
@@ -152,7 +161,7 @@ class DataFreshnessManager {
   /**
    * Report a fetch failure for circuit breaker tracking
    */
-  onFetchFailure(queryKey: string[], error: Error) {
+  onFetchFailure(queryKey: QueryKeyLike, error: Error) {
     const key = JSON.stringify(queryKey);
     const now = Date.now();
     const existing = this.state.fetchFailures.get(key);
@@ -210,7 +219,7 @@ class DataFreshnessManager {
   /**
    * Report a successful fetch (resets circuit breaker)
    */
-  onFetchSuccess(queryKey: string[]) {
+  onFetchSuccess(queryKey: QueryKeyLike) {
     const key = JSON.stringify(queryKey);
     const existing = this.state.fetchFailures.get(key);
 
@@ -263,7 +272,7 @@ class DataFreshnessManager {
   /**
    * Check if data for a query is considered fresh
    */
-  isDataFresh(queryKey: string[], freshnessThreshold: number = 30000): boolean {
+  isDataFresh(queryKey: QueryKeyLike, freshnessThreshold: number = 30000): boolean {
     const key = JSON.stringify(queryKey);
     const lastEvent = this.state.lastEventTimes.get(key);
     
@@ -285,10 +294,8 @@ class DataFreshnessManager {
       timeSinceStatusChange: now - this.state.lastStatusChange,
       trackedQueries: this.state.lastEventTimes.size,
       queryAges: Array.from(this.state.lastEventTimes.entries()).map(([key, time]) => {
-        let query: unknown;
-        try { query = JSON.parse(key); } catch { query = key; }
         return {
-          query,
+          query: this.parseQueryKey(key),
           ageMs: now - time,
           ageSec: Math.round((now - time) / 1000)
         };
@@ -321,7 +328,7 @@ class DataFreshnessManager {
   /**
    * Manually mark queries as fresh (useful for mutations)
    */
-  markQueriesFresh(queryKeys: string[][]) {
+  markQueriesFresh(queryKeys: readonly QueryKeyLike[]) {
     const now = Date.now();
     queryKeys.forEach(queryKey => {
       const key = JSON.stringify(queryKey);

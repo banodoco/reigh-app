@@ -25,7 +25,7 @@ export interface UseRepositionModeProps {
   shotId?: string;
   toolTypeOverride?: string;
   imageDimensions: { width: number; height: number } | null;
-  imageContainerRef: React.RefObject<HTMLDivElement>;
+  imageContainerRef: React.RefObject<HTMLDivElement | null>;
   loras?: Array<{ url: string; strength: number }>;
   inpaintPrompt: string;
   inpaintNumGenerations: number;

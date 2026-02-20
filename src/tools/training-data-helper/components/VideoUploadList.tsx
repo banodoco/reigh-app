@@ -8,7 +8,7 @@ import { useTrainingData } from '../hooks/useTrainingData';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/shared/components/ui/alert-dialog';
 import { cropFilename } from '@/shared/lib/utils';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 // Helper to abbreviate distance strings (e.g., "5 minutes ago" -> "5 mins ago")
 const abbreviateDistance = (str: string) => {
@@ -94,6 +94,11 @@ export function VideoUploadList({ videos, selectedVideo, onVideoSelect, segments
     return parseFloat((bytes / Math.pow(BYTES_PER_KB, unitIndex)).toFixed(2)) + ' ' + sizes[unitIndex];
   };
 
+  const getMetadataSize = (video: TrainingDataVideo): number | null => {
+    const size = video.metadata?.size;
+    return typeof size === 'number' ? size : null;
+  };
+
   if (videos.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -161,11 +166,11 @@ export function VideoUploadList({ videos, selectedVideo, onVideoSelect, segments
                   <Clock className="h-3 w-3" />
                   <span>{formatDuration(video.duration)}</span>
                   
-                  {video.metadata?.size && (
+                  {getMetadataSize(video) !== null && (
                     <>
                       <span>•</span>
                       <FileText className="h-3 w-3" />
-                      <span>{formatFileSize(video.metadata.size)}</span>
+                      <span>{formatFileSize(getMetadataSize(video) ?? 0)}</span>
                     </>
                   )}
                 </div>

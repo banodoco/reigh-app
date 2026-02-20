@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL } from "@/integrations/supabase/config/env";
 import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from "./storagePaths";
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 // Default timeouts for video (longer than images)
 const DEFAULT_VIDEO_TIMEOUT_MS = 300000; // 5 minutes for videos
@@ -26,7 +26,7 @@ export interface VideoMetadata {
 /**
  * Extracts video metadata using HTML5 Video API
  */
-export const extractVideoMetadata = async (file: File): Promise<VideoMetadata> => {
+export const extractVideoMetadata = (file: File): Promise<VideoMetadata> => {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -64,7 +64,7 @@ export const extractVideoMetadata = async (file: File): Promise<VideoMetadata> =
 /**
  * Extracts video metadata from a URL (for videos already uploaded)
  */
-export const extractVideoMetadataFromUrl = async (videoUrl: string): Promise<VideoMetadata> => {
+export const extractVideoMetadataFromUrl = (videoUrl: string): Promise<VideoMetadata> => {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -276,4 +276,3 @@ export const uploadVideoToStorage = async (
     throw lastError || new Error('Failed to upload video after multiple attempts');
   }
 };
-

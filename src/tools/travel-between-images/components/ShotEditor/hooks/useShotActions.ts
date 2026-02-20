@@ -11,10 +11,11 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { GenerationRow, Shot } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToShotHelpers';
 
 interface AddToShotParams {
   shot_id: string;
@@ -28,10 +29,10 @@ interface AddToShotParams {
 interface UseShotActionsOptions {
   // Refs for stable access
   projectIdRef: React.MutableRefObject<string>;
-  selectedShotRef: React.MutableRefObject<Shot | null>;
+  selectedShotRef: React.MutableRefObject<Shot | undefined>;
   allShotImagesRef: React.MutableRefObject<GenerationRow[]>;
-  addToShotMutationRef: React.MutableRefObject<(params: AddToShotParams) => Promise<void>>;
-  addToShotWithoutPositionMutationRef: React.MutableRefObject<(params: { shot_id: string; generation_id: string; project_id: string }) => Promise<void>>;
+  addToShotMutationRef: React.MutableRefObject<(params: AddImageToShotVariables) => Promise<unknown>>;
+  addToShotWithoutPositionMutationRef: React.MutableRefObject<(params: { shot_id: string; generation_id: string; project_id: string }) => Promise<unknown>>;
   createShotRef: React.MutableRefObject<(params: { name: string }) => Promise<{ shotId: string } | null>>;
   setIsGenerationsPaneLockedRef: React.MutableRefObject<(locked: boolean) => void>;
 
@@ -41,7 +42,7 @@ interface UseShotActionsOptions {
   setCurrentShotId: (id: string) => void;
   updateGenerationsPaneSettings: (settings: Record<string, unknown>) => void;
   isMobile: boolean;
-  selectedShot: Shot | null;
+  selectedShot: Shot | undefined;
 }
 
 export function useShotActions({
@@ -77,15 +78,15 @@ export function useShotActions({
     } else {
       setIsGenerationsPaneLockedRef.current(true);
     }
-  }, [isMobile, updateGenerationsPaneSettings]);
+  }, [isMobile, updateGenerationsPaneSettings, selectedShotRef, setIsGenerationsPaneLockedRef]);
 
   const handleShotChange = useCallback((shotId: string) => {
     const shot = shots?.find(s => s.id === shotId);
     if (shot) {
       navigateToShot(shot, { scrollToTop: true, isNewlyCreated: true });
     } else {
-      queryClient.refetchQueries({ queryKey: queryKeys.shots.all }).then(() => {
-        const refreshedShots = queryClient.getQueryData<typeof shots>(queryKeys.shots.all);
+      queryClient.refetchQueries({ queryKey: shotQueryKeys.all }).then(() => {
+        const refreshedShots = queryClient.getQueryData<typeof shots>(shotQueryKeys.all);
         const refreshedShot = refreshedShots?.find((s) => s.id === shotId);
         if (refreshedShot) {
           navigateToShot(refreshedShot, { scrollToTop: true, isNewlyCreated: true });
@@ -105,7 +106,7 @@ export function useShotActions({
       timelineFrame: shouldAutoPosition ? undefined : position,
       project_id: projectIdRef.current
     });
-  }, []);
+  }, [addToShotMutationRef, projectIdRef]);
 
   const handleAddToShotWithoutPosition = useCallback(async (shotId: string, generationId: string) => {
 
@@ -120,7 +121,7 @@ export function useShotActions({
       handleError(error, { context: 'AddWithoutPosDebug', showToast: false });
       throw error;
     }
-  }, []);
+  }, [addToShotWithoutPositionMutationRef, projectIdRef]);
 
   const handleCreateShot = useCallback(async (name: string) => {
     const result = await createShotRef.current({ name });
@@ -128,7 +129,7 @@ export function useShotActions({
       throw new Error('Failed to create shot');
     }
     return result.shotId;
-  }, []);
+  }, [createShotRef]);
 
   const handleNewShotFromSelection = useCallback(async (selectedIds: string[]): Promise<string | void> => {
 
@@ -154,23 +155,28 @@ export function useShotActions({
       );
 
       const FRAME_GAP = 50;
-      await Promise.all(sortedImages.map((img, i) => {
-        const generationId = getGenerationId(img);
-        const newFrame = i * FRAME_GAP;
-        return addToShotMutationRef.current({
-          shot_id: result.shotId,
-          generation_id: generationId,
-          timelineFrame: newFrame,
-          project_id: projectIdRef.current
-        });
-      }));
+      await Promise.all(
+        sortedImages
+          .map((img, i) => {
+            const generationId = getGenerationId(img);
+            if (!generationId) return null;
+            const newFrame = i * FRAME_GAP;
+            return addToShotMutationRef.current({
+              shot_id: result.shotId,
+              generation_id: generationId,
+              timelineFrame: newFrame,
+              project_id: projectIdRef.current
+            });
+          })
+          .filter((promise): promise is Promise<unknown> => promise !== null)
+      );
 
-      await queryClient.refetchQueries({ queryKey: queryKeys.shots.all });
+      await queryClient.refetchQueries({ queryKey: shotQueryKeys.all });
       return result.shotId;
     } catch (error) {
       handleError(error, { context: 'ShotEditor', toastTitle: 'Failed to create shot' });
     }
-  }, [selectedShot?.name, queryClient]);
+  }, [selectedShot?.name, queryClient, addToShotMutationRef, allShotImagesRef, createShotRef, projectIdRef]);
 
   return {
     openUnpositionedGenerationsPane,

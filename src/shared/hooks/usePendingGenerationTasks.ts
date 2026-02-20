@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { TASK_STATUS } from '@/types/tasks';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 interface PendingGenerationTask {
   id: string;
@@ -79,7 +79,7 @@ export function usePendingGenerationTasks(
 ): UsePendingGenerationTasksReturn {
   // Query pending tasks for this project
   const { data: pendingTasks, isLoading } = useQuery({
-    queryKey: [...queryKeys.tasks.pendingGeneration(generationId!), projectId],
+    queryKey: [...taskQueryKeys.pendingGeneration(generationId!), projectId],
     queryFn: async () => {
       if (!generationId || !projectId) return [];
 

@@ -97,35 +97,31 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
     if (pairShotGenerationId && segmentSlotMode.onFrameCountChange) {
       segmentSlotMode.onFrameCountChange(pairShotGenerationId, frameCount);
     }
-  }, [pairShotGenerationId, segmentSlotMode.onFrameCountChange]);
+  }, [pairShotGenerationId, segmentSlotMode]);
 
-  // Handle keyboard navigation
+  // Tab key navigation between segments (capture phase on document).
+  // Arrow keys + Escape are handled by useLightboxNavigation (also capture phase).
+  // Capture phase ensures the handler fires before any Base-UI internals that
+  // might call stopPropagation during bubble phase.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in a textarea
-      if (document.activeElement?.tagName === 'TEXTAREA') return;
+      if (e.key !== 'Tab') return;
 
-      if (e.key === 'Tab' && !e.shiftKey && hasNext) {
+      if (!e.shiftKey && hasNext) {
         e.preventDefault();
         onNavNext();
-      } else if (e.key === 'Tab' && e.shiftKey && hasPrevious) {
-        e.preventDefault();
-        onNavPrev();
-      } else if (e.key === 'ArrowRight' && hasNext) {
-        e.preventDefault();
-        onNavNext();
-      } else if (e.key === 'ArrowLeft' && hasPrevious) {
+      } else if (e.shiftKey && hasPrevious) {
         e.preventDefault();
         onNavPrev();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true); // capture phase
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [hasNext, hasPrevious, onNavNext, onNavPrev]);
 
   // Handle form submission
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async (): Promise<void> => {
     const isTrailingSegment = segmentSlotMode.pairData.endImage === null;
 
     if (!segmentSlotMode.projectId) {

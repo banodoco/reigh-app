@@ -8,9 +8,9 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { getErrorMessage } from '@/shared/lib/errorUtils';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
@@ -18,12 +18,8 @@ import { GenerationRow } from '@/types/shots';
 import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-
-interface JoinSegmentSlot {
-  type: 'child' | 'pending' | 'empty';
-  child?: GenerationRow;
-  index: number;
-}
+import type { SegmentSlot } from '@/shared/hooks/segments/useSegmentOutputsForShot';
+import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
 interface JoinLoraManager {
   selectedLoras: Array<{
@@ -47,7 +43,7 @@ interface JoinSettings {
   guidanceScale: number;
   seed: number;
   motionMode: 'basic' | 'advanced';
-  phaseConfig?: Record<string, unknown>;
+  phaseConfig?: PhaseConfig;
   selectedPhasePresetId?: string | null;
   randomSeed: boolean;
   updateField: (field: string, value: unknown) => void;
@@ -60,7 +56,7 @@ interface UseJoinSegmentsHandlerProps {
   selectedShotId?: string;
   effectiveAspectRatio?: string;
   audioUrl?: string | null;
-  joinSegmentSlots: JoinSegmentSlot[];
+  joinSegmentSlots: SegmentSlot[];
   joinSelectedParent?: GenerationRow | null;
   joinLoraManager: JoinLoraManager;
   joinSettings: JoinSettings;
@@ -103,7 +99,8 @@ export function useJoinSegmentsHandler({
   const joinValidationData = useMemo(() => {
     // Count segments that are in valid slots AND have a location (completed videos)
     const readySlots = joinSegmentSlots.filter(
-      slot => slot.type === 'child' && Boolean(slot.child?.location)
+      (slot): slot is Extract<SegmentSlot, { type: 'child' }> =>
+        slot.type === 'child' && Boolean(slot.child?.location)
     );
 
     if (readySlots.length < 2) {
@@ -227,12 +224,12 @@ export function useJoinSegmentsHandler({
 
       setJoinClipsSuccess(true);
       setTimeout(() => setJoinClipsSuccess(false), 1500);
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: taskQueryKeys.all });
     } catch (error: unknown) {
       handleError(error, { context: 'JoinSegments', toastTitle: getErrorMessage(error) || 'Failed to create join task' });
     } finally {
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });
       removeIncomingTask(incomingTaskId);
       setIsJoiningClips(false);
     }

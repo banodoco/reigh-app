@@ -137,7 +137,7 @@ export const ReferenceGrid: React.FC<ReferenceGridProps> = ({
                 onSelect={() => onSelectReference(ref.id)}
                 onDelete={() => onDeleteReference(ref.id)}
                 onToggleVisibility={
-                  onToggleVisibility && ref.resourceId
+                  ref.resourceId
                     ? () => onToggleVisibility(ref.resourceId, ref.isPublic)
                     : undefined
                 }

@@ -20,7 +20,7 @@ import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { Search, ChevronLeft, ChevronRight, Image as ImageIcon, Video, Loader2, X, Globe, Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { processImageUrl } from '@/shared/lib/urlToFile';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useListResources, useListPublicResources, useUpdateResource, Resource, ResourceMetadata, StyleReferenceMetadata, StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { supabase } from '@/integrations/supabase/client';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
@@ -353,7 +353,10 @@ function useResourceBrowsing({
       return;
     }
     try {
-      const updatedMetadata = { ...resource.metadata, is_public: !currentIsPublic };
+      const metadataObject = (typeof resource.metadata === 'object' && resource.metadata !== null && !Array.isArray(resource.metadata))
+        ? (resource.metadata as Record<string, unknown>)
+        : {};
+      const updatedMetadata = { ...metadataObject, is_public: !currentIsPublic };
       await updateResource.mutateAsync({
         id: resourceId,
         type: resourceType,
@@ -538,7 +541,10 @@ export const DatasetBrowserModal: React.FC<DatasetBrowserModalProps> = ({
           {!browsing.loading && browsing.paginatedResources.length > 0 && (
             <div className="grid grid-cols-4 gap-3">
               {browsing.paginatedResources.map((resource) => {
-                const resourceOwnerId = resource.userId || (resource as Record<string, unknown>).user_id as string | undefined;
+                const legacyOwnerId = 'user_id' in resource && typeof resource.user_id === 'string'
+                  ? resource.user_id
+                  : undefined;
+                const resourceOwnerId = resource.userId || legacyOwnerId;
                 const isOwner = browsing.userId && resourceOwnerId === browsing.userId;
 
                 if (browsing.isVideoMode) {

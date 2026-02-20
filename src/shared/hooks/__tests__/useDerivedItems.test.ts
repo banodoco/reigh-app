@@ -89,7 +89,7 @@ vi.mock('@/shared/lib/queryKeys', () => ({
 }));
 
 vi.mock('@/shared/lib/generationTransformers', () => ({
-  calculateDerivedCounts: vi.fn().mockResolvedValue({ derivedCounts: {} }),
+  calculateDerivedCountsSafe: vi.fn().mockResolvedValue({ derivedCounts: {} }),
 }));
 
 vi.mock('../useSmartPolling', () => ({

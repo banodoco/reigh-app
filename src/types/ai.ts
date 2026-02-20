@@ -32,4 +32,4 @@ export interface EditPromptResult {
 }
 
 // Result type for generating prompts
-type GeneratePromptsResult = AIPromptItem[]; 
+type GeneratePromptsResult = AIPromptItem[];

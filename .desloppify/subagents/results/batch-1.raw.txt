@@ -1,0 +1,70 @@
+{
+  "batch": "Architecture & Coupling",
+  "assessments": {
+    "cross_module_architecture": 58,
+    "high_level_elegance": 55
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_browser_channels_as_integration_layer",
+      "summary": "Multiple shared modules coordinate through implicit window/document channels",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/app/hooks/useSettingsModal.ts",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` runs `installWindowOnlyInstrumentation()` at module scope, writes `window.__supabase_client__`/`window.supabase`, and eagerly exports a created client.",
+        "`src/app/hooks/useSettingsModal.ts` depends on a global `'openSettings'` custom window event and direct `window.history.replaceState` mutation.",
+        "`src/shared/components/MediaLightbox/components/LightboxShell.tsx` queries global DOM state (`[data-dialog-backdrop]`, computed z-index) to decide close behavior.",
+        "`src/shared/components/MediaGallery/hooks/useMobileInteractions.ts` attaches global scroll/mousedown listeners for local gallery state transitions."
+      ],
+      "suggestion": "Centralize browser-side effects behind typed runtime adapters (for app events, overlay stack, and Supabase lifecycle). Move eager Supabase setup into a provider/bootstrap boundary and expose a lazy getter/hook; route feature communication through typed events/hooks instead of raw window/document channels.",
+      "reasoning": "When cross-feature behavior depends on implicit globals, change impact becomes hard to predict and initialization/order assumptions leak across modules.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "fragmented_modal_architecture",
+      "summary": "Modal behavior is split across incompatible shells with no single contract",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/components/LineageGifModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx"
+      ],
+      "evidence": [
+        "`InstallInstructionsModal` and `DescriptionModal` use `Dialog` wrappers, `ConfirmDialog` uses `AlertDialog`, `LineageGifModal` uses `ModalContainer`, and `LightboxShell` uses raw `DialogPrimitive` with custom dismissal/scroll-lock logic.",
+        "Close semantics differ by component (open-state callbacks, async confirm handling, pointer-capture close rules), so modal behavior is owned per feature rather than by a shared system.",
+        "Overlay policy (z-index, pointer dismissal, focus handling) is re-solved in feature modules instead of inherited from one modal abstraction."
+      ],
+      "suggestion": "Define one modal platform layer (for stack ordering, close semantics, scroll lock, and accessibility defaults) with explicit variants (`confirm`, `content`, `lightbox`). Migrate existing components to those variants and keep feature files focused on content, not modal mechanics.",
+      "reasoning": "A fragmented modal system increases coupling and makes global UX fixes expensive because every variant requires bespoke edits.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "mobile_interaction_policy_is_scattered",
+      "summary": "Touch/mobile gesture policy is duplicated across shared and feature components",
+      "related_files": [
+        "src/shared/hooks/use-mobile.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`use-mobile.tsx` contains broad device capability/orientation heuristics and responsive state management.",
+        "`tooltip.tsx` adds touch-specific open/close and outside-press handling (`TouchableTooltip`).",
+        "`CreativePartnerPane.tsx` implements separate mobile tooltip toggling/disable logic around the same tooltip primitives.",
+        "`useMobileInteractions.ts` reimplements tap/double-tap/outside-close behavior for gallery interactions, while `ShotActions.tsx` adds local pointer suppression to avoid parent interaction conflicts."
+      ],
+      "suggestion": "Introduce shared interaction primitives (for tap intent, outside press, and device capabilities) and make feature components compose those primitives rather than re-encoding gesture rules locally.",
+      "reasoning": "Scattered interaction policy causes behavior drift and creates hidden coupling between components that should only share explicit interaction contracts.",
+      "confidence": "medium"
+    }
+  ]
+}

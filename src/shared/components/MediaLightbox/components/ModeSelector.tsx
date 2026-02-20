@@ -5,7 +5,7 @@
  * when there isn't enough space to display text labels without truncation.
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 
@@ -34,7 +34,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
   // Calculate minimum width needed for text mode
   // Each button needs: icon (14px) + gap (6px) + text width + padding (24px horizontal)
   // Plus gaps between buttons
-  const checkIfTextFits = () => {
+  const checkIfTextFits = useCallback(() => {
     const container = containerRef.current;
     const measureDiv = measureRef.current;
     if (!container || !measureDiv) return;
@@ -59,7 +59,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
     // If we need more width than available, show icons only
     const needsIconsOnly = totalRequiredWidth > availableWidth;
     setShowIconsOnly(needsIconsOnly);
-  };
+  }, [items]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -78,7 +78,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [items.length]);
+  }, [checkIfTextFits]);
 
   return (
     <>

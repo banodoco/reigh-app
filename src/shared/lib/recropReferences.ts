@@ -1,9 +1,9 @@
 import { processStyleReferenceForAspectRatioString } from './styleReferenceProcessor';
 import { uploadImageToStorage } from './imageUploader';
-import { dataURLtoFile } from './utils';
+import { dataURLtoFile } from './fileConversion';
 import { generateClientThumbnail, uploadImageWithThumbnail } from './clientThumbnailGenerator';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 // Import the ReferenceImage type from the image generation form
 export interface ReferenceImage {
@@ -38,9 +38,6 @@ export async function recropAllReferences(
 ): Promise<ReferenceImage[]> {
   
   const reprocessed: ReferenceImage[] = [];
-  let successCount = 0;
-  let skipCount = 0;
-  let errorCount = 0;
   
   for (let i = 0; i < references.length; i++) {
     const ref = references[i];
@@ -48,7 +45,6 @@ export async function recropAllReferences(
     // Skip if no original image
     if (!ref.styleReferenceImageOriginal) {
       reprocessed.push(ref);
-      skipCount++;
       onProgress?.(i + 1, references.length);
       continue;
     }
@@ -108,7 +104,7 @@ export async function recropAllReferences(
         newProcessedUrl = uploadResult.imageUrl;
         newThumbnailUrl = uploadResult.thumbnailUrl;
         
-      } catch (thumbnailError) {
+      } catch {
         // Fallback to original upload flow without thumbnail
         newProcessedUrl = await uploadImageToStorage(processedFile);
         newThumbnailUrl = newProcessedUrl; // Use main image as fallback
@@ -122,14 +118,12 @@ export async function recropAllReferences(
         updatedAt: new Date().toISOString()
       };
       reprocessed.push(updatedRef);
-      successCount++;
       
       // Report progress
       onProgress?.(i + 1, references.length);
       
     } catch (error) {
       handleError(error, { context: 'RecropReferences', showToast: false });
-      errorCount++;
       // Keep the old reference unchanged on error
       reprocessed.push(ref);
       // Still report progress
@@ -139,4 +133,3 @@ export async function recropAllReferences(
   
   return reprocessed;
 }
-

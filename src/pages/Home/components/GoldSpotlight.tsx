@@ -48,7 +48,7 @@ export const GoldSpotlight: React.FC = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [goldTrail.length > 0]);  
+  }, [goldTrail.length]);  
 
   return (
     <div

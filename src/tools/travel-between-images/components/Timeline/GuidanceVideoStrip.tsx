@@ -157,6 +157,7 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     frameRate: effectiveMetadata?.frame_rate || 30,
     enabled: !isDragging && !!effectiveMetadata,
   });
+  const { updateHoverPosition, reset: resetHoverPreview } = hoverPreview;
 
   // Extract frames for thumbnail strip
   const {
@@ -246,10 +247,10 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
         );
 
         setCurrentVideoFrame(videoFrame);
-        hoverPreview.updateHoverPosition(touch.clientX, touch.clientY - 140, videoFrame);
+        updateHoverPosition(touch.clientX, touch.clientY - 140, videoFrame);
         tapPreview.show();
       }
-    }, [treatment, effectiveMetadata, displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd, hoverPreview, tapPreview]),
+    }, [treatment, effectiveMetadata, displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd, updateHoverPosition, tapPreview]),
   });
 
   // Desktop: click outside to deactivate strip
@@ -284,8 +285,8 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
     mouseMoveCountRef.current++;
 
     setCurrentVideoFrame(videoFrame);
-    hoverPreview.updateHoverPosition(e.clientX, e.clientY - 140, videoFrame);
-  }, [treatment, effectiveMetadata, displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd, hoverPreview.updateHoverPosition, isDragging]);
+    updateHoverPosition(e.clientX, e.clientY - 140, videoFrame);
+  }, [treatment, effectiveMetadata, displayOutputFrameCount, effectiveSourceStart, effectiveSourceEnd, updateHoverPosition, isDragging]);
 
   // Desktop: click on strip to toggle handles visibility
   const handleStripClick = useCallback((e: React.MouseEvent) => {
@@ -296,9 +297,9 @@ export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
 
   // Close hover state when treatment changes
   useEffect(() => {
-    hoverPreview.reset();
+    resetHoverPreview();
      
-  }, [treatment]);
+  }, [treatment, resetHoverPreview]);
 
   return (
     <div className={useAbsolutePosition ? 'contents' : 'w-full relative'}>

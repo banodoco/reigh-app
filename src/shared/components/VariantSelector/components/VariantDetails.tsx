@@ -12,6 +12,7 @@ import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import { TASK_STATUS } from '@/types/tasks';
 
 interface VariantDetailsProps {
   variant: GenerationVariant;
@@ -22,6 +23,10 @@ export const VariantDetails: React.FC<VariantDetailsProps> = ({ variant, availab
   const variantParams = variant.params;
   const sourceTaskId = getSourceTaskId(variantParams);
   const { data: task, isLoading } = useGetTask(sourceTaskId || '');
+  const taskTypeFromParams = typeof variantParams?.task_type === 'string'
+    ? variantParams.task_type
+    : (typeof variantParams?.created_from === 'string' ? variantParams.created_from : 'video_generation');
+  const safeVariantParams = variantParams ?? {};
 
   if (task && !isLoading) {
     return (
@@ -39,8 +44,12 @@ export const VariantDetails: React.FC<VariantDetailsProps> = ({ variant, availab
   return (
     <GenerationDetails
       task={{
-        taskType: variantParams?.task_type || variantParams?.created_from || 'video_generation',
-        params: variantParams,
+        id: variant.id,
+        taskType: taskTypeFromParams,
+        params: safeVariantParams,
+        status: TASK_STATUS.COMPLETE,
+        createdAt: variant.created_at,
+        projectId: '',
       }}
       inputImages={[]}
       variant="hover"

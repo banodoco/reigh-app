@@ -1,6 +1,6 @@
 import { createTask, validateRequiredFields, TaskValidationError } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /**
  * Parameters for creating an image upscale task

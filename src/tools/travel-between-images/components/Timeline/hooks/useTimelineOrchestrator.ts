@@ -16,6 +16,7 @@ import type { PairData } from '../TimelineContainer/types';
 import type { Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { DragType } from '@/shared/lib/dragDrop';
 
 interface UseTimelineOrchestratorProps {
   shotId: string;
@@ -63,7 +64,7 @@ interface UseTimelineOrchestratorReturn {
 
   // Drag state
   dragState: { isDragging: boolean; activeId: string | null };
-  dragOffset: number;
+  dragOffset: { x: number; y: number } | null;
   currentDragFrame: number | null;
   swapTargetId: string | null;
   pushMode: 'right' | 'left' | null;
@@ -75,7 +76,7 @@ interface UseTimelineOrchestratorReturn {
   handleZoomOutFromCenter: () => void;
   handleZoomReset: () => void;
   handleZoomToStart: () => void;
-  handleTimelineDoubleClick: (e: React.MouseEvent, containerRef: React.RefObject<HTMLDivElement>) => void;
+  handleTimelineDoubleClick: (e: React.MouseEvent<HTMLDivElement>, containerRef: React.RefObject<HTMLDivElement>) => void;
 
   // Selection state
   selectedIds: string[];
@@ -94,11 +95,11 @@ interface UseTimelineOrchestratorReturn {
   // Drop state
   isFileOver: boolean;
   dropTargetFrame: number | null;
-  dragType: string | null;
-  handleDragEnter: (e: React.DragEvent) => void;
-  handleDragOver: (e: React.DragEvent, containerRef: React.RefObject<HTMLDivElement>) => void;
-  handleDragLeave: (e: React.DragEvent) => void;
-  handleDrop: (e: React.DragEvent, containerRef: React.RefObject<HTMLDivElement>) => void;
+  dragType: DragType;
+  handleDragEnter: (e: React.DragEvent<HTMLDivElement>) => void;
+  handleDragOver: (e: React.DragEvent<HTMLDivElement>, containerRef: React.RefObject<HTMLDivElement>) => void;
+  handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
+  handleDrop: (e: React.DragEvent<HTMLDivElement>, containerRef: React.RefObject<HTMLDivElement>) => Promise<void>;
 
   // Computed data
   currentPositions: Map<string, number>;
@@ -211,15 +212,18 @@ export function useTimelineOrchestrator({
   const trailingDefaultOffset = isMultiImage ? 17 : 49;
   const trailingEffectiveEnd = (() => {
     if (images.length === 0) return null;
-    // If trailing is already in positions, getTimelineDimensions handles it
-    if (framePositions.has(TRAILING_ENDPOINT_KEY)) return null;
-    // For multi-image without trailing, only include for existing video
+    // For multi-image without any trailing video, don't extend the timeline
     if (isMultiImage && !hasExistingTrailingVideo) return null;
-    // Single-image without saved end_frame: use default offset for minimum timeline extent
+    // Always provide a minimum floor of imageFrame + trailingDefaultOffset.
+    // Passing this alongside framePositions (which may already include TRAILING_ENDPOINT_KEY)
+    // is safe — getTimelineDimensions takes Math.max, so the larger value wins.
+    // This prevents a jolt when the user drags the endpoint below the default offset:
+    // without this floor, fullMax would shrink instantly on commit.
     const imageValues = [...framePositions.entries()]
       .filter(([id]) => id !== TRAILING_ENDPOINT_KEY)
       .map(([, v]) => v);
-    return (Math.max(...imageValues, 0) + trailingDefaultOffset);
+    if (imageValues.length === 0) return null;
+    return Math.max(...imageValues) + trailingDefaultOffset;
   })();
 
   const rawDimensions = getTimelineDimensions(
@@ -341,7 +345,7 @@ export function useTimelineOrchestrator({
   // Global events hook
   useGlobalEvents({
     isDragging: dragState.isDragging,
-    activeId: dragState.activeId,
+    activeId: dragState.activeId ?? undefined,
     shotId,
     handleMouseMove,
     handleMouseUp,
@@ -421,7 +425,7 @@ export function useTimelineOrchestrator({
     // For single image, duplicate to the trailing endpoint position
     if (images.length === 1) {
       duplicateTargetFrame = framePositions.get(TRAILING_ENDPOINT_KEY) ?? (timeline_frame + 49);
-    } else if (nextImage && nextImage.timeline_frame !== undefined) {
+    } else if (nextImage && nextImage.timeline_frame !== undefined && nextImage.timeline_frame !== null) {
       duplicateTargetFrame = Math.floor((timeline_frame + nextImage.timeline_frame) / 2);
     } else {
       duplicateTargetFrame = timeline_frame + DEFAULT_DUPLICATE_GAP;

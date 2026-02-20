@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { LogOut } from "lucide-react";
 import {
   Dialog,
@@ -68,11 +68,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Lock modal height based on first section content
   const [lockedHeight, setLockedHeight] = useState<number | null>(null);
-  const dialogContentRef = useRef<HTMLDivElement>(null);
 
   // Lock height immediately on open (avoid "skeleton -> real data" resize)
   const setDialogContentNode = React.useCallback((node: HTMLDivElement | null) => {
-    dialogContentRef.current = node;
     if (!node) return;
     if (!isOpen) return;
     if (lockedHeight !== null) return;

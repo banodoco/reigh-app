@@ -1,11 +1,12 @@
-import type { Shot, GenerationRow } from "@/types/shots";
+import type { Shot } from "@/types/shots";
+import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 /**
  * Columns per row can be:
  * - 'auto': Calculate dynamically based on aspect ratio
  * - number: Fixed number of columns
  */
-export type ColumnsPerRow = 'auto' | number;
+type ColumnsPerRow = 'auto' | number;
 
 // Define types here to avoid circular imports
 export interface MetadataLora {
@@ -46,6 +47,7 @@ interface OriginalParams {
 }
 
 export interface DisplayableMetadata extends Record<string, unknown> {
+  generation_id?: string | null;
   prompt?: string;
   imagesPerPrompt?: number;
   seed?: number;
@@ -85,7 +87,17 @@ export interface DisplayableMetadata extends Record<string, unknown> {
 
 export interface GeneratedImageWithMetadata {
   id: string;
+  /**
+   * Canonical generation identity when `id` is a shot-entry ID.
+   * Prefer this in cross-shot and task lookup flows.
+   */
+  generation_id?: string;
+  /** Shot entry identity for shot_generations rows. */
+  shot_generation_id?: string;
+  /** Alias used by some optimistic cache paths; kept for compatibility. */
+  shotImageEntryId?: string;
   url: string;
+  location?: string;
   thumbUrl?: string;
   /** Stable URL identity (URL without query params) for caching/comparison - tokens change but file doesn't */
   urlIdentity?: string;
@@ -98,6 +110,7 @@ export interface GeneratedImageWithMetadata {
   error?: string;
   file?: File;
   isVideo?: boolean;
+  type?: string;
   contentType?: string; // MIME type for proper download file extensions (e.g., 'video/mp4', 'image/png')
   unsaved?: boolean;
   createdAt?: string;
@@ -195,13 +208,13 @@ export const DEFAULT_GALLERY_CONFIG: GalleryConfig = {
 export interface MediaGalleryProps {
   images: GeneratedImageWithMetadata[];
   onDelete?: (id: string) => void;
-  isDeleting?: string | null;
-  onApplySettings?: (metadata: DisplayableMetadata) => void;
+  isDeleting?: string | boolean | null;
+  onApplySettings?: (metadata: DisplayableMetadata | undefined) => void;
   allShots: Shot[];
   lastShotId?: string;
   lastShotNameForTooltip?: string;
-  onAddToLastShot?: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToLastShotWithoutPosition?: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onAddToLastShot?: AddToShotHandler;
+  onAddToLastShotWithoutPosition?: AddToShotHandler;
   currentToolType?: string;
   initialFilterState?: boolean;
   currentViewingShotId?: string;
@@ -243,4 +256,3 @@ export interface MediaGalleryProps {
    */
   config?: Partial<GalleryConfig>;
 }
-

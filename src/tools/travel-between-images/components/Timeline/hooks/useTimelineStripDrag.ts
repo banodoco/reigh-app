@@ -50,6 +50,139 @@ interface UseTimelineStripDragReturn {
   handleDragStart: (type: 'move' | 'left' | 'right', e: React.MouseEvent) => void;
 }
 
+interface FrameRange {
+  start: number;
+  end: number;
+}
+
+interface PreviewRangeParams {
+  dragType: 'move' | 'left' | 'right';
+  frameDelta: number;
+  origStart: number;
+  origEnd: number;
+  siblingRanges: SiblingRange[];
+  fullMin: number;
+  fullMax: number;
+  minDuration: number;
+}
+
+function clampRangeToBounds(
+  range: FrameRange,
+  fullMin: number,
+  fullMax: number,
+): FrameRange {
+  return {
+    start: Math.max(fullMin, range.start),
+    end: Math.min(fullMax, range.end),
+  };
+}
+
+function enforceMinDuration(
+  range: FrameRange,
+  dragType: 'move' | 'left' | 'right',
+  minDuration: number,
+): FrameRange {
+  if (range.end - range.start >= minDuration) return range;
+
+  if (dragType === 'left') {
+    return { start: range.end - minDuration, end: range.end };
+  }
+
+  if (dragType === 'right') {
+    return { start: range.start, end: range.start + minDuration };
+  }
+
+  return range;
+}
+
+function computeMoveRange(params: PreviewRangeParams): FrameRange {
+  const {
+    frameDelta,
+    origStart,
+    origEnd,
+    siblingRanges,
+    fullMax,
+    minDuration,
+  } = params;
+
+  let newStart = origStart;
+  let newEnd = origEnd;
+
+  const prevNeighborEnd = Math.max(
+    0,
+    ...siblingRanges.filter(sibling => sibling.end <= origStart).map(sibling => sibling.end)
+  );
+  const nextNeighborStart = Math.min(
+    fullMax,
+    ...siblingRanges.filter(sibling => sibling.start >= origEnd).map(sibling => sibling.start)
+  );
+
+  const startLimit = Math.max(0, prevNeighborEnd);
+  const endLimit = Math.min(fullMax, nextNeighborStart);
+
+  if (frameDelta >= 0) {
+    const maxTranslateDelta = endLimit - origEnd;
+    if (frameDelta <= maxTranslateDelta) {
+      newStart = origStart + frameDelta;
+      newEnd = origEnd + frameDelta;
+    } else {
+      newEnd = endLimit;
+      newStart = Math.min(origStart + frameDelta, newEnd - minDuration);
+    }
+  } else {
+    const minTranslateDelta = startLimit - origStart;
+    if (frameDelta >= minTranslateDelta) {
+      newStart = origStart + frameDelta;
+      newEnd = origEnd + frameDelta;
+    } else {
+      newStart = startLimit;
+      newEnd = Math.max(origEnd + frameDelta, newStart + minDuration);
+    }
+  }
+
+  return {
+    start: Math.max(startLimit, newStart),
+    end: Math.min(endLimit, newEnd),
+  };
+}
+
+function computeLeftResizeRange(params: PreviewRangeParams): FrameRange {
+  const { frameDelta, origStart, origEnd, siblingRanges, minDuration } = params;
+  let newStart = Math.max(0, Math.min(origEnd - minDuration, origStart + frameDelta));
+
+  for (const sibling of siblingRanges) {
+    if (sibling.end <= origEnd && newStart < sibling.end) {
+      newStart = sibling.end;
+    }
+  }
+
+  return { start: newStart, end: origEnd };
+}
+
+function computeRightResizeRange(params: PreviewRangeParams): FrameRange {
+  const { frameDelta, origStart, origEnd, siblingRanges, minDuration } = params;
+  let newEnd = Math.max(origStart + minDuration, origEnd + frameDelta);
+
+  for (const sibling of siblingRanges) {
+    if (sibling.start >= origStart && newEnd > sibling.start) {
+      newEnd = sibling.start;
+    }
+  }
+
+  return { start: origStart, end: newEnd };
+}
+
+function computePreviewRange(params: PreviewRangeParams): FrameRange {
+  const baseRange = params.dragType === 'move'
+    ? computeMoveRange(params)
+    : params.dragType === 'left'
+      ? computeLeftResizeRange(params)
+      : computeRightResizeRange(params);
+
+  const boundedRange = clampRangeToBounds(baseRange, params.fullMin, params.fullMax);
+  return enforceMinDuration(boundedRange, params.dragType, params.minDuration);
+}
+
 /**
  * Hook for handling drag/resize operations on timeline strips with collision detection.
  *
@@ -110,7 +243,8 @@ export function useTimelineStripDrag(
       startFrame,
       endFrame,
     };
-  }, [disabled, onRangeChange, startFrame, endFrame]);
+
+  }, [disabled, onRangeChange, startFrame, endFrame, fullMin, fullMax, fullRange, siblingRanges, zoomLevel]);
 
   // Handle drag move and end via document events
   useEffect(() => {
@@ -127,103 +261,18 @@ export function useTimelineStripDrag(
       const frameDelta = Math.round((pixelDelta / effectiveWidth) * fullRange);
 
       const { startFrame: origStart, endFrame: origEnd } = dragStartRef.current;
+      const nextRange = computePreviewRange({
+        dragType: isDragging,
+        frameDelta,
+        origStart,
+        origEnd,
+        siblingRanges,
+        fullMin,
+        fullMax,
+        minDuration,
+      });
 
-      let newStart = origStart;
-      let newEnd = origEnd;
-
-      if (isDragging === 'move') {
-        // Move with collision handling - "squeeze" behavior
-        const prevNeighborEnd = Math.max(
-          0,
-          ...siblingRanges
-            .filter((s) => s.end <= origStart)
-            .map((s) => s.end)
-        );
-        const nextNeighborStart = Math.min(
-          fullMax,
-          ...siblingRanges
-            .filter((s) => s.start >= origEnd)
-            .map((s) => s.start)
-        );
-
-        const startLimit = Math.max(0, prevNeighborEnd);
-        const endLimit = Math.min(fullMax, nextNeighborStart);
-
-        if (frameDelta >= 0) {
-          // Dragging RIGHT
-          const maxTranslateDelta = endLimit - origEnd;
-
-          if (frameDelta <= maxTranslateDelta) {
-            // Phase 1: pure translate
-            newStart = origStart + frameDelta;
-            newEnd = origEnd + frameDelta;
-          } else {
-            // Phase 2: hit right obstacle - squeeze from left
-            newEnd = endLimit;
-            newStart = origStart + frameDelta;
-            if (newStart > newEnd - minDuration) {
-              newStart = newEnd - minDuration;
-            }
-          }
-        } else {
-          // Dragging LEFT
-          const minTranslateDelta = startLimit - origStart;
-
-          if (frameDelta >= minTranslateDelta) {
-            // Phase 1: pure translate
-            newStart = origStart + frameDelta;
-            newEnd = origEnd + frameDelta;
-          } else {
-            // Phase 2: hit left obstacle - squeeze from right
-            newStart = startLimit;
-            newEnd = origEnd + frameDelta;
-            if (newEnd < newStart + minDuration) {
-              newEnd = newStart + minDuration;
-            }
-          }
-        }
-
-        // Clamp to limits
-        newStart = Math.max(startLimit, newStart);
-        newEnd = Math.min(endLimit, newEnd);
-      } else if (isDragging === 'left') {
-        // Resize from left - change start, keep end fixed
-        newStart = Math.max(0, Math.min(origEnd - minDuration, origStart + frameDelta));
-        newEnd = origEnd;
-
-        // Collision detection - can't resize past a sibling's end
-        for (const sibling of siblingRanges) {
-          if (sibling.end <= newEnd && newStart < sibling.end) {
-            newStart = sibling.end;
-          }
-        }
-      } else if (isDragging === 'right') {
-        // Resize from right - keep start, change end
-        newStart = origStart;
-        newEnd = Math.max(origStart + minDuration, origEnd + frameDelta);
-
-        // Collision detection - can't resize past a sibling's start
-        for (const sibling of siblingRanges) {
-          if (sibling.start >= newStart && newEnd > sibling.start) {
-            newEnd = sibling.start;
-          }
-        }
-      }
-
-      // Clamp to timeline boundaries
-      if (newEnd > fullMax) newEnd = fullMax;
-      if (newStart < fullMin) newStart = fullMin;
-
-      // Ensure minimum duration
-      if (newEnd - newStart < minDuration) {
-        if (isDragging === 'left') {
-          newStart = newEnd - minDuration;
-        } else if (isDragging === 'right') {
-          newEnd = newStart + minDuration;
-        }
-      }
-
-      setDragPreviewRange({ start: newStart, end: newEnd });
+      setDragPreviewRange(nextRange);
     };
 
     const handleMouseUp = () => {

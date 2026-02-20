@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LoraDetails {
   name: string;
@@ -14,34 +14,193 @@ interface LoraDetails {
  * LoRA files structure supporting both single-stage and multi-stage uploads
  */
 export interface LoraFiles {
-  single?: File;      // For single-stage LoRAs
-  highNoise?: File;   // For multi-stage: high noise phase file
-  lowNoise?: File;    // For multi-stage: low noise phase file
+  single?: File;
+  highNoise?: File;
+  lowNoise?: File;
 }
 
 interface UploadProgress {
   stage:
     | 'idle'
-    | 'uploading-lora'        // Single-stage upload
-    | 'uploading-high-noise'  // Multi-stage: uploading high noise file
-    | 'uploading-low-noise'   // Multi-stage: uploading low noise file
+    | 'uploading-lora'
+    | 'uploading-high-noise'
+    | 'uploading-low-noise'
     | 'uploading-samples'
     | 'processing'
     | 'complete'
     | 'error';
   message: string;
-  progress?: number; // 0-100
+  progress?: number;
 }
 
 interface UploadResult {
   success: boolean;
   repoId?: string;
   repoUrl?: string;
-  loraUrl?: string;         // For single-stage
-  highNoiseUrl?: string;    // For multi-stage
-  lowNoiseUrl?: string;     // For multi-stage
+  loraUrl?: string;
+  highNoiseUrl?: string;
+  lowNoiseUrl?: string;
   videoUrls?: string[];
   error?: string;
+}
+
+interface TempStoragePaths {
+  single?: string;
+  highNoise?: string;
+  lowNoise?: string;
+}
+
+interface SampleVideoMeta {
+  storagePath: string;
+  originalFileName: string;
+}
+
+interface HuggingFaceUploadResponse {
+  success: boolean;
+  error?: string;
+  repoId?: string;
+  repoUrl?: string;
+  loraUrl?: string;
+  highNoiseUrl?: string;
+  lowNoiseUrl?: string;
+  videoUrls?: string[];
+}
+
+function uploadStages(): UploadProgress['stage'][] {
+  return [
+    'uploading-lora',
+    'uploading-high-noise',
+    'uploading-low-noise',
+    'uploading-samples',
+    'processing',
+  ];
+}
+
+async function uploadLoraFilesToTempStorage(input: {
+  loraFiles: LoraFiles;
+  userId: string;
+  setUploadProgress: (progress: UploadProgress) => void;
+  uploadToTempStorage: (file: File, userId: string) => Promise<string>;
+}): Promise<TempStoragePaths | null> {
+  const { loraFiles, userId, setUploadProgress, uploadToTempStorage } = input;
+  const isMultiStage = !!(loraFiles.highNoise || loraFiles.lowNoise);
+  const storagePaths: TempStoragePaths = {};
+
+  if (isMultiStage) {
+    if (loraFiles.highNoise) {
+      setUploadProgress({
+        stage: 'uploading-high-noise',
+        message: 'Uploading high noise LoRA file...',
+        progress: 10,
+      });
+      storagePaths.highNoise = await uploadToTempStorage(loraFiles.highNoise, userId);
+    }
+
+    if (loraFiles.lowNoise) {
+      setUploadProgress({
+        stage: 'uploading-low-noise',
+        message: 'Uploading low noise LoRA file...',
+        progress: loraFiles.highNoise ? 20 : 10,
+      });
+      storagePaths.lowNoise = await uploadToTempStorage(loraFiles.lowNoise, userId);
+    }
+
+    return storagePaths;
+  }
+
+  if (loraFiles.single) {
+    setUploadProgress({
+      stage: 'uploading-lora',
+      message: 'Uploading LoRA file...',
+      progress: 10,
+    });
+    storagePaths.single = await uploadToTempStorage(loraFiles.single, userId);
+    return storagePaths;
+  }
+
+  return null;
+}
+
+async function uploadSampleVideosToTempStorage(input: {
+  sampleVideos: File[];
+  userId: string;
+  setUploadProgress: (progress: UploadProgress) => void;
+  uploadToTempStorage: (file: File, userId: string) => Promise<string>;
+}): Promise<SampleVideoMeta[]> {
+  const { sampleVideos, userId, setUploadProgress, uploadToTempStorage } = input;
+  const sampleVideoMeta: SampleVideoMeta[] = [];
+
+  if (sampleVideos.length === 0) {
+    return sampleVideoMeta;
+  }
+
+  setUploadProgress({
+    stage: 'uploading-samples',
+    message: `Uploading sample videos (0/${sampleVideos.length})...`,
+    progress: 30,
+  });
+
+  for (let i = 0; i < sampleVideos.length; i++) {
+    const video = sampleVideos[i];
+    setUploadProgress({
+      stage: 'uploading-samples',
+      message: `Uploading sample videos (${i + 1}/${sampleVideos.length})...`,
+      progress: 30 + (i / sampleVideos.length) * 20,
+    });
+
+    const storagePath = await uploadToTempStorage(video, userId);
+    sampleVideoMeta.push({
+      storagePath,
+      originalFileName: video.name,
+    });
+  }
+
+  return sampleVideoMeta;
+}
+
+async function invokeHuggingFaceUpload(input: {
+  storagePaths: TempStoragePaths;
+  loraDetails: LoraDetails;
+  sampleVideoMeta: SampleVideoMeta[];
+  options: { isPrivate?: boolean; repoName?: string };
+}): Promise<HuggingFaceUploadResponse> {
+  const formData = new FormData();
+  formData.append('loraStoragePaths', JSON.stringify(input.storagePaths));
+  formData.append('loraDetails', JSON.stringify(input.loraDetails));
+  formData.append('sampleVideos', JSON.stringify(input.sampleVideoMeta));
+
+  if (input.options.isPrivate !== undefined) {
+    formData.append('isPrivate', String(input.options.isPrivate));
+  }
+  if (input.options.repoName) {
+    formData.append('repoName', input.options.repoName);
+  }
+
+  const { data, error } = await supabase.functions.invoke('huggingface-upload', {
+    body: formData,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Edge function error');
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || 'Upload failed');
+  }
+
+  return data;
+}
+
+function mapUploadSuccess(data: HuggingFaceUploadResponse): UploadResult {
+  return {
+    success: true,
+    repoId: data.repoId,
+    repoUrl: data.repoUrl,
+    loraUrl: data.loraUrl,
+    highNoiseUrl: data.highNoiseUrl,
+    lowNoiseUrl: data.lowNoiseUrl,
+    videoUrls: data.videoUrls,
+  };
 }
 
 /**
@@ -59,7 +218,6 @@ export function useHuggingFaceUpload() {
   const uploadToTempStorage = async (file: File, userId: string): Promise<string> => {
     const fileName = `${uuidv4()}-${file.name}`;
     const filePath = `${userId}/${fileName}`;
-
     const { error } = await supabase.storage
       .from('temporary')
       .upload(filePath, file, {
@@ -75,8 +233,8 @@ export function useHuggingFaceUpload() {
   };
 
   /**
-   * Upload LoRA file(s) and optionally sample videos to HuggingFace
-   * Supports both single-stage (one file) and multi-stage (high_noise + low_noise) LoRAs
+   * Upload LoRA file(s) and optionally sample videos to HuggingFace.
+   * Supports both single-stage (one file) and multi-stage (high_noise + low_noise) LoRAs.
    */
   const uploadToHuggingFace = async (
     loraFiles: LoraFiles,
@@ -88,104 +246,41 @@ export function useHuggingFaceUpload() {
     } = {}
   ): Promise<UploadResult> => {
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         return { success: false, error: 'Not authenticated' };
       }
 
-      // Determine if this is a multi-stage upload
-      const isMultiStage = !!(loraFiles.highNoise || loraFiles.lowNoise);
-      const storagePaths: { single?: string; highNoise?: string; lowNoise?: string } = {};
+      const storagePaths = await uploadLoraFilesToTempStorage({
+        loraFiles,
+        userId: user.id,
+        setUploadProgress,
+        uploadToTempStorage,
+      });
 
-      // 1. Upload LoRA file(s) to temporary storage
-      if (isMultiStage) {
-        // Multi-stage: upload high noise and/or low noise files
-        if (loraFiles.highNoise) {
-          setUploadProgress({
-            stage: 'uploading-high-noise',
-            message: 'Uploading high noise LoRA file...',
-            progress: 10,
-          });
-          storagePaths.highNoise = await uploadToTempStorage(loraFiles.highNoise, user.id);
-        }
-
-        if (loraFiles.lowNoise) {
-          setUploadProgress({
-            stage: 'uploading-low-noise',
-            message: 'Uploading low noise LoRA file...',
-            progress: loraFiles.highNoise ? 20 : 10,
-          });
-          storagePaths.lowNoise = await uploadToTempStorage(loraFiles.lowNoise, user.id);
-        }
-      } else if (loraFiles.single) {
-        // Single-stage: upload single file
-        setUploadProgress({
-          stage: 'uploading-lora',
-          message: 'Uploading LoRA file...',
-          progress: 10,
-        });
-        storagePaths.single = await uploadToTempStorage(loraFiles.single, user.id);
-      } else {
+      if (!storagePaths) {
         return { success: false, error: 'No LoRA file provided' };
       }
 
-      // 2. Upload sample videos to temporary storage
-      const sampleVideoMeta: { storagePath: string; originalFileName: string }[] = [];
+      const sampleVideoMeta = await uploadSampleVideosToTempStorage({
+        sampleVideos,
+        userId: user.id,
+        setUploadProgress,
+        uploadToTempStorage,
+      });
 
-      if (sampleVideos.length > 0) {
-        setUploadProgress({
-          stage: 'uploading-samples',
-          message: `Uploading sample videos (0/${sampleVideos.length})...`,
-          progress: 30,
-        });
-
-        for (let i = 0; i < sampleVideos.length; i++) {
-          const video = sampleVideos[i];
-          setUploadProgress({
-            stage: 'uploading-samples',
-            message: `Uploading sample videos (${i + 1}/${sampleVideos.length})...`,
-            progress: 30 + (i / sampleVideos.length) * 20,
-          });
-
-          const videoPath = await uploadToTempStorage(video, user.id);
-          sampleVideoMeta.push({
-            storagePath: videoPath,
-            originalFileName: video.name,
-          });
-        }
-      }
-
-      // 3. Call Edge Function to upload to HuggingFace
       setUploadProgress({
         stage: 'processing',
         message: 'Uploading to HuggingFace...',
         progress: 60,
       });
 
-      const formData = new FormData();
-      // Use new multi-file format
-      formData.append('loraStoragePaths', JSON.stringify(storagePaths));
-      formData.append('loraDetails', JSON.stringify(loraDetails));
-      formData.append('sampleVideos', JSON.stringify(sampleVideoMeta));
-      if (options.isPrivate !== undefined) {
-        formData.append('isPrivate', String(options.isPrivate));
-      }
-      if (options.repoName) {
-        formData.append('repoName', options.repoName);
-      }
-
-      const { data, error } = await supabase.functions.invoke('huggingface-upload', {
-        body: formData,
+      const response = await invokeHuggingFaceUpload({
+        storagePaths,
+        loraDetails,
+        sampleVideoMeta,
+        options,
       });
-
-      if (error) {
-        throw new Error(error.message || 'Edge function error');
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Upload failed');
-      }
 
       setUploadProgress({
         stage: 'complete',
@@ -193,16 +288,7 @@ export function useHuggingFaceUpload() {
         progress: 100,
       });
 
-      return {
-        success: true,
-        repoId: data.repoId,
-        repoUrl: data.repoUrl,
-        loraUrl: data.loraUrl,
-        highNoiseUrl: data.highNoiseUrl,
-        lowNoiseUrl: data.lowNoiseUrl,
-        videoUrls: data.videoUrls,
-      };
-
+      return mapUploadSuccess(response);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setUploadProgress({
@@ -221,12 +307,6 @@ export function useHuggingFaceUpload() {
     uploadToHuggingFace,
     uploadProgress,
     resetProgress,
-    isUploading: [
-      'uploading-lora',
-      'uploading-high-noise',
-      'uploading-low-noise',
-      'uploading-samples',
-      'processing'
-    ].includes(uploadProgress.stage),
+    isUploading: uploadStages().includes(uploadProgress.stage),
   };
 }

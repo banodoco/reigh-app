@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { GenerationRow } from '@/types/shots';
 import { createBatchZImageTurboI2ITasks } from '@/shared/lib/tasks/zImageTurboI2I';
 import type { FalLoraConfig } from '@/shared/types/lora';
@@ -177,7 +177,7 @@ export const useImg2ImgMode = ({
         enable_prompt_expansion: enablePromptExpansion,
         numImages: numGenerations,
         loras: loras.length > 0 ? loras : undefined,
-        based_on: actualGenerationId,
+        based_on: actualGenerationId ?? undefined,
         source_variant_id: activeVariantId || undefined, // Track source variant if editing from a variant
         create_as_generation: createAsGeneration,
         tool_type: toolTypeOverride,
@@ -195,8 +195,8 @@ export const useImg2ImgMode = ({
     } catch (error) {
       handleError(error, { context: 'useImg2ImgMode', toastTitle: 'Failed to create Img2Img tasks' });
     } finally {
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
+      await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });
       removeIncomingTask(incomingTaskId);
       setIsGeneratingImg2Img(false);
       isSubmittingRef.current = false;

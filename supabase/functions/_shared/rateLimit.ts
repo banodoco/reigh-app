@@ -1,5 +1,4 @@
 // deno-lint-ignore-file
-declare const Deno: unknown;
 
 /**
  * Rate limiting configuration
@@ -44,29 +43,6 @@ export const RATE_LIMITS = {
 };
 
 /**
- * Extract client IP from request headers
- * Handles Cloudflare, standard proxies, and direct connections
- */
-export function getClientIp(req: Request): string {
-  // Cloudflare
-  const cfIp = req.headers.get('cf-connecting-ip');
-  if (cfIp) return cfIp;
-  
-  // Standard proxy headers
-  const forwardedFor = req.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    // Take first IP (original client)
-    return forwardedFor.split(',')[0].trim();
-  }
-  
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp) return realIp;
-  
-  // Fallback - shouldn't happen in production
-  return 'unknown';
-}
-
-/**
  * Check rate limit for a request
  * Uses database-backed sliding window counter
  * 
@@ -85,7 +61,6 @@ export async function checkRateLimit(
   logPrefix: string = "[RATE-LIMIT]"
 ): Promise<RateLimitResult> {
   const now = new Date();
-  const windowStart = new Date(now.getTime() - config.windowSeconds * 1000);
   const key = `${functionName}:${identifier}`;
   
   try {

@@ -17,12 +17,12 @@
 
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { GenerationRow } from '@/types/shots';
 import type { ShotGeneration, PositionMetadata } from '@/shared/hooks/useTimelineCore';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
 // Extracted modules
@@ -50,20 +50,23 @@ export function useTimelinePositionUtils({ shotId, generations, projectId }: Use
   // CRITICAL: Filter out videos at the source level using canonical function
   const shotGenerations: ShotGeneration[] = generations
     .filter(gen => !isVideoGeneration(gen))
-    .map(gen => ({
-      id: gen.id || '',
-      shot_id: shotId || '',
-      generation_id: getGenerationId(gen),
-      timeline_frame: gen.timeline_frame ?? -1,
-      metadata: gen.metadata as PositionMetadata | undefined,
-      generation: {
-        id: gen.id,
-        location: gen.imageUrl || gen.location || undefined,
-        type: gen.type || undefined,
-        created_at: gen.createdAt || new Date().toISOString(),
-        starred: gen.starred ?? undefined,
-      }
-    }));
+    .map(gen => {
+      const generationId = getGenerationId(gen) ?? gen.id;
+      return {
+        id: gen.id || '',
+        shot_id: shotId || '',
+        generation_id: generationId,
+        timeline_frame: gen.timeline_frame ?? -1,
+        metadata: gen.metadata as PositionMetadata | undefined,
+        generation: {
+          id: gen.id,
+          location: gen.imageUrl || gen.location || undefined,
+          type: gen.type || undefined,
+          created_at: gen.createdAt || new Date().toISOString(),
+          starred: gen.starred ?? undefined,
+        }
+      };
+    });
 
   // Extract pair prompts from metadata
   const pairPrompts = extractPairPrompts(shotGenerations);
@@ -81,7 +84,7 @@ export function useTimelinePositionUtils({ shotId, generations, projectId }: Use
     setError(null);
 
     try {
-      await queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
+      await queryClient.refetchQueries({ queryKey: generationQueryKeys.byShot(shotId) });
 
       invalidateGenerations(shotId, {
         reason: 'timeline-position-utils-reload',
@@ -97,7 +100,7 @@ export function useTimelinePositionUtils({ shotId, generations, projectId }: Use
       setIsLoading(false);
       handleError(error, { context: 'useTimelinePositionUtils', showToast: false });
     }
-  }, [shotId, queryClient]);
+  }, [shotId, queryClient, invalidateGenerations, projectId]);
 
   // Compose extracted hooks
   const { updateTimelineFrame, batchExchangePositions, moveItemsToMidpoint } = useTimelineFrameUpdates({

@@ -6,3 +6,4 @@ export { useMediaGalleryActions } from './useMediaGalleryActions';
 export { useMobileInteractions } from './useMobileInteractions';
 export { useContainerWidth, useContainerDimensions } from './useContainerWidth';
 export { useLightboxNavigation } from './useLightboxNavigation';
+export { useMediaGalleryHandlers } from './useMediaGalleryHandlers';

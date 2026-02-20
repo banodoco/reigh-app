@@ -27,11 +27,11 @@
  * @module useProjectGenerations
  */
 
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useSmartPollingConfig } from './useSmartPolling';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { transformGeneration, transformVariant, type RawGeneration, type RawVariant } from '@/shared/lib/generationTransformers';
 import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
 import { SHOT_FILTER } from '@/shared/constants/filterConstants';
@@ -39,6 +39,8 @@ import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
 /** Cache garbage collection time for paginated generation queries */
 const GENERATIONS_GC_TIME_MS = 10 * 60 * 1000; // 10 minutes
+
+type AnyPostgrestFilterBuilder = PostgrestFilterBuilder<any, any, any, any, any>;
 
 /** Common filter options for generation queries */
 interface GenerationFilters {
@@ -56,7 +58,7 @@ interface GenerationFilters {
  * Used by both count and data queries to ensure consistency.
  */
 // TODO: type properly - PostgrestFilterBuilder generics are complex Supabase internals
-function applyGenerationFilters<T extends PostgrestFilterBuilder<Record<string, unknown>, Record<string, unknown>, unknown>>(
+function applyGenerationFilters<T extends AnyPostgrestFilterBuilder>(
   query: T,
   filters: GenerationFilters | undefined
 ): T {
@@ -229,34 +231,31 @@ async function fetchEditVariants(
 /**
  * Fetch generations using direct Supabase call with pagination support
  */
-export async function fetchGenerations(
-  projectId: string | null,
+type FetchGenerationsFilters = {
+  toolType?: string;
+  mediaType?: 'all' | 'image' | 'video';
+  shotId?: string;
+  excludePositioned?: boolean;
+  starredOnly?: boolean;
+  searchTerm?: string;
+  includeChildren?: boolean;
+  parentGenerationId?: string;
+  sort?: 'newest' | 'oldest';
+  editsOnly?: boolean; // Filter for images with based_on set (derived/edited images)
+  parentsOnly?: boolean; // For variants: exclude child variants (those with parent_variant_id)
+  variantsOnly?: boolean; // Fetch edit variants from generation_variants table
+};
+
+async function fetchGenerationsForProject(
+  projectId: string,
   limit: number = 100,
   offset: number = 0,
-  filters?: {
-    toolType?: string;
-    mediaType?: 'all' | 'image' | 'video';
-    shotId?: string;
-    excludePositioned?: boolean;
-    starredOnly?: boolean;
-    searchTerm?: string;
-    includeChildren?: boolean;
-    parentGenerationId?: string;
-    sort?: 'newest' | 'oldest';
-    editsOnly?: boolean; // Filter for images with based_on set (derived/edited images)
-    parentsOnly?: boolean; // For variants: exclude child variants (those with parent_variant_id)
-    variantsOnly?: boolean; // Fetch edit variants from generation_variants table
-  }
+  filters?: FetchGenerationsFilters
 ): Promise<{
   items: GeneratedImageWithMetadata[];
   total: number;
   hasMore: boolean;
 }> {
-
-  if (!projectId) {
-    return { items: [], total: 0, hasMore: false };
-  }
-
   // Special path for variantsOnly - fetch from generation_variants table
   if (filters?.variantsOnly) {
     return fetchEditVariants(projectId, limit, offset, {
@@ -368,6 +367,22 @@ export async function fetchGenerations(
   return { items, total: totalCount, hasMore };
 }
 
+export function fetchGenerations(
+  projectId: string | null,
+  limit: number = 100,
+  offset: number = 0,
+  filters?: FetchGenerationsFilters
+): Promise<{
+  items: GeneratedImageWithMetadata[];
+  total: number;
+  hasMore: boolean;
+}> {
+  if (!projectId) {
+    return Promise.resolve({ items: [], total: 0, hasMore: false });
+  }
+  return fetchGenerationsForProject(projectId, limit, offset, filters);
+}
+
 
 export type GenerationsPaginatedResponse = {
   items: GeneratedImageWithMetadata[];
@@ -399,33 +414,37 @@ export function useProjectGenerations(
   }
 ) {
   const offset = (page - 1) * limit;
-  const queryClient = useQueryClient();
   const effectiveProjectId = projectId ?? (typeof window !== 'undefined' ? window.__PROJECT_CONTEXT__?.selectedProjectId : null);
-  const queryKey = queryKeys.unified.byProject(effectiveProjectId, page, limit, filters);
+  const filtersKey = filters ? JSON.stringify(filters) : null;
+  const queryKey = unifiedGenerationQueryKeys.byProject(
+    effectiveProjectId ?? '__no-project__',
+    page,
+    limit,
+    filtersKey
+  );
 
 
   // 🎯 SMART POLLING: Use DataFreshnessManager for intelligent polling decisions
   // Can be disabled for tools with long-running tasks to prevent gallery flicker
-  const smartPollingConfig = useSmartPollingConfig(['generations', projectId]);
-  const pollingConfig = options?.disablePolling
+  const smartPollingConfig = useSmartPollingConfig(['generations', effectiveProjectId ?? '__no-project__']);
+  const pollingDisabled = Boolean(options?.disablePolling);
+  const pollingConfig: { refetchInterval: number | false; staleTime: number } = pollingDisabled
     ? { refetchInterval: false, staleTime: Infinity }
     : smartPollingConfig;
 
   const result = useQuery<GenerationsPaginatedResponse, Error>({
     queryKey: queryKey,
-    queryFn: () => fetchGenerations(effectiveProjectId, limit, offset, filters),
+    queryFn: () => fetchGenerationsForProject(effectiveProjectId!, limit, offset, filters),
     enabled: !!effectiveProjectId && enabled,
     // Use `placeholderData` with `keepPreviousData` to prevent UI flashes on pagination/filter changes
     placeholderData: keepPreviousData,
-    // Synchronously grab initial data from the cache on mount to prevent skeletons on revisit
-    initialData: () => queryClient.getQueryData(queryKey),
     // Cache management to prevent memory leaks as pagination grows
     gcTime: GENERATIONS_GC_TIME_MS,
     refetchOnWindowFocus: false, // Prevent double-fetches
 
     // 🎯 SMART POLLING: Intelligent polling based on realtime health (or disabled)
     ...pollingConfig,
-    refetchIntervalInBackground: !options?.disablePolling, // Only poll in background if polling is enabled
+    refetchIntervalInBackground: !pollingDisabled, // Only poll in background if polling is enabled
     refetchOnReconnect: false, // Prevent double-fetches
   });
 

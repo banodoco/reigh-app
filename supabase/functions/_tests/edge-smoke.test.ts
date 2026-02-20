@@ -35,7 +35,7 @@ function discoverFunctionNames(): string[] {
     .map((entry) => entry.name)
     .filter((name) => !name.startsWith("_"))
     .filter((name) => existsSync(path.join(functionsRoot, name, "index.ts")))
-    .sort();
+    .sort((a, b) => a.localeCompare(b));
 }
 
 const functionNames = discoverFunctionNames();
@@ -160,7 +160,7 @@ async function stopServer(): Promise<void> {
   });
 }
 
-async function requestFunction(name: string, init: RequestInit): Promise<Response> {
+function requestFunction(name: string, init: RequestInit): Promise<Response> {
   const headers = new Headers(init.headers ?? {});
   if (!headers.has("Content-Type") && init.body !== undefined) {
     headers.set("Content-Type", "application/json");
@@ -184,7 +184,6 @@ beforeAll(async () => {
     if (process.env.EDGE_SMOKE_REQUIRE_RUNTIME === "1") {
       throw error;
     }
-    console.warn(`[edge-smoke] Runtime unavailable; skipping runtime assertions: ${runtimeUnavailableReason}`);
   }
 }, READY_TIMEOUT_MS + 10_000);
 

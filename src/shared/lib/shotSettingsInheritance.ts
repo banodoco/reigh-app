@@ -1,7 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import type { Json } from '@/integrations/supabase/types';
 
 /**
  * Standardized settings inheritance for new shots
@@ -28,6 +29,13 @@ interface InheritedSettings {
   mainSettings: Record<string, unknown> | null;
   uiSettings: Record<string, unknown> | null;
   joinSegmentsSettings: Record<string, unknown> | null; // Join Segments mode settings
+}
+
+function toRecord(value: Json | null | undefined): Record<string, unknown> | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
 }
 
 /**
@@ -124,12 +132,13 @@ async function getInheritedSettings(
         .eq('id', projectId)
         .single();
       
-      if (!mainSettings && projectData?.settings?.[TOOL_IDS.TRAVEL_BETWEEN_IMAGES]) {
-        mainSettings = projectData.settings[TOOL_IDS.TRAVEL_BETWEEN_IMAGES] as Record<string, unknown>;
+      const projectSettings = toRecord(projectData?.settings);
+      if (!mainSettings && projectSettings?.[TOOL_IDS.TRAVEL_BETWEEN_IMAGES]) {
+        mainSettings = projectSettings[TOOL_IDS.TRAVEL_BETWEEN_IMAGES] as Record<string, unknown>;
       }
 
-      if (!uiSettings && projectData?.settings?.['travel-ui-state']) {
-        uiSettings = projectData.settings['travel-ui-state'] as Record<string, unknown>;
+      if (!uiSettings && projectSettings?.['travel-ui-state']) {
+        uiSettings = projectSettings['travel-ui-state'] as Record<string, unknown>;
       }
     } catch (error) {
       handleError(error, { context: 'ShotSettingsInheritance', showToast: false });
@@ -148,7 +157,7 @@ async function getInheritedSettings(
  * Saves main settings (including LoRAs) to sessionStorage for useShotSettings to pick up
  * Also saves Join Segments settings to sessionStorage for useJoinSegmentsSettings to pick up
  */
-async function applyInheritedSettings(
+function applyInheritedSettings(
   params: InheritSettingsParams,
   inherited: InheritedSettings
 ): Promise<void> {
@@ -187,6 +196,7 @@ async function applyInheritedSettings(
   
   // NOTE: LoRAs no longer need separate DB save - they're part of mainSettings
   // and will be saved by useShotSettings when it picks up from sessionStorage
+  return Promise.resolve();
 }
 
 /**

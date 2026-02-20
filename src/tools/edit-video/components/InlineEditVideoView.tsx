@@ -19,7 +19,7 @@ import {
 import { cn } from '@/shared/lib/utils';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { formatTime } from '@/shared/components/VideoPortionTimeline';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor';
@@ -66,7 +66,7 @@ export function InlineEditVideoView({
   const [videoEditSubMode, setVideoEditSubMode] = useState<'trim' | 'replace' | 'enhance'>('replace');
 
   // Get video URL
-  const videoUrl = media.location || media.imageUrl;
+  const videoUrl = media.location || media.imageUrl || null;
 
   // Video duration and FPS state
   const [videoDuration, setVideoDuration] = useState(0);
@@ -103,10 +103,10 @@ export function InlineEditVideoView({
   } = useTrimSave({
     generationId: media.id,
     projectId: selectedProjectId,
-    sourceVideoUrl: videoUrl,
+    sourceVideoUrl: videoUrl ?? '',
     trimState,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
+      queryClient.invalidateQueries({ queryKey: unifiedGenerationQueryKeys.projectPrefix(selectedProjectId) });
     },
   });
 
@@ -253,7 +253,7 @@ export function InlineEditVideoView({
               {/* Video element - hidden until ready if thumbnail is showing */}
               <video
                 ref={videoRef}
-                src={videoUrl}
+                src={videoUrl ?? undefined}
                 controls={false} // Hide controls
                 playsInline // Prevents fullscreen on iOS when video plays
                 poster={thumbnailUrl} // Fallback poster
@@ -405,7 +405,7 @@ export function InlineEditVideoView({
                 generateSuccess={videoEnhance.generateSuccess}
                 canSubmit={videoEnhance.canSubmit}
                 variant={isMobile ? 'mobile' : 'desktop'}
-                videoUrl={videoUrl}
+                videoUrl={videoUrl ?? undefined}
               />
             )}
           </div>

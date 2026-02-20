@@ -6,10 +6,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Shot } from '@/types/shots';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { invalidateGenerationsSync } from '@/shared/hooks/useGenerationInvalidation';
 import { isNotFoundError } from '@/shared/constants/supabaseErrors';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import {
   cancelShotsQueries,
   findShotsCache,
@@ -180,7 +180,7 @@ export const useCreateShot = () => {
         });
 
         // Cache the shot individually
-        queryClient.setQueryData(queryKeys.shots.detail(newShot.id), newShot);
+        queryClient.setQueryData(shotQueryKeys.detail(newShot.id), newShot);
 
       }
     },
@@ -267,7 +267,7 @@ export const useDuplicateShot = () => {
       }
 
       // Invalidate to ensure full sync
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(projectId) });
     },
 
     onError: (error: Error, _variables, context) => {
@@ -346,7 +346,7 @@ export const useReorderShots = () => {
     },
 
     onSuccess: ({ projectId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(projectId) });
+      queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(projectId) });
     },
   });
 };

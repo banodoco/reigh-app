@@ -5,7 +5,7 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import FileInput from '@/shared/components/FileInput';
 import { parseRatio } from '@/shared/lib/aspectRatios';
 import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';

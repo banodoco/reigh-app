@@ -6,9 +6,10 @@
  * This hook only composes workflowBarProps + workflowControlsProps + layout chrome.
  */
 
-import { useMemo, RefObject, ReactNode } from 'react';
+import { useMemo, RefObject } from 'react';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from '../types';
 import type { LightboxLayoutProps } from '../components/layouts/types';
+import type { ButtonGroupProps } from './useButtonGroupProps';
 
 // ============================================================================
 // Input sub-interfaces (grouped by concern)
@@ -61,12 +62,7 @@ interface UseLightboxWorkflowPropsInput {
   actions: WorkflowActionProps;
 
   // Button group props (pre-built)
-  buttonGroupProps: {
-    topLeft: ReactNode;
-    topRight: ReactNode;
-    bottomLeft: ReactNode;
-    bottomRight: ReactNode;
-  };
+  buttonGroupProps: ButtonGroupProps;
 
   contentRef: RefObject<HTMLDivElement>;
 

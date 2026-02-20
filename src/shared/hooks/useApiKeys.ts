@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import type { Json } from '@/integrations/supabase/types';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { isNotFoundError } from '@/shared/constants/supabaseErrors';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { apiQueryKeys } from '@/shared/lib/queryKeys/api';
 
 interface ApiKeys {
   fal_api_key?: string;
   openai_api_key?: string;
   replicate_api_key?: string;
+  [key: string]: Json | undefined;
 }
 
 // Fetch API keys from the database
@@ -80,7 +82,7 @@ export const useApiKeys = () => {
     isLoading,
     error
   } = useQuery({
-    queryKey: queryKeys.api.keys,
+    queryKey: apiQueryKeys.keys,
     queryFn: fetchApiKeys,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -89,7 +91,7 @@ export const useApiKeys = () => {
   const updateMutation = useMutation({
     mutationFn: updateApiKeys,
     onSuccess: (updatedKeys) => {
-      queryClient.setQueryData(queryKeys.api.keys, updatedKeys);
+      queryClient.setQueryData(apiQueryKeys.keys, updatedKeys);
 
     },
     onError: (error: Error) => {
@@ -103,7 +105,8 @@ export const useApiKeys = () => {
 
   // Helper function to get a specific API key
   const getApiKey = (keyName: keyof ApiKeys): string => {
-    return apiKeys?.[keyName] || '';
+    const value = apiKeys?.[keyName];
+    return typeof value === 'string' ? value : '';
   };
 
   return {

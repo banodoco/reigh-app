@@ -5,7 +5,7 @@ import { transformExternalGeneration } from '../utils/external-generation-utils'
 import { supabase } from '@/integrations/supabase/client';
 import { useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/useShots';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /** Shape of the joined shot_generations rows returned by the Supabase query */
 interface ShotGenerationJoin {

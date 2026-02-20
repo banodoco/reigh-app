@@ -131,6 +131,7 @@ describe('useCreateShotWithImage', () => {
       });
     });
 
+    expect(mockRpc).toHaveBeenCalledTimes(1);
     expect(mutateResult.shotId).toBe('shot-1');
     expect(mutateResult.shotName).toBe('Shot 1');
   });

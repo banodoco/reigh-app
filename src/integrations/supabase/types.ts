@@ -1967,6 +1967,10 @@ export type Database = {
         Args: { p_generation_id: string; p_params: Json }
         Returns: boolean
       }
+      ensure_shot_parent_generation: {
+        Args: { p_project_id?: string; p_shot_id: string }
+        Returns: string
+      }
       extract_discord_username: {
         Args: { jwt_claims: Json; user_metadata: Json }
         Returns: string
@@ -2570,4 +2574,3 @@ type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-

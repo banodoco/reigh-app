@@ -6,9 +6,9 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { storagePaths, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface ThumbnailGenerationResult {
   success: boolean;
@@ -25,7 +25,7 @@ interface ThumbnailExtractResult {
 /**
  * Extracts a thumbnail from a video at a specific time
  */
-async function extractThumbnailFromVideo(
+function extractThumbnailFromVideo(
   videoUrl: string,
   timeInSeconds: number = 0.001
 ): Promise<Blob> {

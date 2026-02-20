@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface UseEmptyStateDropProps {
   onFileDrop?: (files: File[], targetFrame?: number) => Promise<void>;

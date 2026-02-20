@@ -12,15 +12,9 @@ export const TASK_TYPES = {
 
 export type TaskType = typeof TASK_TYPES[keyof typeof TASK_TYPES];
 
-export const TOOL_TYPES = {
-  TRAVEL_BETWEEN_IMAGES: 'travel-between-images',
-} as const;
+export const VARIANT_TYPE_DEFAULT = 'generated';
 
-// ToolType was unused — removed
-
-export const VARIANT_TYPE_DEFAULT = 'edit' as const;
-
-export interface SegmentTypeConfig {
+interface SegmentTypeConfig {
   segmentType: TaskType;
   /** Final step tasks (e.g. join_final_stitch) complete the orchestrator directly — no sibling counting. */
   isFinalStep?: boolean;

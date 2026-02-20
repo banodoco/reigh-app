@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
 import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
 import type { GeneratedImageWithMetadata } from '../types';

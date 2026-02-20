@@ -27,24 +27,34 @@ export const JoinClipsDetails: React.FC<TaskDetailsProps> = ({
   const config = getVariantConfig(variant, isMobile, inputImages.length);
   const [videoLoadedStates, setVideoLoadedStates] = useState<{[key: number]: boolean}>({});
 
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
-  const orchestratorDetails = parsedParams?.orchestrator_details;
-  const orchestratorPayload = parsedParams?.full_orchestrator_payload;
+  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
+  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, any> | undefined;
+  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, any> | undefined;
 
   // Multi-clip format
-  const clipsArray = parsedParams?.clips || orchestratorDetails?.clips || orchestratorPayload?.clips;
-  const perJoinSettings = parsedParams?.per_join_settings || orchestratorDetails?.per_join_settings || orchestratorPayload?.per_join_settings;
+  const rawClips = parsedParams?.clips || orchestratorDetails?.clips || orchestratorPayload?.clips;
+  const clipsArray = Array.isArray(rawClips)
+    ? rawClips.filter((clip): clip is JoinClip => !!clip && typeof (clip as JoinClip).url === 'string')
+    : undefined;
+  const rawPerJoinSettings = parsedParams?.per_join_settings || orchestratorDetails?.per_join_settings || orchestratorPayload?.per_join_settings;
+  const perJoinSettings = Array.isArray(rawPerJoinSettings) ? rawPerJoinSettings as JoinSettings[] : undefined;
 
   // Legacy two-video format
-  const startingVideoPath = !clipsArray && (parsedParams?.starting_video_path || orchestratorDetails?.starting_video_path || orchestratorPayload?.starting_video_path);
-  const endingVideoPath = !clipsArray && (parsedParams?.ending_video_path || orchestratorDetails?.ending_video_path || orchestratorPayload?.ending_video_path);
-  const joinClipsPrompt = !clipsArray && (parsedParams?.prompt || orchestratorDetails?.prompt || orchestratorPayload?.prompt);
+  const startingVideoPath = !clipsArray
+    ? (parsedParams?.starting_video_path || orchestratorDetails?.starting_video_path || orchestratorPayload?.starting_video_path) as string | undefined
+    : undefined;
+  const endingVideoPath = !clipsArray
+    ? (parsedParams?.ending_video_path || orchestratorDetails?.ending_video_path || orchestratorPayload?.ending_video_path) as string | undefined
+    : undefined;
+  const joinClipsPrompt = !clipsArray
+    ? (parsedParams?.prompt || orchestratorDetails?.prompt || orchestratorPayload?.prompt) as string | undefined
+    : undefined;
 
   // Frame configuration - use ?? to handle 0 values correctly
-  const contextFrameCount = parsedParams?.context_frame_count ?? orchestratorDetails?.context_frame_count ?? orchestratorPayload?.context_frame_count;
-  const gapFrameCount = parsedParams?.gap_frame_count ?? orchestratorDetails?.gap_frame_count ?? orchestratorPayload?.gap_frame_count;
-  const replaceMode = parsedParams?.replace_mode ?? orchestratorDetails?.replace_mode ?? orchestratorPayload?.replace_mode;
-  const keepBridgingImages = parsedParams?.keep_bridging_images ?? orchestratorDetails?.keep_bridging_images ?? orchestratorPayload?.keep_bridging_images;
+  const contextFrameCount = (parsedParams?.context_frame_count ?? orchestratorDetails?.context_frame_count ?? orchestratorPayload?.context_frame_count) as number | null | undefined;
+  const gapFrameCount = (parsedParams?.gap_frame_count ?? orchestratorDetails?.gap_frame_count ?? orchestratorPayload?.gap_frame_count) as number | null | undefined;
+  const replaceMode = (parsedParams?.replace_mode ?? orchestratorDetails?.replace_mode ?? orchestratorPayload?.replace_mode) as boolean | null | undefined;
+  const keepBridgingImages = (parsedParams?.keep_bridging_images ?? orchestratorDetails?.keep_bridging_images ?? orchestratorPayload?.keep_bridging_images) as boolean | null | undefined;
 
   const setClipVideoLoaded = (index: number, loaded: boolean) => {
     setVideoLoadedStates(prev => ({ ...prev, [index]: loaded }));
@@ -145,7 +155,7 @@ export const JoinClipsDetails: React.FC<TaskDetailsProps> = ({
 
       {/* Frame Configuration */}
       {(contextFrameCount != null || gapFrameCount != null || replaceMode != null || keepBridgingImages != null) && (
-        <div className={`space-y-2 ${(clipsArray?.length > 0) || startingVideoPath || endingVideoPath ? 'pt-2 border-t border-muted-foreground/20' : ''}`}>
+        <div className={`space-y-2 ${((clipsArray?.length ?? 0) > 0) || startingVideoPath || endingVideoPath ? 'pt-2 border-t border-muted-foreground/20' : ''}`}>
           <p className={`${config.textSize} font-medium text-muted-foreground`}>Configuration</p>
           <div className="grid grid-cols-2 gap-3">
             {gapFrameCount != null && (

@@ -7,7 +7,7 @@ import { useShots } from '@/shared/contexts/ShotsContext';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { useDeleteGenerationWithConfirm } from '@/shared/hooks/useDeleteGenerationWithConfirm';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface UseImageGenActionsParams {
   projectId: string | null;
@@ -52,8 +52,9 @@ export function useImageGenActions({
     requestDelete(id);
   }, [requestDelete]);
 
-  const handleAddImageToTargetShot = useCallback(async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-    if (!targetShotInfo.targetShotIdForButton) {
+  const handleAddImageToTargetShot = useCallback(async (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
+    const resolvedTargetShotId = targetShotId || targetShotInfo.targetShotIdForButton;
+    if (!resolvedTargetShotId) {
       toast.error("No target shot available to add to. Create a shot first or interact with one.");
       return false;
     }
@@ -67,36 +68,37 @@ export function useImageGenActions({
     }
 
     const shouldPositionExisting = selectedShotFilter !== 'all' &&
-      selectedShotFilter === targetShotInfo.targetShotIdForButton &&
+      selectedShotFilter === resolvedTargetShotId &&
       excludePositioned;
 
     try {
       if (shouldPositionExisting) {
         await positionExistingGenerationMutation?.mutateAsync({
-          shot_id: targetShotInfo.targetShotIdForButton,
+          shot_id: resolvedTargetShotId,
           generation_id: generationId,
           project_id: projectId,
         });
       } else {
         await addImageToShotMutation?.mutateAsync({
-          shot_id: targetShotInfo.targetShotIdForButton,
+          shot_id: resolvedTargetShotId,
           generation_id: generationId,
           imageUrl,
           thumbUrl,
           project_id: projectId,
         });
       }
-      setLastAffectedShotId(targetShotInfo.targetShotIdForButton);
+      setLastAffectedShotId(resolvedTargetShotId);
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(effectiveProjectId) });
       return true;
     } catch (error) {
       handleError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShot', toastTitle: 'Failed to add image to shot.' });
       return false;
     }
-  }, [targetShotInfo.targetShotIdForButton, projectId, addImageToShotMutation, positionExistingGenerationMutation, setLastAffectedShotId, selectedShotFilter, excludePositioned]);
+  }, [targetShotInfo.targetShotIdForButton, projectId, addImageToShotMutation, positionExistingGenerationMutation, setLastAffectedShotId, selectedShotFilter, excludePositioned, queryClient, effectiveProjectId]);
 
-  const handleAddImageToTargetShotWithoutPosition = useCallback(async (generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-    if (!targetShotInfo.targetShotIdForButton) {
+  const handleAddImageToTargetShotWithoutPosition = useCallback(async (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
+    const resolvedTargetShotId = targetShotId || targetShotInfo.targetShotIdForButton;
+    if (!resolvedTargetShotId) {
       toast.error("No target shot available to add to. Create a shot first or interact with one.");
       return false;
     }
@@ -111,20 +113,20 @@ export function useImageGenActions({
 
     try {
       await addImageToShotWithoutPositionMutation?.mutateAsync({
-        shot_id: targetShotInfo.targetShotIdForButton,
+        shot_id: resolvedTargetShotId,
         generation_id: generationId,
         imageUrl,
         thumbUrl,
         project_id: projectId,
       });
-      setLastAffectedShotId(targetShotInfo.targetShotIdForButton);
+      setLastAffectedShotId(resolvedTargetShotId);
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(effectiveProjectId) });
       return true;
     } catch (error) {
       handleError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShotWithoutPosition', toastTitle: 'Failed to add image to shot without position.' });
       return false;
     }
-  }, [targetShotInfo.targetShotIdForButton, projectId, addImageToShotWithoutPositionMutation, setLastAffectedShotId, queryClient]);
+  }, [targetShotInfo.targetShotIdForButton, projectId, addImageToShotWithoutPositionMutation, setLastAffectedShotId, queryClient, effectiveProjectId]);
 
   const handleBackfillRequest = useCallback(async (): Promise<void> => {
     if (!projectId) return;
@@ -134,7 +136,12 @@ export function useImageGenActions({
         queryKey: queryKeys.unified.projectPrefix(effectiveProjectId),
       });
       await queryClient.refetchQueries({
-        queryKey: queryKeys.unified.byProject(effectiveProjectId, currentPage, itemsPerPage, generationsFilters),
+        queryKey: queryKeys.unified.byProject(
+          effectiveProjectId,
+          currentPage,
+          itemsPerPage,
+          JSON.stringify(generationsFilters)
+        ),
       });
     } catch (error) {
       handleError(error, { context: 'ImageGenerationToolPage.refetchGenerationsAfterChange', showToast: false });

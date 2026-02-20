@@ -71,7 +71,7 @@ export const PromptGenerationControls: React.FC<PromptGenerationControlsProps> =
   const [rulesToRememberText, setRulesToRememberText] = useState(initialValues?.rulesToRememberText || '');
   const [numberToGenerate, setNumberToGenerate] = useState<number>(initialValues?.numberToGenerate || 16);
   const [includeExistingContext, setIncludeExistingContext] = useState(initialValues?.includeExistingContext ?? true);
-  const [addSummary] = useState(true); // Always true, no longer user-configurable
+  const addSummary = true; // Always true, no longer user-configurable
   const [replaceCurrentPrompts, setReplaceCurrentPrompts] = useState(initialValues?.replaceCurrentPrompts || false);
   const [temperature, setTemperature] = useState<number>(initialValues?.temperature || 0.8);
   const [showAdvanced, setShowAdvanced] = useState(initialValues?.showAdvanced || false);
@@ -120,7 +120,7 @@ export const PromptGenerationControls: React.FC<PromptGenerationControlsProps> =
       showAdvanced,
       ...overrides,
     });
-  }, [overallPromptText, remixPromptText, rulesToRememberText, numberToGenerate, includeExistingContext, addSummary, replaceCurrentPrompts, temperature, showAdvanced, onValuesChange]);
+  }, [overallPromptText, remixPromptText, rulesToRememberText, numberToGenerate, includeExistingContext, replaceCurrentPrompts, temperature, showAdvanced, onValuesChange]);
 
   // When remixMode is enabled, automatically set includeExistingContext and replaceCurrentPrompts to true
   useEffect(() => {
@@ -180,10 +180,11 @@ export const PromptGenerationControls: React.FC<PromptGenerationControlsProps> =
 
   const selectedTemperatureOption = temperatureOptions.find(opt => opt.value === temperature);
 
-  const handleTemperatureChange = (newValue: number) => {
+  const handleTemperatureChange = (newValue: number | readonly number[]) => {
+    const normalizedValue = Array.isArray(newValue) ? (newValue[0] ?? temperature) : newValue;
     // Find the closest temperature option
     const closest = temperatureOptions.reduce((prev, curr) => 
-      Math.abs(curr.value - newValue) < Math.abs(prev.value - newValue) ? curr : prev
+      Math.abs(curr.value - normalizedValue) < Math.abs(prev.value - normalizedValue) ? curr : prev
     );
     setTemperature(closest.value);
     emitChange({ temperature: closest.value });
@@ -258,8 +259,9 @@ export const PromptGenerationControls: React.FC<PromptGenerationControlsProps> =
                 id="gen_numberToGenerate"
                 value={numberToGenerate}
                 onValueChange={(value) => {
-                  setNumberToGenerate(value);
-                  emitChange({ numberToGenerate: value });
+                  const nextValue = Array.isArray(value) ? (value[0] ?? numberToGenerate) : value;
+                  setNumberToGenerate(nextValue);
+                  emitChange({ numberToGenerate: nextValue });
                 }}
                 min={1}
                 max={32}

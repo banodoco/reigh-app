@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useQueryClient } from '@tanstack/react-query';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import type { GenerationRow } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import type { Json } from '@/integrations/supabase/types';
 
 /** Extended media fields that may be present at runtime from gallery/query layer */
 interface MediaWithShotFields {
@@ -171,7 +172,7 @@ export function useRepositionVariantSave({
           tool_type: toolTypeOverride || TOOL_IDS.EDIT_IMAGES,
           repositioned_from: actualGenerationId,
           ...(activeVariantId ? { source_variant_id: activeVariantId } : {}),
-        };
+        } as unknown as Json;
 
         const { data: insertedGeneration, error: genError } = await supabase
           .from('generations')
@@ -214,7 +215,7 @@ export function useRepositionVariantSave({
         const { data: insertedVariant, error: insertError } = await supabase
           .from('generation_variants')
           .insert({
-            generation_id: actualGenerationId,
+            generation_id: actualGenerationId ?? media.id,
             location: transformedUrl,
             thumbnail_url: thumbnailUrl,
             is_primary: true,
@@ -226,7 +227,7 @@ export function useRepositionVariantSave({
               saved_at: new Date().toISOString(),
               tool_type: toolTypeOverride || TOOL_IDS.EDIT_IMAGES,
               ...(activeVariantId ? { source_variant_id: activeVariantId } : {}),
-            }
+            } as unknown as Json
           })
           .select('id')
           .single();
@@ -267,7 +268,7 @@ export function useRepositionVariantSave({
         (mediaExt.all_shot_associations?.[0]?.shot_id);
 
       await invalidateVariantChange(queryClient, {
-        generationId: actualGenerationId,
+        generationId: actualGenerationId ?? media.id,
         shotId: effectiveShotId,
         reason: 'reposition-variant-created',
         delayMs: 100,

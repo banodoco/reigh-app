@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface AppErrorBoundaryState {
   hasError: boolean;
@@ -37,12 +38,14 @@ export class AppErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    // Log the error with context
-    console.error('[AppErrorBoundary] Uncaught error:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack?.split('\n').slice(0, 5).join('\n'),
-      componentStack: errorInfo.componentStack?.split('\n').slice(0, 10).join('\n'),
+    handleError(error, {
+      context: 'AppErrorBoundary.componentDidCatch',
+      showToast: false,
+      logData: {
+        name: error.name,
+        stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+        componentStack: errorInfo.componentStack?.split('\n').slice(0, 10).join('\n'),
+      },
     });
 
     this.setState({ errorInfo });

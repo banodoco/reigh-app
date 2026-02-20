@@ -13,7 +13,7 @@ import { JoinClipsModal } from './JoinClipsModal';
 import { VideoItemActions } from './VideoItemActions';
 import { videoItemPropsAreEqual } from './VideoItemMemo';
 import { determineVideoPhase, createLoadingSummary } from '../utils/video-loading-utils';
-import { getDisplayUrl } from '@/shared/lib/utils';
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { useTaskFromUnifiedCache } from '@/shared/hooks/useTaskPrefetch';
 import { useShareGeneration } from '@/shared/hooks/useShareGeneration';
 
@@ -399,7 +399,7 @@ export const VideoItem = React.memo<VideoItemProps>(({
                 {/* HoverScrubVideo with loading optimization integration */}
                 <HoverScrubVideo
                   key={`video-${video.id}`}
-                  src={video.location || video.imageUrl}
+                  src={video.location || video.imageUrl || ''}
                   preload={shouldPreload as 'auto' | 'metadata' | 'none'}
                   loadOnDemand={true}
                   className={`w-full h-full transition-opacity duration-500 ${videoPosterLoaded ? 'opacity-100' : 'opacity-0'
@@ -476,14 +476,16 @@ export const VideoItem = React.memo<VideoItemProps>(({
             isMobile={isMobile}
             deletingVideoId={deletingVideoId}
             deleteTooltip={deleteTooltip}
-            taskId={taskMapping?.taskId}
+            taskId={taskMapping?.taskId ?? undefined}
             onLightboxOpen={onLightboxOpen}
             onDelete={onDelete}
             onHoverStart={onHoverStart}
             onHoverEnd={onHoverEnd}
             onMobileModalOpen={onMobileModalOpen}
             onApplySettingsFromTask={onApplySettingsFromTask}
-            handleShare={handleShare}
+            handleShare={(e) => {
+              void handleShare(e);
+            }}
             isCreatingShare={isCreatingShare}
             shareCopied={shareCopied}
             shareSlug={shareSlug}

@@ -80,7 +80,7 @@ serve(async (req) => {
     if (bodyText) {
       requestBody = JSON.parse(bodyText);
     }
-  } catch (e) {
+  } catch {
     logger.error("Invalid JSON body");
     await logger.flush();
     return new Response("Invalid JSON body", { status: 400 });

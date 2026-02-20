@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandler";
+import { handleError } from "@/shared/lib/errorHandling/handleError";
 import { GenerationRow, Shot } from "@/types/shots";
 import { useRemoveImageFromShot } from "@/shared/hooks/useShots";
 import { useQueryClient } from '@tanstack/react-query';
@@ -160,7 +160,7 @@ export const useDeleteActions = ({
 
       // Check for orphaned video variants after batch deletion
       await demoteOrphanedVariantsRef.current(currentShot.id, 'batch-image-delete');
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove some images from timeline');
     }
   }, []);

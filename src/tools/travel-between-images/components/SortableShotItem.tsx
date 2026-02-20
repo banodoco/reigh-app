@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Shot } from '@/types/shots';
 import VideoShotDisplay from './VideoShotDisplay';
 import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { isValidDropTarget, getGenerationDropData, isFileDrag, type GenerationDropData } from '@/shared/lib/dragDrop';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { Loader2, Check } from 'lucide-react';
@@ -214,7 +214,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
     
     window.addEventListener('shot-pending-upload', handlePendingUpload as EventListener);
     return () => window.removeEventListener('shot-pending-upload', handlePendingUpload as EventListener);
-  }, [shot.id, shot.name, nonVideoImageIds]);
+  }, [shot.id, nonVideoImageIds]);
 
   // Check if we can accept this drop (generation or file)
   const canAcceptDrop = useCallback((e: React.DragEvent): boolean => {
@@ -396,7 +396,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
         }
       }
     }
-  }, [onGenerationDrop, onFilesDrop, shot.id, shot.name, nonVideoImageIds]);
+  }, [onGenerationDrop, onFilesDrop, shot.id, nonVideoImageIds]);
 
   // Handle drop on main area (with position)
   const handleDrop = useCallback((e: React.DragEvent) => {

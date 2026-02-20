@@ -7,7 +7,7 @@
  * @param videoFile The video file to extract from
  * @returns Promise that resolves to a Blob of the poster image (JPEG)
  */
-export async function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
+export function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
@@ -72,7 +72,7 @@ export async function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
  * @param videoFile The video file to extract from
  * @returns Promise that resolves to a Blob of the final frame image (JPEG)
  */
-export async function extractVideoFinalFrame(videoFile: File): Promise<Blob> {
+export function extractVideoFinalFrame(videoFile: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
@@ -131,4 +131,3 @@ export async function extractVideoFinalFrame(videoFile: File): Promise<Blob> {
     video.src = URL.createObjectURL(videoFile);
   });
 }
-

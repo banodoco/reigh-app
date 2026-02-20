@@ -42,7 +42,7 @@ export function ReplaceTimeline({
   onSelectionClick: (id: string | null) => void;
   onRemoveSelection: (id: string) => void;
   onAddSelection: () => void;
-  videoRef: RefObject<HTMLVideoElement | null>;
+  videoRef: RefObject<HTMLVideoElement>;
   videoUrl: string | null | undefined;
   videoFps: number | null;
   contextFrameCount: number;
@@ -64,7 +64,7 @@ export function ReplaceTimeline({
         onSelectionClick={onSelectionClick}
         onRemoveSelection={onRemoveSelection}
         videoRef={videoRef}
-        videoUrl={videoUrl}
+        videoUrl={videoUrl ?? ''}
         fps={videoFps}
         maxGapFrames={Math.max(1, 81 - (contextFrameCount * 2))}
       />
@@ -145,10 +145,10 @@ export function ReplacePanelContent({
       onUpdateSelectionSettings={handleUpdateSelectionSettings}
       onRemoveSelection={handleRemoveSelection}
       onAddSelection={handleAddSelection}
-      videoUrl={videoUrl}
+      videoUrl={videoUrl ?? ''}
       fps={videoFps}
       availableLoras={availableLoras}
-      projectId={selectedProjectId}
+      projectId={selectedProjectId ?? null}
       loraManager={loraManager}
       // Motion settings
       motionMode={motionMode as 'basic' | 'advanced'}

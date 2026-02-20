@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
 
 interface UseMediaGalleryItemStateProps {

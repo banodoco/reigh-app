@@ -49,7 +49,7 @@ export const useShotCreation = ({
     handleQuickCreateAndAdd,
     clearQuickCreateSuccess,
   } = useQuickShotCreate({
-    generationId: actualGenerationId,
+    generationId: actualGenerationId ?? media.id,
     shots: allShots,
     onShotChange,
     // Don't use the hook's built-in navigation - we have custom navigation via onNavigateToShot

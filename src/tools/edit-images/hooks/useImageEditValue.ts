@@ -5,6 +5,7 @@ import type { BrushStroke, AnnotationMode } from '@/shared/components/MediaLight
 import type { StrokeOverlayHandle } from '@/shared/components/MediaLightbox/components/StrokeOverlay';
 import type { ImageTransform } from '@/shared/components/MediaLightbox/hooks/useRepositionMode';
 import type { LoraMode } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
+import type { CSSProperties } from 'react';
 
 // ============================================================================
 // Params — sub-hook results needed to build ImageEditState
@@ -119,254 +120,114 @@ interface UseImageEditValueParams {
 // Hook — builds the memoized ImageEditState from sub-hook results
 // ============================================================================
 
-export function useImageEditValue(params: UseImageEditValueParams): ImageEditState {
-  const {
-    isInpaintMode,
-    isSpecialEditMode,
-    editMode,
-    setIsInpaintMode,
-    setEditMode,
-    handleEnterInpaintMode,
-    handleExitMagicEditMode,
-    handleEnterMagicEditMode,
-    brushSize,
-    setBrushSize,
-    isEraseMode,
-    setIsEraseMode,
-    brushStrokes,
-    isAnnotateMode,
-    setIsAnnotateMode,
-    annotationMode,
-    setAnnotationMode,
-    selectedShapeId,
-    onStrokeComplete,
-    onStrokesChange,
-    onSelectionChange,
-    onTextModeHint,
-    strokeOverlayRef,
-    getDeleteButtonPosition,
-    handleToggleFreeForm,
-    handleDeleteSelected,
-    handleUndo,
-    handleClearMask,
-    repositionTransform,
-    hasTransformChanges,
-    isRepositionDragging,
-    repositionDragHandlers,
-    getTransformStyle,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
-    imageContainerRef,
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-    img2imgPrompt,
-    setImg2imgPrompt,
-    img2imgStrength,
-    setImg2imgStrength,
-    enablePromptExpansion,
-    setEnablePromptExpansion,
-    loraMode,
-    setLoraMode,
-    customLoraUrl,
-    setCustomLoraUrl,
-    createAsGeneration,
-    setCreateAsGeneration,
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-  } = params;
-
-  return useMemo<ImageEditState>(() => ({
-    // Mode state
-    isInpaintMode,
-    isMagicEditMode: isSpecialEditMode,
-    isSpecialEditMode,
-    editMode: editMode as ImageEditState['editMode'],
-
-    // Mode setters
-    setIsInpaintMode,
+function buildModeState(params: UseImageEditValueParams): Partial<ImageEditState> {
+  return {
+    isInpaintMode: params.isInpaintMode,
+    isMagicEditMode: params.isSpecialEditMode,
+    isSpecialEditMode: params.isSpecialEditMode,
+    editMode: params.editMode as ImageEditState['editMode'],
+    setIsInpaintMode: params.setIsInpaintMode,
     setIsMagicEditMode: () => {},
-    setEditMode: setEditMode as ImageEditState['setEditMode'],
+    setEditMode: params.setEditMode as ImageEditState['setEditMode'],
+    handleEnterInpaintMode: params.handleEnterInpaintMode,
+    handleExitInpaintMode: params.handleExitMagicEditMode,
+    handleEnterMagicEditMode: params.handleEnterMagicEditMode,
+    handleExitMagicEditMode: params.handleExitMagicEditMode,
+  };
+}
 
-    // Mode entry/exit handlers
-    handleEnterInpaintMode,
-    handleExitInpaintMode: handleExitMagicEditMode,
-    handleEnterMagicEditMode,
-    handleExitMagicEditMode,
+function buildCanvasAndAnnotationState(params: UseImageEditValueParams): Partial<ImageEditState> {
+  return {
+    brushSize: params.brushSize,
+    setBrushSize: params.setBrushSize,
+    isEraseMode: params.isEraseMode,
+    setIsEraseMode: params.setIsEraseMode,
+    brushStrokes: params.brushStrokes,
+    isAnnotateMode: params.isAnnotateMode,
+    setIsAnnotateMode: params.setIsAnnotateMode,
+    annotationMode: params.annotationMode,
+    setAnnotationMode: params.setAnnotationMode,
+    selectedShapeId: params.selectedShapeId,
+    onStrokeComplete: params.onStrokeComplete,
+    onStrokesChange: params.onStrokesChange,
+    onSelectionChange: params.onSelectionChange,
+    onTextModeHint: params.onTextModeHint,
+    strokeOverlayRef: params.strokeOverlayRef,
+    getDeleteButtonPosition: params.getDeleteButtonPosition,
+    handleToggleFreeForm: params.handleToggleFreeForm,
+    handleDeleteSelected: params.handleDeleteSelected,
+    handleUndo: params.handleUndo,
+    handleClearMask: params.handleClearMask,
+  };
+}
 
-    // Brush/Inpaint state
-    brushSize,
-    setBrushSize,
-    isEraseMode,
-    setIsEraseMode,
-    brushStrokes,
-
-    // Annotation state
-    isAnnotateMode,
-    setIsAnnotateMode,
-    annotationMode,
-    setAnnotationMode,
-    selectedShapeId,
-
-    // Canvas interaction
-    onStrokeComplete,
-    onStrokesChange,
-    onSelectionChange,
-    onTextModeHint,
-    strokeOverlayRef,
-    getDeleteButtonPosition,
-    handleToggleFreeForm,
-    handleDeleteSelected,
-
-    // Undo/Clear
-    handleUndo,
-    handleClearMask,
-
-    // Reposition state
-    repositionTransform,
-    hasTransformChanges,
-    isRepositionDragging,
-    repositionDragHandlers,
-    getTransformStyle,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
-
-    // Display refs
-    imageContainerRef,
+function buildRepositionAndPanelState(params: UseImageEditValueParams): Partial<ImageEditState> {
+  return {
+    repositionTransform: params.repositionTransform,
+    hasTransformChanges: params.hasTransformChanges,
+    isRepositionDragging: params.isRepositionDragging,
+    repositionDragHandlers: params.repositionDragHandlers,
+    getTransformStyle: (): CSSProperties => ({ transform: params.getTransformStyle() }),
+    setScale: params.setScale,
+    setRotation: params.setRotation,
+    toggleFlipH: params.toggleFlipH,
+    toggleFlipV: params.toggleFlipV,
+    resetTransform: params.resetTransform,
+    imageContainerRef: params.imageContainerRef,
     isFlippedHorizontally: false,
     isSaving: false,
+    inpaintPanelPosition: params.inpaintPanelPosition,
+    setInpaintPanelPosition: params.setInpaintPanelPosition,
+  };
+}
 
-    // Panel UI state
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
-
-    // Inpaint form
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-
-    // Img2Img form
-    img2imgPrompt,
-    setImg2imgPrompt,
-    img2imgStrength,
-    setImg2imgStrength,
-    enablePromptExpansion,
-    setEnablePromptExpansion,
-
-    // LoRA mode
-    loraMode,
-    setLoraMode,
-    customLoraUrl,
-    setCustomLoraUrl,
-
-    // Generation options
-    createAsGeneration,
-    setCreateAsGeneration,
-
-    // Model selection
+function buildFormAndGenerationState(params: UseImageEditValueParams): Partial<ImageEditState> {
+  return {
+    inpaintPrompt: params.inpaintPrompt,
+    setInpaintPrompt: params.setInpaintPrompt,
+    inpaintNumGenerations: params.inpaintNumGenerations,
+    setInpaintNumGenerations: params.setInpaintNumGenerations,
+    img2imgPrompt: params.img2imgPrompt,
+    setImg2imgPrompt: params.setImg2imgPrompt,
+    img2imgStrength: params.img2imgStrength,
+    setImg2imgStrength: params.setImg2imgStrength,
+    enablePromptExpansion: params.enablePromptExpansion,
+    setEnablePromptExpansion: params.setEnablePromptExpansion,
+    loraMode: params.loraMode,
+    setLoraMode: params.setLoraMode,
+    customLoraUrl: params.customLoraUrl,
+    setCustomLoraUrl: params.setCustomLoraUrl,
+    createAsGeneration: params.createAsGeneration,
+    setCreateAsGeneration: params.setCreateAsGeneration,
     qwenEditModel: 'qwen-edit-2511',
     setQwenEditModel: () => {},
-
-    // Advanced settings (not used in InlineEditView)
     advancedSettings: DEFAULT_ADVANCED_SETTINGS,
     setAdvancedSettings: () => {},
+    isGeneratingInpaint: params.isGeneratingInpaint,
+    inpaintGenerateSuccess: params.inpaintGenerateSuccess,
+    isGeneratingImg2Img: params.isGeneratingImg2Img,
+    img2imgGenerateSuccess: params.img2imgGenerateSuccess,
+    isGeneratingReposition: params.isGeneratingReposition,
+    repositionGenerateSuccess: params.repositionGenerateSuccess,
+    isSavingAsVariant: params.isSavingAsVariant,
+    saveAsVariantSuccess: params.saveAsVariantSuccess,
+    isCreatingMagicEditTasks: params.isCreatingMagicEditTasks,
+    magicEditTasksCreated: params.magicEditTasksCreated,
+  };
+}
 
-    // Generation status
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-  }), [
-    isInpaintMode,
-    isSpecialEditMode,
-    editMode,
-    setIsInpaintMode,
-    setEditMode,
-    handleEnterInpaintMode,
-    handleExitMagicEditMode,
-    handleEnterMagicEditMode,
-    brushSize,
-    setBrushSize,
-    isEraseMode,
-    setIsEraseMode,
-    brushStrokes,
-    isAnnotateMode,
-    setIsAnnotateMode,
-    annotationMode,
-    setAnnotationMode,
-    selectedShapeId,
-    onStrokeComplete,
-    onStrokesChange,
-    onSelectionChange,
-    onTextModeHint,
-    strokeOverlayRef,
-    getDeleteButtonPosition,
-    handleToggleFreeForm,
-    handleDeleteSelected,
-    handleUndo,
-    handleClearMask,
-    repositionTransform,
-    hasTransformChanges,
-    isRepositionDragging,
-    repositionDragHandlers,
-    getTransformStyle,
-    setScale,
-    setRotation,
-    toggleFlipH,
-    toggleFlipV,
-    resetTransform,
-    imageContainerRef,
-    inpaintPanelPosition,
-    setInpaintPanelPosition,
-    inpaintPrompt,
-    setInpaintPrompt,
-    inpaintNumGenerations,
-    setInpaintNumGenerations,
-    img2imgPrompt,
-    setImg2imgPrompt,
-    img2imgStrength,
-    setImg2imgStrength,
-    enablePromptExpansion,
-    setEnablePromptExpansion,
-    loraMode,
-    setLoraMode,
-    customLoraUrl,
-    setCustomLoraUrl,
-    createAsGeneration,
-    setCreateAsGeneration,
-    isGeneratingInpaint,
-    inpaintGenerateSuccess,
-    isGeneratingImg2Img,
-    img2imgGenerateSuccess,
-    isGeneratingReposition,
-    repositionGenerateSuccess,
-    isSavingAsVariant,
-    saveAsVariantSuccess,
-    isCreatingMagicEditTasks,
-    magicEditTasksCreated,
-  ]);
+function buildImageEditState(params: UseImageEditValueParams): ImageEditState {
+  return {
+    ...buildModeState(params),
+    ...buildCanvasAndAnnotationState(params),
+    ...buildRepositionAndPanelState(params),
+    ...buildFormAndGenerationState(params),
+  } as ImageEditState;
+}
+
+export function useImageEditValue(params: UseImageEditValueParams): ImageEditState {
+  return useMemo<ImageEditState>(
+    () => buildImageEditState(params),
+    [params]
+  );
 }

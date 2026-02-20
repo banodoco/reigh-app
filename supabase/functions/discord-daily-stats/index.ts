@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { SystemLogger } from "../_shared/systemLogger.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
@@ -41,13 +42,17 @@ serve(async (req) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceKey);
   const logger = new SystemLogger(supabaseAdmin, "discord-daily-stats");
 
-  // Authenticate: only service role allowed
-  const authHeader = req.headers.get("Authorization");
-  const token = authHeader?.replace("Bearer ", "");
-  if (token !== serviceKey) {
+  // Authenticate: service-role only
+  const auth = await authenticateRequest(req, supabaseAdmin, LOG_PREFIX);
+  if (!auth.success) {
+    logger.error(auth.error || "Authentication failed");
+    await logger.flush();
+    return new Response(auth.error || "Unauthorized", { status: auth.statusCode || 401 });
+  }
+  if (!auth.isServiceRole) {
     logger.error("Unauthorized request");
     await logger.flush();
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 403 });
   }
 
   try {
@@ -276,7 +281,7 @@ function aggregateByWeek(buckets: DayBucket[]): DayBucket[] {
  */
 async function generateChart(
   data: DayBucket[],
-  isWeekly: boolean
+  _isWeekly: boolean
 ): Promise<string | null> {
   const labels = data.map((d) => {
     const date = new Date(d.date + "T00:00:00Z");

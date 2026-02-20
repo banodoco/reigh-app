@@ -10,7 +10,7 @@
  * - Padding clips with empty slots
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { generateUUID } from '@/shared/lib/taskCreation';
 import type { VideoClip, TransitionPrompt } from '../types';
 import type { JoinClipsSettings } from '../settings';

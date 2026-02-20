@@ -61,6 +61,5 @@ export function useTaskContentType({ task, taskParams, taskTypeInfo }: UseTaskCo
       showsTooltip,
       contentType,
     };
-  }, [taskTypeInfo?.content_type, task.status, task.outputLocation, task.taskType, taskParams.parsed?.child_generation_id, task.id]);
+  }, [taskTypeInfo?.content_type, task.status, task.outputLocation, task.taskType, taskParams.parsed?.child_generation_id]);
 }
-

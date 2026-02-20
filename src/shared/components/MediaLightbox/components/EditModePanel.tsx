@@ -229,7 +229,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   const modeSelector = (
     <ModeSelector
       items={modeSelectorItems}
-      activeId={editMode}
+      activeId={editMode ?? 'text'}
     />
   );
 
@@ -305,7 +305,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
           })()}
 
           {/* Img2Img Mode Controls */}
-          {editMode === 'img2img' && setImg2imgPrompt && setImg2imgStrength && setEnablePromptExpansion && (
+          {editMode === 'img2img' && (
             <Img2ImgControls
               isMobile={isMobile}
               img2imgPrompt={img2imgPrompt}
@@ -328,7 +328,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
               <div className={cn("flex items-center gap-2", isMobile ? "mb-1" : "mb-2")}>
                 {/* Model Selector (40% width) */}
                 {setQwenEditModel && (
-                  <Select value={qwenEditModel} onValueChange={setQwenEditModel}>
+                  <Select value={qwenEditModel} onValueChange={(value) => value && setQwenEditModel(value)}>
                     <SelectTrigger variant="retro" className={cn("w-[40%]", isMobile ? "h-7 text-xs" : "h-10")}>
                       <SelectValue />
                     </SelectTrigger>
@@ -383,7 +383,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
             <div className="flex items-center gap-2">
               {!isMobile && <label className={`text-sm font-medium whitespace-nowrap`}>LoRA:</label>}
               <div className="flex items-center gap-1 flex-1">
-                <Select value={loraMode} onValueChange={setLoraMode}>
+                <Select value={loraMode} onValueChange={(value) => value && setLoraMode(value)}>
                   <SelectTrigger variant="retro" className={cn("flex-1", isMobile ? "h-7 text-xs" : "h-10")}>
                     <SelectValue />
                   </SelectTrigger>
@@ -516,10 +516,10 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
               repositionGenerateSuccess={repositionGenerateSuccess}
             />
           ) : editMode === 'img2img' ? null /* Img2ImgControls renders its own button */ : (
-            <GenerateButton
-              isMobile={isMobile}
-              editMode={editMode}
-              handleUnifiedGenerate={handleUnifiedGenerate}
+              <GenerateButton
+                isMobile={isMobile}
+                editMode={editMode ?? 'text'}
+                handleUnifiedGenerate={handleUnifiedGenerate}
               handleGenerateAnnotatedEdit={handleGenerateAnnotatedEdit}
               brushStrokes={brushStrokes}
               inpaintPrompt={inpaintPrompt}

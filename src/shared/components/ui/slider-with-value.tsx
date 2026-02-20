@@ -30,8 +30,11 @@ const SliderWithValue = ({
   formatValue,
   numberInputClassName = "w-20",
 }: SliderWithValueProps) => {
-  const handleValueChange = (value: number) => {
-    onChange(value);
+  const handleValueChange = (nextValue: number | readonly number[]) => {
+    const resolvedValue = Array.isArray(nextValue) ? nextValue[0] : nextValue;
+    if (typeof resolvedValue === 'number') {
+      onChange(resolvedValue);
+    }
   };
 
   const sliderContent = (

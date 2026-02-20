@@ -78,14 +78,14 @@ function normalizePositions(
 // ============================================================================
 
 /**
- * Find a ShotGeneration by id or generation_id
+ * Find a ShotGeneration by canonical shot_generations.id.
  */
 export function findGeneration(
   shotGenerations: ShotGeneration[],
   key?: string | null
 ): ShotGeneration | undefined {
   if (!key) return undefined;
-  return shotGenerations.find(sg => sg.id === key || sg.generation_id === key);
+  return shotGenerations.find(sg => sg.id === key);
 }
 
 interface DistributionContext {

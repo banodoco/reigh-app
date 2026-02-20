@@ -3,7 +3,7 @@
  * Generates thumbnails from image files using Canvas API
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { uploadImageToStorage, uploadBlobToStorage } from './imageUploader';
 
 interface ThumbnailResult {
@@ -21,7 +21,7 @@ interface ThumbnailResult {
  * @param quality - JPEG quality (0-1, default: 0.8)
  * @returns Promise<ThumbnailResult>
  */
-export async function generateClientThumbnail(
+export function generateClientThumbnail(
   file: File,
   maxSize: number = 300,
   quality: number = 0.8

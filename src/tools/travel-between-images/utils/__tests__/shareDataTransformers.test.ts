@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/shared/lib/mediaTypeHelpers', () => ({
-  getGenerationId: (gen: unknown) => gen.generation_id || gen.id || null,
+  getGenerationId: (gen: unknown) => {
+    if (!gen || typeof gen !== 'object') return null;
+    const record = gen as Record<string, unknown>;
+    if (typeof record.generation_id === 'string') return record.generation_id;
+    if (typeof record.id === 'string') return record.id;
+    return null;
+  },
 }));
 
 import {
@@ -38,13 +44,13 @@ describe('transformGenerationToParentRow', () => {
   it('maps location to imageUrl', () => {
     const gen = { id: 'gen-1', location: '/video/path.mp4' };
     const result = transformGenerationToParentRow(gen);
-    expect((result as unknown).imageUrl).toBe('/video/path.mp4');
+    expect((result as { imageUrl?: string } | null)?.imageUrl).toBe('/video/path.mp4');
   });
 
   it('maps thumbUrl from thumbnail_url', () => {
     const gen = { id: 'gen-1', thumbnail_url: '/thumb.jpg' };
     const result = transformGenerationToParentRow(gen);
-    expect((result as unknown).thumbUrl).toBe('/thumb.jpg');
+    expect((result as { thumbUrl?: string } | null)?.thumbUrl).toBe('/thumb.jpg');
   });
 });
 

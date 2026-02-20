@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { VideoMetadata, extractVideoMetadataFromUrl } from '@/shared/lib/videoUploader';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface UseVideoMetadataOptions {
   /** Callback when metadata is extracted (e.g., to save to database) */

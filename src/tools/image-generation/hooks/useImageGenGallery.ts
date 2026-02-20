@@ -160,7 +160,7 @@ export function useImageGenGallery({
       };
       setTimeout(checkAndScroll, 150);
     }
-  }, [searchParams, generationsResponse, isLoadingGenerations, isFormExpanded]);
+  }, [searchParams, generationsResponse, isLoadingGenerations, isFormExpanded, galleryRef, formContainerRef]);
 
   // Scroll restoration: top-of-gallery for "from bottom" nav, saved position otherwise
   useEffect(() => {
@@ -181,7 +181,7 @@ export function useImageGenGallery({
       setIsPageChange(false);
       setIsPageChangeFromBottom(false);
     }
-  }, [generationsResponse, isPageChange, isPageChangeFromBottom]);
+  }, [generationsResponse, isPageChange, isPageChangeFromBottom, galleryRef, isMobile]);
 
   const isSticky = useStickyHeader({
     containerRef: collapsibleContainerRef,

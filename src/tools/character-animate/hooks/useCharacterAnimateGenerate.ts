@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { createCharacterAnimateTask } from '../lib/characterAnimate';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import type { CharacterAnimateTaskParams } from '../lib/characterAnimate';
 
@@ -63,7 +63,9 @@ export function useCharacterAnimateGenerate({
       setVideosViewJustEnabled(true);
 
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
+      if (selectedProjectId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
+      }
     },
     onError: (error) => {
       handleError(error, { context: 'CharacterAnimate', toastTitle: 'Failed to create task' });

@@ -24,7 +24,7 @@ interface JoinedGeneration {
   starred: boolean | null;
   name: string | null;
   based_on: string | null;
-  params: Record<string, unknown> | null;
+  params: unknown;
   primary_variant_id?: string | null;
   primary_variant?: {
     location: string | null;
@@ -35,11 +35,19 @@ interface JoinedGeneration {
 /** Shape of a raw Supabase shot_generations row with joined generation data */
 interface RawShotGeneration {
   id: string;
+  shot_id?: string;
   generation_id?: string;
   timeline_frame: number | null;
-  metadata: Record<string, unknown> | null;
+  metadata?: unknown;
   generations?: JoinedGeneration | null;
   generation?: JoinedGeneration | null;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
 }
 
 /**
@@ -78,11 +86,11 @@ export const mapShotGenerationToRow = (sg: RawShotGeneration): GenerationRow | n
     starred: gen.starred || false,
     name: gen.name,
     based_on: gen.based_on,
-    params: gen.params || {},
+    params: toRecord(gen.params),
 
     // From shot_generations table:
     timeline_frame: sg.timeline_frame,
-    metadata: sg.metadata || {},
+    metadata: toRecord(sg.metadata),
     primary_variant_id: gen.primary_variant_id || null,
 
     // Legacy support:

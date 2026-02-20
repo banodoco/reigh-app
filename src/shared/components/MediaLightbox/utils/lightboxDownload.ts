@@ -5,7 +5,8 @@
  * extracts prompt for filename, and delegates to downloadMedia.
  */
 
-import type { GenerationRow, GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationRow } from '@/types/shots';
 import { readSegmentOverrides } from '@/shared/utils/settingsMigration';
 import { downloadMedia } from './download';
 

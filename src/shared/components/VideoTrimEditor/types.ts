@@ -3,7 +3,6 @@ import type { TrimState } from '@/shared/types/videoTrim';
 
 export type { GenerationVariant, UseVariantsReturn } from '@/shared/hooks/useVariants';
 export type { TrimState, UseVideoTrimmingReturn, UseTrimSaveReturn } from '@/shared/types/videoTrim';
-export type { VariantSelectorProps } from '@/shared/components/VariantSelector';
 
 export interface TrimControlsPanelProps {
   trimState: TrimState;

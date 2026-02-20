@@ -2,14 +2,18 @@
  * Derive input images from task params
  * Strips any surrounding quotes from URLs that may have been improperly stored
  */
-export const deriveInputImages = (task: Record<string, unknown> | null | undefined): string[] => {
+export const deriveInputImages = (task: { params?: unknown } | null | undefined): string[] => {
   const cleanUrl = (url: string): string => {
     if (typeof url !== 'string') return url;
     // Remove surrounding quotes if present
     return url.replace(/^["']|["']$/g, '');
   };
 
-  const params = (task?.params || {}) as Record<string, unknown>;
+  const params = (
+    task && typeof task === 'object' && 'params' in task
+      ? (task as { params?: unknown }).params
+      : {}
+  ) as Record<string, unknown>;
   if (Array.isArray(params.input_images) && params.input_images.length > 0) {
     return (params.input_images as string[]).map(cleanUrl);
   }

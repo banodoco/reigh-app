@@ -7,6 +7,7 @@ import React, {
   useMemo
 } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { setCachedUserId } from '@/shared/lib/toolSettingsService';
 import type { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -35,7 +36,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // [MobileStallFix] Enhanced auth state tracking with mobile recovery
   // [AuthDebounce] Prevent cascading updates from duplicate auth events
   useEffect(() => {
-    let authStateChangeCount = 0;
     let debounceTimeout: NodeJS.Timeout | null = null;
     let lastProcessedState: { event: string; userId: string | undefined } | null = null;
     let pendingAuthState: { event: string; session: Session | null } | null = null;
@@ -52,6 +52,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // Keep toolSettingsService user cache in sync so it never needs to
+      // acquire navigator.locks when called from within AuthGate
+      if (currentUserId) {
+        setCachedUserId(currentUserId);
+      }
+
       // Update user ID
       setUserId(currentUserId);
 
@@ -60,7 +66,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const handleAuthStateChange = (event: string, session: Session | null) => {
-      authStateChangeCount++;
+      // Seed the toolSettingsService user cache IMMEDIATELY — before the 150ms debounce.
+      // Without this, there's a race: setIsLoading(false) can open AuthGate while
+      // cachedUser is still null (debounce hasn't fired processAuthChange yet).
+      if (session?.user?.id) {
+        setCachedUserId(session.user.id);
+      }
 
       // Store the latest auth state
       pendingAuthState = { event, session };
@@ -84,6 +95,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // Seed toolSettingsService cache BEFORE opening AuthGate (setIsLoading(false)).
+      // This guarantees getUserWithTimeout() returns from cache (no navigator.locks)
+      // for all components that mount after the gate opens.
+      if (session?.user?.id) {
+        setCachedUserId(session.user.id);
+      }
       setUserId(session?.user?.id);
       setIsLoading(false);
       lastProcessedState = { event: 'INITIAL_SESSION', userId: session?.user?.id };

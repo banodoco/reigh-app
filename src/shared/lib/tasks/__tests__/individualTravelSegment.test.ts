@@ -65,11 +65,6 @@ describe('createIndividualTravelSegmentTask', () => {
 
     // Default supabase mock: no existing children found
     mockSupabaseFrom.mockReturnValue({
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'new-parent-id' }, error: null }),
-        }),
-      }),
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
@@ -81,7 +76,7 @@ describe('createIndividualTravelSegmentTask', () => {
       }),
     });
 
-    mockSupabaseRpc.mockResolvedValue({ data: null, error: null });
+    mockSupabaseRpc.mockResolvedValue({ data: 'parent-from-shot', error: null });
   });
 
   it('creates a task with existing parent_generation_id', async () => {
@@ -101,6 +96,7 @@ describe('createIndividualTravelSegmentTask', () => {
     expect(call.task_type).toBe('individual_travel_segment');
     expect(call.params.parent_generation_id).toBe('parent-1');
     expect(call.params.segment_index).toBe(0);
+    expect(mockSupabaseRpc).not.toHaveBeenCalled();
   });
 
   it('includes both input images in params', async () => {
@@ -452,37 +448,7 @@ describe('createIndividualTravelSegmentTask', () => {
     ).rejects.toThrow('start_image_url is required');
   });
 
-  it('creates placeholder parent when shot_id provided without parent_generation_id', async () => {
-    // Mock the insert chain for placeholder creation
-    const mockSingle = vi.fn().mockResolvedValue({ data: { id: 'new-parent-uuid' }, error: null });
-    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-    const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
-
-    // First call: insert (for placeholder parent)
-    // Second+ calls: select (for child lookup)
-    let callCount = 0;
-    mockSupabaseFrom.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        return { insert: mockInsert };
-      }
-      return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue({
-                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-              }),
-            }),
-          }),
-        }),
-      };
-    });
-
-    // Mock crypto.randomUUID
-    const mockUUID = 'mock-uuid-12345';
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(mockUUID as `${string}-${string}-${string}-${string}-${string}`);
-
+  it('ensures parent when shot_id provided without parent_generation_id', async () => {
     await createIndividualTravelSegmentTask({
       project_id: 'proj-1',
       shot_id: 'shot-1',
@@ -491,21 +457,27 @@ describe('createIndividualTravelSegmentTask', () => {
       end_image_url: 'https://example.com/end.jpg',
     });
 
-    // Should have created the placeholder parent
-    expect(mockInsert).toHaveBeenCalledOnce();
-    const insertArgs = mockInsert.mock.calls[0][0];
-    expect(insertArgs.project_id).toBe('proj-1');
-    expect(insertArgs.type).toBe('video');
-    expect(insertArgs.is_child).toBe(false);
-
-    // Should have called RPC to link to shot
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('add_generation_to_shot', {
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('ensure_shot_parent_generation', {
       p_shot_id: 'shot-1',
-      p_generation_id: mockUUID,
-      p_with_position: false,
+      p_project_id: 'proj-1',
+    });
+  });
+
+  it('throws when ensure parent RPC fails', async () => {
+    mockSupabaseRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'RPC failed' },
     });
 
-    vi.restoreAllMocks();
+    await expect(
+      createIndividualTravelSegmentTask({
+        project_id: 'proj-1',
+        shot_id: 'shot-1',
+        segment_index: 0,
+        start_image_url: 'https://example.com/start.jpg',
+        end_image_url: 'https://example.com/end.jpg',
+      })
+    ).rejects.toThrow('Failed to ensure parent generation for shot shot-1: RPC failed');
   });
 
   it('removes legacy structure params from orchestrator_details', async () => {

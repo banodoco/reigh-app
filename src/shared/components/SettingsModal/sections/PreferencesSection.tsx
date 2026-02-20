@@ -1,5 +1,5 @@
 import React from "react";
-import { Sun, Moon, Mic, Wand2, EyeOff } from "lucide-react";
+import { Sun, Moon, Mic, Wand2 } from "lucide-react";
 import { PrivacyToggle } from "@/shared/components/ui/privacy-toggle";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import type { PreferencesSectionProps } from "../types";
@@ -108,7 +108,7 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
               </button>
               <button
                 onClick={() => setAIInputMode("text")}
-                className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} transition-all ${
+                className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} rounded-r-full transition-all ${
                   aiInputMode === "text"
                     ? 'bg-purple-500 text-white'
                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -116,17 +116,6 @@ const PreferencesSection: React.FC<PreferencesSectionProps> = ({
               >
                 <Wand2 className={`${isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} inline mr-1`} />
                 Text
-              </button>
-              <button
-                onClick={() => setAIInputMode("none")}
-                className={`${isMobile ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'} rounded-r-full transition-all ${
-                  aiInputMode === "none"
-                    ? 'bg-gray-500 text-white'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }`}
-              >
-                <EyeOff className={`${isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} inline mr-1`} />
-                None
               </button>
             </div>
           </div>

@@ -26,6 +26,13 @@ import {
   DEFAULT_SHOT_VIDEO_SETTINGS,
 } from '@/shared/types/segmentSettings';
 
+export type {
+  SegmentSettings,
+  ShotVideoSettings,
+  SegmentOverrides,
+  LoraConfig,
+};
+
 // =============================================================================
 // LORA MIGRATION
 // =============================================================================
@@ -55,6 +62,50 @@ function migrateLoras(loras: Record<string, unknown>[] | undefined | null): Lora
   return loras.map(migrateLoraConfig);
 }
 
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function toString(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function toNullableString(value: unknown, fallback: string | null): string | null {
+  if (value === null) return null;
+  return typeof value === 'string' ? value : fallback;
+}
+
+function toNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function toBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function toMotionMode(
+  value: unknown,
+  fallback: SegmentSettings['motionMode']
+): SegmentSettings['motionMode'] {
+  return value === 'basic' || value === 'advanced' ? value : fallback;
+}
+
+function toGenerationTypeMode(
+  value: unknown,
+  fallback: ShotVideoSettings['generationTypeMode']
+): ShotVideoSettings['generationTypeMode'] {
+  return value === 'i2v' || value === 'vace' ? value : fallback;
+}
+
+function toStructureTreatment(value: unknown): SegmentSettings['structureTreatment'] | undefined {
+  return value === 'adjust' || value === 'clip' ? value : undefined;
+}
+
 // =============================================================================
 // MOTION AMOUNT NORMALIZATION
 // =============================================================================
@@ -82,42 +133,41 @@ function normalizeMotionAmount(value: number | undefined): number {
 export function readShotSettings(raw: Record<string, unknown> | null | undefined): ShotVideoSettings {
   if (!raw) return { ...DEFAULT_SHOT_VIDEO_SETTINGS };
 
-  return {
+  const settings: ShotVideoSettings = {
     // Prompts (unified field names after DB migration)
-    prompt: raw.prompt ?? DEFAULT_SHOT_VIDEO_SETTINGS.prompt,
-    negativePrompt: raw.negativePrompt ?? DEFAULT_SHOT_VIDEO_SETTINGS.negativePrompt,
+    prompt: toString(raw.prompt, DEFAULT_SHOT_VIDEO_SETTINGS.prompt),
+    negativePrompt: toString(raw.negativePrompt, DEFAULT_SHOT_VIDEO_SETTINGS.negativePrompt),
 
     // Motion
-    motionMode: raw.motionMode ?? DEFAULT_SHOT_VIDEO_SETTINGS.motionMode,
-    amountOfMotion: normalizeMotionAmount(raw.amountOfMotion as number | undefined),
+    motionMode: toMotionMode(raw.motionMode, DEFAULT_SHOT_VIDEO_SETTINGS.motionMode),
+    amountOfMotion: normalizeMotionAmount(toOptionalNumber(raw.amountOfMotion)),
 
     // Advanced config
-    phaseConfig: raw.phaseConfig,
-    selectedPhasePresetId: raw.selectedPhasePresetId ?? DEFAULT_SHOT_VIDEO_SETTINGS.selectedPhasePresetId,
+    phaseConfig: (toRecord(raw.phaseConfig) as unknown as SegmentSettings['phaseConfig']) ?? undefined,
+    selectedPhasePresetId: toNullableString(raw.selectedPhasePresetId, DEFAULT_SHOT_VIDEO_SETTINGS.selectedPhasePresetId),
 
     // LoRAs (unified field name after DB migration)
     loras: migrateLoras(raw.loras as Record<string, unknown>[] | undefined | null),
 
     // Video
-    numFrames: raw.numFrames ?? DEFAULT_SHOT_VIDEO_SETTINGS.numFrames,
+    numFrames: toNumber(raw.numFrames, DEFAULT_SHOT_VIDEO_SETTINGS.numFrames),
 
     // Seed
-    randomSeed: raw.randomSeed ?? DEFAULT_SHOT_VIDEO_SETTINGS.randomSeed,
-    seed: raw.seed,
+    randomSeed: toBoolean(raw.randomSeed, DEFAULT_SHOT_VIDEO_SETTINGS.randomSeed),
+    seed: toOptionalNumber(raw.seed),
 
     // Variant behavior
-    makePrimaryVariant: raw.makePrimaryVariant ?? DEFAULT_SHOT_VIDEO_SETTINGS.makePrimaryVariant,
+    makePrimaryVariant: toBoolean(raw.makePrimaryVariant, DEFAULT_SHOT_VIDEO_SETTINGS.makePrimaryVariant),
 
     // Batch-specific
-    batchVideoFrames: raw.batchVideoFrames ?? DEFAULT_SHOT_VIDEO_SETTINGS.batchVideoFrames,
-    textBeforePrompts: raw.textBeforePrompts ?? DEFAULT_SHOT_VIDEO_SETTINGS.textBeforePrompts,
-    textAfterPrompts: raw.textAfterPrompts ?? DEFAULT_SHOT_VIDEO_SETTINGS.textAfterPrompts,
-    enhancePrompt: raw.enhancePrompt ?? DEFAULT_SHOT_VIDEO_SETTINGS.enhancePrompt,
-    generationTypeMode: raw.generationTypeMode ?? DEFAULT_SHOT_VIDEO_SETTINGS.generationTypeMode,
-
-    // Legacy (for any code still reading this)
-    advancedMode: raw.advancedMode,
+    batchVideoFrames: toNumber(raw.batchVideoFrames, DEFAULT_SHOT_VIDEO_SETTINGS.batchVideoFrames),
+    textBeforePrompts: toString(raw.textBeforePrompts, DEFAULT_SHOT_VIDEO_SETTINGS.textBeforePrompts),
+    textAfterPrompts: toString(raw.textAfterPrompts, DEFAULT_SHOT_VIDEO_SETTINGS.textAfterPrompts),
+    enhancePrompt: toBoolean(raw.enhancePrompt, DEFAULT_SHOT_VIDEO_SETTINGS.enhancePrompt),
+    generationTypeMode: toGenerationTypeMode(raw.generationTypeMode, DEFAULT_SHOT_VIDEO_SETTINGS.generationTypeMode),
   };
+
+  return settings;
 }
 
 // =============================================================================
@@ -135,36 +185,42 @@ export function readSegmentOverrides(metadata: Record<string, unknown> | null | 
   if (!metadata) return {};
 
   const overrides: SegmentOverrides = {};
-  const segmentOverrides = (metadata.segmentOverrides ?? {}) as Record<string, unknown>;
+  const segmentOverrides = toRecord(metadata.segmentOverrides) ?? {};
 
   // Prompt - include empty strings to distinguish "explicitly empty" from "no override"
   if (segmentOverrides.prompt !== undefined) {
-    overrides.prompt = segmentOverrides.prompt as string;
+    overrides.prompt = toString(segmentOverrides.prompt, '');
   }
 
   // Negative prompt - include empty strings to distinguish "explicitly empty" from "no override"
   if (segmentOverrides.negativePrompt !== undefined) {
-    overrides.negativePrompt = segmentOverrides.negativePrompt as string;
+    overrides.negativePrompt = toString(segmentOverrides.negativePrompt, '');
   }
 
   // Motion mode
   if (segmentOverrides.motionMode !== undefined) {
-    overrides.motionMode = segmentOverrides.motionMode as SegmentSettings['motionMode'];
+    overrides.motionMode = toMotionMode(segmentOverrides.motionMode, DEFAULT_SEGMENT_SETTINGS.motionMode);
   }
 
   // Motion amount (normalize to 0-100 scale)
   if (segmentOverrides.amountOfMotion !== undefined) {
-    overrides.amountOfMotion = normalizeMotionAmount(segmentOverrides.amountOfMotion as number);
+    const motionAmount = toOptionalNumber(segmentOverrides.amountOfMotion);
+    if (motionAmount !== undefined) {
+      overrides.amountOfMotion = normalizeMotionAmount(motionAmount);
+    }
   }
 
   // Phase config
   if (segmentOverrides.phaseConfig !== undefined) {
-    overrides.phaseConfig = segmentOverrides.phaseConfig as SegmentSettings['phaseConfig'];
+    const phaseConfig = toRecord(segmentOverrides.phaseConfig) as unknown as SegmentSettings['phaseConfig'];
+    if (phaseConfig) {
+      overrides.phaseConfig = phaseConfig;
+    }
   }
 
   // Phase preset ID
   if (segmentOverrides.selectedPhasePresetId !== undefined) {
-    overrides.selectedPhasePresetId = segmentOverrides.selectedPhasePresetId as string | null;
+    overrides.selectedPhasePresetId = toNullableString(segmentOverrides.selectedPhasePresetId, null);
   }
 
   // LoRAs - include empty arrays to distinguish "explicitly no loras" from "no override"
@@ -174,36 +230,51 @@ export function readSegmentOverrides(metadata: Record<string, unknown> | null | 
 
   // Frame count
   if (segmentOverrides.numFrames !== undefined) {
-    overrides.numFrames = segmentOverrides.numFrames as number;
+    const numFrames = toOptionalNumber(segmentOverrides.numFrames);
+    if (numFrames !== undefined) {
+      overrides.numFrames = numFrames;
+    }
   }
 
   // Random seed
   if (segmentOverrides.randomSeed !== undefined) {
-    overrides.randomSeed = segmentOverrides.randomSeed as boolean;
+    overrides.randomSeed = toBoolean(segmentOverrides.randomSeed, DEFAULT_SEGMENT_SETTINGS.randomSeed);
   }
 
   // Seed
   if (segmentOverrides.seed !== undefined) {
-    overrides.seed = segmentOverrides.seed as number;
+    const seed = toOptionalNumber(segmentOverrides.seed);
+    if (seed !== undefined) {
+      overrides.seed = seed;
+    }
   }
 
   // Structure video overrides
   if (segmentOverrides.structureMotionStrength !== undefined) {
-    overrides.structureMotionStrength = segmentOverrides.structureMotionStrength as number;
+    const structureMotionStrength = toOptionalNumber(segmentOverrides.structureMotionStrength);
+    if (structureMotionStrength !== undefined) {
+      overrides.structureMotionStrength = structureMotionStrength;
+    }
   }
   if (segmentOverrides.structureTreatment !== undefined) {
-    overrides.structureTreatment = segmentOverrides.structureTreatment as string;
+    const structureTreatment = toStructureTreatment(segmentOverrides.structureTreatment);
+    if (structureTreatment) {
+      overrides.structureTreatment = structureTreatment;
+    }
   }
   if (segmentOverrides.structureUni3cEndPercent !== undefined) {
-    overrides.structureUni3cEndPercent = segmentOverrides.structureUni3cEndPercent as number;
+    const uni3cEndPercent = toOptionalNumber(segmentOverrides.structureUni3cEndPercent);
+    if (uni3cEndPercent !== undefined) {
+      overrides.structureUni3cEndPercent = uni3cEndPercent;
+    }
   }
 
   // Text before/after prompts
   if (segmentOverrides.textBeforePrompts !== undefined) {
-    overrides.textBeforePrompts = segmentOverrides.textBeforePrompts as string;
+    overrides.textBeforePrompts = toString(segmentOverrides.textBeforePrompts, '');
   }
   if (segmentOverrides.textAfterPrompts !== undefined) {
-    overrides.textAfterPrompts = segmentOverrides.textAfterPrompts as string;
+    overrides.textAfterPrompts = toString(segmentOverrides.textAfterPrompts, '');
   }
 
   return overrides;
@@ -287,4 +358,3 @@ export function writeSegmentOverrides(
 
   return metadata;
 }
-

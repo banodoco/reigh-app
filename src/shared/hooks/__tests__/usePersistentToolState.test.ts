@@ -1,15 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
-// Mock useToolSettings
-const mockUpdate = vi.fn().mockResolvedValue(undefined);
-
-vi.mock('./useToolSettings', () => ({
-  useToolSettings: vi.fn(() => ({
+// Mock useAutoSaveSettings (adapter boundary used by usePersistentToolState)
+vi.mock('../useAutoSaveSettings', () => ({
+  useAutoSaveSettings: vi.fn(() => ({
     settings: { generationMode: 'batch', steps: 6 },
-    isLoading: false,
-    update: mockUpdate,
-    isUpdating: false,
+    status: 'ready',
+    entityId: 'proj-1',
+    isDirty: false,
+    error: null,
+    hasShotSettings: true,
+    hasPersistedData: true,
+    updateField: vi.fn(),
+    updateFields: vi.fn(),
+    save: vi.fn(),
+    saveImmediate: vi.fn(),
+    revert: vi.fn(),
+    reset: vi.fn(),
+    initializeFrom: vi.fn(),
   })),
 }));
 
@@ -22,10 +30,6 @@ vi.mock('@/tooling/toolDefaultsRegistry', () => ({
 vi.mock('@/shared/lib/deepEqual', () => ({
   deepEqual: vi.fn((a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)),
   sanitizeSettings: vi.fn((s: unknown) => s),
-}));
-
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
 }));
 
 import { usePersistentToolState } from '../usePersistentToolState';

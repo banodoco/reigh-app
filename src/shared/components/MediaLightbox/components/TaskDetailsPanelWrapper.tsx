@@ -2,6 +2,7 @@ import React from 'react';
 import TaskDetailsPanel from '@/shared/components/TaskDetailsPanel';
 import type { GenerationRow } from '@/types/shots';
 import type { TaskDetailsData } from '../types';
+import type { DerivedItem } from '@/shared/hooks/useDerivedItems';
 
 interface VariantInfo {
   id: string;
@@ -26,11 +27,11 @@ interface TaskDetailsPanelWrapperProps {
   variant?: 'desktop' | 'mobile';
 
   // Legacy props - kept for compatibility but no longer used
-  derivedItems?: GenerationRow[] | null;
-  paginatedDerived?: GenerationRow[];
+  derivedItems?: DerivedItem[] | null;
+  paginatedDerived?: DerivedItem[];
   derivedPage?: number;
   derivedTotalPages?: number;
-  onSetDerivedPage?: (page: number | ((prev: number) => number)) => void;
+  onSetDerivedPage?: (page: number) => void;
   onNavigateToGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
   onVariantSelect?: (variantId: string) => void;
   currentMediaId?: string;
@@ -54,9 +55,9 @@ export const TaskDetailsPanelWrapper: React.FC<TaskDetailsPanelWrapperProps> = (
 }) => {
   return (
     <TaskDetailsPanel
-      task={taskDetailsData?.task}
+      task={taskDetailsData?.task ?? null}
       isLoading={taskDetailsData?.isLoading || false}
-      error={taskDetailsData?.error}
+      error={taskDetailsData?.error ?? null}
       inputImages={taskDetailsData?.inputImages || []}
       taskId={taskDetailsData?.taskId || null}
       replaceImages={replaceImages}
@@ -72,4 +73,3 @@ export const TaskDetailsPanelWrapper: React.FC<TaskDetailsPanelWrapperProps> = (
     />
   );
 };
-

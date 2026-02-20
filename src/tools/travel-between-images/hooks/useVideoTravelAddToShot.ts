@@ -12,14 +12,14 @@
 import { useCallback, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { Shot } from '@/types/shots';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 
 interface UseVideoTravelAddToShotParams {
   /** Current project ID */
-  selectedProjectId: string | null | undefined;
+  selectedProjectId: string;
   /** Current shots list */
   shots: Shot[] | undefined;
   /** Mutation to add an image to a shot with automatic position */
@@ -27,7 +27,7 @@ interface UseVideoTravelAddToShotParams {
     mutateAsync: (params: {
       shot_id: string;
       generation_id: string;
-      project_id: string | null | undefined;
+      project_id: string;
       imageUrl?: string;
       thumbUrl?: string;
     }) => Promise<unknown>;
@@ -37,7 +37,7 @@ interface UseVideoTravelAddToShotParams {
     mutateAsync: (params: {
       shot_id: string;
       generation_id: string;
-      project_id: string | null | undefined;
+      project_id: string;
       imageUrl?: string;
       thumbUrl?: string;
     }) => Promise<unknown>;
@@ -51,9 +51,9 @@ interface UseVideoTravelAddToShotReturn {
     targetShotNameForButtonTooltip: string;
   };
   /** Handle adding a video/image to target shot WITH position */
-  handleAddVideoToTargetShot: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  handleAddVideoToTargetShot: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   /** Handle adding a video/image to target shot WITHOUT position */
-  handleAddVideoToTargetShotWithoutPosition: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  handleAddVideoToTargetShotWithoutPosition: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
 }
 
 /**
@@ -81,11 +81,13 @@ export const useVideoTravelAddToShot = ({
   // Shared implementation for adding to shot (with or without position)
   const addToTargetShot = useCallback(async (
     mutation: typeof addImageToShotMutation,
+    targetShotId: string,
     generationId: string,
     imageUrl?: string,
     thumbUrl?: string,
   ): Promise<boolean> => {
-    if (!targetShotInfo.targetShotIdForButton) {
+    const resolvedTargetShotId = targetShotId || targetShotInfo.targetShotIdForButton;
+    if (!resolvedTargetShotId) {
       console.error('[VideoTravelAddToShot] No target shot available');
       toast.error("No target shot available to add to. Create a shot first or interact with one.");
       return false;
@@ -103,15 +105,15 @@ export const useVideoTravelAddToShot = ({
 
     try {
       await mutation.mutateAsync({
-        shot_id: targetShotInfo.targetShotIdForButton,
+        shot_id: resolvedTargetShotId,
         generation_id: generationId,
         imageUrl,
         thumbUrl,
         project_id: selectedProjectId,
       });
 
-      setLastAffectedShotId(targetShotInfo.targetShotIdForButton);
-      queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId!) });
+      setLastAffectedShotId(resolvedTargetShotId);
+      queryClient.invalidateQueries({ queryKey: unifiedGenerationQueryKeys.projectPrefix(selectedProjectId) });
 
       return true;
     } catch (error) {
@@ -122,15 +124,15 @@ export const useVideoTravelAddToShot = ({
 
   // Handle adding a video/image to target shot WITH position
   const handleAddVideoToTargetShot = useCallback(
-    (generationId: string, imageUrl?: string, thumbUrl?: string) =>
-      addToTargetShot(addImageToShotMutation, generationId, imageUrl, thumbUrl),
+    (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) =>
+      addToTargetShot(addImageToShotMutation, targetShotId, generationId, imageUrl, thumbUrl),
     [addToTargetShot, addImageToShotMutation]
   );
 
   // Handle adding a video/image to target shot WITHOUT position
   const handleAddVideoToTargetShotWithoutPosition = useCallback(
-    (generationId: string, imageUrl?: string, thumbUrl?: string) =>
-      addToTargetShot(addImageToShotWithoutPositionMutation, generationId, imageUrl, thumbUrl),
+    (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) =>
+      addToTargetShot(addImageToShotWithoutPositionMutation, targetShotId, generationId, imageUrl, thumbUrl),
     [addToTargetShot, addImageToShotWithoutPositionMutation]
   );
 
@@ -140,4 +142,3 @@ export const useVideoTravelAddToShot = ({
     handleAddVideoToTargetShotWithoutPosition,
   };
 };
-

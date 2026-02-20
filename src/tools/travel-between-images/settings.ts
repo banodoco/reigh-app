@@ -9,6 +9,7 @@ export {
   DEFAULT_VACE_PHASE_CONFIG,
   buildBasicModePhaseConfig,
 } from '@/shared/types/phaseConfig';
+import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
 // Import for local use
 import {
@@ -81,6 +82,7 @@ export interface VideoTravelSettings {
     motionStrength: number;
     structureType?: 'uni3c' | 'flow' | 'canny' | 'depth';
   };
+  [key: string]: unknown;
 }
 
 export const videoTravelSettings = {
@@ -110,7 +112,6 @@ export const videoTravelSettings = {
     amountOfMotion: 50,
     motionMode: 'basic' as const,
     advancedMode: false,
-    selectedMode: 'Zippy Supreme' as const,
     steerableMotionSettings: DEFAULT_STEERABLE_MOTION_SETTINGS,
     customWidth: undefined,
     customHeight: undefined,

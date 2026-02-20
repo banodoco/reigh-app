@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import {
   AIPromptItem,
   GeneratePromptsParams,
@@ -14,12 +14,36 @@ interface UseAIInteractionServiceOptions {
 }
 
 export const useAIInteractionService = ({
-  apiKey,
+  apiKey: _apiKey,
   generatePromptId,
 }: UseAIInteractionServiceOptions) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const generateSummaryForPromptInternal = useCallback(
+    async (promptText: string): Promise<string | null> => {
+      setIsSummarizing(true);
+
+      try {
+        // Invoke the new edge function
+        const data = await invokeWithTimeout<{ summary?: string }>('ai-prompt', {
+          body: {
+            task: 'generate_summary',
+            promptText },
+          timeoutMs: 20000,
+        });
+
+        return data?.summary || null;
+      } catch (error) {
+        handleError(error, { context: 'useAIInteractionService', showToast: false });
+        return null;
+      } finally {
+        setIsSummarizing(false);
+      }
+    },
+    []
+  );
 
   // === New implementation: delegate prompt generation to Supabase Edge Function ===
   const generatePrompts = useCallback(
@@ -69,31 +93,7 @@ export const useAIInteractionService = ({
         setIsGenerating(false);
       }
     },
-    [generatePromptId, apiKey]
-  );
-
-  const generateSummaryForPromptInternal = useCallback(
-    async (promptText: string): Promise<string | null> => {
-      setIsSummarizing(true);
-
-      try {
-        // Invoke the new edge function
-        const data = await invokeWithTimeout<{ summary?: string }>('ai-prompt', {
-          body: {
-            task: 'generate_summary',
-            promptText },
-          timeoutMs: 20000,
-        });
-
-        return data?.summary || null;
-      } catch (error) {
-        handleError(error, { context: 'useAIInteractionService', showToast: false });
-        return null;
-      } finally {
-        setIsSummarizing(false);
-      }
-    },
-    []
+    [generatePromptId, generateSummaryForPromptInternal]
   );
 
   const editPromptWithAI = useCallback(

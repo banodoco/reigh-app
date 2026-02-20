@@ -13,13 +13,14 @@ export const ImageEditTaskDetails: React.FC<TaskDetailsProps> = ({
   isMobile = false,
 }) => {
   const config = getVariantConfig(variant, isMobile, inputImages.length);
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
+  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
   const derivedImages = useMemo(() => deriveInputImages(parsedParams), [parsedParams]);
   const effectiveInputImages = inputImages.length > 0 ? inputImages : derivedImages;
   const loras = useMemo(() => extractLoras(parsedParams), [parsedParams]);
 
-  const prompt = parsedParams?.prompt;
-  const strength = parsedParams?.strength;
+  const prompt = typeof parsedParams?.prompt === 'string' ? parsedParams.prompt : undefined;
+  const strength = typeof parsedParams?.strength === 'number' ? parsedParams.strength : undefined;
+  const qwenEditModel = typeof parsedParams?.qwen_edit_model === 'string' ? parsedParams.qwen_edit_model : undefined;
   const isImg2Img = task?.taskType === 'z_image_turbo_i2i';
 
   return (
@@ -51,11 +52,11 @@ export const ImageEditTaskDetails: React.FC<TaskDetailsProps> = ({
       )}
 
       {/* Qwen Edit Model (if specified) */}
-      {parsedParams?.qwen_edit_model && (
+      {qwenEditModel && (
         <div className="space-y-1">
           <p className={`${config.textSize} font-medium text-muted-foreground`}>Model</p>
           <p className={`${config.textSize} ${config.fontWeight} text-foreground`}>
-            {parsedParams.qwen_edit_model}
+            {qwenEditModel}
           </p>
         </div>
       )}

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
+import type { Json } from '@/integrations/supabase/types';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface ShotGenerationMetadata {
   magicEditPrompts?: Array<{
@@ -36,7 +36,6 @@ export function useShotGenerationMetadata({
   const [metadata, setMetadata] = useState<ShotGenerationMetadata>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
-  const queryClient = useQueryClient();
   const invalidateGenerations = useInvalidateGenerations();
 
   // Load metadata from database
@@ -100,7 +99,7 @@ export function useShotGenerationMetadata({
       
       const { error } = await supabase
         .from('shot_generations')
-        .update({ metadata: newMetadata })
+        .update({ metadata: newMetadata as unknown as Json })
         .eq('id', shotGenerationId);
 
       if (error) {
@@ -125,7 +124,7 @@ export function useShotGenerationMetadata({
     } finally {
       setIsUpdating(false);
     }
-  }, [shotId, shotGenerationId, metadata, isUpdating, queryClient]);
+  }, [shotId, shotGenerationId, metadata, isUpdating, invalidateGenerations]);
 
   // Convenience method to add a magic edit prompt
   const addMagicEditPrompt = useCallback(async (
@@ -157,13 +156,13 @@ export function useShotGenerationMetadata({
       lastMagicEditInSceneBoost: isInSceneBoostEnabled
     });
     
-  }, [metadata, updateMetadata, shotGenerationId]);
+  }, [metadata, updateMetadata]);
 
   // Get the most recent magic edit prompt
   const getLastMagicEditPrompt = useCallback((): string => {
     const prompt = metadata.lastMagicEditPrompt || '';
     return prompt;
-  }, [metadata, shotGenerationId]);
+  }, [metadata]);
 
   // Get all magic edit prompts
   const getMagicEditPrompts = useCallback(() => {

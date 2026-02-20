@@ -1,0 +1,103 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Session } from '@supabase/supabase-js';
+import { AuthStateManager, initAuthStateManager } from './AuthStateManager';
+
+const { handleErrorMock, requestReconnectMock, getReconnectSchedulerMock } = vi.hoisted(() => ({
+  handleErrorMock: vi.fn(),
+  requestReconnectMock: vi.fn(),
+  getReconnectSchedulerMock: vi.fn(),
+}));
+
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
+  handleError: handleErrorMock,
+}));
+
+vi.mock('@/integrations/supabase/reconnect/ReconnectScheduler', () => ({
+  getReconnectScheduler: getReconnectSchedulerMock,
+}));
+
+describe('AuthStateManager', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getReconnectSchedulerMock.mockReturnValue({
+      requestReconnect: requestReconnectMock,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('subscribes and notifies listeners from auth state callbacks', () => {
+    const setAuthMock = vi.fn();
+    let authCallback: ((event: string, session: Session | null) => void) | undefined;
+    const supabase = {
+      auth: {
+        onAuthStateChange: (callback: (event: string, session: Session | null) => void) => {
+          authCallback = callback;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        },
+      },
+      realtime: {
+        setAuth: setAuthMock,
+      },
+    };
+
+    const manager = new AuthStateManager(supabase as never);
+    const listener = vi.fn();
+    const unsubscribe = manager.subscribe('layout', listener);
+    manager.init();
+
+    authCallback?.('SIGNED_OUT', null);
+    expect(listener).toHaveBeenCalledWith('SIGNED_OUT', null);
+    expect(setAuthMock).toHaveBeenCalledWith(null);
+
+    unsubscribe();
+    authCallback?.('SIGNED_IN', { access_token: 'token' } as Session);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('schedules reconnect healing on SIGNED_IN with debounce', async () => {
+    vi.useFakeTimers();
+    const setAuthMock = vi.fn();
+    let authCallback: ((event: string, session: Session | null) => void) | undefined;
+    const supabase = {
+      auth: {
+        onAuthStateChange: (callback: (event: string, session: Session | null) => void) => {
+          authCallback = callback;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        },
+      },
+      realtime: {
+        setAuth: setAuthMock,
+      },
+    };
+
+    const manager = new AuthStateManager(supabase as never);
+    manager.init();
+
+    authCallback?.('SIGNED_IN', { access_token: 'token-1' } as Session);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(setAuthMock).toHaveBeenCalledWith('token-1');
+
+    authCallback?.('SIGNED_IN', { access_token: 'token-2' } as Session);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(handleErrorMock).not.toHaveBeenCalled();
+  });
+
+  it('initializes window auth manager singleton', () => {
+    const supabase = {
+      auth: {
+        onAuthStateChange: vi.fn(),
+      },
+      realtime: {
+        setAuth: vi.fn(),
+      },
+    };
+
+    initAuthStateManager(supabase as never);
+
+    expect(window.__AUTH_MANAGER__).toBeDefined();
+    expect(typeof window.__AUTH_MANAGER__?.subscribe).toBe('function');
+  });
+});

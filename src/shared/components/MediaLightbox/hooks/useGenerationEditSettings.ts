@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import type { Json } from '@/integrations/supabase/types';
 
 // Import canonical types from single source of truth
 import {
@@ -31,6 +32,9 @@ interface EditApiParams {
   lightning_lora_strength_phase_1?: number;
   lightning_lora_strength_phase_2?: number;
 }
+
+type JsonObject = { [key: string]: Json | undefined };
+type AutoSaveGenerationEditSettings = GenerationEditSettings & Record<string, unknown>;
 
 /**
  * Converts EditAdvancedSettings to API params for task creation.
@@ -100,7 +104,7 @@ interface UseGenerationEditSettingsProps {
 /**
  * Load settings from generations.params.ui.editSettings
  */
-async function loadGenerationSettings(generationId: string): Promise<GenerationEditSettings | null> {
+async function loadGenerationSettings(generationId: string): Promise<AutoSaveGenerationEditSettings | null> {
   const { data, error } = await supabase
     .from('generations')
     .select('params')
@@ -131,7 +135,7 @@ async function loadGenerationSettings(generationId: string): Promise<GenerationE
 /**
  * Save settings to generations.params.ui.editSettings
  */
-async function saveGenerationSettings(generationId: string, settings: GenerationEditSettings): Promise<void> {
+async function saveGenerationSettings(generationId: string, settings: AutoSaveGenerationEditSettings): Promise<void> {
   // Fetch current params to merge
   const { data: current, error: fetchError } = await supabase
     .from('generations')
@@ -149,13 +153,13 @@ async function saveGenerationSettings(generationId: string, settings: Generation
   }
 
   // Merge with existing params
-  const currentParams = (current?.params || {}) as Record<string, unknown>;
-  const currentUi = (currentParams.ui || {}) as Record<string, unknown>;
-  const updatedParams = {
+  const currentParams = ((current?.params as JsonObject | null) ?? {});
+  const currentUi = ((currentParams.ui as JsonObject | undefined) ?? {});
+  const updatedParams: JsonObject = {
     ...currentParams,
     ui: {
       ...currentUi,
-      editSettings: settings,
+      editSettings: settings as unknown as Json,
       // Also save editMode at top level for backwards compatibility
       editMode: settings.editMode,
     }
@@ -196,8 +200,8 @@ export function useGenerationEditSettings({
     updateField,
     updateFields,
     initializeFrom,
-  } = useAutoSaveSettings<GenerationEditSettings>({
-    defaults: DEFAULT_EDIT_SETTINGS,
+  } = useAutoSaveSettings<AutoSaveGenerationEditSettings>({
+    defaults: DEFAULT_EDIT_SETTINGS as AutoSaveGenerationEditSettings,
     debounceMs: 500,
     enabled,
     debugTag: '[useGenerationEditSettings]',
@@ -208,14 +212,14 @@ export function useGenerationEditSettings({
       onFlush: (entityId) => {
         // Invalidate generation queries after flush
         queryClient.invalidateQueries({
-          queryKey: queryKeys.generations.detail(entityId)
+          queryKey: generationQueryKeys.detail(entityId)
         });
       },
     },
     onSaveSuccess: () => {
       if (generationId) {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.generations.detail(generationId)
+          queryKey: generationQueryKeys.detail(generationId)
         });
       }
     },

@@ -12,11 +12,6 @@ import { GenerationRow } from '@/types/shots';
 import { toast } from '@/shared/components/ui/sonner';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { isNotFoundError } from '@/shared/constants/supabaseErrors';
-import {
-  calculateNextAvailableFrame,
-  ensureUniqueFrame,
-} from '@/shared/utils/timelinePositionCalculator';
 import {
   cancelShotsQueries,
   findShotsCache,
@@ -26,9 +21,18 @@ import {
   cancelShotGenerationsQuery
 } from './cacheUtils';
 import {
-  isQuotaOrServerError,
   optimisticallyRemoveFromUnifiedGenerations,
 } from './shotMutationHelpers';
+import {
+  applyOptimisticCaches,
+  replaceOptimisticItemInCache,
+  replaceOptimisticItemInShotsCache,
+  runAddImageMutation,
+  toAddImageErrorMessage,
+  withVariableMetadata,
+  type AddImageToShotVariables,
+} from './addImageToShotHelpers';
+import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
 
 // Re-export useDuplicateAsNewGeneration for backwards compatibility
 export { useDuplicateAsNewGeneration } from './useDuplicateAsNewGeneration';
@@ -37,20 +41,12 @@ export { useDuplicateAsNewGeneration } from './useDuplicateAsNewGeneration';
 // ADD IMAGE TO SHOT (unified hook)
 // ============================================================================
 
-interface AddImageToShotVariables {
-  shot_id: string;
-  generation_id: string;
-  project_id: string;
-  imageUrl?: string;
-  thumbUrl?: string;
-  /**
-   * Timeline frame position:
-   * - undefined: auto-calculate next available position
-   * - null: add without position (unpositioned/gallery mode)
-   * - number: use explicit frame position
-   */
-  timelineFrame?: number | null;
-  skipOptimistic?: boolean;
+interface AddImageToShotContext {
+  previousShots: ReturnType<typeof findShotsCache> | undefined;
+  previousFastGens: GenerationRow[] | undefined;
+  project_id: string | undefined;
+  shot_id: string | undefined;
+  tempId?: string;
 }
 
 /**
@@ -64,93 +60,18 @@ interface AddImageToShotVariables {
 export const useAddImageToShot = () => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Record<string, unknown>, Error, AddImageToShotVariables, AddImageToShotContext>({
     mutationFn: async (variables: AddImageToShotVariables) => {
-      const { shot_id, generation_id, project_id, imageUrl, thumbUrl, timelineFrame } = variables;
-
-      // UNPOSITIONED PATH: timelineFrame === null
-      if (timelineFrame === null) {
-        const { data, error } = await supabase
-          .from('shot_generations')
-          .insert({
-            shot_id,
-            generation_id,
-            timeline_frame: null,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        return { ...data, project_id, imageUrl, thumbUrl };
-      }
-
-      // AUTO-POSITION PATH: timelineFrame === undefined (use RPC for atomic operation)
-      if (timelineFrame === undefined) {
-        const { data: rpcResult, error: rpcError } = await supabase.rpc(
-          'add_generation_to_shot',
-          {
-            p_shot_id: shot_id,
-            p_generation_id: generation_id,
-            p_with_position: true,
-          }
-        );
-
-        if (rpcError) {
-          throw rpcError;
-        }
-
-        const result = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
-
-        return { ...result, project_id, imageUrl, thumbUrl };
-      }
-
-      // EXPLICIT POSITION PATH: timelineFrame is a number
-
-      // Fetch existing frames for collision detection
-      const { data: existingGens, error: fetchError } = await supabase
-        .from('shot_generations')
-        .select('timeline_frame')
-        .eq('shot_id', shot_id)
-        .not('timeline_frame', 'is', null);
-
-      if (fetchError && !isNotFoundError(fetchError)) {
-        // Non-critical error - continue with empty frames
-      }
-
-      const existingFrames = (existingGens || [])
-        .map(g => g.timeline_frame)
-        .filter((f): f is number => f != null && f !== -1);
-
-      const resolvedFrame = ensureUniqueFrame(timelineFrame, existingFrames);
-
-      const { data, error } = await supabase
-        .from('shot_generations')
-        .insert({
-          shot_id,
-          generation_id,
-          timeline_frame: resolvedFrame,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      return { ...data, project_id, imageUrl, thumbUrl };
+      const data = await runAddImageMutation(variables);
+      return withVariableMetadata(data, variables);
     },
 
-    onMutate: async (variables) => {
+    onMutate: async (variables): Promise<AddImageToShotContext> => {
       const {
         shot_id,
-        generation_id,
         project_id,
         imageUrl,
         thumbUrl,
-        timelineFrame,
         skipOptimistic,
       } = variables;
 
@@ -171,69 +92,14 @@ export const useAddImageToShot = () => {
       // Only perform optimistic update if we have image URL and not skipped
       if ((imageUrl || thumbUrl) && !skipOptimistic) {
         tempId = `temp-${Date.now()}-${Math.random()}`;
-
-        const createOptimisticItem = (currentImages: Array<{ timeline_frame?: number | null }>) => {
-          const existingFrames = currentImages
-            .filter(img => img.timeline_frame != null && img.timeline_frame !== -1)
-            .map(img => img.timeline_frame as number);
-
-          let resolvedFrame: number | null;
-          if (timelineFrame === null) {
-            resolvedFrame = null;
-          } else if (timelineFrame !== undefined) {
-            resolvedFrame = ensureUniqueFrame(timelineFrame, existingFrames);
-          } else {
-            resolvedFrame = calculateNextAvailableFrame(existingFrames);
-          }
-
-          return {
-            id: tempId!,
-            generation_id: generation_id,
-            shotImageEntryId: tempId!,
-            shot_generation_id: tempId!,
-            location: imageUrl,
-            thumbnail_url: thumbUrl || imageUrl,
-            imageUrl: imageUrl,
-            thumbUrl: thumbUrl || imageUrl,
-            timeline_frame: resolvedFrame,
-            type: 'image',
-            created_at: new Date().toISOString(),
-            starred: false,
-            name: null,
-            based_on: null,
-            params: {},
-            shot_data: resolvedFrame !== null ? { [shot_id]: [resolvedFrame] } : {},
-            _optimistic: true,
-          };
-        };
-
-        // Update shot-generations cache (Timeline)
-        if (previousFastGens) {
-          const optimisticItem = createOptimisticItem(previousFastGens);
-          queryClient.setQueryData(
-            queryKeys.generations.byShot(shot_id),
-            [...previousFastGens, optimisticItem]
-          );
-        }
-
-        // Update shots cache (Sidebar)
-        updateAllShotsCaches(queryClient, project_id, (shots = []) =>
-          shots.map(shot => {
-            if (shot.id === shot_id) {
-              const currentImages = shot.images || [];
-              const optimisticItem = createOptimisticItem(currentImages);
-              return { ...shot, images: [...currentImages, optimisticItem] };
-            }
-            return shot;
-          })
-        );
+        applyOptimisticCaches(queryClient, variables, previousFastGens, tempId);
       }
 
       // Optimistically remove from unified-generations (for "items without shots" filter)
       optimisticallyRemoveFromUnifiedGenerations(
         queryClient,
         project_id,
-        generation_id
+        variables.generation_id
       );
 
       return { previousShots, previousFastGens, project_id, shot_id, tempId };
@@ -263,17 +129,7 @@ export const useAddImageToShot = () => {
         });
       }
 
-      // User-friendly error messages
-      let userMessage = error.message;
-      if (error.message.includes('Load failed') || error.message.includes('TypeError')) {
-        userMessage = 'Network connection issue. Please check your internet connection and try again.';
-      } else if (error.message.includes('fetch')) {
-        userMessage = 'Unable to connect to server. Please try again in a moment.';
-      } else if (isQuotaOrServerError(error)) {
-        userMessage = 'Server is temporarily busy. Please wait a moment before trying again.';
-      }
-
-      toast.error(`Failed to add image to shot: ${userMessage}`);
+      toast.error(`Failed to add image to shot: ${toAddImageErrorMessage(error)}`);
     },
 
     onSuccess: (data, variables, context) => {
@@ -281,51 +137,8 @@ export const useAddImageToShot = () => {
 
       // Replace temp ID with real ID in cache
       if (context?.tempId) {
-        const updateCache = (oldData: GenerationRow[] | undefined) => {
-          if (!oldData) return oldData;
-          return oldData.map(item => {
-            if (item.id === context.tempId) {
-              return {
-                ...item,
-                id: data.id,
-                generation_id: data.generation_id,
-                shotImageEntryId: data.id,
-                shot_generation_id: data.id,
-                timeline_frame: data.timeline_frame,
-                _optimistic: undefined,
-              };
-            }
-            return item;
-          });
-        };
-
-        queryClient.setQueryData(queryKeys.generations.byShot(shot_id), updateCache);
-
-        // Also update shots cache
-        updateAllShotsCaches(queryClient, project_id, (shots = []) =>
-          shots.map(shot => {
-            if (shot.id === shot_id && shot.images) {
-              return {
-                ...shot,
-                images: shot.images.map(img => {
-                  if (img.id === context.tempId) {
-                    return {
-                      ...img,
-                      id: data.id,
-                      generation_id: data.generation_id,
-                      shotImageEntryId: data.id,
-                      shot_generation_id: data.id,
-                      timeline_frame: data.timeline_frame,
-                      _optimistic: undefined,
-                    };
-                  }
-                  return img;
-                }),
-              };
-            }
-            return shot;
-          })
-        );
+        replaceOptimisticItemInCache(queryClient, shot_id, context.tempId, data);
+        replaceOptimisticItemInShotsCache(queryClient, project_id, shot_id, context.tempId, data);
       }
 
       // Invalidate related queries
@@ -374,6 +187,7 @@ export const useAddImageToShotWithoutPosition = () => {
  */
 export const useRemoveImageFromShot = () => {
   const queryClient = useQueryClient();
+  const log = (...args: Parameters<typeof console.log>) => console.log(...args);
 
   return useMutation({
     mutationFn: async ({
@@ -403,16 +217,18 @@ export const useRemoveImageFromShot = () => {
 
       // Persist frame shifts (optimistic update already applied in onMutate)
       if (shiftItems && shiftItems.length > 0) {
-        const { error: rpcError } = await supabase.rpc('batch_update_timeline_frames', {
-          p_updates: shiftItems.map(u => ({
-            shot_generation_id: u.id,
-            timeline_frame: u.newFrame,
-            metadata: { user_positioned: true }
-          }))
+        await persistTimelineFrameBatch({
+          shotId,
+          updates: shiftItems.map((item) => ({
+            shotGenerationId: item.id,
+            timelineFrame: item.newFrame,
+            metadata: { user_positioned: true, drag_source: 'remove-shift' },
+          })),
+          operationLabel: 'remove-image-shift',
+          timeoutOperationName: 'remove-image-shift-rpc',
+          logPrefix: '[ShotGenerationMutations]',
+          log,
         });
-        if (rpcError) {
-          throw rpcError;
-        }
       }
 
       return { shotId, shotGenerationId, projectId };
@@ -451,7 +267,7 @@ export const useRemoveImageFromShot = () => {
             if (shot.id === shotId) {
               return {
                 ...shot,
-                images: shot.images.map(img => {
+                images: (shot.images ?? []).map(img => {
                   if (img.id === shotGenerationId) return { ...img, timeline_frame: null };
                   const shifted = shiftMap.get(img.id);
                   if (shifted !== undefined) return { ...img, timeline_frame: shifted };

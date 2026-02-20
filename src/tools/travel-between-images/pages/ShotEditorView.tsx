@@ -3,7 +3,8 @@ import {
   useEffect,
   useRef,
   useCallback,
-  Suspense
+  Suspense,
+  type MutableRefObject,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Shot } from '@/types/shots';
@@ -173,7 +174,7 @@ export function ShotEditorView({
   );
 
   // Sticky header
-  const headerContainerRef = useRef<HTMLDivElement>(null);
+  const headerContainerRef = useRef<HTMLDivElement>(null) as MutableRefObject<HTMLDivElement | null>;
   const [headerReady, setHeaderReady] = useState(false);
   const headerCallbackRef = useCallback((node: HTMLDivElement | null) => {
     headerContainerRef.current = node;

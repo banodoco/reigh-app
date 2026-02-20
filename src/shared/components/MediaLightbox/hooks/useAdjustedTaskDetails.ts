@@ -8,9 +8,11 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import { getSourceTaskId, hasOrchestratorDetails } from '@/shared/lib/taskIdHelpers';
+import type { TaskDetailsData } from '../types';
+import type { Task } from '@/types/tasks';
 
 // Helper to derive input images from task params
 function deriveInputImages(params: Record<string, unknown>): string[] {
@@ -42,28 +44,13 @@ function deriveInputImages(params: Record<string, unknown>): string[] {
   return [...new Set(images)]; // Dedupe
 }
 
-export interface TaskDetailsData {
-  task?: {
-    id: string;
-    taskType: string;
-    params: Record<string, unknown>;
-    status: string;
-    createdAt: string;
-  };
-  isLoading: boolean;
-  error: Error | null;
-  inputImages?: string[];
-  taskId?: string;
-  onApplySettingsFromTask?: (params: Record<string, unknown>) => void;
-}
-
 interface UseAdjustedTaskDetailsProps {
   activeVariant: {
     id: string;
-    params?: Record<string, unknown>;
-    variant_type?: string;
+    params?: Record<string, unknown> | null;
+    variant_type?: string | null;
     created_at?: string;
-    is_primary?: boolean;
+    is_primary?: boolean | null;
   } | null;
   taskDetailsData: TaskDetailsData | undefined;
   isLoadingVariants: boolean;
@@ -94,7 +81,7 @@ export function useAdjustedTaskDetails({
   // Skip fetch if variant already has orchestrator_details (e.g., clip_join variants)
   // NOTE: Uses ['tasks', 'single', taskId] query key to share cache with usePrefetchTaskData
   const { data: variantSourceTask, isLoading: isLoadingVariantTask } = useQuery({
-    queryKey: queryKeys.tasks.single(variantSourceTaskId ?? ''),
+    queryKey: taskQueryKeys.single(variantSourceTaskId ?? ''),
     queryFn: async () => {
       if (!variantSourceTaskId) return null;
       const { data, error } = await supabase
@@ -126,7 +113,8 @@ export function useAdjustedTaskDetails({
 
     if (isTaskCreatedVariant && variantParams) {
       // Check if taskDetailsData already has the correct task (e.g., when opened from TasksPane)
-      const hasMatchingTaskData = taskDetailsData?.taskId === variantParams.source_task_id && taskDetailsData?.task?.params;
+      const sourceTaskId = typeof variantParams.source_task_id === 'string' ? variantParams.source_task_id : undefined;
+      const hasMatchingTaskData = taskDetailsData?.taskId === sourceTaskId && taskDetailsData?.task?.params;
 
       // Determine the best source of task params:
       // 1. If taskDetailsData matches, use its params (already have full data)
@@ -162,13 +150,14 @@ export function useAdjustedTaskDetails({
           id: activeVariant.id,
           taskType: effectiveTaskType,
           params: effectiveParams,
-          status: 'Complete',
+          status: 'Complete' as Task['status'],
           createdAt: activeVariant.created_at || new Date().toISOString(),
-        },
+          projectId: '',
+        } as Task,
         isLoading: isLoadingVariantTask,
         error: null,
         inputImages: variantInputImages,
-        taskId: (variantParams.source_task_id as string) || activeVariant.id,
+        taskId: sourceTaskId ?? activeVariant.id,
         // ALWAYS preserve onApplySettingsFromTask so Apply button shows for all variants
         onApplySettingsFromTask: taskDetailsData?.onApplySettingsFromTask,
       };

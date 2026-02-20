@@ -9,7 +9,6 @@ import { useBackgroundThumbnailGenerator } from '@/shared/hooks/useBackgroundThu
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
-import { handleError } from '@/shared/lib/errorHandler';
 
 // Import hooks
 import {
@@ -20,6 +19,7 @@ import {
   useMobileInteractions,
   useContainerWidth,
   useLightboxNavigation,
+  useMediaGalleryHandlers,
 } from './hooks';
 
 // Import components
@@ -28,18 +28,17 @@ import { ShotNotifier } from './components/ShotNotifier';
 import { MediaGalleryGrid } from './components/MediaGalleryGrid';
 import { MediaGalleryLightbox } from './components/MediaGalleryLightbox';
 import { MobileBottomBar } from './components/MobileBottomBar';
+import { useMediaGalleryDebugTools } from './hooks/useMediaGalleryDebugTools';
 
 // Import utils
 import { GRID_COLUMN_CLASSES, getLayoutForAspectRatio } from './utils';
 
 // Import types
-import type { Shot, GenerationRow } from "@/types/shots";
 import type {
   MetadataLora,
   DisplayableMetadata,
   GeneratedImageWithMetadata,
   MediaGalleryProps,
-  ColumnsPerRow,
   GalleryFilterState,
   GalleryConfig,
 } from './types';
@@ -47,7 +46,6 @@ export type { GalleryFilterState, GalleryConfig };
 export { DEFAULT_GALLERY_FILTERS, DEFAULT_GALLERY_CONFIG } from './types';
 import { DEFAULT_GALLERY_CONFIG } from './types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
 
 // Re-export types that are used externally
 export type {
@@ -116,20 +114,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     hidePagination, hideTopFilters, hideMediaTypeFilter, hideBottomPagination, hideShotNotifier,
   } = config;
 
-  // [VideoSkeletonDebug] Mount/props summary for video gallery use
-  // Optimized: only log on mount and significant changes, using ref to track
-  const videoGalleryDebugRef = useRef({ lastImagesLength: 0 });
-  React.useEffect(() => {
-    const mediaType = filters?.mediaType ?? defaultFilters?.mediaType ?? 'all';
-    const isVideoGallery = currentToolType === TOOL_IDS.TRAVEL_BETWEEN_IMAGES && mediaType === 'video';
-    if (!isVideoGallery) return;
-    // Only log when images length changes significantly
-    const imagesLength = images?.length ?? 0;
-    if (videoGalleryDebugRef.current.lastImagesLength !== imagesLength) {
-      videoGalleryDebugRef.current.lastImagesLength = imagesLength;
-    }
-  }, [images?.length, totalCount, currentToolType, filters?.mediaType, defaultFilters?.mediaType]);
-
   // Get project context for cache clearing and aspect ratio
   const { selectedProjectId, projects } = useProject();
   const { currentShotId } = useCurrentShot();
@@ -149,30 +133,14 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
 
   // Phone only (not iPad) - for safe area adjustments
   const isPhoneOnly = isMobile && !isTablet;
-  
-  // Debug mobile detection - only log on actual changes (mount-only in production)
-  const prevMobileRef = useRef(isMobile);
-  React.useEffect(() => {
-    if (prevMobileRef.current !== isMobile) {
-      prevMobileRef.current = isMobile;
-    }
-  }, [isMobile]);
 
-  // Global debug function for mobile testing - reads fresh values when called
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.debugMobile = () => {
-        const freshIsMobile = window.innerWidth < 768;
-        const debugInfo = {
-          isMobile: freshIsMobile,
-          windowWidth: window.innerWidth,
-          windowHeight: window.innerHeight,
-          touchSupported: 'ontouchstart' in window,
-        };
-        return debugInfo;
-      };
-    }
-  }, []); // Only setup once on mount - reads fresh values when called
+  useMediaGalleryDebugTools({
+    currentToolType,
+    filtersMediaType: filters?.mediaType,
+    defaultFiltersMediaType: defaultFilters?.mediaType,
+    imagesLength: images?.length ?? 0,
+    isMobile,
+  });
   
   // Star functionality
   const toggleStarMutation = useToggleGenerationStar();
@@ -219,7 +187,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   // Core state management hook
   const stateHook = useMediaGalleryState({
     images,
-    currentShotId,
+    currentShotId: currentShotId ?? undefined,
     lastShotId,
     simplifiedShotOptions,
     isServerPagination: !!(onServerPageChange && serverPage),
@@ -262,7 +230,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
       paginationHook.setIsGalleryLoading(true);
     }
     return result;
-  }, [paginationHook.goToFirstPage, paginationHook.isServerPagination, paginationHook.setIsGalleryLoading]);
+  }, [paginationHook]);
 
   // Handle page bounds exceeded (e.g., deleted all items on last page)
   const handlePageBoundsExceeded = useCallback((newLastPage: number) => {
@@ -299,7 +267,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     setSelectedShotIdLocal: stateHook.setSelectedShotIdLocal,
     // New props for robust backfill
     totalCount,
-    offset,
     optimisticDeletedCount: stateHook.state.optimisticDeletedIds.size,
     onPageBoundsExceeded: handlePageBoundsExceeded,
   });
@@ -318,11 +285,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   });
 
   // Task details functionality using shared hook
-  // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For ShotImageManager images, id is shot_generations.id but generation_id is the actual generation ID
-  const lightboxImageId = stateHook.state.activeLightboxMedia?.generation_id
-    || stateHook.state.activeLightboxMedia?.id
-    || null;
+  const lightboxImageId = getGenerationId(stateHook.state.activeLightboxMedia);
   const {
     taskDetailsData,
     taskMapping: lightboxTaskMapping,
@@ -330,7 +293,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     taskError,
   } = useTaskDetails({
     generationId: lightboxImageId,
-    onApplySettingsFromTask: onApplySettings,
     onClose: actionsHook.handleCloseLightbox,
   });
   const inputImages = taskDetailsData?.inputImages || [];
@@ -347,7 +309,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   const paginatedGenerationIds = useMemo(() =>
     (paginationHook.paginatedImages || []).map(img =>
       getGenerationId(img)
-    ).filter(Boolean),
+    ).filter((id): id is string => typeof id === 'string' && id.length > 0),
     [paginationHook.paginatedImages]
   );
   const { getBadgeData, isLoading: isBadgeDataLoading } = useVariantBadges(paginatedGenerationIds);
@@ -355,6 +317,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   // Merge badge data with paginated images (only when badge data is loaded)
   const paginatedImagesWithBadges = useMemo(() => {
     if (!paginationHook.paginatedImages) return [];
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[VariantBadges] merging badges, isBadgeDataLoading=', isBadgeDataLoading, 'images=', paginationHook.paginatedImages.length);
+    }
     return paginationHook.paginatedImages.map(img => {
       // Don't merge badge data while loading - prevents showing "0" badges
       // Strip out any existing derivedCount to prevent flash of "0"
@@ -363,7 +328,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         return imgWithoutBadges;
       }
       const generationId = getGenerationId(img);
-      const badgeData = getBadgeData(generationId);
+      const badgeData = generationId
+        ? getBadgeData(generationId)
+        : { derivedCount: 0, hasUnviewedVariants: false, unviewedVariantCount: 0 };
       return {
         ...img,
         derivedCount: badgeData.derivedCount,
@@ -377,43 +344,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   const effectivePage = paginationHook.isServerPagination
     ? Math.max(0, (serverPage ?? 1) - 1)
     : paginationHook.page;
-
-  // Memoized navigation handler to prevent re-creation
-  const handleNavigateToShot = useCallback((shot: Shot) => {
-    
-    try {
-      navigateToShot(shot);
-      
-      // Now we close the lightbox from the component that owns its state
-      actionsHook.handleCloseLightbox();
-    } catch (error) {
-      handleError(error, { context: 'MediaGallery', showToast: false });
-    }
-  }, [navigateToShot, actionsHook.handleCloseLightbox]);
-
-  // Memoized visit shot handler
-  const handleVisitShotFromNotifier = useCallback((shotId: string) => {
-    
-    // Find the shot object from the shot ID
-    const shot = simplifiedShotOptions.find(s => s.id === shotId);
-    if (!shot) {
-      console.error('[VisitShotDebug] ERROR: Shot not found for ID:', shotId);
-      return;
-    }
-    
-    // Convert the simplified shot to a full Shot object
-    const fullShot = allShots.find(s => s.id === shotId);
-    if (!fullShot) {
-      console.error('[VisitShotDebug] ERROR: Full shot not found for ID:', shotId);
-      return;
-    }
-    
-    try {
-      navigateToShot(fullShot);
-    } catch (error) {
-      handleError(error, { context: 'MediaGallery', showToast: false });
-    }
-  }, [simplifiedShotOptions, allShots, navigateToShot]);
 
   // Lightbox navigation (next/previous/go-to-index with cross-page support)
   const {
@@ -451,69 +381,33 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         pendingTargetSetTimeRef.current = null;
       }
     }
-  }, [filtersHook.filteredImages, stateHook.state.pendingLightboxTarget, actionsHook.handleOpenLightbox, stateHook.setPendingLightboxTarget, serverPage]);
+  }, [actionsHook, filtersHook.filteredImages, pendingTargetSetTimeRef, serverPage, stateHook]);
 
-  // Listen for custom event to select a shot for adding images (from VideoShotDisplay)
-  useEffect(() => {
-    const handleSelectShotForAddition = (event: CustomEvent<{ shotId: string; shotName: string }>) => {
-      const { shotId } = event.detail;
-      // Use handleShotChange to update both selectedShotIdLocal AND lastAffectedShotId
-      // This ensures handleAddToShot will use the correct target shot
-      actionsHook.handleShotChange(shotId);
-    };
-
-    window.addEventListener('selectShotForAddition', handleSelectShotForAddition as EventListener);
-    return () => window.removeEventListener('selectShotForAddition', handleSelectShotForAddition as EventListener);
-  }, [actionsHook.handleShotChange]);
-
-  // Wrapper functions to adapt 3-parameter onAddToLastShot to 4-parameter signature expected by MediaGalleryLightbox
-  // The lightbox passes (targetShotId, generationId, imageUrl, thumbUrl) but parent provides (generationId, imageUrl, thumbUrl)
-  // We ignore targetShotId because the parent's handler uses lastAffectedShotId (updated via onShotChange)
-  const adaptedOnAddToShot = useMemo(() => {
-    if (!onAddToLastShot) return undefined;
-    return async (_targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-      return onAddToLastShot(generationId, imageUrl, thumbUrl);
-    };
-  }, [onAddToLastShot]);
-
-  const adaptedOnAddToShotWithoutPosition = useMemo(() => {
-    if (!onAddToLastShotWithoutPosition) return undefined;
-    return async (_targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string): Promise<boolean> => {
-      return onAddToLastShotWithoutPosition(generationId, imageUrl, thumbUrl);
-    };
-  }, [onAddToLastShotWithoutPosition]);
-
-  // Additional action handlers
-  const handleSwitchToAssociatedShot = useCallback(() => {
-    if (formAssociatedShotId && onSwitchToAssociatedShot) {
-      onSwitchToAssociatedShot(formAssociatedShotId);
-    }
-  }, [formAssociatedShotId, onSwitchToAssociatedShot]);
-
-  const handleShowAllShots = useCallback(() => {
-    filtersHook.setShotFilter('all');
-  }, [filtersHook.setShotFilter]);
-
-  // Task details handlers
-  const handleShowTaskDetails = useCallback(() => {
-    if (stateHook.state.activeLightboxMedia) {
-      // Set up task details modal state first
-      stateHook.setSelectedImageForDetails(stateHook.state.activeLightboxMedia);
-      // Use setTimeout to ensure state update happens before opening modal
-      setTimeout(() => {
-        stateHook.setShowTaskDetailsModal(true);
-        // Close lightbox after modal is set to open
-        stateHook.setActiveLightboxMedia(null);
-      }, 100);
-    } else {
-      handleError(new Error('No active lightbox media found'), { context: 'handleShowTaskDetails' });
-    }
-  }, [stateHook.state.activeLightboxMedia, stateHook.setSelectedImageForDetails, stateHook.setShowTaskDetailsModal, stateHook.setActiveLightboxMedia]);
+  const {
+    handleNavigateToShot,
+    handleVisitShotFromNotifier,
+    handleSwitchToAssociatedShot,
+    handleShowAllShots,
+    handleShowTaskDetails,
+  } = useMediaGalleryHandlers({
+    allShots,
+    simplifiedShotOptions,
+    navigateToShot,
+    closeLightbox: actionsHook.handleCloseLightbox,
+    handleShotChange: actionsHook.handleShotChange,
+    formAssociatedShotId,
+    onSwitchToAssociatedShot,
+    setShotFilter: filtersHook.setShotFilter,
+    activeLightboxMedia: stateHook.state.activeLightboxMedia,
+    setSelectedImageForDetails: stateHook.setSelectedImageForDetails,
+    setShowTaskDetailsModal: stateHook.setShowTaskDetailsModal,
+    setActiveLightboxMedia: stateHook.setActiveLightboxMedia,
+  });
 
   return (
     <TooltipProvider>
       <div
-        ref={galleryContainerRef}
+        ref={galleryContainerRef as React.RefObject<HTMLDivElement>}
         className={cn(
           reducedSpacing ? 'space-y-6' : 'space-y-6',
           // Add bottom padding: mobile gets extra padding for fixed bottom bar, desktop uses existing logic
@@ -616,7 +510,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
           totalFilteredItems={paginationHook.totalFilteredItems}
           itemsPerPage={actualItemsPerPage}
           onPrefetchAdjacentPages={onPrefetchAdjacentPages}
-          selectedProjectId={selectedProjectId}
+          selectedProjectId={selectedProjectId ?? undefined}
           generationFilters={generationFilters}
           
           // Filter state for empty states
@@ -696,8 +590,8 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
         simplifiedShotOptions={simplifiedShotOptions}
         selectedShotIdLocal={stateHook.state.selectedShotIdLocal}
         onShotChange={actionsHook.handleShotChange}
-        onAddToShot={adaptedOnAddToShot}
-        onAddToShotWithoutPosition={adaptedOnAddToShotWithoutPosition}
+        onAddToShot={onAddToLastShot}
+        onAddToShotWithoutPosition={onAddToLastShotWithoutPosition}
         showTickForImageId={stateHook.state.showTickForImageId}
         setShowTickForImageId={stateHook.setShowTickForImageId}
         showTickForSecondaryImageId={stateHook.state.showTickForSecondaryImageId}

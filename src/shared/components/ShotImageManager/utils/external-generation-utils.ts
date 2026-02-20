@@ -13,7 +13,7 @@ interface RawGenerationData {
   thumbnail_url: string | null;
   type: string | null;
   created_at: string;
-  params: Record<string, unknown> | null;
+  params: unknown;
   starred: boolean | null;
   based_on: string | null;
   [key: string]: unknown;
@@ -38,6 +38,10 @@ export const transformExternalGeneration = (
   shotGenerations: ShotGenerationJoinRow[]
 ): GenerationRow => {
   const allAssociations = buildShotAssociations(shotGenerations);
+  const params =
+    typeof data.params === 'object' && data.params !== null && !Array.isArray(data.params)
+      ? (data.params as Record<string, unknown>)
+      : {};
 
   const transformedData = {
     id: data.id,
@@ -49,11 +53,9 @@ export const transformExternalGeneration = (
     type: data.type,
     createdAt: data.created_at,
     timeline_frame: shotGenerations.length > 0 ? shotGenerations[0].timeline_frame : undefined,
-    metadata: (typeof data.params === 'object' && data.params !== null && !Array.isArray(data.params))
-      ? data.params as Record<string, unknown>
-      : {},
+    metadata: params,
     starred: data.starred ?? false,
-    params: data.params || {},
+    params,
     based_on: data.based_on,
     all_shot_associations: allAssociations,
     ...(shotGenerations.length > 0 ? {
@@ -64,4 +66,3 @@ export const transformExternalGeneration = (
 
   return transformedData;
 };
-

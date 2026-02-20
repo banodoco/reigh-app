@@ -4,7 +4,7 @@ import { useListShots } from '@/shared/hooks/useShots';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 
 import type { FormUIActions } from '../state/useFormUIState';
 import type { PromptMode, ImageGenShotSettings } from '../types';
@@ -71,7 +71,7 @@ export function useShotManagement({
       promptMode: promptMode || 'automated',
     };
    
-  }, [associatedShotId, noShotMasterPrompt, promptMode]);
+  }, [noShotMasterPrompt, promptMode]);
 
   // Shot-specific prompts using per-shot storage
   const shotPromptSettings = useAutoSaveSettings<ImageGenShotSettings>({
@@ -144,8 +144,8 @@ export function useShotManagement({
       dispatchSkeletonEvents: false, // No skeleton needed in form context
       onSuccess: () => {
         // Invalidate and refetch shots to update the list
-        queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(selectedProjectId!) });
-        queryClient.refetchQueries({ queryKey: queryKeys.shots.list(selectedProjectId!) });
+        queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(selectedProjectId!) });
+        queryClient.refetchQueries({ queryKey: shotQueryKeys.list(selectedProjectId!) });
       },
     });
 

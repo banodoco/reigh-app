@@ -1,7 +1,7 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";

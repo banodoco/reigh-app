@@ -43,14 +43,6 @@ const getDeviceCapabilities = () => {
   };
 };
 
-// Performance tracking
-interface PerformanceMetrics {
-  avgLoadTime: number;
-  loadTimes: number[];
-  adjustedDelayMultiplier: number;
-}
-
-
 /**
  * Adaptive batch configuration based on device capabilities
  */

@@ -12,7 +12,7 @@ import { useState, useCallback, useRef } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { GenerationRow, Shot } from '@/types/shots';
 
 interface ReorderUpdate {
@@ -23,7 +23,7 @@ interface ReorderUpdate {
 
 interface UseImageManagementOptions {
   queryClient: QueryClient;
-  selectedShotRef: React.MutableRefObject<Shot | null>;
+  selectedShotRef: React.MutableRefObject<Shot | undefined>;
   projectIdRef: React.MutableRefObject<string>;
   allShotImagesRef: React.MutableRefObject<GenerationRow[]>;
   batchVideoFramesRef: React.MutableRefObject<number>;
@@ -103,7 +103,9 @@ export function useImageManagement({
       }
 
       // Invalidate queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: queryKeys.segments.parents(selectedShot?.id, projectId) });
+      if (selectedShot?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.segments.parents(selectedShot.id, projectId) });
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.projectStats.videos(projectId!) });
     } catch (error) {

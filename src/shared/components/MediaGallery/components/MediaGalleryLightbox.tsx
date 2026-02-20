@@ -3,22 +3,22 @@ import MediaLightbox from "@/shared/components/MediaLightbox";
 import TaskDetailsModal from '@/shared/components/TaskDetailsModal';
 import { GenerationRow, Shot } from "@/types/shots";
 import { Task } from "@/types/tasks";
-import type { GeneratedImageWithMetadata, DisplayableMetadata } from '../types';
+import type { GeneratedImageWithMetadata } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
-interface MediaGalleryLightboxProps {
-  // Lightbox state
-  activeLightboxMedia: GenerationRow | null;
+interface MediaGalleryLightboxStateProps {
+  activeLightboxMedia: GeneratedImageWithMetadata | null;
   autoEnterEditMode?: boolean;
   onClose: () => void;
-  
-  // Navigation
+}
+
+interface MediaGalleryLightboxNavigationProps {
   filteredImages: GeneratedImageWithMetadata[];
   isServerPagination: boolean;
   serverPage?: number;
@@ -26,56 +26,70 @@ interface MediaGalleryLightboxProps {
   onServerPageChange?: (page: number, fromBottom?: boolean) => void;
   onNext: () => void;
   onPrevious: () => void;
-  
-  // Actions
-  onDelete: (id: string) => Promise<void>;
-  isDeleting?: string | null;
-  onApplySettings?: (metadata: DisplayableMetadata) => void;
-  
-  // Shot management
+}
+
+interface MediaGalleryLightboxActionsProps {
+  onDelete?: (id: string) => Promise<void>;
+  isDeleting?: string | boolean | null;
+  onApplySettings?: (metadata: GenerationRow['metadata']) => void;
+}
+
+interface MediaGalleryLightboxShotManagementProps {
   simplifiedShotOptions: { id: string; name: string }[];
   selectedShotIdLocal: string;
   onShotChange: (shotId: string) => void;
-  // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
   onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  
-  // UI state
+}
+
+interface MediaGalleryLightboxUiStateProps {
   showTickForImageId: string | null;
   setShowTickForImageId: (id: string | null) => void;
   showTickForSecondaryImageId?: string | null;
   setShowTickForSecondaryImageId?: (id: string | null) => void;
-  
-  // Optimistic updates
+}
+
+interface MediaGalleryLightboxOptimisticProps {
   optimisticPositionedIds?: Set<string>;
   optimisticUnpositionedIds?: Set<string>;
   onOptimisticPositioned?: (imageId: string, shotId: string) => void;
   onOptimisticUnpositioned?: (imageId: string, shotId: string) => void;
+}
 
-  // Task details
+interface MediaGalleryLightboxTaskModalStateProps {
   isMobile: boolean;
   showTaskDetailsModal: boolean;
   setShowTaskDetailsModal: (show: boolean) => void;
-  selectedImageForDetails: GenerationRow | null;
-  setSelectedImageForDetails: (image: GenerationRow | null) => void;
-  task?: Task;
+  selectedImageForDetails: GeneratedImageWithMetadata | null;
+  setSelectedImageForDetails: (image: GeneratedImageWithMetadata | null) => void;
+  onShowTaskDetails?: () => void;
+}
+
+interface MediaGalleryLightboxTaskDataProps {
+  task?: Task | null;
   isLoadingTask?: boolean;
   taskError?: Error | null;
   inputImages?: string[];
   lightboxTaskMapping?: { taskId: string | null };
-  onShowTaskDetails?: () => void;
-  
-  // Shot creation
+}
+
+interface MediaGalleryLightboxIntegrationProps {
   onCreateShot?: (shotName: string, files: File[]) => Promise<void>;
-  // Shot navigation
   onNavigateToShot?: (shot: Shot) => void;
-  
-  // Tool type override for magic edit
   toolTypeOverride?: string;
-  
-  // Generation lineage navigation
   setActiveLightboxIndex?: (index: number) => void;
 }
+
+type MediaGalleryLightboxProps =
+  & MediaGalleryLightboxStateProps
+  & MediaGalleryLightboxNavigationProps
+  & MediaGalleryLightboxActionsProps
+  & MediaGalleryLightboxShotManagementProps
+  & MediaGalleryLightboxUiStateProps
+  & MediaGalleryLightboxOptimisticProps
+  & MediaGalleryLightboxTaskModalStateProps
+  & MediaGalleryLightboxTaskDataProps
+  & MediaGalleryLightboxIntegrationProps;
 
 export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   activeLightboxMedia,
@@ -130,7 +144,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     const result = fromMetadata ?? autoEnterEditMode ?? false;
     
     return result;
-  }, [activeLightboxMedia?.metadata?.__autoEnterEditMode, autoEnterEditMode, activeLightboxMedia?.id]);
+  }, [activeLightboxMedia?.metadata?.__autoEnterEditMode, autoEnterEditMode]);
   
   
   // Calculate navigation availability for MediaLightbox
@@ -195,11 +209,11 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     }
 
     // Prefetch current item too (in case it wasn't prefetched on hover)
-    const currentGenerationId = getGenerationId(activeLightboxMedia);
+    const currentGenerationId = getGenerationId(filteredImages[currentIndex]);
     if (currentGenerationId) {
       prefetchTaskData(currentGenerationId);
     }
-  }, [activeLightboxMedia?.id, filteredImages, prefetchTaskData]);
+  }, [activeLightboxMedia, filteredImages, prefetchTaskData]);
 
   // Get query client for direct cache access
   const queryClient = useQueryClient();
@@ -209,7 +223,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   useEffect(() => {
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       // Only trigger on mutations that might affect starred state
-      if (event.type === 'updated' && event.query.queryKey[0] === queryKeys.unified.all[0]) {
+      if (event.type === 'updated' && event.query.queryKey[0] === unifiedGenerationQueryKeys.all[0]) {
         setCacheVersion(v => v + 1);
       }
     });
@@ -219,6 +233,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   // Enhance media object with starred field - subscribe to React Query cache for real-time updates
   const enhancedMedia = useMemo(() => {
     if (!activeLightboxMedia) return null;
+    void cacheVersion;
     
     // First, try to find in filteredImages (normal case)
     let foundImage = filteredImages.find(img => img.id === activeLightboxMedia.id);
@@ -226,7 +241,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     // If not found or starred is undefined, check React Query cache directly
     // This ensures we get the latest optimistically-updated values
     if (!foundImage || foundImage.starred === undefined) {
-      const queries = queryClient.getQueriesData({ queryKey: queryKeys.unified.all });
+      const queries = queryClient.getQueriesData({ queryKey: unifiedGenerationQueryKeys.all });
       for (const [, data] of queries) {
         if (data && typeof data === 'object' && 'items' in data) {
           const cacheItem = (data as { items: GeneratedImageWithMetadata[] }).items.find((g: GeneratedImageWithMetadata) => g.id === activeLightboxMedia.id);
@@ -249,6 +264,15 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
       metadata: cleanMetadata
     };
   }, [activeLightboxMedia, filteredImages, queryClient, cacheVersion]);
+
+  const mediaForLightbox = useMemo<GenerationRow | undefined>(() => {
+    if (!enhancedMedia) return undefined;
+    return {
+      ...enhancedMedia,
+      location: enhancedMedia.location ?? enhancedMedia.url,
+      timeline_frame: enhancedMedia.timeline_frame ?? undefined,
+    } as unknown as GenerationRow;
+  }, [enhancedMedia]);
 
   // Compute positioned/associated state from gallery source record (mirrors MediaGalleryItem logic)
   const sourceRecord = useMemo(() => {
@@ -317,10 +341,9 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
       }
     } else {
       handleError(new Error(`Generation ${generationId.substring(0, 8)} not found in current filtered set (${filteredImages.length} items)`), { context: 'handleNavigateToGeneration' });
-      // TODO: Could potentially fetch the generation and add it to the view
-      // For now, just log that it's not available
+      // External generation IDs are handled via handleOpenExternalGeneration.
     }
-  }, [filteredImages, setActiveLightboxIndex, activeLightboxMedia?.id]);
+  }, [filteredImages, setActiveLightboxIndex]);
 
   // Handle opening external generation (not in current filtered list)
   const handleOpenExternalGeneration = React.useCallback(async (generationId: string, _derivedContext?: string[]) => {
@@ -365,7 +388,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           url: imageUrl,
           thumbUrl,
           prompt: (params?.prompt as string) || '',
-          metadata: params as DisplayableMetadata,
+          metadata: params as GeneratedImageWithMetadata['metadata'],
           createdAt: data.created_at,
           starred: data.starred || false,
           isVideo: !!(row.video_url),
@@ -408,7 +431,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
       {/* Main Lightbox Modal */}
       {enhancedMedia && (
         <MediaLightbox
-          media={enhancedMedia}
+          media={mediaForLightbox}
           autoEnterInpaint={effectiveAutoEnterEditMode}
           onClose={() => {
             // Reset dropdown to current shot when closing
@@ -418,7 +441,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           onNext={onNext}
           onPrevious={onPrevious}
           showNavigation={true}
-          showImageEditTools={!(activeLightboxMedia.type || '').includes('video')}
+          showImageEditTools={!((activeLightboxMedia?.type || '').includes('video'))}
           showDownload={true}
           showMagicEdit={true}
           hasNext={hasNext}
@@ -433,7 +456,7 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           onAddToShot={onAddToShot}
           onAddToShotWithoutPosition={onAddToShotWithoutPosition}
           onDelete={onDelete}
-          isDeleting={isDeleting}
+          isDeleting={typeof isDeleting === 'string' || isDeleting == null ? isDeleting : undefined}
           onApplySettings={onApplySettings}
           showTickForImageId={showTickForImageId}
           onShowTick={setShowTickForImageId}
@@ -445,18 +468,21 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
           onOptimisticUnpositioned={onOptimisticUnpositioned}
           starred={starredValue}
           onMagicEdit={(imageUrl, prompt, numImages) => {
-            // TODO: Implement magic edit generation
-            console.log('Magic Edit:', { imageUrl, prompt, numImages });
+            handleError(new Error('Magic edit action is not wired in MediaGalleryLightbox'), {
+              context: 'MediaGalleryLightbox.onMagicEdit',
+              showToast: false,
+              logData: { imageUrl, prompt, numImages },
+            });
           }}
           // Task details functionality - now shown on all devices including mobile
           showTaskDetails={true}
           taskDetailsData={{
-            task,
-            isLoading: isLoadingTask,
-            error: taskError,
-            inputImages,
+            task: task ?? null,
+            isLoading: isLoadingTask ?? false,
+            error: taskError ?? null,
+            inputImages: inputImages ?? [],
             taskId: lightboxTaskMapping?.taskId || null,
-            onApplySettingsFromTask: onApplySettings,
+            onApplySettingsFromTask: undefined,
             onClose: onClose
           }}
           onShowTaskDetails={isMobile ? onShowTaskDetails : undefined}

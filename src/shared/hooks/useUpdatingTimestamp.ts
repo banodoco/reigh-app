@@ -86,12 +86,13 @@ export function useUpdatingTimestamp({
   // Format timestamp with live updates
   const formattedTime = useMemo(() => {
     if (!parsedDate) return 'Unknown';
+    void updateTrigger;
     
     const formatted = formatDistanceToNow(parsedDate, { addSuffix: true });
     const abbreviated = abbreviate(formatted);
     
     return abbreviated;
-  }, [parsedDate?.getTime(), updateTrigger, abbreviate]);
+  }, [parsedDate, updateTrigger, abbreviate]);
   
   return formattedTime;
 }

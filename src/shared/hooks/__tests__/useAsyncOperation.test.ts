@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAsyncOperation, useAsyncOperationMap } from '../useAsyncOperation';
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
   handleError: vi.fn(),
 }));
 
@@ -125,7 +125,7 @@ describe('useAsyncOperation', () => {
   });
 
   it('passes options to handleError', async () => {
-    const { handleError } = await import('@/shared/lib/errorHandler');
+    const { handleError } = await import('@/shared/lib/errorHandling/handleError');
     const { result } = renderHook(() => useAsyncOperation());
 
     await act(async () => {

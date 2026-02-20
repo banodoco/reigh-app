@@ -6,7 +6,7 @@ import { useCancelTask } from '@/shared/hooks/useTasks';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useToast } from '@/shared/hooks/use-toast';
 import { cn } from '@/shared/lib/utils';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { useNavigate } from 'react-router-dom';
 import { useTaskTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
 import { useProcessingTimestamp, useCompletedTimestamp } from '@/shared/hooks/useProcessingTimestamp';
@@ -90,6 +90,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
 
   // Parse task params
   const taskParams = useMemo(() => parseTaskParamsForDisplay(task.params), [task.params]);
+  const parsedTaskParams = taskParams.parsed as Record<string, any>;
 
   // Task content type detection - pass taskTypeInfo to avoid duplicate query
   const taskInfo = useTaskContentType({ task, taskParams, taskTypeInfo });
@@ -124,12 +125,14 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   const travelImageUrls = useMemo(() => {
     if (!taskInfo.isVideoTask) return [];
     const isIndividualSegment = task.taskType === 'individual_travel_segment';
-    return isIndividualSegment
-      ? (taskParams.parsed?.input_image_paths_resolved || [])
-      : (taskParams.parsed?.orchestrator_details?.input_image_paths_resolved ||
-         taskParams.parsed?.input_image_paths_resolved ||
-         []);
-  }, [taskInfo.isVideoTask, taskParams.parsed, task.taskType]) as string[];
+    const orchestratorDetails = parsedTaskParams.orchestrator_details as Record<string, any> | undefined;
+    const segmentImages = parsedTaskParams.input_image_paths_resolved;
+    const timelineImages = orchestratorDetails?.input_image_paths_resolved || parsedTaskParams.input_image_paths_resolved;
+    const selected = isIndividualSegment ? segmentImages : timelineImages;
+    return Array.isArray(selected)
+      ? selected.filter((url): url is string => typeof url === 'string')
+      : [];
+  }, [taskInfo.isVideoTask, parsedTaskParams, task.taskType]);
 
   const imagesToShow = travelImageUrls.slice(0, 4);
   const extraImageCount = Math.max(0, travelImageUrls.length - imagesToShow.length);
@@ -172,7 +175,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   // Cancel handler (stays in component - uses queryClient + cancelTaskMutation)
   const handleCancel = () => {
     const taskId = task.id;
-    const queryKey = queryKeys.tasks.paginated(selectedProjectId!);
+    const queryKey = taskQueryKeys.paginated(selectedProjectId!);
 
     // Snapshot previous data for rollback
     const previousData = queryClient.getQueryData(queryKey);

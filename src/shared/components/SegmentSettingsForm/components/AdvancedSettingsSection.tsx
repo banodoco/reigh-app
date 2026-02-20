@@ -19,7 +19,8 @@ import { detectGenerationMode, BUILTIN_I2V_PRESET, BUILTIN_VACE_PRESET, SEGMENT_
 import { ActiveLoRAsDisplay } from '@/shared/components/ActiveLoRAsDisplay';
 import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
 import { DefaultableTextarea } from '@/shared/components/DefaultableTextarea';
-import { usePublicLoras, type LoraModel } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/shared/hooks/useResources';
+import type { LoraModel } from '@/shared/types/lora';
 import { FieldDefaultControls } from './FieldDefaultControls';
 import { StructureVideoSection } from './StructureVideoSection';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
@@ -155,7 +156,7 @@ export const AdvancedSettingsSection: React.FC<AdvancedSettingsSectionProps> = (
   const handleLoraSelect = useCallback((lora: LoraModel) => {
     const loraId = lora['Model ID'] || (lora.id as string);
     const loraPath = lora['Model Files']?.[0]?.url || (lora['Model File'] as string | undefined);
-    const loraName = lora.Name || (lora.name as string | undefined);
+    const loraName = lora.Name || (lora.name as string | undefined) || loraId;
 
     if (!loraPath) return;
     const currentLoras = effectiveLoras;
@@ -349,7 +350,7 @@ export const AdvancedSettingsSection: React.FC<AdvancedSettingsSectionProps> = (
             settings={settings}
             onChange={onChange}
             isTimelineMode={isTimelineMode}
-            onAddSegmentStructureVideo={onAddSegmentStructureVideo}
+            onAddSegmentStructureVideo={onAddSegmentStructureVideo as ((video: unknown) => void) | undefined}
             onRemoveSegmentStructureVideo={onRemoveSegmentStructureVideo}
             videoUpload={videoUpload}
             isDraggingVideo={isDraggingVideo}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useHuggingFaceToken } from '@/shared/hooks/useExternalApiKeys';
 import { useHuggingFaceUpload, LoraFiles } from '@/shared/hooks/useHuggingFaceUpload';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 import type { Resource } from '@/shared/hooks/useResources';
 import { LoraModel, LoraFormState } from '../../../types';
@@ -49,18 +49,20 @@ export function useLoraFormState({ editingLora, defaultIsPublic }: UseLoraFormSt
 
   // Manage preview URLs for sample files
   useEffect(() => {
-    previewUrls.forEach(url => URL.revokeObjectURL(url));
-    const newUrls = sampleFiles.map(file => URL.createObjectURL(file));
-    setPreviewUrls(newUrls);
-
-    if (mainGenerationIndex >= sampleFiles.length) {
-      setMainGenerationIndex(0);
-    }
-
-    return () => {
-      newUrls.forEach(url => URL.revokeObjectURL(url));
-    };
+    setPreviewUrls(previousUrls => {
+      previousUrls.forEach(url => URL.revokeObjectURL(url));
+      return sampleFiles.map(file => URL.createObjectURL(file));
+    });
+    setMainGenerationIndex(previous => (
+      previous >= sampleFiles.length ? 0 : previous
+    ));
   }, [sampleFiles]);
+
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
 
   // Pre-populate form when editing
   useEffect(() => {

@@ -1,6 +1,6 @@
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { LoraModel, UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
-import type { PresetMetadata } from '@/shared/types/presetMetadata';
+import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 
 /** Info about a clip pair for visualization */
 export interface ClipPairInfo {

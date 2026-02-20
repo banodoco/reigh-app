@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useEffect, useCallback } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { supabase } from '@/integrations/supabase/client';
 import { QUERY_PRESETS, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
@@ -34,6 +34,7 @@ interface UpdateToolSettingsParams {
  */
 async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string, unknown>> {
   const { scope, entityId: id, toolId, patch } = write;
+  const supabaseAny = supabase as any;
 
   try {
     let tableName: string;
@@ -54,7 +55,7 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
     // For patch updates, we need to fetch current settings to merge
     // This is necessary because the caller provides a partial update
     // TODO: In the future, consider passing full settings to eliminate this fetch
-    const { data: currentEntity, error: fetchError } = await supabase
+    const { data: currentEntity, error: fetchError } = await supabaseAny
       .from(tableName)
       .select('settings')
       .eq('id', id)
@@ -133,7 +134,7 @@ export function updateToolSettingsSupabase(
     entityId: id,
     toolId,
     patch: patch as Record<string, unknown>,
-  }, mode);
+  }, mode) as Promise<Record<string, unknown>>;
 }
 
 // ============================================================================
@@ -233,9 +234,10 @@ export function useToolSettings<T>(
   // Settings saves should complete even if the component unmounts (e.g., during navigation).
   // The mutation will complete in the background and update the cache correctly.
   useEffect(() => {
+    const updateControllers = updateControllersRef.current;
     return () => {
       // Just clear the tracking set - mutations will complete on their own
-      updateControllersRef.current.clear();
+      updateControllers.clear();
     };
   }, []);
 

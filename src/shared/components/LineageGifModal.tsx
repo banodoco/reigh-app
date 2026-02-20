@@ -15,7 +15,7 @@ import {
   downloadBlob,
   type CreateGifProgress,
 } from '@/shared/utils/createLineageGif';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { ModalContainer } from '@/shared/components/ModalContainer';
 
 interface LineageGifModalProps {

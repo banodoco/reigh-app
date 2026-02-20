@@ -1,14 +1,15 @@
 import type { GeneratedImageWithMetadata, DisplayableMetadata } from "../MediaGallery/types";
+import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 export interface MediaGalleryItemProps {
   image: GeneratedImageWithMetadata;
   index: number;
-  isDeleting: boolean;
+  isDeleting?: string | boolean | null;
   onDelete?: (id: string) => void;
   onApplySettings?: (metadata: DisplayableMetadata) => void;
   onOpenLightbox: (image: GeneratedImageWithMetadata, autoEnterEditMode?: boolean) => void;
-  onAddToLastShot: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToLastShotWithoutPosition?: (generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onAddToLastShot?: AddToShotHandler;
+  onAddToLastShotWithoutPosition?: AddToShotHandler;
   onDownloadImage: (rawUrl: string, filename: string, imageId?: string, isVideo?: boolean, originalContentType?: string) => void;
   onToggleStar?: (id: string, starred: boolean) => void;
   selectedShotIdLocal: string;

@@ -30,12 +30,12 @@ export function useEditModePersistence() {
       }
 
       const savedMode = ((data?.params as Record<string, unknown>)?.ui as Record<string, unknown> | undefined)?.editMode;
-      if (savedMode && VALID_EDIT_MODES.includes(savedMode)) {
+      if (typeof savedMode === 'string' && VALID_EDIT_MODES.includes(savedMode as EditMode)) {
         return savedMode as EditMode;
       }
 
       return null;
-    } catch (err) {
+    } catch {
       return null;
     }
   }, []);
@@ -76,7 +76,7 @@ export function useEditModePersistence() {
         .update({ params: updatedParams })
         .eq('id', generationId);
 
-    } catch (err) { /* intentionally ignored */ }
+    } catch { /* intentionally ignored */ }
   }, []);
 
   return {

@@ -12,9 +12,10 @@
 import { useMemo, useCallback } from 'react';
 import type { GenerationRow } from '@/types/shots';
 import type { ImageEditState } from '../contexts/ImageEditContext';
-import type { EditAdvancedSettings, QwenEditModel } from './editSettingsTypes';
+import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from './editSettingsTypes';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { EditMode as InpaintingEditMode } from './inpainting/types';
 
 import {
   useInpainting,
@@ -44,9 +45,9 @@ interface UseImageEditOrchestratorProps {
 
   // Variant state (from useSharedLightboxState)
   activeVariant: {
-    id?: string;
-    location?: string;
-    thumbnail_url?: string;
+    id?: string | null;
+    location?: string | null;
+    thumbnail_url?: string | null;
     params?: Record<string, unknown> | null;
   } | null;
   setActiveVariantId: (id: string) => void;
@@ -54,8 +55,8 @@ interface UseImageEditOrchestratorProps {
 
   // Edit settings persistence (from useEditSettingsPersistence)
   editSettingsPersistence: {
-    loraMode: string;
-    setLoraMode: (mode: string) => void;
+    loraMode: LoraMode;
+    setLoraMode: (mode: LoraMode) => void;
     customLoraUrl: string;
     setCustomLoraUrl: (url: string) => void;
     prompt: string;
@@ -76,8 +77,8 @@ interface UseImageEditOrchestratorProps {
     setAdvancedSettings: (updates: Partial<EditAdvancedSettings>) => void;
     qwenEditModel: QwenEditModel;
     setQwenEditModel: (model: QwenEditModel) => void;
-    editMode: string;
-    setEditMode: (mode: string) => void;
+    editMode: EditMode;
+    setEditMode: (mode: EditMode) => void;
     isReady: boolean;
     hasPersistedSettings: boolean;
   };
@@ -102,7 +103,7 @@ interface UseImageEditOrchestratorReturn {
   isInpaintMode: boolean;
   isMagicEditMode: boolean;
   isSpecialEditMode: boolean;
-  editMode: string;
+  editMode: EditMode;
 
   // Mode entry/exit (for panel mode restore and shared state)
   handleEnterMagicEditMode: () => void;
@@ -110,9 +111,9 @@ interface UseImageEditOrchestratorReturn {
 
   // Generation handlers (passed to EditModePanel)
   handleUnifiedGenerate: () => Promise<void>;
-  handleGenerateAnnotatedEdit: () => void;
-  handleGenerateReposition: () => void;
-  handleSaveAsVariant: () => void;
+  handleGenerateAnnotatedEdit: () => Promise<void>;
+  handleGenerateReposition: () => Promise<void>;
+  handleSaveAsVariant: () => Promise<void>;
   handleGenerateImg2Img: () => Promise<void>;
 
   // Img2Img LoRA manager (passed to EditModePanel)
@@ -161,6 +162,13 @@ export function useImageEditOrchestrator({
     hasPersistedSettings,
   } = editSettingsPersistence;
 
+  const toInpaintingEditMode = useCallback((mode: EditMode): InpaintingEditMode => {
+    if (mode === 'inpaint' || mode === 'annotate' || mode === 'text') {
+      return mode;
+    }
+    return 'text';
+  }, []);
+
   // ========================================
   // INPAINTING HOOK
   // ========================================
@@ -182,7 +190,7 @@ export function useImageEditOrchestrator({
     qwenEditModel,
     imageUrl: activeVariant?.location || effectiveImageUrl,
     thumbnailUrl: thumbnailUrl || media.thumbUrl,
-    initialEditMode: persistedEditMode,
+    initialEditMode: toInpaintingEditMode(persistedEditMode),
   });
 
   const {
@@ -226,7 +234,7 @@ export function useImageEditOrchestrator({
   // ========================================
 
   useEditSettingsSync({
-    actualGenerationId,
+    actualGenerationId: actualGenerationId ?? undefined,
     isEditSettingsReady,
     hasPersistedSettings,
     persistedEditMode,
@@ -235,10 +243,10 @@ export function useImageEditOrchestrator({
     editMode,
     inpaintNumGenerations,
     inpaintPrompt,
-    setEditMode,
+    setEditMode: (mode) => setEditMode(toInpaintingEditMode(mode)),
     setInpaintNumGenerations,
     setInpaintPrompt,
-    setPersistedEditMode,
+    setPersistedEditMode: (mode) => setPersistedEditMode(mode),
     setPersistedNumGenerations,
     setPersistedPrompt,
   });

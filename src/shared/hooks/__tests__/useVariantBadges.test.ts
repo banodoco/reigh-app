@@ -3,11 +3,11 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-// Mock calculateDerivedCounts
-const mockCalculateDerivedCounts = vi.fn();
+// Mock calculateDerivedCountsSafe
+const mockCalculateDerivedCountsSafe = vi.fn();
 
 vi.mock('@/shared/lib/generationTransformers', () => ({
-  calculateDerivedCounts: (...args: unknown[]) => mockCalculateDerivedCounts(...args),
+  calculateDerivedCountsSafe: (...args: unknown[]) => mockCalculateDerivedCountsSafe(...args),
 }));
 
 import { useVariantBadges } from '../useVariantBadges';
@@ -23,7 +23,7 @@ function createWrapper() {
 describe('useVariantBadges', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCalculateDerivedCounts.mockResolvedValue({
+    mockCalculateDerivedCountsSafe.mockResolvedValue({
       derivedCounts: { 'gen-1': 3, 'gen-2': 0 },
       hasUnviewedVariants: { 'gen-1': true, 'gen-2': false },
       unviewedVariantCounts: { 'gen-1': 2, 'gen-2': 0 },
@@ -107,7 +107,7 @@ describe('useVariantBadges', () => {
       { wrapper: createWrapper() }
     );
 
-    expect(mockCalculateDerivedCounts).not.toHaveBeenCalled();
+    expect(mockCalculateDerivedCountsSafe).not.toHaveBeenCalled();
   });
 
   it('does not fetch when generationIds is empty', () => {
@@ -116,10 +116,10 @@ describe('useVariantBadges', () => {
       { wrapper: createWrapper() }
     );
 
-    expect(mockCalculateDerivedCounts).not.toHaveBeenCalled();
+    expect(mockCalculateDerivedCountsSafe).not.toHaveBeenCalled();
   });
 
-  it('passes correct IDs to calculateDerivedCounts', async () => {
+  it('passes correct IDs to calculateDerivedCountsSafe', async () => {
     const ids = ['gen-1', 'gen-2', 'gen-3'];
 
     renderHook(
@@ -128,7 +128,7 @@ describe('useVariantBadges', () => {
     );
 
     await waitFor(() => {
-      expect(mockCalculateDerivedCounts).toHaveBeenCalledWith(ids);
+      expect(mockCalculateDerivedCountsSafe).toHaveBeenCalledWith(ids);
     });
   });
 });

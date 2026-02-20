@@ -25,7 +25,7 @@ import { Label } from '@/shared/components/ui/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Loader2, RotateCcw, Save } from 'lucide-react';
 import { quantizeFrameCount, framesToSeconds } from '@/shared/lib/videoUtils';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { usePromptFieldState } from '@/shared/hooks/usePromptFieldState';
 
 // Extracted components
@@ -233,7 +233,12 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                 </div>
                 <Slider
                   value={quantizeFrameCount(settings.numFrames, 9)}
-                  onValueChange={(value) => handleFrameCountChange(value)}
+                  onValueChange={(value) => {
+                    const nextValue = Array.isArray(value)
+                      ? (value[0] ?? quantizeFrameCount(settings.numFrames, 9))
+                      : value;
+                    handleFrameCountChange(nextValue);
+                  }}
                   min={9}
                   max={maxFrames}
                   step={4}

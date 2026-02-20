@@ -13,13 +13,13 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Check, Star, Loader2 } from 'lucide-react';
-import type { Variant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import { useLightboxVariantsSafe, useLightboxCoreSafe } from '../../contexts/LightboxStateContext';
 
 interface VariantOverlayBadgeProps {
   // All props are optional - uses context if not provided
-  activeVariant?: Variant | undefined;
-  variants?: Variant[] | undefined;
+  activeVariant?: GenerationVariant | undefined;
+  variants?: GenerationVariant[] | undefined;
   readOnly?: boolean;
   isMakingMainVariant?: boolean;
   canMakeMainVariant?: boolean;

@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useMemo } from 'react';
+import { useReducer, useCallback } from 'react';
 import { ShotEditorState, ShotEditorAction } from './types';
 
 // Initial state
@@ -184,29 +184,8 @@ export const useShotEditorState = (): { state: ShotEditorState; actions: ShotEdi
     }, []),
   };
 
-  // Memoize the actions object to prevent unnecessary re-renders
-  const memoizedActions = useMemo(() => actions, [
-    actions.setUploadingImage,
-    actions.setUploadProgress,
-    actions.setFileInputKey,
-    actions.setDeletingVideoId,
-    actions.setDuplicatingImageId,
-    actions.setDuplicateSuccessImageId,
-    actions.setPendingFramePositions,
-    // REMOVED: actions.setLocalOrderedShotImages
-    actions.setCreatingTaskId,
-    actions.setSettingsModalOpen,
-    actions.setModeReady,
-    actions.setSettingsError,
-    actions.setEditingName,
-    actions.setEditingNameValue,
-    actions.setShowStepsNotification,
-    actions.setHasInitializedShot,
-    actions.setHasInitializedUISettings,
-  ]);
-
   return {
     state,
-    actions: memoizedActions,
+    actions,
   };
 }; 

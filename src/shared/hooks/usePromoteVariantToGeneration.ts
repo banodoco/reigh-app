@@ -12,9 +12,10 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { hasVideoExtension } from '@/shared/lib/typeGuards';
-import { handleError } from '@/shared/lib/errorHandler';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 interface PromoteVariantParams {
   /** ID of the variant to promote */
@@ -30,7 +31,14 @@ interface PromotedGeneration {
   type: string;
   project_id: string;
   based_on: string;
-  params: Record<string, unknown>;
+  params: Record<string, Json | undefined>;
+}
+
+function toJsonObject(value: unknown): Record<string, Json | undefined> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, Json | undefined>;
+  }
+  return {};
 }
 
 /**
@@ -56,6 +64,9 @@ export const usePromoteVariantToGeneration = () => {
       }
 
       const sourceGenerationId = variant.generation_id;
+      if (!sourceGenerationId) {
+        throw new Error('Variant is missing generation_id');
+      }
 
       // 2. Determine if this is a video or image based on the URL
       const isVideo = hasVideoExtension(variant.location);
@@ -70,7 +81,11 @@ export const usePromoteVariantToGeneration = () => {
         generation_id: _stripGenId,
         source_task_id: _stripTaskId,
         ...cleanVariantParams
-      } = (variant.params as Record<string, unknown>) || {};
+      } = toJsonObject(variant.params);
+
+      const toolType = typeof cleanVariantParams.tool_type === 'string'
+        ? cleanVariantParams.tool_type
+        : 'promoted-variant';
 
       const newGenerationData = {
         location: variant.location,
@@ -83,7 +98,7 @@ export const usePromoteVariantToGeneration = () => {
           source: 'variant_promotion',
           source_variant_id: variantId,
           source_generation_id: sourceGenerationId,
-          tool_type: cleanVariantParams.tool_type || 'promoted-variant',
+          tool_type: toolType,
           promoted_at: new Date().toISOString(),
         },
       };
@@ -103,24 +118,24 @@ export const usePromoteVariantToGeneration = () => {
 
       return {
         id: newGeneration.id,
-        location: newGeneration.location,
+        location: newGeneration.location ?? variant.location,
         thumbnail_url: newGeneration.thumbnail_url,
-        type: newGeneration.type,
-        project_id: newGeneration.project_id,
-        based_on: newGeneration.based_on,
-        params: newGeneration.params as Record<string, unknown>,
+        type: newGeneration.type ?? mediaType,
+        project_id: newGeneration.project_id ?? projectId,
+        based_on: newGeneration.based_on ?? sourceGenerationId,
+        params: toJsonObject(newGeneration.params),
       };
     },
 
     onSuccess: (data) => {
       // Invalidate generations queries to show the new generation in galleries
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.byProjectAll });
+      queryClient.invalidateQueries({ queryKey: generationQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: generationQueryKeys.byProjectAll });
 
       // Invalidate derived generations for the source
       if (data.based_on) {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.generations.derivedGenerations(data.based_on),
+          queryKey: generationQueryKeys.derivedGenerations(data.based_on),
         });
       }
     },

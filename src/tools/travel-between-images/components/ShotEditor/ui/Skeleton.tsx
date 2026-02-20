@@ -20,28 +20,24 @@ export const ImageManagerSkeleton: React.FC<ImageManagerSkeletonProps> = ({
   // Filter out videos AND unpositioned images to match the actual filtering logic
   const actualImageCount = React.useMemo(() => {
     let positionedNonVideoCount = 0;
-    let videosFiltered = 0;
-    let unpositionedFiltered = 0;
     
     // Single pass through the array for efficiency
     // Uses canonical isVideoGeneration from typeGuards
     // NOTE: -1 is used as sentinel for unpositioned items in useTimelinePositionUtils
     shotImages.forEach(img => {
       if (isVideoGeneration(img)) {
-        videosFiltered++;
+        return;
       } else {
         const frame = img.timeline_frame;
         const hasTimelineFrame = frame !== null && frame !== undefined && frame >= 0;
         if (hasTimelineFrame) {
           positionedNonVideoCount++;
-        } else {
-          unpositionedFiltered++;
         }
       }
     });
     
     return positionedNonVideoCount;
-  }, [shotImages, projectAspectRatio]);
+  }, [shotImages]);
 
   // Determine grid columns based on explicit columns prop if provided
   const gridCols = React.useMemo(() => {

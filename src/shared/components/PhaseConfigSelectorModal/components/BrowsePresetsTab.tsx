@@ -141,12 +141,18 @@ export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = ({
     }
 
     const sorted = [...filtered];
+    const getPresetCreatedAt = (preset: typeof sorted[number]): number => {
+      const createdAt = preset.createdAt ?? preset.created_at ?? preset.metadata.created_at;
+      if (!createdAt) return 0;
+      const timestamp = new Date(createdAt).getTime();
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
     switch (sortOption) {
       case 'newest':
-        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        sorted.sort((a, b) => getPresetCreatedAt(b) - getPresetCreatedAt(a));
         break;
       case 'oldest':
-        sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        sorted.sort((a, b) => getPresetCreatedAt(a) - getPresetCreatedAt(b));
         break;
       case 'mostUsed':
         sorted.sort((a, b) => (b.metadata.use_count || 0) - (a.metadata.use_count || 0));

@@ -21,6 +21,7 @@ interface LoraModelImage {
   url: string;
   type?: string;
   source?: string;
+  [key: string]: unknown;
 }
 
 interface LoraModelFile {

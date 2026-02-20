@@ -5,7 +5,7 @@
  * Integrates with ReconnectScheduler and Resurrection Polling for network-aware behavior.
  */
 
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { NavigatorWithDeviceInfo } from '@/types/browser-extensions';
 
 interface NetworkStatus {

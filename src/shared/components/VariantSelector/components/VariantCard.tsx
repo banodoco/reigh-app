@@ -242,8 +242,6 @@ export const VariantCard: React.FC<VariantCardProps> = ({
             <HoverCard
               open={infoOpen}
               onOpenChange={setInfoOpen}
-              openDelay={150}
-              closeDelay={0}
             >
               <HoverCardTrigger asChild>
                 <div

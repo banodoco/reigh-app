@@ -363,7 +363,12 @@ export const StructureVideoSection: React.FC<StructureVideoSectionProps> = ({
             </div>
             <Slider
               value={settings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2}
-              onValueChange={(value) => onChange({ structureMotionStrength: value })}
+              onValueChange={(value) => {
+                const nextValue = Array.isArray(value)
+                  ? (value[0] ?? (settings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2))
+                  : value;
+                onChange({ structureMotionStrength: nextValue });
+              }}
               min={0}
               max={2}
               step={0.1}
@@ -398,7 +403,12 @@ export const StructureVideoSection: React.FC<StructureVideoSectionProps> = ({
               </div>
               <Slider
                 value={settings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1}
-                onValueChange={(value) => onChange({ structureUni3cEndPercent: value })}
+                onValueChange={(value) => {
+                  const nextValue = Array.isArray(value)
+                    ? (value[0] ?? (settings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1))
+                    : value;
+                  onChange({ structureUni3cEndPercent: nextValue });
+                }}
                 min={0}
                 max={1}
                 step={0.05}

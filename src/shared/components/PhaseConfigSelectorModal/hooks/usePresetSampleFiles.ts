@@ -15,10 +15,11 @@ export function usePresetSampleFiles() {
 
   // Manage preview URLs for sample files
   useEffect(() => {
-    previewUrls.forEach(url => URL.revokeObjectURL(url));
-
     const newUrls = sampleFiles.map(file => URL.createObjectURL(file));
-    setPreviewUrls(newUrls);
+    setPreviewUrls((prevUrls) => {
+      prevUrls.forEach(url => URL.revokeObjectURL(url));
+      return newUrls;
+    });
 
     if (mainGenerationIndex >= sampleFiles.length) {
       setMainGenerationIndex(0);

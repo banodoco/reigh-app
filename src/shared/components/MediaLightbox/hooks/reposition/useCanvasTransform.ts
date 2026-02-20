@@ -52,6 +52,9 @@ export function useCanvasTransform({
     // Get the source image - use variant URL if editing a variant
     const mediaUrl = getMediaUrl(media) || media.imageUrl;
     const sourceUrl = activeVariantLocation || mediaUrl;
+    if (!sourceUrl) {
+      throw new Error('Missing source URL');
+    }
 
     // Load the source image
     const img = new Image();

@@ -71,7 +71,7 @@ export const TaskItemTooltip: React.FC<TaskItemTooltipProps> = ({
   };
 
   return (
-    <Tooltip delayDuration={100}>
+    <Tooltip>
       <TooltipTrigger asChild>
         {children}
       </TooltipTrigger>

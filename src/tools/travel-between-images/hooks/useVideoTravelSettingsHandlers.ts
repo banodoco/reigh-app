@@ -362,8 +362,9 @@ export const useVideoTravelSettingsHandlers = ({
     };
     
     // Also apply the preset's generation type mode if it has one
-    if (presetMetadata?.generationTypeMode) {
-      updates.generationTypeMode = presetMetadata.generationTypeMode;
+    const presetGenerationTypeMode = presetMetadata?.generationTypeMode;
+    if (presetGenerationTypeMode === 'i2v' || presetGenerationTypeMode === 'vace') {
+      updates.generationTypeMode = presetGenerationTypeMode;
     }
     
     shotSettingsRef.current.updateFields(updates);

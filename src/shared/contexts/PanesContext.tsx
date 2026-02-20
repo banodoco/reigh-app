@@ -4,7 +4,7 @@ import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { PANE_CONFIG } from '@/shared/config/panes';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface PanesContextType {
   isGenerationsPaneLocked: boolean;

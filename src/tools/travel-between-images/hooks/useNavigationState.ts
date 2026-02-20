@@ -53,8 +53,8 @@ export function useNavigationState({
         return dateA - dateB; // Oldest first
       });
     } else {
-      // 'ordered' mode - sort by timeline_frame
-      return [...shots].sort((a, b) => (a.timeline_frame || 0) - (b.timeline_frame || 0));
+      // 'ordered' mode - sort by persisted shot position
+      return [...shots].sort((a, b) => (a.position || 0) - (b.position || 0));
     }
   }, [shots, shotSortMode]);
 

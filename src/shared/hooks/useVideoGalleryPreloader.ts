@@ -50,7 +50,7 @@ export const useVideoGalleryPreloader = (options?: {
   const { settings: shotsPaneSettings } = useToolSettings<{
     sortOrder?: 'oldest' | 'newest';
   }>('shots-pane-ui-state', {
-    projectId: selectedProjectId,
+    projectId: selectedProjectId ?? undefined,
     enabled: !!selectedProjectId
   });
 
@@ -112,10 +112,10 @@ export const useVideoGalleryPreloader = (options?: {
           // Don't try to construct URLs - trust what the database returns
           return thumbUrl || mainUrl;
         })
-        .filter((url: string) => url) as string[];
+        .filter((url): url is string => typeof url === 'string' && url.length > 0);
 
       return urls;
-    } catch (error) {
+    } catch {
       return [];
     }
   }, [selectedProjectId]);
@@ -236,7 +236,17 @@ export const useVideoGalleryPreloader = (options?: {
       }
     }
 
-  }, [selectedProjectId, shots]); // Simplified dependencies to prevent re-runs
+  }, [
+    selectedProjectId,
+    shots,
+    shouldSkipPreload,
+    shouldShowShotEditor,
+    isMobile,
+    sortOrder,
+    getShotVideoCount,
+    queuePreloadForShotPage,
+    TARGET_CACHED_IMAGES,
+  ]);
 
   // Effect: When viewing a shot, ensure page 1 is preloaded and preload page 2
   useEffect(() => {

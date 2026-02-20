@@ -1,10 +1,10 @@
-import { GenerationRow } from "@/types/shots";
-
 // =============================================================================
 // RE-EXPORTS FROM SHARED
 // These types were moved to shared/ because they're used across components.
 // Re-exported here for backwards compatibility with existing imports.
 // =============================================================================
+import type { GenerationRow } from '@/types/shots';
+
 export {
   type SteerableMotionSettings,
   DEFAULT_STEERABLE_MOTION_SETTINGS,
@@ -19,45 +19,6 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[];
-
-// Segment generation parameters
-interface SegmentGenerationParams {
-  prompts: string[];
-  frames: number[];
-  context: number[];
-  generatedVideoUrl?: string;
-}
-
-// Interface for individual video pair configuration
-interface VideoPairConfig {
-  id: string;
-  imageA: GenerationRow;
-  imageB: GenerationRow;
-  prompt: string;
-  frames: number;
-  context: number;
-  generatedVideoUrl?: string;
-}
-
-// Main props interface for ShotEditor
-// NEW: Simplified settings bundle approach
-interface ShotSettings {
-  videoControlMode: 'individual' | 'batch';
-  prompt: string;  // Main prompt for video generation
-  batchVideoFrames: number;
-  batchVideoSteps: number;
-  steerableMotionSettings: SteerableMotionSettings;
-  generationMode: 'batch' | 'timeline' | 'by-pair';
-  enhancePrompt: boolean;
-  turboMode: boolean;
-  amountOfMotion: number;
-  advancedMode: boolean;
-  motionMode?: 'basic' | 'advanced'; // Motion control mode (Presets tab merged into Basic)
-  phaseConfig?: Record<string, unknown>;
-  pairConfigs?: Record<string, unknown>[];
-  textBeforePrompts?: string;
-  textAfterPrompts?: string;
-}
 
 /**
  * ShotEditorProps - Cleaned up props interface
@@ -133,7 +94,7 @@ export interface ShotEditorProps {
     structureVideo: {
       path: string | null;
       type: 'canny' | 'depth' | null;
-      treatment: 'image' | 'video';
+      treatment: 'adjust' | 'clip';
       motionStrength: number;
     };
     aspectRatio: string | null;
@@ -142,7 +103,7 @@ export interface ShotEditorProps {
   }) | null>;
 
   /** Mutable ref to expose generate video function to parent */
-  generateVideoRef?: React.MutableRefObject<((variantName: string) => Promise<void>) | null>;
+  generateVideoRef?: React.MutableRefObject<((variantName?: string) => void | Promise<void>) | null>;
 
   /** Mutable ref to expose name click handler to parent (for floating header) */
   nameClickRef?: React.MutableRefObject<(() => void) | null>;
@@ -213,22 +174,3 @@ export type ShotEditorAction =
   | { type: 'SET_SHOW_STEPS_NOTIFICATION'; payload: boolean }
   | { type: 'SET_HAS_INITIALIZED_SHOT'; payload: string | null }
   | { type: 'SET_HAS_INITIALIZED_UI_SETTINGS'; payload: string | null };
-
-// Settings that can be applied from tasks
-interface TaskSettings {
-  prompt?: string;
-  prompts?: string[];
-  negativePrompt?: string;
-  negativePrompts?: string[];
-  steps?: number;
-  frame?: number;
-  frames?: number[];
-  context?: number;
-  contexts?: number[];
-  width?: number;
-  height?: number;
-  replaceImages?: boolean;
-  inputImages?: string[];
-  textBeforePrompts?: string;
-  textAfterPrompts?: string;
-} 

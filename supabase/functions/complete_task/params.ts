@@ -75,7 +75,7 @@ function extractFromParams(params: unknown, fieldName: string, paths: string[][]
  * Delegates to shared extractOrchestratorRef (single source of truth for path list)
  * and adds logging consistent with other complete_task extractors.
  */
-export function extractOrchestratorTaskId(params: unknown, logTag: string = 'OrchestratorExtract'): string | null {
+export function extractOrchestratorTaskId(params: unknown, _logTag: string = 'OrchestratorExtract'): string | null {
   const value = extractOrchestratorRef(params);
   return value;
 }

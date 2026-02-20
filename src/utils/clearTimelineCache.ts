@@ -26,7 +26,7 @@ export const clearTimelineCache = () => {
     }
     
     return keysToRemove.length;
-  } catch (error) {
+  } catch {
     return 0;
   }
 };

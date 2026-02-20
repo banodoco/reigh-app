@@ -99,6 +99,7 @@ export interface SegmentSettings {
   structureMotionStrength?: number; // 0-2 scale
   structureTreatment?: 'adjust' | 'clip';
   structureUni3cEndPercent?: number; // 0-1 scale
+  [key: string]: unknown;
 }
 
 export interface ShotBatchSettings {
@@ -108,6 +109,7 @@ export interface ShotBatchSettings {
   phaseConfig?: PhaseConfig;
   prompt?: string;
   negativePrompt?: string;
+  [key: string]: unknown;
 }
 
 // Strip mode field from phase config (backend determines mode from model)

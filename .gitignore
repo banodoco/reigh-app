@@ -46,6 +46,7 @@ temp/
 !structure_detail/*.md
 !docs/structure_detail/*.md
 !docs/blog/*.md
+!docs/quality/*.md
 !tasks/*.md
 !CLAUDE.md
 

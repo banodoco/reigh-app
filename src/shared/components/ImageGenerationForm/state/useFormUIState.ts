@@ -12,6 +12,8 @@ import {
   createInitialUIState,
 } from './types';
 
+export type { ImageGenerationFormUIState } from './types';
+
 // ============================================================================
 // Reducer
 // ============================================================================

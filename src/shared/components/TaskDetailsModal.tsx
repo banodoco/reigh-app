@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useState, ReactNode } from 'react';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import {
   Dialog,
   DialogContent,
@@ -65,6 +65,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
 
   // Use the new hooks
   const getTaskIdMutation = useGetTaskIdForGeneration();
+  const getTaskId = getTaskIdMutation.mutateAsync;
   const { data: task, isLoading: isLoadingTask } = useGetTask(taskId || '');
 
   // Fetch public LoRAs for proper name display
@@ -81,13 +82,21 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
 
     const taskParams = (task?.params ?? {}) as Record<string, unknown>;
     if (Array.isArray(taskParams.input_images) && taskParams.input_images.length > 0) {
-      return taskParams.input_images.map(cleanUrl);
+      return taskParams.input_images
+        .filter((url): url is string => typeof url === 'string')
+        .map(cleanUrl);
     }
-    if (taskParams.full_orchestrator_payload && Array.isArray(taskParams.full_orchestrator_payload.input_image_paths_resolved)) {
-      return taskParams.full_orchestrator_payload.input_image_paths_resolved.map(cleanUrl);
+    const fullOrchestratorPayload = taskParams.full_orchestrator_payload as Record<string, unknown> | undefined;
+    const payloadResolved = fullOrchestratorPayload?.input_image_paths_resolved;
+    if (Array.isArray(payloadResolved)) {
+      return payloadResolved
+        .filter((url): url is string => typeof url === 'string')
+        .map(cleanUrl);
     }
     if (Array.isArray(taskParams.input_image_paths_resolved)) {
-      return taskParams.input_image_paths_resolved.map(cleanUrl);
+      return taskParams.input_image_paths_resolved
+        .filter((url): url is string => typeof url === 'string')
+        .map(cleanUrl);
     }
     return [];
   }, [task]);
@@ -99,7 +108,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
 
       try {
         // Step 1: Get the task ID from the generation using Supabase
-        const result = await getTaskIdMutation.mutateAsync(generationId);
+        const result = await getTaskId(generationId);
 
         if (cancelled) return;
 
@@ -124,7 +133,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
     return () => {
       cancelled = true;
     };
-  }, [isOpen, generationId]); // Removed getTaskIdMutation to avoid infinite loop
+  }, [isOpen, generationId, getTaskId]);
 
   const handleApplySettingsFromTask = () => {
     if (taskId && onApplySettingsFromTask && task) {

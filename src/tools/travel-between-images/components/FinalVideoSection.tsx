@@ -32,7 +32,7 @@ import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { useShareGeneration } from '@/shared/hooks/useShareGeneration';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
 import { VariantBadge } from '@/shared/components/VariantBadge';
-import { queryKeys } from '@/shared/lib/queryKeys';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 // Stable empty function reference to avoid re-renders from inline () => {}
 const noop = () => {};
@@ -106,11 +106,15 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
 
   // PRIORITY: Use parent-provided data first (instant), then hook data, then preloaded
   // This eliminates the duplicate fetch waterfall
-  const parentGenerations = skipHook && preloadedParent
-    ? [preloadedParent]
-    : (parentGenerationsFromProps && parentGenerationsFromProps.length > 0
-        ? parentGenerationsFromProps  // Use parent data immediately!
-        : hookResult.parentGenerations);
+  const parentGenerations = useMemo(() => {
+    if (skipHook && preloadedParent) {
+      return [preloadedParent];
+    }
+    if (parentGenerationsFromProps && parentGenerationsFromProps.length > 0) {
+      return parentGenerationsFromProps;
+    }
+    return hookResult.parentGenerations;
+  }, [skipHook, preloadedParent, parentGenerationsFromProps, hookResult.parentGenerations]);
   const selectedParentId = skipHook && preloadedParent
     ? preloadedParent.id
     : (isControlled ? controlledSelectedParentId : hookResult.selectedParentId);
@@ -179,7 +183,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
   // Include parentGenerations IDs in query key so we can match by parent_generation_id
   const parentGenIdsForQuery = useMemo(() => parentGenerations.map(p => p.id), [parentGenerations]);
   const { data: activeJoinTask } = useQuery({
-    queryKey: [...queryKeys.tasks.activeJoinClips(shotId), projectId, parentGenIdsForQuery],
+    queryKey: [...taskQueryKeys.activeJoinClips(shotId), projectId, parentGenIdsForQuery],
     queryFn: async () => {
       if (!shotId || !projectId) return null;
 
@@ -213,7 +217,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
         }
 
         // Fallback: match by parent_generation_id (for tasks without shot_id)
-        if (taskParentGenId && parentGenIds.has(taskParentGenId)) {
+        if (typeof taskParentGenId === 'string' && parentGenIds.has(taskParentGenId)) {
           return true;
         }
 
@@ -275,7 +279,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
     if (selectedParentId && onDelete) {
       onDelete(selectedParentId);
     }
-  }, [selectedParentId, onDelete, isDeleting]);
+  }, [selectedParentId, onDelete]);
   
   // Determine if currently loading
   const isCurrentlyLoading = isLoading || isParentLoading;
@@ -543,7 +547,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
           showVideoTrimEditor={true}
           readOnly={readOnly}
           taskDetailsData={{
-            task,
+            task: task ?? null,
             isLoading: taskDetailsData?.isLoading ?? false,
             error: taskError,
             inputImages,

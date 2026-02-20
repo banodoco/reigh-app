@@ -329,7 +329,7 @@ export async function handleStandaloneGeneration(ctx: HandlerContext): Promise<u
   if (shotId) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(shotId)) {
-      const { data: shotData, error: shotError } = await supabase.from('shots').select('id').eq('id', shotId).single();
+      await supabase.from('shots').select('id').eq('id', shotId).single();
     }
   }
 

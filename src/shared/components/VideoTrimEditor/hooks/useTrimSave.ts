@@ -9,7 +9,7 @@ import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { extractAndUploadThumbnailOnly } from '@/shared/utils/videoThumbnailGenerator';
 import { invalidateVariantChange } from '@/shared/hooks/useGenerationInvalidation';
 import type { TrimState, UseTrimSaveReturn } from '@/shared/types/videoTrim';
@@ -124,7 +124,7 @@ export const useTrimSave = ({
         if (thumbResult.success && thumbResult.thumbnailUrl) {
           thumbnailUrl = thumbResult.thumbnailUrl;
         }
-      } catch (thumbError) {
+      } catch {
         // Don't fail the whole save, just continue without thumbnail
       }
 

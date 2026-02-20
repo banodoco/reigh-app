@@ -3,6 +3,7 @@ import { useTaskFromUnifiedCache } from '@/shared/hooks/useTaskPrefetch';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import { deriveInputImages } from '@/shared/utils/taskParamsUtils';
 import { Task } from '@/types/tasks';
+import type { TaskDetailsData as LightboxTaskDetailsData } from '@/shared/components/MediaLightbox/types';
 
 interface UseTaskDetailsProps {
   generationId: string | null;
@@ -12,18 +13,8 @@ interface UseTaskDetailsProps {
   onClose?: () => void;
 }
 
-interface TaskDetailsData {
-  task: Task | undefined;
-  isLoading: boolean;
-  error: Error | null;
-  inputImages: string[];
-  taskId: string | null;
-  onApplySettingsFromTask?: (taskId: string, replaceImages: boolean, inputImages: string[]) => void;
-  onClose?: () => void;
-}
-
 interface UseTaskDetailsReturn {
-  taskDetailsData: TaskDetailsData | null;
+  taskDetailsData: LightboxTaskDetailsData | null;
   /** The task mapping (generationId → taskId) */
   taskMapping: { taskId: string | null } | undefined;
   /** The raw task data */
@@ -45,11 +36,18 @@ export function useTaskDetails({
   onClose,
 }: UseTaskDetailsProps): UseTaskDetailsReturn {
   // Fetch task mapping from unified cache (generation ID → task ID)
-  const { data: taskMapping, isLoading: isLoadingMapping } = useTaskFromUnifiedCache(generationId || '');
+  const { data: taskMappingRaw, isLoading: isLoadingMapping } = useTaskFromUnifiedCache(generationId || '');
+  const taskMapping = useMemo(
+    () =>
+      taskMappingRaw
+        ? { taskId: typeof taskMappingRaw.taskId === 'string' ? taskMappingRaw.taskId : null }
+        : undefined,
+    [taskMappingRaw]
+  );
 
   // Fetch actual task data (only runs when we have a taskId)
   const { data: task, isLoading: isLoadingTaskData, error: taskError } = useGetTask(
-    (taskMapping?.taskId as string) || ''
+    taskMapping?.taskId ?? ''
   );
 
   // Combined loading state:
@@ -84,7 +82,7 @@ export function useTaskDetails({
 
   return {
     taskDetailsData: {
-      task,
+      task: task ?? null,
       isLoading,
       error: taskError,
       inputImages,
@@ -98,4 +96,3 @@ export function useTaskDetails({
     taskError,
   };
 }
-

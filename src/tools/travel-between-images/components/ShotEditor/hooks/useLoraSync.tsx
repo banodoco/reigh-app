@@ -3,7 +3,7 @@ import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { ShotLora } from '@/tools/travel-between-images/settings';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { LoraHeaderActions } from '@/shared/components/LoraHeaderActions';
 import React from 'react';
 

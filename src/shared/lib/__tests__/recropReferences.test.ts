@@ -9,7 +9,7 @@ vi.mock('@/shared/lib/imageUploader', () => ({
   uploadImageToStorage: vi.fn().mockResolvedValue('https://storage.com/uploaded.jpg'),
 }));
 
-vi.mock('@/shared/lib/utils', () => ({
+vi.mock('@/shared/lib/fileConversion', () => ({
   dataURLtoFile: vi.fn().mockReturnValue(new File(['test'], 'test.png', { type: 'image/png' })),
 }));
 
@@ -37,7 +37,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
   handleError: vi.fn(),
 }));
 

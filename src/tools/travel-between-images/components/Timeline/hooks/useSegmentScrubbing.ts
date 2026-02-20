@@ -23,24 +23,27 @@ export function useSegmentScrubbing({ projectAspectRatio, displaySlots }: UseSeg
     resetOnLeave: true,
     onHoverEnd: () => setActiveScrubbingIndex(null),
   });
+  const handleScrubbingMouseEnter = scrubbing.containerProps.onMouseEnter;
+  const resetScrubbing = scrubbing.reset;
+  const setScrubbingVideoElement = scrubbing.setVideoElement;
 
   // When active scrubbing index changes, manually trigger onMouseEnter
   useEffect(() => {
     if (activeScrubbingIndex !== null) {
-      scrubbing.containerProps.onMouseEnter();
+      handleScrubbingMouseEnter();
     }
-  }, [activeScrubbingIndex]);  
+  }, [activeScrubbingIndex, handleScrubbingMouseEnter]);  
 
   // Clear scrubbing preview on scroll
   useEffect(() => {
     if (activeScrubbingIndex === null) return;
     const handleScroll = () => {
       setActiveScrubbingIndex(null);
-      scrubbing.reset();
+      resetScrubbing();
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [activeScrubbingIndex, scrubbing]);
+  }, [activeScrubbingIndex, resetScrubbing]);
 
   // Active scrubbing video
   const activeSegmentSlot = activeScrubbingIndex !== null ? displaySlots[activeScrubbingIndex] : null;
@@ -48,9 +51,9 @@ export function useSegmentScrubbing({ projectAspectRatio, displaySlots }: UseSeg
 
   useEffect(() => {
     if (previewVideoRef.current && activeScrubbingIndex !== null) {
-      scrubbing.setVideoElement(previewVideoRef.current);
+      setScrubbingVideoElement(previewVideoRef.current);
     }
-  }, [activeScrubbingIndex, activeSegmentVideoUrl, scrubbing.setVideoElement]);
+  }, [activeScrubbingIndex, activeSegmentVideoUrl, setScrubbingVideoElement]);
 
   // Preview dimensions
   const previewDimensions = useMemo(() => getPreviewDimensions(projectAspectRatio), [projectAspectRatio]);
@@ -74,8 +77,8 @@ export function useSegmentScrubbing({ projectAspectRatio, displaySlots }: UseSeg
   /** Call from parent's handleSegmentClick to clear scrubbing state */
   const clearScrubbing = useCallback(() => {
     setActiveScrubbingIndex(null);
-    scrubbing.reset();
-  }, [scrubbing]);
+    resetScrubbing();
+  }, [resetScrubbing]);
 
   return {
     isMobile,

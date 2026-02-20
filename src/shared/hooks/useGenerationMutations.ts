@@ -17,7 +17,8 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandler';
+import type { Json } from '@/integrations/supabase/types';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import type { GenerationRow } from '@/types/shots';
@@ -63,7 +64,7 @@ async function createGeneration(params: {
   /** Standard aspect ratio (e.g., "16:9") */
   aspectRatio?: string;
 }): Promise<Record<string, unknown>> {
-  const generationParams: Record<string, unknown> = {
+  const generationParams: Record<string, Json | undefined> = {
     prompt: params.prompt,
     source: 'external_upload',
     original_filename: params.fileName,

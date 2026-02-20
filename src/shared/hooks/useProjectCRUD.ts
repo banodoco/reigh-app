@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { toast } from '@/shared/components/ui/toast';
 import { Project } from '@/types/project';
 import { UserPreferences } from '@/shared/settings/userPreferences';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { fetchInheritableProjectSettings, buildShotSettingsForNewProject } from '@/shared/lib/projectSettingsInheritance';
 
 // Type for updating projects
@@ -30,6 +31,13 @@ const sortProjectsByCreatedAt = (projects: Project[]): Project[] => {
   });
 };
 
+function toJsonObject(value: unknown): Record<string, Json | undefined> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, Json | undefined>;
+  }
+  return {};
+}
+
 /**
  * Copy template content to a new user's Getting Started shot.
  * Calls a SECURITY DEFINER database function that copies starred images,
@@ -55,7 +63,7 @@ const copyTemplateToNewUser = async (newProjectId: string, newShotId: string): P
 // Helper function to create a default shot for a new project
 const createDefaultShot = async (
   projectId: string,
-  initialSettings?: Record<string, unknown>,
+  initialSettings?: Record<string, Json | undefined>,
   isFirstProject: boolean = false
 ): Promise<string | null> => {
   try {
@@ -122,6 +130,7 @@ export const determineProjectIdToSelect = (
 };
 
 interface UseProjectCRUDOptions {
+  userId: string | null;
   selectedProjectId: string | null;
   onProjectsLoaded: (projects: Project[], isNewDefault: boolean) => void;
   onProjectCreated: (project: Project) => void;
@@ -134,6 +143,7 @@ interface UseProjectCRUDOptions {
  * Owns the `projects` list state and all loading flags.
  */
 export function useProjectCRUD({
+  userId,
   selectedProjectId,
   onProjectsLoaded,
   onProjectCreated,
@@ -148,8 +158,9 @@ export function useProjectCRUD({
 
   const fetchProjects = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!userId) throw new Error('Not authenticated');
+      console.log('[ProjectCRUD] fetchProjects called, userId:', userId);
+      const user = { id: userId };
 
       await ensureUserRecord(user.id);
 
@@ -181,6 +192,7 @@ export function useProjectCRUD({
         onProjectsLoaded([mappedProject], true);
       } else {
         const mappedProjects = projectsData.map(mapDbProjectToProject);
+        console.log('[ProjectCRUD] projects loaded:', mappedProjects.length, 'projects');
         setProjects(mappedProjects);
         onProjectsLoaded(mappedProjects, false);
       }
@@ -190,7 +202,7 @@ export function useProjectCRUD({
     } finally {
       setIsLoadingProjects(false);
     }
-  }, [onProjectsLoaded]);
+  }, [userId, onProjectsLoaded]);
 
   const addNewProject = useCallback(async (projectData: { name: string; aspectRatio: string }) => {
     if (!projectData.name.trim()) {
@@ -203,13 +215,13 @@ export function useProjectCRUD({
     }
     setIsCreatingProject(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!userId) throw new Error('Not authenticated');
+      const user = { id: userId };
 
       await ensureUserRecord(user.id);
 
       const settingsToInherit = selectedProjectId
-        ? await fetchInheritableProjectSettings(selectedProjectId)
+        ? toJsonObject(await fetchInheritableProjectSettings(selectedProjectId))
         : {};
 
       const { data: newProject, error } = await supabase
@@ -226,7 +238,7 @@ export function useProjectCRUD({
       if (error) throw error;
 
       const shotSettingsToInherit = selectedProjectId
-        ? await buildShotSettingsForNewProject(selectedProjectId, settingsToInherit)
+        ? toJsonObject(await buildShotSettingsForNewProject(selectedProjectId, settingsToInherit))
         : {};
 
       await createDefaultShot(newProject.id, shotSettingsToInherit);
@@ -244,7 +256,7 @@ export function useProjectCRUD({
     } finally {
       setIsCreatingProject(false);
     }
-  }, [selectedProjectId, onProjectCreated, updateUserSettings]);
+  }, [userId, selectedProjectId, onProjectCreated, updateUserSettings]);
 
   const updateProject = useCallback(async (projectId: string, updates: ProjectUpdate): Promise<boolean> => {
     if (!updates.name?.trim() && !updates.aspectRatio) {
@@ -253,8 +265,8 @@ export function useProjectCRUD({
     }
     setIsUpdatingProject(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!userId) throw new Error('Not authenticated');
+      const user = { id: userId };
 
       const dbUpdates: Record<string, string | undefined> = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -284,13 +296,12 @@ export function useProjectCRUD({
     } finally {
       setIsUpdatingProject(false);
     }
-  }, []);
+  }, [userId]);
 
   const deleteProject = useCallback(async (projectId: string): Promise<boolean> => {
     setIsDeletingProject(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
+      if (!userId) throw new Error('Not authenticated');
 
       const { data, error } = await supabase.functions.invoke('delete-project', {
         body: { projectId },

@@ -62,6 +62,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
             <Select
               value={(isServerPagination ? serverPage : page + 1)?.toString()}
               onValueChange={(value) => {
+                if (!value) return;
                 const newPage = isServerPagination ? parseInt(value) : parseInt(value) - 1;
                 const currentPage = isServerPagination ? serverPage ?? 1 : page;
                 const direction = newPage > currentPage ? 'next' : 'prev';

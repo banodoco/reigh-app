@@ -87,7 +87,7 @@ export const ImageUpscaleForm: React.FC<ImageUpscaleFormProps> = ({
           </div>
           <Slider
             value={scaleFactor}
-            onValueChange={(value) => setScaleFactor(value)}
+            onValueChange={(value) => setScaleFactor(Array.isArray(value) ? (value[0] ?? 1) : value)}
             min={1}
             max={4}
             step={0.5}
@@ -100,7 +100,10 @@ export const ImageUpscaleForm: React.FC<ImageUpscaleFormProps> = ({
           <Label className="text-sm">Denoise</Label>
           <Select
             value={String(noiseScale)}
-            onValueChange={(value) => setNoiseScale(parseFloat(value))}
+            onValueChange={(value) => {
+              if (!value) return;
+              setNoiseScale(parseFloat(value));
+            }}
           >
             <SelectTrigger className="w-full h-8">
               <SelectValue />

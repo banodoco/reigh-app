@@ -10,12 +10,13 @@ import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal/types';
 import type { Shot } from '@/types/shots';
 import type { GenerationRow } from '@/types/shots';
+import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToShotHelpers';
 
 // ==================== Types ====================
 
 interface TaskData {
-  params: Record<string, unknown>;
-  orchestrator: Record<string, unknown>;
+  params: Record<string, any>;
+  orchestrator: Record<string, any>;
 }
 
 interface ExtractedSettings {
@@ -65,7 +66,7 @@ interface ExtractedSettings {
   structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
 }
 
-export interface ApplyResult {
+interface ApplyResult {
   success: boolean;
   settingName: string;
   error?: string;
@@ -106,7 +107,7 @@ export interface ApplyContext {
   
   // LoRAs
   loraManager: {
-    setSelectedLoras?: (loras: LoraModel[]) => void;
+    setSelectedLoras?: (loras: Array<{ id: string; name: string; path: string; strength: number; [key: string]: unknown }>) => void;
     handleAddLora: (lora: LoraModel, showToast: boolean, strength: number) => void;
   };
   availableLoras: LoraModel[];
@@ -157,8 +158,8 @@ export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
 
 export const extractSettings = (taskData: TaskData): ExtractedSettings => {
   // Cast to permissive record for dynamic property access from Supabase JSON
-  const params = taskData.params as Record<string, unknown>;
-  const orchestrator = taskData.orchestrator as Record<string, unknown>;
+  const params = taskData.params as Record<string, any>;
+  const orchestrator = taskData.orchestrator as Record<string, any>;
 
   const structureGuidance = (orchestrator.structure_guidance ?? params.structure_guidance) as Record<string, unknown> | undefined;
   const guidanceTarget = structureGuidance?.target as string | undefined;
@@ -463,16 +464,18 @@ export const applyMotionSettings = (
   return { success: true, settingName: 'motion' };
 };
 
-export const applyLoRAs = async (
+export const applyLoRAs = (
   settings: ExtractedSettings,
   context: ApplyContext
 ): Promise<ApplyResult> => {
+  const loras = settings.loras;
+
   // Only apply if NOT in advanced mode
-  if (settings.loras === undefined || settings.advancedMode) {
-    return { success: true, settingName: 'loras', details: 'skipped' };
+  if (loras === undefined || settings.advancedMode) {
+    return Promise.resolve({ success: true, settingName: 'loras', details: 'skipped' });
   }
   
-  if (settings.loras && settings.loras.length > 0) {
+  if (loras.length > 0) {
     
     // Clear existing LoRAs first
     if (context.loraManager.setSelectedLoras) {
@@ -484,9 +487,10 @@ export const applyLoRAs = async (
       setTimeout(() => {
         let matchedCount = 0;
         
-        settings.loras.forEach(loraData => {
+        loras.forEach((loraData) => {
           const matchingLora = context.availableLoras.find(lora => {
-            const loraUrl = lora.huggingface_url || (lora as Record<string, unknown>)['Download Link'] || '';
+            const legacyDownloadLink = (lora as Record<string, any>)['Download Link'];
+            const loraUrl = lora.huggingface_url ?? (typeof legacyDownloadLink === 'string' ? legacyDownloadLink : '');
             return loraUrl === loraData.path ||
                    loraUrl.endsWith(loraData.path) ||
                    loraData.path.endsWith(loraUrl.split('/').pop() || '');
@@ -498,14 +502,14 @@ export const applyLoRAs = async (
           }
         });
         
-        resolve({ success: true, settingName: 'loras', details: `${matchedCount}/${settings.loras.length} matched` });
+        resolve({ success: true, settingName: 'loras', details: `${matchedCount}/${loras.length} matched` });
       }, 100); // Small delay to ensure state clears
     });
   } else {
     if (context.loraManager.setSelectedLoras) {
       context.loraManager.setSelectedLoras([]);
     }
-    return { success: true, settingName: 'loras', details: 'cleared' };
+    return Promise.resolve({ success: true, settingName: 'loras', details: 'cleared' });
   }
 };
 
@@ -542,7 +546,7 @@ export const applyStructureVideo = async (
       let metadata = null;
       try {
         metadata = firstStructureVideo?.metadata ?? await extractVideoMetadataFromUrl(structureVideoPath);
-      } catch (metadataError) { /* intentionally ignored */ }
+      } catch { /* intentionally ignored */ }
       
       context.onStructureVideoInputChange(
         structureVideoPath,
@@ -649,8 +653,15 @@ export const replaceImagesIfRequested = async (
   selectedShot: Shot | null,
   projectId: string,
   simpleFilteredImages: GenerationRow[],
-  addImageToShotMutation: { mutateAsync: (params: Record<string, unknown>) => Promise<unknown> },
-  removeImageFromShotMutation: { mutateAsync: (params: Record<string, unknown>) => Promise<unknown> }
+  addImageToShotMutation: { mutateAsync: (params: AddImageToShotVariables) => Promise<unknown> },
+  removeImageFromShotMutation: {
+    mutateAsync: (params: {
+      shotId: string;
+      shotGenerationId: string;
+      projectId: string;
+      shiftItems?: { id: string; newFrame: number }[];
+    }) => Promise<unknown>;
+  }
 ): Promise<ApplyResult> => {
   if (!replaceImages) {
     // NEW: Apply frame positions to existing images even when not replacing
@@ -717,8 +728,12 @@ export const replaceImagesIfRequested = async (
     // Create a map of URL -> generation data for quick lookup
     const urlToGeneration = new Map<string, { id: string; location: string; thumbnail_url: string | null }>();
     (generationLookup || []).forEach(gen => {
-      if (gen.location) {
-        urlToGeneration.set(gen.location, gen);
+      if (typeof gen.location === 'string' && gen.location.length > 0) {
+        urlToGeneration.set(gen.location, {
+          id: gen.id,
+          location: gen.location,
+          thumbnail_url: gen.thumbnail_url,
+        });
       }
     });
     

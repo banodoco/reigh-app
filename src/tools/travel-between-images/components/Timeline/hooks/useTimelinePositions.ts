@@ -1,15 +1,20 @@
 /**
  * useTimelinePositions - Single Source of Truth for Timeline Positions
- * 
- * This hook replaces the complex multi-source position management with a
- * clean state machine approach:
- * 
+ *
+ * This hook serves the TIMELINE DRAG path: the user drags a node on the
+ * timeline ruler and positions update optimistically while the RPC runs.
+ *
+ * The BATCH EDITOR path (drag-to-reorder in the image grid) is handled
+ * separately by useTimelineFrameUpdates, which does a DB-first write and
+ * relies on the React Query cache refetch to update the UI. The two paths
+ * share the same serialization queue (runSerializedTimelineWrite) and the
+ * same RPC (persistTimelineFrameBatch) so their writes are ordered correctly.
+ *
+ * State machine:
  * - ONE positions map (no displayPositions, stablePositions, framePositions confusion)
- * - Proper optimistic updates with rollback on error
+ * - Optimistic updates with rollback on error
+ * - pendingUpdatesRef protects optimistic state across async DB syncs
  * - Batch database operations for performance
- * - No visible intermediate states (items without positions don't render)
- * 
- * @see https://github.com/your-repo/docs/timeline-refactor.md
  */
 
 import {
@@ -20,11 +25,19 @@ import {
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
-import { supabase } from '@/integrations/supabase/client';
-import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
+import type { GenerationRow } from '@/types/shots';
 import { quantizePositions, TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
+import {
+  isTimelineWriteTimeoutError,
+  isTimelineWriteActive,
+} from '@/shared/lib/timelineWriteQueue';
+import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
+import {
+  clearTrailingEndpointFrame,
+  setTrailingEndpointFrame,
+} from './timelineTrailingEndpointPersistence';
 
 // ============================================================================
 // TYPES
@@ -51,7 +64,7 @@ type PositionStatus =
 
 interface UseTimelinePositionsProps {
   shotId: string | null;
-  shotGenerations: ShotGeneration[];
+  shotGenerations: GenerationRow[];
   frameSpacing?: number;
   onPositionsChange?: (positions: Map<string, number>) => void;
 }
@@ -59,27 +72,36 @@ interface UseTimelinePositionsProps {
 interface UseTimelinePositionsReturn {
   // The single source of truth for positions
   positions: Map<string, number>;
-  
+
   // Status for UI feedback
   status: PositionStatus;
   isUpdating: boolean;
   isIdle: boolean;
-  
+
   // Core operations
   updatePositions: (newPositions: Map<string, number>, options?: UpdateOptions) => Promise<void>;
   addItemsAtPositions: (items: Array<{ id: string; position: number }>) => () => void;
   removeItems: (ids: string[]) => () => void;
-  
+
+  /**
+   * Apply optimistic visual update immediately without entering the write queue
+   * or touching the DB. Returns a rollback function (or null if nothing changed).
+   * Intended to be called BEFORE runSerializedTimelineWrite, with the returned
+   * rollback passed as UpdateOptions.externalRollback so updatePositions can
+   * roll back on DB error.
+   */
+  applyOptimisticPositionUpdate: (newPositions: Map<string, number>) => (() => void) | null;
+
   // Sync control
   syncFromDatabase: () => void;
   lockPositions: () => void;
   unlockPositions: () => void;
-  
+
   // Helpers
   getPosition: (id: string) => number | undefined;
   hasPosition: (id: string) => boolean;
   hasPendingUpdate: (id: string) => boolean;
-  
+
   // For backwards compatibility during migration
   displayPositions: Map<string, number>;
   framePositions: Map<string, number>;
@@ -91,6 +113,11 @@ interface UpdateOptions {
   skipOptimistic?: boolean;
   skipDatabase?: boolean;
   metadata?: Record<string, unknown>;
+  /**
+   * When optimistic update was applied externally (before the write queue),
+   * pass its rollback function here so updatePositions can roll back on error.
+   */
+  externalRollback?: (() => void) | null;
 }
 
 // ============================================================================
@@ -104,7 +131,7 @@ export function useTimelinePositions({
   onPositionsChange,
 }: UseTimelinePositionsProps): UseTimelinePositionsReturn {
 
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const invalidateGenerations = useInvalidateGenerations();
   
   // -------------------------------------------------------------------------
@@ -113,12 +140,15 @@ export function useTimelinePositions({
   
   // The single source of truth for positions
   const [positions, setPositions] = useState<Map<string, number>>(new Map());
-  
+
+  // Ref mirror — lets applyOptimistic and updatePositions read current positions
+  // in callbacks without positions being in their dep arrays (which would cause
+  // recreation on every drag frame, cascading through the entire call chain).
+  const positionsRef = useRef<Map<string, number>>(new Map());
+  positionsRef.current = positions;
+
   // State machine status
   const [status, setStatus] = useState<PositionStatus>({ type: 'idle' });
-  
-  // Lock to prevent database syncs during operations
-  const [isLocked, setIsLocked] = useState(false);
   
   // -------------------------------------------------------------------------
   // REFS
@@ -126,32 +156,73 @@ export function useTimelinePositions({
   
   // Track pending updates for rollback support
   const pendingUpdatesRef = useRef<Map<string, PendingUpdate>>(new Map());
-  
+
   // Operation counter for tracking concurrent operations
   const operationIdRef = useRef(0);
-  
+
   // Snapshot for rollback on error
   const snapshotRef = useRef<Map<string, number> | null>(null);
-  
+
   // Track the last sync to prevent redundant updates
   const lastSyncRef = useRef<string>('');
-  
+
+  // Refs that mirror isLocked/status for syncFromDatabase to read without
+  // being in its useCallback deps (changing these must NOT recreate the
+  // callback, which would spuriously re-run the sync useEffect with stale
+  // shotGenerations before the invalidation refetch returns).
+  const isLockedRef = useRef(false);
+  const isUpdatingRef = useRef(false);
+
+  // Count of in-flight DB writes (incremented synchronously by applyOptimistic,
+  // decremented in the updatePositions finally block). Acts as a hard guard in
+  // syncFromDatabase: even if isLockedRef/isUpdatingRef are mysteriously cleared
+  // by a race condition, this counter prevents old server data from overwriting
+  // in-flight optimistic positions.
+  const writeInFlightRef = useRef(0);
+
+  // -------------------------------------------------------------------------
+  // LIFECYCLE + POSITIONS-CHANGE AUDIT
+  // -------------------------------------------------------------------------
+
+
+
   // -------------------------------------------------------------------------
   // DATABASE SYNC
   // -------------------------------------------------------------------------
-  
+
   /**
    * Sync positions from database data
    * Only updates if we're idle and data has changed
    */
   const syncFromDatabase = useCallback(() => {
-    // Don't sync if locked
-    if (isLocked) {
+    // Use refs so that toggling the lock/status does NOT recreate this callback
+    // (which would cause the useEffect below to fire with stale shotGenerations).
+    if (isLockedRef.current) {
       return;
     }
-    
-    // Don't sync if we're in the middle of an update
-    if (status.type === 'updating') {
+
+    if (isUpdatingRef.current) {
+      return;
+    }
+
+    // Hard guard: block any sync while a DB write is in flight, even if the
+    // lock refs are somehow cleared by a race. writeInFlightRef is incremented
+    // synchronously by applyOptimistic and decremented only in the finally block.
+    if (writeInFlightRef.current > 0) {
+      return;
+    }
+
+    // Cross-path guard: suppress sync while ANY serialized write is active for
+    // this shot — including writes from the batch editor (useTimelineFrameUpdates),
+    // which does not set isLockedRef. Without this check, a background refetch
+    // fired during a slow midpoint RPC would apply stale positions and snap the
+    // timeline ruler back before the write completes.
+    //
+    // CRITICAL: Only suppress if we already have positions loaded (positionsRef.current.size > 0).
+    // On initial mount the positions map is empty — there is nothing to protect,
+    // and suppressing here leaves the timeline blank for the entire duration of
+    // any concurrent batch editor write.
+    if (shotId && isTimelineWriteActive(shotId) && positionsRef.current.size > 0) {
       return;
     }
 
@@ -188,40 +259,48 @@ export function useTimelinePositions({
     if (pendingUpdatesRef.current.size > 0) {
        const now = Date.now();
        const toDelete = new Set<string>();
+       let verifiedCount = 0;
+       let timedOutCount = 0;
+       let overriddenCount = 0;
 
        for (const [id, pending] of pendingUpdatesRef.current.entries()) {
            const serverPos = newPositions.get(id);
-           
+
            // 1. Success case: Server matches our pending update
            // Use relaxed comparison for safety (sometimes floats vs ints)
            if (serverPos !== undefined && Math.abs(serverPos - pending.newPosition) < 0.01) {
                toDelete.add(id);
+               verifiedCount++;
                // Server is correct, keep newPositions as-is for this item
                continue;
            }
 
-           // 2. Timeout case: Pending update is too old (> 10s)
-           if (now - pending.timestamp > 10000) {
+           // 2. Timeout case: Pending update is too old (> 35s, exceeds 30s RPC timeout)
+           if (now - pending.timestamp > 35000) {
                toDelete.add(id);
+               timedOutCount++;
                // Accept server data (already in newPositions)
                continue;
            }
-           
+
            // 3. Stale case: Server still has old position (or null)
            // OVERRIDE the server data with our local optimistic state
            // This protects the dragged item(s) from jumping back
+           overriddenCount++;
            if (pending.operation === 'remove') {
                newPositions.delete(id);
            } else {
                newPositions.set(id, pending.newPosition);
            }
        }
-       
+
        // Clear verified/timed-out updates
        if (toDelete.size > 0) {
          toDelete.forEach(id => pendingUpdatesRef.current.delete(id));
        }
-       
+
+
+
        // NOTE: We no longer skip the sync entirely!
        // We merged local pending data into newPositions, so we can safely continue
     }
@@ -232,7 +311,7 @@ export function useTimelinePositions({
       return; // No change
     }
     lastSyncRef.current = syncKey;
-    
+
     // Sync positions immediately (not in transition) to prevent flicker
     // when new items are added - the position must be available before render
     setPositions(newPositions);
@@ -242,7 +321,8 @@ export function useTimelinePositions({
       onPositionsChange(newPositions);
     }
 
-  }, [isLocked, status.type, shotGenerations, shotId, onPositionsChange]);
+
+  }, [shotGenerations, onPositionsChange, shotId]);
   
   // Auto-sync when shot generations change
   useEffect(() => {
@@ -261,49 +341,53 @@ export function useTimelinePositions({
   const applyOptimistic = useCallback((
     updates: Array<{ id: string; position: number; operation: 'add' | 'move' | 'remove' }>
   ): (() => void) => {
-    
+
+
     // Take snapshot for rollback
-    snapshotRef.current = new Map(positions);
-    
-    // Apply updates immediately
+    snapshotRef.current = new Map(positionsRef.current);
+
+    // CRITICAL: Populate pendingUpdatesRef SYNCHRONOUSLY before setPositions.
+    // React state updaters run asynchronously (deferred in concurrent mode), so
+    // putting side effects inside them creates a race: syncFromDatabase can fire
+    // between setPositions() and the updater running, seeing pendingCount: 0 and
+    // overwriting optimistic state with stale server data.
+    const now = Date.now();
+    updates.forEach(({ id, position, operation }) => {
+      pendingUpdatesRef.current.set(id, {
+        id,
+        oldPosition: positionsRef.current.get(id) ?? null,
+        newPosition: position,
+        operation,
+        timestamp: now,
+      });
+    });
+
+    // Apply updates immediately (pure state update — no side effects inside)
     setPositions(current => {
       const next = new Map(current);
-      
       updates.forEach(({ id, position, operation }) => {
         if (operation === 'remove') {
           next.delete(id);
         } else {
           next.set(id, position);
         }
-        
-        // Track as pending
-        pendingUpdatesRef.current.set(id, {
-          id,
-          oldPosition: current.get(id) ?? null,
-          newPosition: position,
-          operation,
-          timestamp: Date.now(),
-        });
       });
-      
       return next;
     });
-    
+
     // Return rollback function
     return () => {
-      
       if (snapshotRef.current) {
         setPositions(snapshotRef.current);
         snapshotRef.current = null;
       }
-      
       updates.forEach(({ id }) => {
         pendingUpdatesRef.current.delete(id);
       });
     };
-    
-  }, [positions]);
-  
+
+  }, []);
+
   /**
    * Clear pending updates after successful database write
    */
@@ -329,55 +413,57 @@ export function useTimelinePositions({
       operation = 'reorder',
       skipOptimistic = false,
       skipDatabase = false,
-      metadata = {}
+      metadata = {},
+      externalRollback,
     } = options;
-    
+
     if (!shotId) {
       return;
     }
-    
-    // Quantize positions to ensure 4N+1 gaps for Wan model compatibility
-    const quantizedPositions = quantizePositions(newPositions);
-    
+
+    // Drag/tap paths already quantize in timeline utils; re-quantizing here can
+    // rewrite the full timeline and unnecessarily inflate persisted update count.
+    const shouldQuantize = operation !== 'drag';
+    const quantizedPositions = shouldQuantize ? quantizePositions(newPositions) : new Map(newPositions);
+
     const operationId = `op-${++operationIdRef.current}-${operation}`;
-    
-    // Calculate what changed (using quantized positions)
+
+    // Calculate what changed (using quantized positions).
+    // When skipOptimistic=true an external caller already applied the optimistic
+    // update before this function runs, so positionsRef.current already reflects
+    // the new positions. Use the pre-optimistic snapshot (set synchronously by
+    // applyOptimistic) to correctly compute the diff; otherwise changes.length===0
+    // and the DB write is skipped entirely.
+    const basePositions =
+      skipOptimistic && snapshotRef.current ? snapshotRef.current : positionsRef.current;
     const changes: Array<{ id: string; oldPos: number | null; newPos: number }> = [];
 
     for (const [id, newPos] of quantizedPositions) {
-      const oldPos = positions.get(id);
+      const oldPos = basePositions.get(id);
       if (oldPos !== newPos) {
         changes.push({ id, oldPos: oldPos ?? null, newPos });
       }
     }
 
     // Detect trailing endpoint removal (was in old positions, not in new)
-    const trailingRemoved = positions.has(TRAILING_ENDPOINT_KEY) && !quantizedPositions.has(TRAILING_ENDPOINT_KEY);
+    const trailingRemoved = positionsRef.current.has(TRAILING_ENDPOINT_KEY) && !quantizedPositions.has(TRAILING_ENDPOINT_KEY);
 
     if (changes.length === 0 && !trailingRemoved) {
       return;
     }
-    
+
     // Validate: no duplicate positions
     const positionValues = [...quantizedPositions.values()];
     const uniquePositions = new Set(positionValues);
     if (uniquePositions.size !== positionValues.length) {
-      console.error('[TimelinePositions] ❌ Duplicate positions detected!');
-      
-      // Find and log duplicates
-      const counts = new Map<number, string[]>();
-      for (const [id, pos] of quantizedPositions) {
-        if (!counts.has(pos)) counts.set(pos, []);
-        counts.get(pos)!.push(id);
-      }
-      const duplicates = [...counts.entries()].filter(([, ids]) => ids.length > 1);
-      console.error('[TimelinePositions] Duplicates:', duplicates);
-      
       toast.error('Position conflict detected - operation cancelled');
       return;
     }
     
-    // Apply optimistic update
+    // Apply optimistic update.
+    // When skipOptimistic=true, the caller already applied the optimistic update
+    // externally (before entering the write queue) for instant visual feedback.
+    // In that case we reuse the caller's rollback function so errors still revert.
     let rollback: (() => void) | null = null;
     if (!skipOptimistic) {
       const optimisticUpdates = changes.map(c => ({
@@ -393,6 +479,8 @@ export function useTimelinePositions({
         });
       }
       rollback = applyOptimistic(optimisticUpdates);
+    } else if (externalRollback !== undefined) {
+      rollback = externalRollback;
     }
     
     // If skipping database, we're done
@@ -401,15 +489,23 @@ export function useTimelinePositions({
       return;
     }
     
+    // Mark a DB write in flight BEFORE the try block so the finally block always
+    // decrements it. This counter is the hard guard in syncFromDatabase — even if
+    // isLockedRef/isUpdatingRef are mysteriously cleared, writeInFlightRef > 0
+    // blocks any sync from applying stale server data over our optimistic state.
+    writeInFlightRef.current++;
+
     // Set status to updating
-    setStatus({ 
-      type: 'updating', 
-      operationId, 
-      description: `${operation}: ${changes.length} items` 
+    isUpdatingRef.current = true;
+    setStatus({
+      type: 'updating',
+      operationId,
+      description: `${operation}: ${changes.length} items`,
     });
-    
+
     // Lock positions to prevent sync interference
-    setIsLocked(true);
+    isLockedRef.current = true;
+
     
     try {
       // Partition changes: trailing endpoint vs. normal images
@@ -418,6 +514,7 @@ export function useTimelinePositions({
 
       // Build database updates for normal image changes
       const dbUpdates: Array<{ shot_generation_id: string; timeline_frame: number }> = [];
+      const unmatchedChangeIds: string[] = [];
 
       for (const change of imageChanges) {
         // Find the shot_generation record for this item
@@ -432,54 +529,32 @@ export function useTimelinePositions({
             shot_generation_id: shotGen.id,
             timeline_frame: change.newPos
           });
+        } else {
+          unmatchedChangeIds.push(change.id);
         }
       }
 
-      // Handle trailing endpoint change — write metadata.end_frame on last positioned image
       if (trailingChange) {
-        const sortedShotGens = [...shotGenerations]
-          .filter(sg => sg.timeline_frame !== null && sg.timeline_frame !== undefined && sg.timeline_frame >= 0)
-          .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
-        const lastShotGen = sortedShotGens[sortedShotGens.length - 1];
-        if (lastShotGen) {
-          const { data: current, error: fetchError } = await supabase
-            .from('shot_generations')
-            .select('metadata')
-            .eq('id', lastShotGen.id)
-            .single();
-          if (fetchError) throw fetchError;
-          const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
-          const { error: updateError } = await supabase
-            .from('shot_generations')
-            .update({
-              metadata: { ...currentMetadata, end_frame: trailingChange.newPos },
-            })
-            .eq('id', lastShotGen.id);
-          if (updateError) throw updateError;
-        }
+        await setTrailingEndpointFrame(
+          {
+            shotId,
+            operationId,
+            shotGenerations,
+            logPrefix: '',
+            log: () => {},
+          },
+          trailingChange.newPos,
+        );
       }
 
-      // Handle trailing endpoint removal — clear metadata.end_frame from last positioned image
       if (trailingRemoved) {
-        const sortedShotGens = [...shotGenerations]
-          .filter(sg => sg.timeline_frame !== null && sg.timeline_frame !== undefined && sg.timeline_frame >= 0)
-          .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
-        const lastShotGen = sortedShotGens[sortedShotGens.length - 1];
-        if (lastShotGen) {
-          const { data: current, error: fetchError } = await supabase
-            .from('shot_generations')
-            .select('metadata')
-            .eq('id', lastShotGen.id)
-            .single();
-          if (fetchError) throw fetchError;
-          const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
-          delete currentMetadata.end_frame;
-          const { error: updateError } = await supabase
-            .from('shot_generations')
-            .update({ metadata: currentMetadata })
-            .eq('id', lastShotGen.id);
-          if (updateError) throw updateError;
-        }
+        await clearTrailingEndpointFrame({
+          shotId,
+          operationId,
+          shotGenerations,
+          logPrefix: '',
+          log: () => {},
+        });
       }
 
       if (dbUpdates.length === 0 && !trailingChange && !trailingRemoved) {
@@ -487,44 +562,28 @@ export function useTimelinePositions({
         return;
       }
 
+
       // Batch-update normal image positions (skip if only trailing changed)
       if (dbUpdates.length > 0) {
-
-        // Use batch update RPC if available, otherwise fallback to sequential updates
-        const { error: rpcError } = await supabase.rpc('batch_update_timeline_frames', {
-          p_updates: dbUpdates.map(u => ({
-            shot_generation_id: u.shot_generation_id,
-            timeline_frame: u.timeline_frame,
-            metadata: {
-              user_positioned: true,
-              drag_source: operation,
-              ...metadata
-            }
-          }))
-        });
-
-        if (rpcError) {
-          // Fallback to sequential updates if RPC doesn't exist
-          if (rpcError.code === '42883') { // function does not exist
-
-            for (const update of dbUpdates) {
-              const { error } = await supabase
-                .from('shot_generations')
-                .update({
-                  timeline_frame: update.timeline_frame,
-                  metadata: {
-                    user_positioned: true,
-                    drag_source: operation,
-                    ...metadata
-                  }
-                })
-                .eq('id', update.shot_generation_id);
-
-              if (error) throw error;
-            }
-          } else {
-            throw rpcError;
-          }
+        try {
+          await persistTimelineFrameBatch({
+            shotId,
+            updates: dbUpdates.map((update) => ({
+              shotGenerationId: update.shot_generation_id,
+              timelineFrame: update.timeline_frame,
+              metadata: {
+                user_positioned: true,
+                drag_source: operation,
+                ...metadata,
+              },
+            })),
+            operationLabel: `timeline-positions-${operation}`,
+            timeoutOperationName: 'timeline-positions-batch-rpc',
+            logPrefix: '',
+            log: () => {},
+          });
+        } catch (rpcError) {
+          throw rpcError;
         }
       }
       
@@ -542,6 +601,7 @@ export function useTimelinePositions({
       });
       
     } catch (error) {
+      const isTimeout = isTimelineWriteTimeoutError(error);
       handleError(error, { context: 'TimelinePositions', showToast: false, logData: { operationId } });
 
       // Rollback optimistic update
@@ -554,31 +614,37 @@ export function useTimelinePositions({
         message: (error as Error).message,
         canRetry: true
       });
-      
+
       toast.error('Failed to update positions');
       throw error;
-      
+
     } finally {
-      // Unlock positions
-      setIsLocked(false);
-      
-      // Reset status if this is still the active operation
+      // Decrement write-in-flight counter (incremented before the try block).
+      // Must happen before unlocking so syncFromDatabase stays blocked until
+      // both the counter AND the lock are cleared.
+      writeInFlightRef.current = Math.max(0, writeInFlightRef.current - 1);
+
+      // Unlock positions — clear ref first so syncFromDatabase guards fire
+      // correctly before the state re-render triggers the useEffect.
+      isLockedRef.current = false;
+
+      // Reset status
+      isUpdatingRef.current = false;
       setTimeout(() => {
-        setStatus(current => 
+        setStatus(current =>
           current.type === 'updating' && current.operationId === operationId
             ? { type: 'idle' }
-            : current
+            : current,
         );
       }, 50);
     }
     
   }, [
     shotId,
-    positions,
     shotGenerations,
     applyOptimistic,
     clearPendingUpdates,
-    queryClient
+    invalidateGenerations,
   ]);
   
   /**
@@ -624,11 +690,19 @@ export function useTimelinePositions({
   // -------------------------------------------------------------------------
   
   const lockPositions = useCallback(() => {
-    setIsLocked(true);
+    isLockedRef.current = true;
   }, []);
-  
+
   const unlockPositions = useCallback(() => {
-    setIsLocked(false);
+    // Don't release the lock while a write is in progress — the updatePositions
+    // finally block owns that lock and will release it. Without this guard, the
+    // external isDragInProgress effect in usePositionManagement fires unlockPositions()
+    // on drop (after the render that follows the drop event), which races with and
+    // overrides the internal lock acquired synchronously by updatePositions.
+    if (isUpdatingRef.current) {
+      return;
+    }
+    isLockedRef.current = false;
   }, []);
   
   // -------------------------------------------------------------------------
@@ -655,9 +729,43 @@ export function useTimelinePositions({
   const isIdle = status.type === 'idle';
   
   // -------------------------------------------------------------------------
+  // PRE-QUEUE OPTIMISTIC HELPER
+  // -------------------------------------------------------------------------
+
+  /**
+   * Apply an optimistic visual update immediately, without entering the write
+   * queue or touching the DB. Designed to be called in setFramePositions BEFORE
+   * runSerializedTimelineWrite so the user sees the drag result at once, even
+   * when the queue is blocked by a concurrent batch-editor RPC.
+   *
+   * Returns the rollback function from applyOptimistic (null if nothing changed).
+   * Pass this as UpdateOptions.externalRollback to the subsequent updatePositions
+   * call so errors can revert the visual state.
+   *
+   * Uses the drag-path rule: no quantization (matches updatePositions 'drag').
+   */
+  const applyOptimisticPositionUpdate = useCallback((
+    newPositions: Map<string, number>,
+  ): (() => void) | null => {
+    const updates: Array<{ id: string; position: number; operation: 'add' | 'move' | 'remove' }> = [];
+    for (const [id, newPos] of newPositions) {
+      const oldPos = positionsRef.current.get(id);
+      if (oldPos !== newPos) {
+        updates.push({
+          id,
+          position: newPos,
+          operation: oldPos === undefined ? 'add' : 'move',
+        });
+      }
+    }
+    if (updates.length === 0) return null;
+    return applyOptimistic(updates);
+  }, [applyOptimistic]);
+
+  // -------------------------------------------------------------------------
   // BACKWARDS COMPATIBILITY
   // -------------------------------------------------------------------------
-  
+
   // For backwards compatibility, expose the same interface as the old hook
   const setFramePositions = useCallback(async (newPositions: Map<string, number>) => {
     await updatePositions(newPositions, { operation: 'drag' });
@@ -670,27 +778,28 @@ export function useTimelinePositions({
   return {
     // The single source of truth
     positions,
-    
+
     // Status
     status,
     isUpdating,
     isIdle,
-    
+
     // Core operations
     updatePositions,
     addItemsAtPositions,
     removeItems,
-    
+    applyOptimisticPositionUpdate,
+
     // Sync control
     syncFromDatabase,
     lockPositions,
     unlockPositions,
-    
+
     // Helpers
     getPosition,
     hasPosition,
     hasPendingUpdate,
-    
+
     // Backwards compatibility
     displayPositions: positions,
     framePositions: positions,
@@ -700,4 +809,3 @@ export function useTimelinePositions({
 
 // Export types
 export type { UseTimelinePositionsReturn, UpdateOptions, PositionStatus };
-

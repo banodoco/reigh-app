@@ -116,8 +116,10 @@ function useLiveTimestamp(
 
   const formattedTime = useMemo(() => {
     if (!parsedDate) return null;
+    // Keep recomputing when the updater ticks so relative durations stay fresh.
+    void updateTrigger;
     return formatter(parsedDate);
-  }, [parsedDate?.getTime(), updateTrigger]);
+  }, [parsedDate, formatter, updateTrigger]);
 
   return formattedTime;
 }

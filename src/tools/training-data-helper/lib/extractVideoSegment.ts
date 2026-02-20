@@ -11,7 +11,7 @@ interface ExtractedSegment {
   fileExtension: string;
 }
 
-export async function extractVideoSegment(
+export function extractVideoSegment(
   videoUrl: string,
   startTime: number,
   endTime: number,

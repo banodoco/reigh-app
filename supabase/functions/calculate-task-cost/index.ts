@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 import { getSubTaskOrchestratorId, buildSubTaskFilter } from "../_shared/billing.ts";
+import { authenticateRequest } from "../_shared/auth.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
@@ -142,12 +143,17 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  // Verify service role authentication - this function should only be called internally
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ") || authHeader.slice(7) !== serviceKey) {
+  // Service-role only endpoint
+  const auth = await authenticateRequest(req, supabaseAdmin, "[CALCULATE-TASK-COST]");
+  if (!auth.success) {
+    logger.warn(auth.error || "Authentication failed");
+    await logger.flush();
+    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
+  }
+  if (!auth.isServiceRole) {
     logger.warn("Unauthorized - service role required");
     await logger.flush();
-    return jsonResponse({ error: "Unauthorized - service role required" }, 401);
+    return jsonResponse({ error: "Unauthorized - service role required" }, 403);
   }
 
   try {
@@ -222,7 +228,7 @@ serve(async (req) => {
     }
 
     // Check if this is an orchestrator task - calculate cost based on sub-task durations
-    const { data: subTasks, error: subTasksError } = await supabaseAdmin
+    const { data: subTasks, error: _subTasksError } = await supabaseAdmin
       .from('tasks')
       .select(`
         id,

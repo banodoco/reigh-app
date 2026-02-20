@@ -14,7 +14,7 @@ import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from '../hooks/useTrainingData';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useBatchDownload } from '../hooks/useBatchDownload';
 
 interface BatchSelectorProps {

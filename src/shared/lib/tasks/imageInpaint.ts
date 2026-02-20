@@ -23,7 +23,7 @@ interface CreateImageInpaintTaskParams {
 /**
  * Creates a single image inpainting task via the unified edge function
  */
-async function createSingleInpaintTask(params: Omit<CreateImageInpaintTaskParams, 'num_generations'>): Promise<TaskCreationResult> {
+function createSingleInpaintTask(params: Omit<CreateImageInpaintTaskParams, 'num_generations'>): Promise<TaskCreationResult> {
   const {
     project_id,
     image_url,

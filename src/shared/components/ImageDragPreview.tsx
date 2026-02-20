@@ -3,21 +3,7 @@ import { GenerationRow } from '@/types/shots';
 import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
 import { cn } from '@/shared/lib/utils';
-
-const baseUrl = import.meta.env.VITE_API_TARGET_URL || window.location.origin;
-
-const getDisplayUrl = (relativePath: string | undefined): string => {
-  if (!relativePath) return '/placeholder.svg'; // Default placeholder if no path
-  // If it's already an absolute URL, a blob URL, or a root-relative path (like /placeholder.svg itself), use as is.
-  if (relativePath.startsWith('http') || relativePath.startsWith('blob:') || relativePath.startsWith('/')) {
-    return relativePath;
-  }
-  // For other relative paths (like 'files/image.png'), prepend the base URL.
-  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  // Ensure the relative path doesn't start with a slash if we are prepending base
-  const cleanRelative = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-  return `${cleanBase}/${cleanRelative}`;
-};
+import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 
 interface ImagePreviewProps {
   image: GenerationRow;

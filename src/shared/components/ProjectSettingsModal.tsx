@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/co
 import { ChevronDown, AlertTriangle, RefreshCw } from 'lucide-react';
 import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { recropAllReferences, ReferenceImage } from '@/shared/lib/recropReferences';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { ModalContainer } from '@/shared/components/ModalContainer';
 
 interface ProjectImageSettings {

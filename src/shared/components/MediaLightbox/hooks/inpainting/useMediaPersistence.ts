@@ -90,8 +90,10 @@ export function useMediaPersistence({
       // Update global last-used mode (for inheritance)
       lastUsedEditModeRef.current = newValue;
 
-      // Save to database (async, non-blocking)
-      saveEditModeToDB(actualGenerationId, newValue);
+      // Save to database (async, non-blocking) when we have a canonical generation id
+      if (actualGenerationId) {
+        saveEditModeToDB(actualGenerationId, newValue);
+      }
 
       return newValue;
     });
@@ -122,7 +124,7 @@ export function useMediaPersistence({
         savedAt: Date.now()
       };
       localStorage.setItem(storageKey, JSON.stringify(data));
-    } catch (e) { /* intentionally ignored */ }
+    } catch { /* intentionally ignored */ }
   }, [inpaintStrokes, annotationStrokes, inpaintPrompt, inpaintNumGenerations, brushSize, isInpaintMode, storageKey]);
 
   // ============================================
@@ -194,7 +196,7 @@ export function useMediaPersistence({
           hydratedMediaIdsRef.current.add(storageKey);
 
         }
-      } catch (e) { /* intentionally ignored */ }
+      } catch { /* intentionally ignored */ }
     }
 
     // 5. Restore UI state (mode, annotation mode)
@@ -204,30 +206,32 @@ export function useMediaPersistence({
       setAnnotationModeInternal(savedState.annotationMode);
       lastUsedEditModeRef.current = savedState.editMode;
     } else {
-      // Not in cache - try loading from database
-      loadEditModeFromDB(newActualGenerationId).then(dbMode => {
-        // Only apply if we're still on the same media
-        if (prevMediaIdRef.current === newMediaId) {
-          if (dbMode) {
-            setEditModeInternal(dbMode);
-            lastUsedEditModeRef.current = dbMode;
-            mediaStateRef.current.set(newMediaId, { editMode: dbMode, annotationMode: null });
-          } else {
-            // Inherit from last used or default to 'text'
+      // Not in cache - try loading from database when we have a generation id
+      if (newActualGenerationId) {
+        loadEditModeFromDB(newActualGenerationId).then(dbMode => {
+          // Only apply if we're still on the same media
+          if (prevMediaIdRef.current === newMediaId) {
+            if (dbMode) {
+              setEditModeInternal(dbMode);
+              lastUsedEditModeRef.current = dbMode;
+              mediaStateRef.current.set(newMediaId, { editMode: dbMode, annotationMode: null });
+            } else {
+              // Inherit from last used or default to 'text'
+              const inheritedMode = lastUsedEditModeRef.current;
+              setEditModeInternal(inheritedMode);
+              mediaStateRef.current.set(newMediaId, { editMode: inheritedMode, annotationMode: null });
+              saveEditModeToDB(newActualGenerationId, inheritedMode);
+            }
+          }
+        }).catch(() => {
+          // Fallback to inherited mode
+          if (prevMediaIdRef.current === newMediaId) {
             const inheritedMode = lastUsedEditModeRef.current;
             setEditModeInternal(inheritedMode);
             mediaStateRef.current.set(newMediaId, { editMode: inheritedMode, annotationMode: null });
-            saveEditModeToDB(newActualGenerationId, inheritedMode);
           }
-        }
-      }).catch(() => {
-        // Fallback to inherited mode
-        if (prevMediaIdRef.current === newMediaId) {
-          const inheritedMode = lastUsedEditModeRef.current;
-          setEditModeInternal(inheritedMode);
-          mediaStateRef.current.set(newMediaId, { editMode: inheritedMode, annotationMode: null });
-        }
-      });
+        });
+      }
 
       // Set initial mode immediately (will be updated by DB response)
       setEditModeInternal(lastUsedEditModeRef.current);
@@ -243,7 +247,7 @@ export function useMediaPersistence({
       }
       transitionRafRef.current = null;
     });
-  }, [media.id, isInpaintMode, loadEditModeFromDB, saveEditModeToDB, storageKey,
+  }, [media, media.id, isInpaintMode, loadEditModeFromDB, saveEditModeToDB, storageKey,
       inpaintStrokes, annotationStrokes, inpaintPrompt, inpaintNumGenerations, brushSize]);
 
   // ============================================
@@ -264,7 +268,7 @@ export function useMediaPersistence({
             savedAt: Date.now()
           };
           localStorage.setItem(prevStorageKeyRef.current, JSON.stringify(data));
-        } catch (e) { /* intentionally ignored */ }
+        } catch { /* intentionally ignored */ }
       }
 
       // Load strokes from new variant's key
@@ -281,7 +285,7 @@ export function useMediaPersistence({
           setInpaintStrokes([]);
           setAnnotationStrokes([]);
         }
-      } catch (e) {
+      } catch {
         setInpaintStrokes([]);
         setAnnotationStrokes([]);
       }

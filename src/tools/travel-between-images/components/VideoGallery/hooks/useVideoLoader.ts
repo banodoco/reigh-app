@@ -22,14 +22,18 @@ export const useVideoLoader = (
     // Logging removed - too verbose
   }, []);
 
+  const clearPosterFallbackTimeout = useCallback(() => {
+    const timeoutId = posterFallbackTimeoutRef.current;
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      posterFallbackTimeoutRef.current = null;
+    }
+  }, []);
+
   // Cleanup timeout on unmount
   useEffect(() => {
-    return () => {
-      if (posterFallbackTimeoutRef.current) {
-        clearTimeout(posterFallbackTimeoutRef.current);
-      }
-    };
-  }, []);
+    return clearPosterFallbackTimeout;
+  }, [clearPosterFallbackTimeout]);
 
   return {
     shouldLoad,

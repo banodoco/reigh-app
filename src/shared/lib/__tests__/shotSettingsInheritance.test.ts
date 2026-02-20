@@ -38,6 +38,13 @@ vi.mock('@/shared/lib/errorHandler', () => ({
 
 import { inheritSettingsForNewShot } from '../shotSettingsInheritance';
 
+const parseJson = JSON['parse'] as (input: string) => unknown;
+
+function parseStored<T>(value: string | null): T {
+  expect(value).not.toBeNull();
+  return parseJson(value as string) as T;
+}
+
 describe('inheritSettingsForNewShot', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,8 +67,7 @@ describe('inheritSettingsForNewShot', () => {
 
     // Should have written to sessionStorage
     const stored = sessionStorage.getItem('apply-project-defaults-shot-new');
-    expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored!);
+    const parsed = parseStored<Record<string, unknown>>(stored);
     expect(parsed.model_name).toBe('local-model');
     expect(parsed.prompt).toBe(''); // Prompts always cleared
     expect(parsed.pairConfigs).toEqual([]);
@@ -94,8 +100,7 @@ describe('inheritSettingsForNewShot', () => {
     });
 
     const stored = sessionStorage.getItem('apply-project-defaults-shot-new');
-    expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored!);
+    const parsed = parseStored<Record<string, unknown>>(stored);
     expect(parsed.model_name).toBe('recent-model');
     expect(parsed.prompt).toBe('');
   });
@@ -115,8 +120,7 @@ describe('inheritSettingsForNewShot', () => {
     });
 
     const stored = sessionStorage.getItem('apply-project-defaults-shot-new');
-    expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored!);
+    const parsed = parseStored<Record<string, unknown>>(stored);
     expect(parsed.model_name).toBe('project-model');
   });
 
@@ -143,8 +147,7 @@ describe('inheritSettingsForNewShot', () => {
     });
 
     const stored = sessionStorage.getItem('apply-project-defaults-shot-new');
-    expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored!);
+    const parsed = parseStored<Record<string, unknown>>(stored);
     expect(parsed.model_name).toBe('global-model');
   });
 
@@ -158,8 +161,7 @@ describe('inheritSettingsForNewShot', () => {
     });
 
     const joinStored = sessionStorage.getItem('apply-join-segments-defaults-shot-new');
-    expect(joinStored).not.toBeNull();
-    const parsed = JSON.parse(joinStored!);
+    const parsed = parseStored<Record<string, unknown>>(joinStored);
     expect(parsed.contextFrameCount).toBe(20);
     expect(parsed.prompt).toBe(''); // Prompts cleared
     expect(parsed.negativePrompt).toBe('');

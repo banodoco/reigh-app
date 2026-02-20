@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
 import { useToolSettings } from './useToolSettings';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
 import type { LoraModel } from '@/shared/types/lora';
 import { LoraHeaderActions } from '@/shared/components/LoraHeaderActions';
@@ -168,10 +168,15 @@ export const useLoraManager = (
         ? (loraToAdd.high_noise_url || loraToAdd.low_noise_url) // Prefer high, fallback to low
         : (loraToAdd["Model Files"][0].url || loraToAdd["Model Files"][0].path);
 
+      if (!primaryPath) {
+        toast.error("Selected LoRA has no valid model URL.");
+        return;
+      }
+
       const newLora: ActiveLora = {
         id: loraToAdd["Model ID"],
         name: loraName,
-        path: hasHighNoise ? loraToAdd.high_noise_url : primaryPath, // High noise URL or single URL
+        path: (hasHighNoise ? loraToAdd.high_noise_url : primaryPath) ?? primaryPath,
         strength: initialStrength || 1.0, // Use provided strength or default to 1.0
         previewImageUrl: loraToAdd.Images && loraToAdd.Images.length > 0
           ? loraToAdd.Images[0].url

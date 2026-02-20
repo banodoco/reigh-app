@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 const MAX_LOCAL_STORAGE_ITEM_LENGTH = 4 * 1024 * 1024; // 4MB
 
@@ -81,7 +81,7 @@ function usePersistentState<T>(key: string, defaultValue: T): [T, React.Dispatch
       handleError(error, {
         context: 'usePersistentState',
         toastTitle: 'Could not save settings locally.',
-        toastDescription: errorDescription
+        logData: { reason: errorDescription }
       });
     }
   }, [key, state]);

@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
-import { ShotEditorActions } from '../state';
+import type { ShotEditorActions } from '../state/useShotEditorState';
 import { Shot } from '@/types/shots';
 
 interface UseNameEditingProps {

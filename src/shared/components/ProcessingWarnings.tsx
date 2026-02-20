@@ -182,10 +182,6 @@ export const GlobalProcessingWarning: React.FC<ProcessingWarningsProps> = ({ onO
   );
 };
 
-interface TasksPaneProcessingWarningProps {
-  onOpenSettings: () => void;
-}
-
 export const TasksPaneProcessingWarning: React.FC<ProcessingWarningsProps> = ({ onOpenSettings: _onOpenSettings }) => {
   // This warning is now shown globally, so don't duplicate it in the tasks pane.
   return null;

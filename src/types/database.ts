@@ -12,14 +12,7 @@ export const TASK_STATUS = {
 
 export type TaskStatus = typeof TASK_STATUS[keyof typeof TASK_STATUS];
 
-const CREDIT_LEDGER_TYPE = {
-  STRIPE: 'stripe',
-  MANUAL: 'manual',
-  SPEND: 'spend', 
-  REFUND: 'refund'
-} as const;
-
-type CreditLedgerType = typeof CREDIT_LEDGER_TYPE[keyof typeof CREDIT_LEDGER_TYPE];
+type CreditLedgerType = 'stripe' | 'manual' | 'spend' | 'refund';
 
 // Core table types (matching your database structure)
 export interface User {

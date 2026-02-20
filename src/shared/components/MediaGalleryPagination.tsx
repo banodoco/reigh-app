@@ -7,7 +7,6 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { usePanes } from '@/shared/contexts/PanesContext';
 import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 
 interface MediaGalleryPaginationProps {
@@ -54,14 +53,6 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
   const isTablet = useIsTablet();
   // Phone only (not iPad) - phones have no header, iPads do
   const isPhoneOnly = isMobile && !isTablet;
-
-  // Get pane states to adjust sticky pagination position
-  const {
-    isShotsPaneLocked,
-    isTasksPaneLocked,
-    shotsPaneWidth,
-    tasksPaneWidth
-  } = usePanes();
 
   // Track the original positions for sticky alignment
   const [originalLeftPosition, setOriginalLeftPosition] = useState(0);
@@ -143,7 +134,7 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
   const handlePrevPage = (e: React.MouseEvent, _preventScroll = false) => {
     e.preventDefault();
     const newPage = isServerPagination
-      ? Math.max(1, serverPage! - 1)
+      ? Math.max(1, (serverPage ?? 1) - 1)
       : Math.max(0, currentPage - 1);
     onPageChange(newPage, 'prev', false);
   };
@@ -151,20 +142,21 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
   const handleNextPage = (e: React.MouseEvent, _preventScroll = false) => {
     e.preventDefault();
     const newPage = isServerPagination
-      ? serverPage! + 1
+      ? (serverPage ?? 1) + 1
       : Math.min(totalPages - 1, currentPage + 1);
     onPageChange(newPage, 'next', false);
   };
 
-  const handlePageSelect = (pageStr: string, _preventScroll = false) => {
+  const handlePageSelect = (pageStr: string | null, _preventScroll = false) => {
+    if (!pageStr) return;
     const newPage = isServerPagination ? parseInt(pageStr) : parseInt(pageStr) - 1;
-    const direction = newPage > (isServerPagination ? serverPage! : currentPage) ? 'next' : 'prev';
+    const direction = newPage > (isServerPagination ? (serverPage ?? 1) : currentPage) ? 'next' : 'prev';
     onPageChange(newPage, direction, false);
   };
 
-  const currentDisplayPage = isServerPagination ? serverPage! : currentPage + 1;
+  const currentDisplayPage = isServerPagination ? (serverPage ?? 1) : currentPage + 1;
   const isPrevDisabled = loadingButton !== null || (isServerPagination ? serverPage === 1 : currentPage === 0);
-  const isNextDisabled = loadingButton !== null || (isServerPagination ? serverPage >= totalPages : currentPage >= totalPages - 1);
+  const isNextDisabled = loadingButton !== null || (isServerPagination ? (serverPage ?? 1) >= totalPages : currentPage >= totalPages - 1);
 
   // Helper to render button content
   const renderButtonContent = (direction: 'prev' | 'next', isLoading: boolean) => {
@@ -295,7 +287,7 @@ export const MediaGalleryPagination: React.FC<MediaGalleryPaginationProps> = ({
       <div className="flex items-center gap-1">
         <Select
           value={currentDisplayPage.toString()}
-          onValueChange={handlePageSelect}
+          onValueChange={(value) => handlePageSelect(value)}
           disabled={loadingButton !== null}
         >
           <SelectTrigger variant={whiteText ? "retro-dark" : "retro"} colorScheme={whiteText ? "zinc" : "default"} size="sm" className="h-6 w-9 text-xs px-1 !justify-center [&>span]:!text-center" hideIcon>

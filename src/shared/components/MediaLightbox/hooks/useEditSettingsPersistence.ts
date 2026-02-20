@@ -187,6 +187,8 @@ export function useEditSettingsPersistence({
         img2imgStrength: lastUsedSettings.lastUsed.img2imgStrength,
         img2imgEnablePromptExpansion: lastUsedSettings.lastUsed.img2imgEnablePromptExpansion,
         advancedSettings: lastUsedSettings.lastUsed.advancedSettings ?? DEFAULT_ADVANCED_SETTINGS,
+        enhanceSettings: generationSettings.settings.enhanceSettings ?? DEFAULT_ENHANCE_SETTINGS,
+        qwenEditModel: generationSettings.settings.qwenEditModel ?? DEFAULT_EDIT_SETTINGS.qwenEditModel,
         createAsGeneration: lastUsedSettings.lastUsed.createAsGeneration,
       };
     }
@@ -297,8 +299,9 @@ export function useEditSettingsPersistence({
   }, [updateLastUsed]);
 
   // Computed LoRAs based on mode (replaces useEditModeLoRAs logic)
+  const loraMode = effectiveSettings.loraMode;
+  const customLoraUrl = effectiveSettings.customLoraUrl;
   const editModeLoRAs = useMemo(() => {
-    const { loraMode, customLoraUrl } = effectiveSettings;
 
     switch (loraMode) {
       case 'in-scene':
@@ -313,7 +316,7 @@ export function useEditSettingsPersistence({
       default:
         return undefined;
     }
-  }, [effectiveSettings.loraMode, effectiveSettings.customLoraUrl]);
+  }, [loraMode, customLoraUrl]);
 
   // Legacy compatibility
   const isInSceneBoostEnabled = effectiveSettings.loraMode !== 'none';

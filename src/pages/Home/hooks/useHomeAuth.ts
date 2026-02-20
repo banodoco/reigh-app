@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { NavigatorWithDeviceInfo } from '@/types/browser-extensions';
 
 // Full home page auth flow: iPad OAuth hash parsing, PWA redirect,
@@ -104,14 +104,14 @@ export function useHomeAuth() {
             const referralCode = localStorage.getItem('referralCode');
             const referralSessionId = localStorage.getItem('referralSessionId');
             const referralFingerprint = localStorage.getItem('referralFingerprint');
-            if (referralCode) {
+            if (referralCode && referralSessionId && referralFingerprint) {
               (async () => {
                 try {
                   await supabase.rpc('create_referral_from_session', {
                     p_session_id: referralSessionId,
                     p_fingerprint: referralFingerprint,
                   });
-                } catch(err) { /* intentionally ignored */ } finally {
+                } catch { /* intentionally ignored */ } finally {
                   try {
                     localStorage.removeItem('referralCode');
                     localStorage.removeItem('referralSessionId');
@@ -121,7 +121,7 @@ export function useHomeAuth() {
                 }
               })();
             }
-          } catch(e) { /* intentionally ignored */ }
+          } catch { /* intentionally ignored */ }
           localStorage.removeItem('oauthInProgress');
           navigate('/tools');
         } else if (!isHomePath) {

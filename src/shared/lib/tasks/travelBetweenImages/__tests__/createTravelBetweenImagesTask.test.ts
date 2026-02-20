@@ -3,11 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { mockCreateTask, mockSupabase } = vi.hoisted(() => {
   const mockCreateTask = vi.fn().mockResolvedValue({ id: 'task-123' });
   const mockSupabase = {
-    from: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue({ data: { id: 'parent-gen-123' }, error: null }),
-    rpc: vi.fn().mockResolvedValue({ error: null }),
+    rpc: vi.fn().mockResolvedValue({ data: 'parent-gen-123', error: null }),
   };
   return { mockCreateTask, mockSupabase };
 });
@@ -28,7 +24,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase,
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/errorHandling/handleError', () => ({
   handleError: vi.fn(),
 }));
 
@@ -38,20 +34,13 @@ vi.mock('@/shared/lib/toolConstants', () => ({
   },
 }));
 
-// Mock crypto.randomUUID
-vi.stubGlobal('crypto', { randomUUID: () => 'mock-uuid-1234' });
-
 import { createTravelBetweenImagesTask } from '../createTravelBetweenImagesTask';
 import { validateTravelBetweenImagesParams } from '../payloadBuilder';
 
 describe('createTravelBetweenImagesTask', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSupabase.from.mockReturnThis();
-    mockSupabase.insert.mockReturnThis();
-    mockSupabase.select.mockReturnThis();
-    mockSupabase.single.mockResolvedValue({ data: { id: 'parent-gen-123' }, error: null });
-    mockSupabase.rpc.mockResolvedValue({ error: null });
+    mockSupabase.rpc.mockResolvedValue({ data: 'parent-gen-123', error: null });
   });
 
   const baseParams = {
@@ -66,21 +55,12 @@ describe('createTravelBetweenImagesTask', () => {
     expect(validateTravelBetweenImagesParams).toHaveBeenCalledWith(baseParams);
   });
 
-  it('creates placeholder parent generation when no parent_generation_id', async () => {
+  it('ensures a canonical parent generation when no parent_generation_id', async () => {
     await createTravelBetweenImagesTask(baseParams);
 
-    // Should have inserted a placeholder
-    expect(mockSupabase.from).toHaveBeenCalledWith('generations');
-    expect(mockSupabase.insert).toHaveBeenCalled();
-  });
-
-  it('links parent to shot via RPC', async () => {
-    await createTravelBetweenImagesTask(baseParams);
-
-    expect(mockSupabase.rpc).toHaveBeenCalledWith('add_generation_to_shot', {
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('ensure_shot_parent_generation', {
       p_shot_id: 'shot-1',
-      p_generation_id: 'mock-uuid-1234',
-      p_with_position: false,
+      p_project_id: 'project-1',
     });
   });
 
@@ -88,8 +68,8 @@ describe('createTravelBetweenImagesTask', () => {
     const params = { ...baseParams, parent_generation_id: 'existing-parent' };
     await createTravelBetweenImagesTask(params);
 
-    // Should NOT create a placeholder
-    expect(mockSupabase.insert).not.toHaveBeenCalled();
+    // Should NOT call ensure RPC when parent is already provided
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
   });
 
   it('calls createTask with correct task type', async () => {
@@ -117,7 +97,7 @@ describe('createTravelBetweenImagesTask', () => {
     const result = await createTravelBetweenImagesTask(baseParams);
 
     expect(result.task).toEqual({ id: 'task-123' });
-    expect(result.parentGenerationId).toBe('mock-uuid-1234');
+    expect(result.parentGenerationId).toBe('parent-gen-123');
   });
 
   it('rethrows errors from validation', async () => {
@@ -128,14 +108,21 @@ describe('createTravelBetweenImagesTask', () => {
     await expect(createTravelBetweenImagesTask(baseParams)).rejects.toThrow('Validation failed');
   });
 
-  it('handles parent creation error', async () => {
-    mockSupabase.single.mockResolvedValue({
+  it('handles parent ensure error', async () => {
+    mockSupabase.rpc.mockResolvedValue({
       data: null,
-      error: { message: 'Insert failed' },
+      error: { message: 'RPC failed' },
     });
 
     await expect(createTravelBetweenImagesTask(baseParams)).rejects.toThrow(
-      'Failed to create placeholder parent generation'
+      'Failed to ensure parent generation for shot shot-1: RPC failed'
+    );
+  });
+
+  it('throws when neither parent_generation_id nor shot_id is provided', async () => {
+    const params = { ...baseParams, shot_id: undefined, parent_generation_id: undefined };
+    await expect(createTravelBetweenImagesTask(params)).rejects.toThrow(
+      'parent_generation_id is required when shot_id is missing'
     );
   });
 

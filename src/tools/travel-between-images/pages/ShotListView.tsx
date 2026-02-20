@@ -7,9 +7,10 @@ import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useHandleExternalImageDrop, useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/useShots';
 import { useProjectGenerations } from '@/shared/hooks/useProjectGenerations';
+import type { GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
 import { useDeleteGenerationWithConfirm } from '@/shared/hooks/useDeleteGenerationWithConfirm';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
-import { handleError } from '@/shared/lib/errorHandler';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import {
@@ -29,7 +30,7 @@ interface ShotListViewProps {
   /** Project aspect ratio */
   projectAspectRatio: string | undefined;
   /** Refetch shots callback */
-  refetchShots: () => Promise<void>;
+  refetchShots: () => void;
   /** Project UI settings */
   projectUISettings: { shotSortMode?: 'ordered' | 'newest' | 'oldest' } | undefined;
   /** Update project UI settings */
@@ -175,6 +176,7 @@ export function ShotListView({
     showVideosView,
     videosFilters
   );
+  const typedVideosData = videosData as GenerationsPaginatedResponse | undefined;
 
   // Clear videosViewJustEnabled flag when data loads
   React.useEffect(() => {
@@ -301,7 +303,7 @@ export function ShotListView({
       {showVideosView ? (
         <VideoTravelVideosGallery
           query={{
-            videosData,
+            videosData: typedVideosData,
             videosLoading,
             videosFetching,
             selectedProjectId,

@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandler";
+import { handleError } from "@/shared/lib/errorHandling/handleError";
 import { GenerationRow, Shot } from "@/types/shots";
 import { useDuplicateAsNewGeneration } from "@/shared/hooks/useShots";
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
@@ -43,6 +43,9 @@ export const useDuplicateAction = ({
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
 
+  const pendingFramePositionsRef = useRef(state.pendingFramePositions);
+  pendingFramePositionsRef.current = state.pendingFramePositions;
+
   const handleDuplicateImage = useCallback(async (shotImageEntryId: string, timeline_frame: number) => {
     const currentShot = selectedShotRef.current;
     const currentProjectId = projectIdRef.current;
@@ -66,6 +69,11 @@ export const useDuplicateAction = ({
     }
 
     const generationId = getGenerationId(originalImage);
+    if (!generationId) {
+      toast.error("Original generation is missing an ID.");
+      actionsRef.current.setDuplicatingImageId(null);
+      return;
+    }
 
     // Additional guard: Check if the generation ID is also temporary
     if (generationId.startsWith('temp-')) {
@@ -86,7 +94,7 @@ export const useDuplicateAction = ({
     const nextImage = currentIndex >= 0 && currentIndex < sortedImages.length - 1
       ? sortedImages[currentIndex + 1]
       : null;
-    const nextTimelineFrame = nextImage ? nextImage.timeline_frame : undefined;
+    const nextTimelineFrame = nextImage?.timeline_frame ?? undefined;
 
     const targetTimelineFrame = timeline_frame;
     const sourceTimelineFrame = originalImage.timeline_frame ?? 0;
@@ -96,13 +104,13 @@ export const useDuplicateAction = ({
       generation_id: generationId,
       project_id: currentProjectId,
       timeline_frame: sourceTimelineFrame,
-      next_timeline_frame: nextTimelineFrame,
+      next_timeline_frame: nextTimelineFrame ?? undefined,
       target_timeline_frame: targetTimelineFrame,
     }, {
       onSuccess: (result) => {
         // Add the new item to pending positions immediately to prevent flicker
         if (result.new_shot_generation_id && result.timeline_frame !== undefined) {
-          const newPendingPositions = new Map(state.pendingFramePositions);
+          const newPendingPositions = new Map(pendingFramePositionsRef.current);
           newPendingPositions.set(result.new_shot_generation_id, result.timeline_frame);
           actionsRef.current.setPendingFramePositions(newPendingPositions);
 

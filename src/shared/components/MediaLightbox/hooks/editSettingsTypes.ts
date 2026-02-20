@@ -1,7 +1,7 @@
 export type EditMode = 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img' | 'enhance';
 export type LoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
 export type QwenEditModel = 'qwen-edit' | 'qwen-edit-2509' | 'qwen-edit-2511';
-export type VideoEditSubMode = 'trim' | 'replace' | 'regenerate';
+export type VideoEditSubMode = 'trim' | 'replace' | 'regenerate' | 'enhance';
 export type PanelMode = 'info' | 'edit';
 
 export interface EditAdvancedSettings {

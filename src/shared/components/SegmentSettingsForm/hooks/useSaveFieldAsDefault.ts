@@ -27,7 +27,7 @@ export function useSaveFieldAsDefault({
 
   const handleSaveFieldAsDefault = useCallback(async (field: keyof SegmentSettings, value: SegmentSettings[keyof SegmentSettings]) => {
     if (!onSaveFieldAsDefault) return;
-    setSavingField(field);
+    setSavingField(String(field));
     try {
       const success = await onSaveFieldAsDefault(field, value);
       if (success) {
