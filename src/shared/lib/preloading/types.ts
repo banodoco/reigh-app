@@ -49,7 +49,7 @@ export const PRIORITY = {
   low: 25, // Proactive preloading
 } as const;
 
-export type PriorityLevel = keyof typeof PRIORITY;
+type PriorityLevel = keyof typeof PRIORITY;
 
 // =============================================================================
 // TRACKABLE IMAGE (for tracker)

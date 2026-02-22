@@ -13,7 +13,7 @@ export const ImageEditTaskDetails: React.FC<TaskDetailsProps> = ({
   isMobile = false,
 }) => {
   const config = getVariantConfig(variant, isMobile, inputImages.length);
-  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
+  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
   const derivedImages = useMemo(() => deriveInputImages(parsedParams), [parsedParams]);
   const effectiveInputImages = inputImages.length > 0 ? inputImages : derivedImages;
   const loras = useMemo(() => extractLoras(parsedParams), [parsedParams]);

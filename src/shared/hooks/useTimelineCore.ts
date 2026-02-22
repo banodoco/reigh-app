@@ -19,7 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { GenerationRow } from '@/types/shots';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { useShotImages } from '@/shared/hooks/useShotImages';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
@@ -476,7 +476,7 @@ function useTimelinePairOperations(
         });
         const { error } = await supabase
           .from('shot_generations')
-          .update({ metadata: updatedMetadata as unknown as Json })
+          .update({ metadata: toJson(updatedMetadata) })
           .eq('id', shotGenerationId);
 
         if (error) throw error;
@@ -529,7 +529,7 @@ function useTimelinePairOperations(
         });
         const { error } = await supabase
           .from('shot_generations')
-          .update({ metadata: updatedMetadata as unknown as Json })
+          .update({ metadata: toJson(updatedMetadata) })
           .eq('id', firstItem.shotImageEntryId);
 
         if (error) throw error;

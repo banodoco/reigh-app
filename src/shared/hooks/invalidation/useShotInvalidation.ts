@@ -1,6 +1,6 @@
-export type ShotInvalidationScope = 'list' | 'detail' | 'all';
+type ShotInvalidationScope = 'list' | 'detail' | 'all';
 
-export interface ShotInvalidationOptions {
+interface ShotInvalidationOptions {
   scope?: ShotInvalidationScope;
   reason: string;
   shotId?: string;

@@ -5,19 +5,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/shared/lib/utils"
 
 type SelectRootProps = Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>, 'onValueChange'> & {
-  onValueChange?: (...args: any[]) => void;
+  onValueChange?: (value: string) => void;
 };
 
 const Select = ({ onValueChange, ...props }: SelectRootProps) => (
   <SelectPrimitive.Root
     {...props}
-    onValueChange={(...args) => {
-      onValueChange?.(...args);
+    onValueChange={(value) => {
+      onValueChange?.(value);
     }}
   />
 )
-
-const SelectGroup = SelectPrimitive.Group
 
 // Wrapper around Base UI's SelectValue to support a `placeholder` prop.
 // When no children/placeholder, Base UI's default label resolution is used (reads the `label`
@@ -333,15 +331,11 @@ SelectSeparator.displayName = "SelectSeparator"
 
 export {
   Select,
-  SelectGroup,
   SelectValue,
   SelectTrigger,
   SelectContent,
-  SelectLabel,
   SelectItem,
   SelectSeparator,
-  SelectScrollUpButton,
-  SelectScrollDownButton,
   selectTriggerVariants,
   selectContentVariants,
   selectItemVariants,

@@ -1,0 +1,180 @@
+{
+  "batch": "Full Codebase Sweep (chunk 3/4: hooks, lib, contexts)",
+  "assessments": {
+    "cross_module_architecture": 78,
+    "initialization_coupling": 72,
+    "convention_outlier": 74,
+    "error_consistency": 82,
+    "abstraction_fitness": 75,
+    "dependency_health": 77,
+    "test_strategy": 60,
+    "api_surface_coherence": 73,
+    "authorization_consistency": 70,
+    "ai_generated_debt": 68,
+    "incomplete_migration": 65,
+    "package_organization": 80,
+    "high_level_elegance": 76,
+    "mid_level_elegance": 72,
+    "low_level_elegance": 74
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "dual-settings-systems-useUserUIState-vs-useToolSettings",
+      "summary": "useUserUIState maintains its own parallel caching, loading, and persistence layer (module-level settingsCache Map with 30s TTL, manual Supabase queries, custom debounce) that duplicates what useToolSettings + settingsWriteQueue already provide. Both write to the same users.settings JSON column via updateToolSettingsSupabase, but useUserUIState bypasses React Query entirely for reads, creating cache coherence issues between the two systems.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useUserUIState.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useToolSettings.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/lib/settingsWriteQueue.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/contexts/UserSettingsContext.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useUserUIState.ts",
+          "lines": "21-110",
+          "description": "Module-level settingsCache Map with 30s TTL, loadUserSettingsCached function, manual Supabase query for users.settings, and separate cache invalidation logic (settingsCache.delete). This is an independent caching layer from React Query."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useUserUIState.ts",
+          "lines": "285-305",
+          "description": "Custom 200ms debounce via setTimeout for writes, separate from the 300ms debounce in settingsWriteQueue. Writes go through updateToolSettingsSupabase (which uses settingsWriteQueue) but reads bypass React Query, so React Query cache and this module-level cache can diverge."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/contexts/UserSettingsContext.tsx",
+          "lines": "48-73",
+          "description": "UserSettingsContext also queries users.settings directly (a third read path for the same data), with its own loading state and error handling. Three separate systems read the same column."
+        }
+      ],
+      "suggestion": "Migrate useUserUIState to use useToolSettings(toolId='ui', scope='user') for reads, eliminating the module-level settingsCache and manual Supabase queries. This would unify caching through React Query and remove the double-debounce (200ms in useUserUIState + 300ms in settingsWriteQueue). The normalization logic for generationMethods and fallback-backfill can remain as pre/post-processing around the shared infrastructure.",
+      "reasoning": "Three separate systems reading/writing users.settings creates cache coherence risk: a write through useToolSettings won't be seen by useUserUIState's module-level cache until its 30s TTL expires. The custom caching adds ~100 lines of code that React Query already provides. The double debounce (200ms + 300ms) means the fastest possible write latency is 500ms, which may or may not be intentional. Consolidation would reduce code, improve consistency, and eliminate the class of bugs where one cache is stale relative to another.",
+      "confidence": 0.88
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "dual-project-cache-pattern-generationModes-videoCounts",
+      "summary": "useProjectGenerationModesCache and useProjectVideoCountsCache are near-identical implementations (~250 lines each) of the same pattern: a class-based global cache wrapping a React Query hook with smart polling. Both define a class (ProjectGenerationModesCache / ProjectVideoCountsCache) with identical method signatures (getProjectX, getShotX, setProjectX, clear, deleteProject, size, getCachedProjectIds), identical hook structure (useRef for global cache, useSmartPollingConfig, React.useEffect sync, identical callback patterns), and identical empty logCacheState functions.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectGenerationModesCache.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectVideoCountsCache.ts"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectGenerationModesCache.ts",
+          "lines": "18-53",
+          "description": "ProjectGenerationModesCache class with methods: getProjectModes, getShotMode, setProjectModes, clear, deleteProject, size, getCachedProjectIds. Every method signature is structurally identical to ProjectVideoCountsCache."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectVideoCountsCache.ts",
+          "lines": "18-52",
+          "description": "ProjectVideoCountsCache class with methods: getProjectCounts, getShotCounts, setProjectCounts, clear, deleteProject, size, getCachedProjectIds. Identical structure, different data type parameter."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectVideoCountsCache.ts",
+          "lines": "138-264",
+          "description": "Hook body is structurally identical to useProjectGenerationModesCache: same ref pattern, same useSmartPollingConfig call, same useEffect for cache sync, same callback patterns (getShotX, getAllShotX, clearCache, deleteProjectCache, invalidateOnXChanges, logCacheState)."
+        }
+      ],
+      "suggestion": "Extract a generic useProjectScopedCache<TValue>(config: { queryKey, queryFn, cacheClass }) hook that encapsulates the shared pattern: global class cache + React Query + smart polling + ref-based stability. Both hooks become thin wrappers providing their specific query function and typed accessors. This eliminates ~200 lines of duplication and ensures future project-scoped caches follow the same pattern.",
+      "reasoning": "The two files share approximately 80% identical structure. When one is updated (e.g., the PERF FIX for refetchRef was added to useProjectVideoCountsCache but not useProjectGenerationModesCache), the other risks drifting. The class-based global cache pattern itself is sound, but duplicating it for each data type is a maintenance burden. A generic version would be simpler and ensure consistency.",
+      "confidence": 0.92
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "invalidation-module-incomplete-abstraction",
+      "summary": "The invalidation/ directory exports type-only modules for shots, tasks, and settings (just interface definitions with no implementation), while useGenerationInvalidation.ts has a full implementation. The barrel export (invalidation/index.ts) re-exports all of them, but consumers import the deprecated compatibility shim at src/shared/hooks/useGenerationInvalidation.ts or go directly to the invalidation/ barrel. The shot, task, and settings invalidation interfaces have no corresponding hook implementations, making the abstraction incomplete.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/invalidation/useShotInvalidation.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/invalidation/useTaskInvalidation.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/invalidation/useSettingsInvalidation.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useGenerationInvalidation.ts"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/invalidation/useShotInvalidation.ts",
+          "lines": "1-8",
+          "description": "Entire file is just a type definition (ShotInvalidationScope and ShotInvalidationOptions interface). No hook implementation exists."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/invalidation/useTaskInvalidation.ts",
+          "lines": "1-10",
+          "description": "Same pattern: type-only file, no implementation."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useGenerationInvalidation.ts",
+          "lines": "1-6",
+          "description": "Deprecated re-export shim that still exists alongside the new invalidation/ directory structure. The @deprecated comment suggests migration was planned but not completed."
+        }
+      ],
+      "suggestion": "Either implement the shot, task, and settings invalidation hooks (extracting scattered invalidation logic from RealtimeProvider and individual mutation hooks), or remove the type-only placeholder files and keep invalidation logic where it currently lives. Also complete the migration by removing the deprecated re-export shim and updating all consumers to import from invalidation/ directly.",
+      "reasoning": "The type-only placeholder files suggest a planned extraction that was started but not finished. They create a misleading directory structure where some files are full implementations and others are empty shells. The deprecated re-export shim indicates the migration to the invalidation/ directory is incomplete. This halfway state adds confusion for developers trying to understand the invalidation architecture.",
+      "confidence": 0.85
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "inconsistent-context-hook-error-handling",
+      "summary": "Context hooks (useAuth, useProject, useShots, useCurrentShot, useIncomingTasks, useUserSettings, useHeaderState, useAIInputMode) have inconsistent error handling when used outside their providers. Some throw with detailed error messages and stack traces (useAuth, useProject, useUserSettings), some throw with minimal messages (useShots, useCurrentShot, useIncomingTasks), one returns fallback defaults without throwing (useAIInputMode), and one throws but with inconsistent indentation (useHeaderState).",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/contexts/AuthContext.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/contexts/AIInputModeContext.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/contexts/ShotsContext.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/contexts/ToolPageHeaderContext.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/contexts/AuthContext.tsx",
+          "lines": "154-165",
+          "description": "useAuth: console.error with [AuthContext] tag, stack trace capture, detailed multi-line error message, then throws. This is the most thorough pattern."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/contexts/AIInputModeContext.tsx",
+          "lines": "35-46",
+          "description": "useAIInputMode: Returns default values {mode: 'voice', setMode: () => {}, isLoading: false} instead of throwing. This is the only context hook that does this, creating a silent failure mode where the provider is missing but the component appears to work."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/contexts/ShotsContext.tsx",
+          "lines": "79-84",
+          "description": "useShots: Simple throw with one-line message, no console.error, no stack trace. Inconsistent with useAuth/useProject pattern."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/contexts/ToolPageHeaderContext.tsx",
+          "lines": "35-41",
+          "description": "useHeaderState: Uses 4-space indentation instead of 2-space (the rest of the file uses 2-space), and has a simple throw without console.error."
+        }
+      ],
+      "suggestion": "Standardize all context hooks to either: (a) throw with a console.error that includes the context name tag and stack trace (the useAuth pattern), or (b) create a shared createContextHook utility that generates consistent hook functions. The useAIInputMode graceful fallback should be reconsidered -- if a provider is required, throw; if it's truly optional, document why.",
+      "reasoning": "Inconsistent error handling makes debugging harder. When useAIInputMode silently returns defaults, a missing provider in the component tree becomes invisible until the feature doesn't work as expected. The inconsistency also suggests these were written at different times without a shared pattern, which is a maintenance concern as new contexts are added.",
+      "confidence": 0.90
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "emoji-comments-and-stale-debug-artifacts",
+      "summary": "Multiple files contain emoji-prefixed comments (pointing finger, sparkle, target) and empty debug functions that appear to be AI-generated artifacts. These include empty logCacheState functions, commented-out debug logs that were replaced with nothing, and inconsistent use of emoji markers in code comments alongside standard JSDoc and // comment styles.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useSmartPolling.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectGenerationModesCache.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectVideoCountsCache.ts"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useSmartPolling.ts",
+          "lines": "91-98",
+          "description": "Comments prefixed with target emoji and 'FIX:', 'NEW:', 'OPTIMIZATION:' markers in a pattern typical of AI-generated code that explains each change. Standard codebase convention uses plain // comments or JSDoc."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectGenerationModesCache.ts",
+          "lines": "200-201",
+          "description": "Empty logCacheState function: const logCacheState = useCallback((): void => {}, []). The function body was cleared but the function and its export remain, adding dead code to the API surface."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/hooks/useProjectVideoCountsCache.ts",
+          "lines": "240-241",
+          "description": "Same empty logCacheState pattern. Both files have identical empty debug functions that were likely generated with debug logging, then the logging was removed but the scaffolding left behind."
+        }
+      ],
+      "suggestion": "Remove the empty logCacheState functions and their exports from both cache hooks (they contribute nothing to the API). Clean up emoji-prefixed comments to use the standard comment style used elsewhere in the codebase. If the emoji markers serve a purpose (e.g., tracking AI-generated changes), document that convention; otherwise, normalize to plain comments.",
+      "reasoning": "Empty functions in the public API surface are confusing for consumers -- they suggest functionality exists when it doesn't. Emoji comments, while harmless, create inconsistency with the rest of the codebase which uses plain text comments. Both are signs of AI-generated code where cleanup was incomplete.",
+      "confidence": 0.82
+    }
+  ]
+}

@@ -80,7 +80,7 @@ export interface UseSegmentSettingsOptions {
 }
 
 /** Tracks which fields have pair-level overrides */
-export interface FieldOverrides {
+interface FieldOverrides {
   prompt: boolean;
   negativePrompt: boolean;
   textBeforePrompts: boolean;
@@ -96,7 +96,7 @@ export interface FieldOverrides {
 }
 
 /** Shot-level default values (for showing as placeholder) */
-export interface ShotDefaults {
+interface ShotDefaults {
   prompt: string;
   negativePrompt: string;
   motionMode: 'basic' | 'advanced';
@@ -108,7 +108,7 @@ export interface ShotDefaults {
   textAfterPrompts: string;
 }
 
-export interface UseSegmentSettingsReturn {
+interface UseSegmentSettingsReturn {
   /** Current settings (merged from all sources + user edits) */
   settings: SegmentSettings;
   /** Update settings (local state only) */

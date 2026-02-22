@@ -1,71 +1,80 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock supabase
-const mockInvoke = vi.fn();
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
-    functions: {
-      invoke: (...args: unknown[]) => mockInvoke(...args),
-    },
-  },
-}));
-
-// Mock errorUtils
 vi.mock('@/shared/lib/errorUtils', () => ({
   isAbortError: (err: unknown) =>
     err instanceof Error &&
     (err.name === 'AbortError' || err.message.includes('aborted')),
 }));
 
+vi.mock('@/integrations/supabase/config/env', () => ({
+  SUPABASE_URL: 'https://test-project.supabase.co',
+  SUPABASE_PUBLISHABLE_KEY: 'anon-key',
+}));
+
 import { invokeWithTimeout } from '../invokeWithTimeout';
 
+// Helper to create a mock Response
+function mockResponse(body: unknown, { ok = true, status = 200 } = {}) {
+  return {
+    ok,
+    status,
+    json: vi.fn().mockResolvedValue(body),
+    text: vi.fn().mockResolvedValue(typeof body === 'string' ? body : JSON.stringify(body)),
+  } as unknown as Response;
+}
+
 describe('invokeWithTimeout', () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    globalThis.fetch = vi.fn();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    globalThis.fetch = originalFetch;
   });
 
-  it('invokes the supabase function and returns data on success', async () => {
-    mockInvoke.mockResolvedValue({ data: { result: 'ok' }, error: null });
+  it('calls fetch and returns parsed JSON on success', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockResponse({ result: 'ok' })
+    );
 
     const result = await invokeWithTimeout('my-function', { body: { key: 'value' } });
 
     expect(result).toEqual({ result: 'ok' });
-    expect(mockInvoke).toHaveBeenCalledWith(
-      'my-function',
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://test-project.supabase.co/functions/v1/my-function',
       expect.objectContaining({
-        body: { key: 'value' },
+        method: 'POST',
+        body: JSON.stringify({ key: 'value' }),
       })
     );
   });
 
-  it('throws when supabase returns an error object', async () => {
-    mockInvoke.mockResolvedValue({
-      data: null,
-      error: { message: 'Function crashed' },
-    });
+  it('throws when response is not ok', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockResponse('Function crashed', { ok: false, status: 500 })
+    );
 
     await expect(invokeWithTimeout('failing-function')).rejects.toThrow('Function crashed');
   });
 
   it('uses default 20s timeout', async () => {
-    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
-      return new Promise((_resolve, reject) => {
-        if (opts?.signal) {
-          opts.signal.addEventListener('abort', () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, opts: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener('abort', () => {
             const abortErr = new Error('The operation was aborted');
             abortErr.name = 'AbortError';
             reject(abortErr);
           });
-        }
-      });
-    });
+        });
+      }
+    );
 
-    // Immediately attach a catch handler before advancing timers
     const promise = invokeWithTimeout('slow-function').catch((e) => e);
 
     await vi.advanceTimersByTimeAsync(20001);
@@ -76,17 +85,17 @@ describe('invokeWithTimeout', () => {
   });
 
   it('uses custom timeout', async () => {
-    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
-      return new Promise((_resolve, reject) => {
-        if (opts?.signal) {
-          opts.signal.addEventListener('abort', () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, opts: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener('abort', () => {
             const abortErr = new Error('The operation was aborted');
             abortErr.name = 'AbortError';
             reject(abortErr);
           });
-        }
-      });
-    });
+        });
+      }
+    );
 
     const promise = invokeWithTimeout('slow-function', { timeoutMs: 5000 }).catch((e) => e);
 
@@ -97,52 +106,51 @@ describe('invokeWithTimeout', () => {
     expect(result.message).toContain('timed out after 5000ms');
   });
 
-  it('passes headers to supabase invoke', async () => {
-    mockInvoke.mockResolvedValue({ data: 'ok', error: null });
+  it('passes custom headers to fetch', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockResponse('ok')
+    );
 
     await invokeWithTimeout('my-function', {
       headers: { 'X-Custom': 'header-value' },
     });
 
-    expect(mockInvoke).toHaveBeenCalledWith(
-      'my-function',
-      expect.objectContaining({
-        headers: { 'X-Custom': 'header-value' },
-      })
-    );
+    const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const headers = callArgs[1].headers;
+    expect(headers['X-Custom']).toBe('header-value');
   });
 
-  it('passes an AbortSignal to supabase invoke', async () => {
-    mockInvoke.mockResolvedValue({ data: 'ok', error: null });
+  it('passes an AbortSignal to fetch', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockResponse('ok')
+    );
 
     await invokeWithTimeout('my-function');
 
-    expect(mockInvoke).toHaveBeenCalledWith(
-      'my-function',
-      expect.objectContaining({
-        signal: expect.any(AbortSignal),
-      })
-    );
+    const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(callArgs[1].signal).toBeInstanceOf(AbortSignal);
   });
 
   it('throws non-abort errors directly', async () => {
-    mockInvoke.mockImplementation(() => Promise.reject(new Error('Some random error')));
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('Some random error')
+    );
 
     await expect(invokeWithTimeout('bad-function')).rejects.toThrow('Some random error');
   });
 
   it('throws timeout message including function name', async () => {
-    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
-      return new Promise((_resolve, reject) => {
-        if (opts?.signal) {
-          opts.signal.addEventListener('abort', () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, opts: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener('abort', () => {
             const abortErr = new Error('The operation was aborted');
             abortErr.name = 'AbortError';
             reject(abortErr);
           });
-        }
-      });
-    });
+        });
+      }
+    );
 
     const promise = invokeWithTimeout('my-func', { timeoutMs: 3000 }).catch((e) => e);
     await vi.advanceTimersByTimeAsync(3001);
@@ -153,7 +161,9 @@ describe('invokeWithTimeout', () => {
   });
 
   it('cleans up timeout on successful completion', async () => {
-    mockInvoke.mockResolvedValue({ data: 'done', error: null });
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockResponse('done')
+    );
 
     await invokeWithTimeout('fast-function', { timeoutMs: 10000 });
 
@@ -161,31 +171,30 @@ describe('invokeWithTimeout', () => {
     await vi.advanceTimersByTimeAsync(15000);
   });
 
-  it('handles error with empty message - uses fallback', async () => {
-    mockInvoke.mockResolvedValue({
-      data: null,
-      error: { message: '' },
-    });
+  it('handles error with empty text - uses fallback', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      mockResponse('', { ok: false, status: 500 })
+    );
 
     await expect(invokeWithTimeout('empty-error-function')).rejects.toThrow(
-      'Function empty-error-function failed'
+      'Function empty-error-function failed with status 500'
     );
   });
 
   it('respects an external abort signal', async () => {
     const externalController = new AbortController();
 
-    mockInvoke.mockImplementation((_name: string, opts: unknown) => {
-      return new Promise((_resolve, reject) => {
-        if (opts?.signal) {
-          opts.signal.addEventListener('abort', () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, opts: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener('abort', () => {
             const abortErr = new Error('The operation was aborted');
             abortErr.name = 'AbortError';
             reject(abortErr);
           });
-        }
-      });
-    });
+        });
+      }
+    );
 
     const promise = invokeWithTimeout('my-function', {
       signal: externalController.signal,

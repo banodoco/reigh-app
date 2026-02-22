@@ -1,0 +1,216 @@
+{
+  "assessments": {
+    "type_safety": 68
+  },
+  "findings": [
+    {
+      "identifier": "type_safety__src_shared_components_TaskDetails_VideoTravelDetails_tsx__47",
+      "dimension": "type_safety",
+      "file": "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+      "line": 47,
+      "severity": "high",
+      "summary": "parseTaskParams cast to Record<string, any> destroys type safety",
+      "detail": "The result of parseTaskParams() is immediately cast to Record<string, any>, which then propagates through the entire component. Every property access on parsedParams (orchestrator_details, full_orchestrator_payload, individual_segment_params, etc.) is then individually cast again with 'as Record<string, any>'. This pattern repeats in CharacterAnimateDetails, JoinClipsDetails, ImageEditTaskDetails, VideoEnhanceDetails, ImageEnhanceDetails, and TaskItem.tsx -- at least 21 occurrences of Record<string, any> across these files. The any type defeats the purpose of TypeScript entirely in these display components.",
+      "suggestion": "Define a TaskParamsShape interface with the known fields (orchestrator_details, full_orchestrator_payload, individual_segment_params, etc.) typed as Record<string, unknown>. Use this as the return type of parseTaskParams() instead of casting to Record<string, any>. Property accesses would then use unknown narrowing instead of implicit any.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_components_TasksPane_TaskItem_tsx__93",
+      "dimension": "type_safety",
+      "file": "src/shared/components/TasksPane/TaskItem.tsx",
+      "line": 93,
+      "severity": "high",
+      "summary": "Record<string, any> cast on parsed task params",
+      "detail": "taskParams.parsed is cast to Record<string, any>, and then orchestratorDetails is further cast to Record<string, any>. This component handles user-visible task rendering and any type errors here would silently produce wrong UI rather than compile errors.",
+      "suggestion": "Use the same typed TaskParamsShape interface suggested for VideoTravelDetails. The parseTaskParamsForDisplay utility should return a typed object.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_tools_travel-between-images_components_ShotEditor_services_applySettingsService_ts__161",
+      "dimension": "type_safety",
+      "file": "src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+      "line": 161,
+      "severity": "high",
+      "summary": "Record<string, any> for task params and orchestrator data",
+      "detail": "taskData.params and taskData.orchestrator are cast to Record<string, any> at lines 161-162. This is a service file that extracts settings from task data to populate UI forms -- incorrect type handling here could silently set wrong values. The TaskData interface likely already types these fields, making the cast a deliberate widening.",
+      "suggestion": "Define proper interfaces for the params and orchestrator shapes used in this service. The extractSettings function handles specific known fields (structure_guidance, phase_config, etc.) so a precise type would catch regressions.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_components_ui_select_tsx__8",
+      "dimension": "type_safety",
+      "file": "src/shared/components/ui/select.tsx",
+      "line": 8,
+      "severity": "medium",
+      "summary": "(...args: any[]) => void callback type",
+      "detail": "The onValueChange prop uses (...args: any[]) => void which provides zero type safety on the callback arguments. This is a widely-used shared component (likely imported across the entire app).",
+      "suggestion": "Type the callback to match the underlying base-ui SelectPrimitive.Root onValueChange signature, e.g., (value: string, event: Event) => void or whatever the library provides.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_components_ui_slider_tsx__7",
+      "dimension": "type_safety",
+      "file": "src/shared/components/ui/slider.tsx",
+      "line": 7,
+      "severity": "medium",
+      "summary": "(...args: any[]) => void callback type",
+      "detail": "Same pattern as select.tsx -- the onValueChange prop uses any[] args, losing type information for all consumers.",
+      "suggestion": "Type the callback to match the base-ui Slider onValueChange signature, typically (value: number[], event: Event) => void.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_tools_edit-video_pages_EditVideoPage_tsx__234",
+      "dimension": "type_safety",
+      "file": "src/tools/edit-video/pages/EditVideoPage.tsx",
+      "line": 234,
+      "severity": "medium",
+      "summary": "Supabase query result cast as unknown as GenerationRow",
+      "detail": "The result of supabase.from('generations').select('*').single() is cast through as unknown as GenerationRow. This pattern repeats at line 120 (variantToGenerationRow cast) and line 510 (same supabase result cast). The same pattern appears in EditImagesPage.tsx at lines 159, 211, and 481. These casts hide any mismatch between the database schema (Supabase generated types) and the application's GenerationRow type.",
+      "suggestion": "Create a typed utility function like fetchGenerationRow(id) that performs the query and transforms the Supabase row type to GenerationRow with explicit field mapping, eliminating the unsafe double-cast pattern.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_realtime_RealtimeEventProcessor_ts__174",
+      "dimension": "type_safety",
+      "file": "src/shared/realtime/RealtimeEventProcessor.ts",
+      "line": 174,
+      "severity": "medium",
+      "summary": "Realtime event records cast through unknown to domain types",
+      "detail": "Six occurrences in this file (lines 174, 195, 248, 271, 344, 388) where e.new from Supabase Realtime is cast as unknown as TaskRecord/GenerationRecord/ShotGenerationRecord/VariantRecord. This is somewhat justified because Supabase Realtime types e.new as Record<string, unknown>, but these casts skip runtime validation.",
+      "suggestion": "Add a lightweight runtime validation function (e.g., isTaskRecord(obj): obj is TaskRecord) that checks the presence of key fields before the cast. This prevents silent failures if the realtime schema changes.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_hooks_useShareGeneration_ts__324",
+      "dimension": "type_safety",
+      "file": "src/shared/hooks/useShareGeneration.ts",
+      "line": 324,
+      "severity": "medium",
+      "summary": "Nullable field cast to non-nullable to match generated types",
+      "detail": "task_id is cast as (taskId || null) as unknown as string because the Supabase generated types say task_id is non-nullable but the DB allows null. Lines 327-329 also cast creatorRow fields through Record<string, unknown>. The TODO comment acknowledges this is a generated-types mismatch.",
+      "suggestion": "Regenerate Supabase types with task_id as nullable, or add a .override() in the generated types. For creatorRow, type the select query with .select('username, name, avatar_url') which should give typed fields.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_hooks_segments_useSegmentOutputsForShot_ts__258",
+      "dimension": "type_safety",
+      "file": "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+      "line": 258,
+      "severity": "medium",
+      "summary": "Supabase query data cast through unknown to RawGenerationDbRow[]",
+      "detail": "Two occurrences (lines 258, 354) where Supabase query results are cast as unknown as RawGenerationDbRow[]. This suggests the Supabase generated types and the application's expected shape have diverged.",
+      "suggestion": "Create a typed select helper that picks the exact columns needed and maps to RawGenerationDbRow, or define a view type that matches the .select() columns used.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_hooks_useProjectGenerations_ts__221",
+      "dimension": "type_safety",
+      "file": "src/shared/hooks/useProjectGenerations.ts",
+      "line": 221,
+      "severity": "medium",
+      "summary": "Supabase data cast as unknown as RawVariant/RawGeneration",
+      "detail": "Lines 221 and 362 cast query results through unknown. This is another instance of the Supabase generated types vs. application type mismatch pattern.",
+      "suggestion": "Same as above -- create typed query helpers that return properly-typed results.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_integrations_supabase_bootstrap_createSupabaseClient_ts__71",
+      "dimension": "type_safety",
+      "file": "src/integrations/supabase/bootstrap/createSupabaseClient.ts",
+      "line": 71,
+      "severity": "medium",
+      "summary": "Internal Supabase client property access via as unknown as",
+      "detail": "client.rest.fetch is accessed by casting through unknown to { rest: { fetch: typeof dataFetch } }. This is accessing a non-public API of the Supabase client to replace the fetch function. The eslint-disable comment acknowledges this is intentional.",
+      "suggestion": "This is a legitimate workaround for a performance issue (navigator.locks contention). Document the Supabase client version dependency, and add a startup assertion that client.rest?.fetch exists to catch breaking changes early.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_hooks_useResources_ts__225",
+      "dimension": "type_safety",
+      "file": "src/shared/hooks/useResources.ts",
+      "line": 225,
+      "severity": "low",
+      "summary": "metadata cast as unknown as Json for Supabase updates",
+      "detail": "Lines 225 and 305 cast metadata objects to Json for Supabase .update() calls. This pattern repeats across many files (useTimelineCore.ts:479,532, useSegmentMutations.ts:94, useShotGenerationMetadata.ts:102, useSegmentPromptMetadata.ts:109,169, useRepositionVariantSave.ts:175,230, useGenerationEditSettings.ts:162, Header.tsx:112, logger.ts:176, timelineFrameBatchPersist.ts:150). At least 14 occurrences total.",
+      "suggestion": "This is a known Supabase type-gen issue where Json is typed as string | number | boolean | Json[] | { [key: string]: Json } but the actual objects are more specifically typed. Create a toJson<T>(val: T): Json helper that safely converts or use the Database type's specific table row types.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_components_MediaLightbox_ImageLightbox_tsx__664",
+      "dimension": "type_safety",
+      "file": "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+      "line": 664,
+      "severity": "medium",
+      "summary": "Media object cast to Record<string, unknown> to access missing field",
+      "detail": "media is cast as unknown as Record<string, unknown> to access source_task_id, which is not on the GenerationRow type. Same pattern in useVideoLightboxRenderModel.tsx:285. This suggests GenerationRow is missing a field that exists at runtime.",
+      "suggestion": "Add source_task_id to the GenerationRow type if it legitimately appears on generation objects, or access it through the proper metadata path.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_hooks_useHydratedReferences_ts__100",
+      "dimension": "type_safety",
+      "file": "src/shared/hooks/useHydratedReferences.ts",
+      "line": 100,
+      "severity": "low",
+      "summary": "Resource cast to access user_id field not on type",
+      "detail": "resource is cast as unknown as { user_id?: string } to handle a case where the field might be snake_case vs camelCase. This indicates an inconsistency in the resource type definition.",
+      "suggestion": "Normalize the resource type to include both userId and user_id, or fix the upstream data to use a consistent naming convention.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_hooks_useContentResponsive_ts__61",
+      "dimension": "type_safety",
+      "file": "src/shared/hooks/useContentResponsive.ts",
+      "line": 61,
+      "severity": "low",
+      "summary": "Panes object cast to access contentBreakpoints property",
+      "detail": "panes is cast as unknown as { contentBreakpoints?: ContentBreakpoints } to access a property not on the declared type.",
+      "suggestion": "Extend the panes type interface to include the contentBreakpoints property if it's a valid field.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_integrations_supabase_instrumentation_window_index_ts__151",
+      "dimension": "type_safety",
+      "file": "src/integrations/supabase/instrumentation/window/index.ts",
+      "line": 151,
+      "severity": "low",
+      "summary": "Mock WebSocket class cast",
+      "detail": "An instrumented WebSocket wrapper is cast as unknown as typeof WebSocket. This is infrastructure code for debugging/instrumentation.",
+      "suggestion": "Implement the full WebSocket interface on the instrumented class to eliminate the need for the cast.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_lib_tasks_individualTravelSegment_ts__297",
+      "dimension": "type_safety",
+      "file": "src/shared/lib/tasks/individualTravelSegment.ts",
+      "line": 297,
+      "severity": "low",
+      "summary": "params cast to UnknownRecord for dynamic field access",
+      "detail": "params is cast as unknown as UnknownRecord to access structure_videos, which suggests the params type doesn't include this field.",
+      "suggestion": "Add structure_videos to the params type definition, or use a type guard.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_components_MediaGallery_components_MediaGalleryLightbox_tsx__274",
+      "dimension": "type_safety",
+      "file": "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+      "line": 274,
+      "severity": "low",
+      "summary": "Object literal cast as unknown as GenerationRow",
+      "detail": "A manually constructed object is cast as GenerationRow. This is fragile because adding required fields to GenerationRow won't cause a compile error here.",
+      "suggestion": "Use a factory function like createGenerationRow() that requires all fields and returns GenerationRow.",
+      "confidence": 90
+    },
+    {
+      "identifier": "type_safety__src_shared_components_SegmentSettingsForm_SegmentSettingsForm_tsx__180",
+      "dimension": "type_safety",
+      "file": "src/shared/components/SegmentSettingsForm/SegmentSettingsForm.tsx",
+      "line": 180,
+      "severity": "low",
+      "summary": "Synthetic event cast for file selection",
+      "detail": "A synthetic event object { target: { files } } is cast as unknown as React.ChangeEvent<HTMLInputElement> to pass to a file upload handler.",
+      "suggestion": "Refactor the handler to accept File[] directly instead of requiring a full synthetic event.",
+      "confidence": 90
+    }
+  ]
+}

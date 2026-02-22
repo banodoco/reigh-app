@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import {
   isTimelineWriteTimeoutError,
   runTimelineWriteWithTimeout,
@@ -147,7 +147,7 @@ export async function persistTimelineFrameBatch({
       timeoutOperationName,
       async (signal) => {
         const { data, error } = await supabase
-          .rpc('batch_update_timeline_frames', { p_updates: rpcPayload as unknown as Json })
+          .rpc('batch_update_timeline_frames', { p_updates: toJson(rpcPayload) })
           .abortSignal(signal);
         if (error) throw error;
         if (Array.isArray(data)) {

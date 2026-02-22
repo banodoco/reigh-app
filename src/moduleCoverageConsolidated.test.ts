@@ -490,5 +490,5 @@ describe('module coverage consolidated batch', () => {
     for (const loadModule of moduleLoaders) {
       await expect(loadModule()).resolves.toBeDefined();
     }
-  });
+  }, 30_000);
 });

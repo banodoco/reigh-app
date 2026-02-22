@@ -142,7 +142,7 @@ interface UseSharedLightboxStateProps
 // Return Interface
 // ============================================================================
 
-interface UseSharedLightboxStateReturn {
+export interface UseSharedLightboxStateReturn {
   // Variants
   variants: {
     list: GenerationVariant[];
@@ -267,7 +267,11 @@ interface SharedVariantsStateResult {
   refetchVariants: () => void;
 }
 
-function useSharedVariantsState(props: UseSharedLightboxStateProps): SharedVariantsStateResult {
+/**
+ * Variants sub-facade: variant loading, selection, promotion.
+ * Usable standalone when callers only need variant state.
+ */
+export function useSharedVariantsState(props: UseSharedLightboxStateProps): SharedVariantsStateResult {
   const {
     media,
     isFormOnlyMode,
@@ -341,7 +345,11 @@ function useSharedVariantsState(props: UseSharedLightboxStateProps): SharedVaria
   };
 }
 
-function useSharedNavigationState(props: UseSharedLightboxStateProps): UseSharedLightboxStateReturn['navigation'] {
+/**
+ * Navigation sub-facade: keyboard nav, swipe nav, safe close.
+ * Usable standalone when callers only need navigation controls.
+ */
+export function useSharedNavigationState(props: UseSharedLightboxStateProps): UseSharedLightboxStateReturn['navigation'] {
   const {
     onClose,
     hasNext = false,
@@ -378,7 +386,11 @@ function useSharedNavigationState(props: UseSharedLightboxStateProps): UseShared
   };
 }
 
-function useSharedShotState(props: UseSharedLightboxStateProps): UseSharedLightboxStateReturn['shots'] {
+/**
+ * Shot management sub-facade: positioning, creation, association state.
+ * Usable standalone when callers only need shot management.
+ */
+export function useSharedShotState(props: UseSharedLightboxStateProps): UseSharedLightboxStateReturn['shots'] {
   const {
     media,
     selectedProjectId,

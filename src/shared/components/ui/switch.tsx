@@ -75,4 +75,4 @@ const Switch = React.forwardRef<
 ))
 Switch.displayName = "Switch"
 
-export { Switch, switchVariants, switchThumbVariants }
+export { Switch }

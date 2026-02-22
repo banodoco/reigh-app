@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRenderLogger } from '@/shared/lib/debugRendering';
 import { updateToolSettingsSupabase } from './useToolSettings';
@@ -7,17 +7,6 @@ import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 type AutoSaveStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
-/**
- * Configuration for the flush behavior when entity changes or page unloads.
- * The hook needs to know HOW to flush in both custom and React Query modes.
- */
-interface FlushConfig {
-  isCustomMode: boolean;
-  scope: 'shot' | 'project';
-  toolId: string;
-  projectId?: string | null;
-}
-
 interface UseDebouncedSettingsSaveOptions<T> {
   /** Current entity ID */
   entityId: string | null;
@@ -25,8 +14,14 @@ interface UseDebouncedSettingsSaveOptions<T> {
   debounceMs: number;
   /** Current hook status - saves are only scheduled when 'ready' or 'saving' */
   status: AutoSaveStatus;
-  /** Flush configuration for cleanup effects */
-  flushConfig: FlushConfig;
+  /** Whether using custom load/save mode (vs React Query mode) */
+  isCustomMode: boolean;
+  /** Settings scope for React Query mode flush */
+  scope: 'shot' | 'project';
+  /** Tool identifier for React Query mode flush */
+  toolId: string;
+  /** Project ID for React Query cache invalidation */
+  projectId?: string | null;
   /** Ref to the custom save function (only used in custom mode) */
   customSaveRef: React.MutableRefObject<((entityId: string, data: T) => Promise<void>) | undefined>;
   /** Ref to optional onFlush callback (only used in custom mode) */
@@ -88,14 +83,16 @@ export function useDebouncedSettingsSave<T extends object>(
     entityId,
     debounceMs,
     status,
-    flushConfig,
+    isCustomMode,
+    scope,
+    toolId,
+    projectId,
     customSaveRef,
     onFlushRef,
     saveImmediateRef,
     getLatestSettings,
   } = options;
 
-  const { isCustomMode, scope, toolId, projectId } = flushConfig;
   const queryClient = useQueryClient();
 
   useRenderLogger(`DebouncedSettingsSave:${toolId}`, { entityId, status });
@@ -105,6 +102,12 @@ export function useDebouncedSettingsSave<T extends object>(
   const pendingSettingsRef = useRef<T | null>(null);
   const pendingEntityIdRef = useRef<string | null>(null);
   const editVersionRef = useRef<number>(0);
+
+  // Ref for status so scheduleSave can read it at call time without depending on it.
+  // This is critical for reference stability: without it, scheduleSave changes on every
+  // status transition (ready→saving→ready), cascading through the entire settings tree.
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   // Track pending update (called before scheduleSave)
   const trackPendingUpdate = useCallback((settings: T, forEntityId: string | null) => {
@@ -140,9 +143,13 @@ export function useDebouncedSettingsSave<T extends object>(
   }, [cancelPendingSave]);
 
   // Schedule a debounced save
+  // Uses statusRef instead of status to avoid recreating on every status transition.
+  // The status check is a guard ("don't save while loading") — reading the latest
+  // value at call time via ref is more correct than capturing it at creation time.
   const scheduleSave = useCallback((_forEntityId: string | null) => {
     // During loading, don't schedule saves - just let pending tracking do its work
-    if (status !== 'ready' && status !== 'saving') {
+    const currentStatus = statusRef.current;
+    if (currentStatus !== 'ready' && currentStatus !== 'saving') {
       return;
     }
 
@@ -167,18 +174,50 @@ export function useDebouncedSettingsSave<T extends object>(
       }
     }, debounceMs);
     saveTimeoutRef.current = timeoutId;
-  }, [status, debounceMs, cancelPendingSave, getLatestSettings, saveImmediateRef]);
+  }, [debounceMs, cancelPendingSave, getLatestSettings, saveImmediateRef]);
 
   /**
-   * Flush pending settings on entity change/unmount.
-   *
-   * IMPORTANT: this runs in the *cleanup* for the previous entity render.
-   * In React Query mode, we call updateToolSettingsSupabase directly with
-   * the explicit entity ID to avoid drift issues.
-   * In custom mode, we call the save function via ref.
+   * Fire-and-forget flush of pending settings to DB.
+   * Used by both entity-change cleanup and beforeunload handlers.
    */
+  function flushPendingSettings(
+    pending: T,
+    pendingForEntity: string,
+    flushScope: 'shot' | 'project',
+    flushToolId: string,
+    flushIsCustomMode: boolean,
+    customSave: ((entityId: string, data: T) => Promise<void>) | undefined,
+    onFlush: ((entityId: string, data: T) => void) | undefined,
+    context: string,
+  ) {
+    if (flushIsCustomMode) {
+      if (customSave) {
+        customSave(pendingForEntity, pending)
+          .then(() => { onFlush?.(pendingForEntity, pending); })
+          .catch(err => { handleError(err, { context, showToast: false }); });
+      }
+    } else {
+      updateToolSettingsSupabase({
+        scope: flushScope,
+        id: pendingForEntity,
+        toolId: flushToolId,
+        patch: pending,
+      }, undefined, 'immediate')
+        .then(() => {
+          const cacheKey = flushScope === 'shot'
+            ? queryKeys.settings.tool(flushToolId, projectId ?? undefined, pendingForEntity)
+            : queryKeys.settings.tool(flushToolId, pendingForEntity, undefined);
+          queryClient.invalidateQueries({ queryKey: cacheKey });
+          if (flushScope === 'shot' && pendingForEntity) {
+            queryClient.refetchQueries({ queryKey: queryKeys.shots.batchSettings(pendingForEntity) });
+          }
+        })
+        .catch(err => { handleError(err, { context, showToast: false }); });
+    }
+  }
+
+  // Flush pending settings on entity change/unmount
   useEffect(() => {
-    // Capture values for this effect instance
     const currentEntityId = entityId;
     const currentScope = scope;
     const currentToolId = toolId;
@@ -196,80 +235,33 @@ export function useDebouncedSettingsSave<T extends object>(
       const pendingForEntity = pendingEntityIdRef.current;
 
       if (pending && pendingForEntity && pendingForEntity === currentEntityId) {
-        if (currentIsCustomMode) {
-          // Custom mode: fire-and-forget via save ref
-          if (customSave) {
-            customSave(pendingForEntity, pending)
-              .then(() => {
-                onFlush?.(pendingForEntity, pending);
-              })
-              .catch(err => {
-                handleError(err, { context: 'useDebouncedSettingsSave.cleanupFlush', showToast: false });
-              });
-          }
-        } else {
-          // React Query mode: call updateToolSettingsSupabase directly
-          updateToolSettingsSupabase({
-            scope: currentScope,
-            id: pendingForEntity,
-            toolId: currentToolId,
-            patch: pending,
-          }, undefined, 'immediate')
-            .then(() => {
-              // CRITICAL: Invalidate the React Query cache for this entity after save completes.
-              const cacheKey = currentScope === 'shot'
-                ? queryKeys.settings.tool(currentToolId, projectId ?? undefined, pendingForEntity)
-                : queryKeys.settings.tool(currentToolId, pendingForEntity, undefined);
-              queryClient.invalidateQueries({ queryKey: cacheKey });
-
-              // Also refetch shot-batch-settings used by useSegmentSettings
-              if (currentScope === 'shot' && pendingForEntity) {
-                queryClient.refetchQueries({ queryKey: queryKeys.shots.batchSettings(pendingForEntity) });
-              }
-            })
-            .catch(err => {
-              handleError(err, { context: 'useDebouncedSettingsSave.cleanupFlush', showToast: false });
-            });
-        }
+        flushPendingSettings(
+          pending, pendingForEntity, currentScope, currentToolId,
+          currentIsCustomMode, customSave, onFlush,
+          'useDebouncedSettingsSave.cleanupFlush',
+        );
       }
 
-      // Always clear pending refs for the entity we are leaving
       if (pendingForEntity === currentEntityId) {
         pendingSettingsRef.current = null;
         pendingEntityIdRef.current = null;
       }
     };
-    // Only re-run when entityId changes
   }, [entityId, scope, toolId, isCustomMode, projectId, queryClient, customSaveRef, onFlushRef]);
 
-  /**
-   * Handle page close/navigation - save pending settings directly.
-   * This is a best-effort save; browsers typically allow ~50-100ms for async ops.
-   */
+  // Flush on page close/navigation (best-effort, ~50-100ms budget)
   useEffect(() => {
     const customSave = customSaveRef.current;
 
     const handleBeforeUnload = () => {
       const pending = pendingSettingsRef.current;
       const pendingForEntity = pendingEntityIdRef.current;
-
       if (pending && pendingForEntity) {
-        if (isCustomMode) {
-          if (customSave) {
-            customSave(pendingForEntity, pending).catch(err => {
-              handleError(err, { context: 'useDebouncedSettingsSave.unloadFlush', showToast: false });
-            });
-          }
-        } else {
-          updateToolSettingsSupabase({
-            scope,
-            id: pendingForEntity,
-            toolId,
-            patch: pending,
-          }, undefined, 'immediate').catch(err => {
-            handleError(err, { context: 'useDebouncedSettingsSave.unloadFlush', showToast: false });
-          });
-        }
+        flushPendingSettings(
+          pending, pendingForEntity, scope, toolId,
+          isCustomMode, customSave, undefined,
+          'useDebouncedSettingsSave.unloadFlush',
+        );
       }
     };
 
@@ -277,7 +269,10 @@ export function useDebouncedSettingsSave<T extends object>(
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [toolId, scope, isCustomMode, customSaveRef]);
 
-  return {
+  // Memoize return to prevent object recreation on every render.
+  // Without this, every effect/callback depending on `debouncedSave` would re-run
+  // on every render, cascading re-renders through the entire settings tree.
+  return useMemo(() => ({
     scheduleSave,
     cancelPendingSave,
     clearPending,
@@ -288,5 +283,5 @@ export function useDebouncedSettingsSave<T extends object>(
     pendingEntityIdRef,
     editVersionRef,
     saveTimeoutRef,
-  };
+  }), [scheduleSave, cancelPendingSave, clearPending, trackPendingUpdate, incrementEditVersion, hasPendingFor]);
 }

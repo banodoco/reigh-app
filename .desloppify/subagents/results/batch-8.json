@@ -1,0 +1,115 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "assessments": {
+    "initialization_coupling": 68
+  },
+  "findings": [
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "init::window_global_coupling",
+      "summary": "Multiple modules communicate through window globals (window.__PROJECT_CONTEXT__, window.__AUTH_MANAGER__, window.__REACT_QUERY_CLIENT__) creating hidden coupling at initialization time",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/hooks/useProjectGenerations.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/integrations/supabase/auth/AuthStateManager.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/contexts/ProjectContext.tsx",
+          "detail": "Lines 71-78: useEffect writes window.__PROJECT_CONTEXT__ = { selectedProjectId, projects } on every change, creating a global state sync channel outside React's data flow"
+        },
+        {
+          "file": "src/shared/hooks/useProjectGenerations.ts",
+          "detail": "Line 417: effectiveProjectId falls back to window.__PROJECT_CONTEXT__?.selectedProjectId when projectId prop is null, creating a hidden dependency on the ProjectContext's window write"
+        },
+        {
+          "file": "src/integrations/supabase/client.ts",
+          "detail": "Lines 19-23, 29-31: registerSupabaseGlobals stores client on window.__supabase_client__ and window.supabase, then getOrCreateSupabaseClient reads it back for HMR singleton, coupling module initialization to window state"
+        }
+      ],
+      "suggestion": "Replace window.__PROJECT_CONTEXT__ reads with explicit prop drilling or a lightweight pub/sub. The fallback pattern in useProjectGenerations (line 417) silently hides missing context wiring - callers should always pass projectId explicitly. For the Supabase HMR singleton, consider using a module-level variable instead of window.",
+      "reasoning": "Window globals create invisible import-order dependencies and hidden coupling between modules. A consumer of useProjectGenerations has no way to know from the function signature that it depends on ProjectContext having run first and having written to window. This makes the system fragile to initialization ordering changes and untestable in isolation. The pattern is used across at least 3 different subsystems (project, auth, query client).",
+      "confidence": "high"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "init::module_level_mutable_singletons",
+      "summary": "Numerous module-level mutable singletons (Maps, counters, caches) create hidden global state that couples modules at import time and resists testing",
+      "related_files": [
+        "src/shared/lib/settingsWriteQueue.ts",
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/lib/debugPolling.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/lib/settingsWriteQueue.ts",
+          "detail": "Lines 36-41: Module-level mutable state: const pendingByTarget = new Map(), let inFlightCount = 0, const flushQueue = [], let writeFunction = null. The writeFunction must be injected at runtime via setSettingsWriteFunction(), creating an initialization-order dependency"
+        },
+        {
+          "file": "src/shared/lib/toolSettingsService.ts",
+          "detail": "Lines 25-30: Module-level mutable state: inflightSettingsFetches Map, cachedUser variable, cachedUserAt timestamp. setCachedUserId() must be called from AuthContext 'as early as possible' per the JSDoc, encoding initialization order requirements in comments"
+        },
+        {
+          "file": "src/shared/realtime/DataFreshnessManager.ts",
+          "detail": "Line 354: export const dataFreshnessManager = new DataFreshnessManager() - singleton created at import time, consumed by useSmartPolling hook. All polling decisions flow through this single instance"
+        }
+      ],
+      "suggestion": "For settingsWriteQueue, pass the write function as a parameter to enqueue() rather than requiring a separate setSettingsWriteFunction() call. For toolSettingsService, inject the user ID into fetch calls rather than maintaining a module-level cache. Consider providing DataFreshnessManager via React context or a factory function rather than a module-level singleton, which would improve testability.",
+      "reasoning": "Module-level mutable singletons create implicit initialization ordering requirements. settingsWriteQueue will silently fail if setSettingsWriteFunction hasn't been called. toolSettingsService requires setCachedUserId to be called 'as early as possible' - an ordering constraint documented only in a JSDoc comment. These patterns resist testing because test isolation requires manually resetting module-level state (the _resetCachedUserForTesting function is evidence of this problem).",
+      "confidence": "high"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "init::supabase_import_side_effects",
+      "summary": "Importing the Supabase client module triggers immediate side effects: instrumentation installation, global registration, and runtime initialization",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts",
+        "src/integrations/supabase/config/env.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/integrations/supabase/client.ts",
+          "detail": "Line 17: installWindowOnlyInstrumentation() called at module scope. Line 45: export const supabase = getOrCreateSupabaseClient() executes client creation, global registration (window.__supabase_client__, window.supabase), and initializeSupabaseRuntime at import time"
+        },
+        {
+          "file": "src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts",
+          "detail": "Lines 12-16: initializeSupabaseRuntime sets up the reconnect scheduler, auth state manager, realtime instrumentation, and auto-login - all triggered as a side effect of importing client.ts"
+        },
+        {
+          "file": "src/integrations/supabase/config/env.ts",
+          "detail": "Lines 8-10: throw new Error() at import time if env vars are missing. While defensive, this makes any file importing supabase/client.ts crash at import time if env vars are misconfigured"
+        }
+      ],
+      "suggestion": "Consider lazy initialization: export a getSupabaseClient() function that initializes on first call rather than at import time. This would allow tests and SSR scenarios to import the module without triggering side effects. The env.ts throw is acceptable for a client-only app but should be documented.",
+      "reasoning": "Import-time side effects (network connections, global mutations, instrumentation) make the module impossible to import in test or SSR environments without those effects occurring. Any module that transitively imports supabase/client.ts inherits all these side effects. The chain is: import supabase -> create client -> register on window -> init auth manager -> install instrumentation -> set up reconnect scheduler -> potentially auto-login. This is a significant amount of work happening at import time.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "init::env_config_throw_at_import",
+      "summary": "Environment configuration in env.ts throws at import time, creating a hard initialization dependency for any transitive importer",
+      "related_files": [
+        "src/integrations/supabase/config/env.ts",
+        "src/shared/lib/taskCreation.ts",
+        "src/shared/lib/toolSettingsService.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/integrations/supabase/config/env.ts",
+          "detail": "Lines 8-10: if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) { throw new Error('Missing required Supabase environment variables') } - executes at module evaluation time"
+        },
+        {
+          "file": "src/shared/lib/taskCreation.ts",
+          "detail": "Line 7: import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/config/env' - importing taskCreation.ts will throw if env vars are missing, even for functions like expandArrayToCount or generateUUID that don't need Supabase"
+        }
+      ],
+      "suggestion": "Separate pure utility functions (generateUUID, expandArrayToCount, validateRequiredFields, safeParseJson) from Supabase-dependent functions (createTask, resolveProjectResolution) into distinct modules. This prevents pure utility consumers from inheriting the env var dependency.",
+      "reasoning": "taskCreation.ts mixes pure utility functions with Supabase-dependent functions. Consumers that only need generateUUID() or expandArrayToCount() still inherit the import-time env var validation and Supabase client initialization. This unnecessarily couples unrelated code to the initialization chain.",
+      "confidence": "medium"
+    }
+  ]
+}

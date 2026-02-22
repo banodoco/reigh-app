@@ -1,0 +1,79 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "assessments": {
+    "abstraction_fitness": 68,
+    "dependency_health": 82,
+    "mid_level_elegance": 72,
+    "low_level_elegance": 65
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "low_level::inconsistent_parameter_style",
+      "summary": "getCtaText and getCtaIcon take 7 loose parameters instead of a context object, unlike sibling functions in the same file",
+      "related_files": [
+        "src/shared/hooks/platformInstall/helpers.ts",
+        "src/shared/hooks/platformInstall/types.ts"
+      ],
+      "evidence": [
+        "platformInstall/helpers.ts lines 162-169: getCtaText takes 7 positional params (isStandalone, installMethod, isWaitingForPrompt, isAppInstalled, promptTimedOut, isDesktopChromium, platform)",
+        "platformInstall/helpers.ts lines 191-198: getCtaIcon takes the exact same 7 positional params",
+        "In contrast, getInstallMethod (line 80) and getInstallInstructions (line 108) in the same file correctly use typed context objects (InstallMethodContext, InstallInstructionContext)"
+      ],
+      "suggestion": "Define a CtaContext interface (or reuse InstallInstructionContext which already contains all needed fields) and pass a single context object to both getCtaText and getCtaIcon, matching the pattern already established by the other functions in the same file.",
+      "reasoning": "Having two functions with identical 7-parameter signatures in a file where sibling functions already use context objects is internally inconsistent. The positional params are all booleans/strings with no positional clarity — callers must match order precisely, which is error-prone. The types file already defines context interfaces for the other helpers, showing this pattern was intended to be universal.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "abstraction::duplicated_text_truncation",
+      "summary": "Three separate text-truncation utilities with near-identical logic scattered across the batch files",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/utils.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/utils.ts"
+      ],
+      "evidence": [
+        "lib/utils.ts cropFilename: truncates to 24 chars with '...' and preserves extension",
+        "formSubmission/utils.ts truncateLabel: truncates to 50 chars with '...'",
+        "promptManagement/utils.ts toShortPrompt: truncates to 30 chars with '...'"
+      ],
+      "suggestion": "Consolidate into a single generic truncation function in lib/utils.ts (e.g. `truncateText(text: string, maxLength: number, options?: { preserveExtension?: boolean }): string`) and have the domain-specific wrappers call it with their specific length. This reduces the three independent implementations to one core function.",
+      "reasoning": "All three functions implement the same core logic: check length, slice to N chars, append '...'. The only differences are the max length and whether file extensions are preserved. Having three independent implementations means three places to maintain, and the pattern will likely be duplicated again when the next truncation need arises. The formSubmission/utils.ts already imports from promptManagement/utils.ts showing these files are aware of each other.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "abstraction::variant_utils_mixed_concerns",
+      "summary": "VariantSelector/utils.ts mixes UI helpers, time formatting, type re-exports, and type definitions in a single file",
+      "related_files": [
+        "src/shared/components/VariantSelector/utils.ts",
+        "src/shared/lib/utils.ts"
+      ],
+      "evidence": [
+        "utils.ts exports: getVariantIcon (icon mapping), getVariantLabel (label formatting), isNewVariant (state check), getTimeAgo (time formatting), hasLoadableSettings (settings logic), RelationshipFilter type, re-exported hasDifferentSourceImages and CurrentSegmentImagesData from variantSourceImages",
+        "getTimeAgo is a general-purpose relative-time formatter that has nothing to do with variants specifically — it belongs in shared/lib/utils.ts or a dedicated time utilities module",
+        "The file simultaneously defines a type alias (RelationshipFilter), re-exports from another module, and provides 5 functions with different concerns"
+      ],
+      "suggestion": "Move getTimeAgo to shared/lib/utils.ts (or a shared/lib/timeUtils.ts). Remove the pass-through re-exports of hasDifferentSourceImages and CurrentSegmentImagesData — consumers that need source image comparison should import directly from variantSourceImages. Keep the file focused on variant display helpers (icon, label, isNew, hasLoadableSettings).",
+      "reasoning": "A utils file that re-exports from sibling modules, defines types, and contains both domain-specific and general-purpose functions becomes a grab-bag that attracts further unrelated additions. getTimeAgo is used by only VariantCard.tsx, but its logic is domain-independent. The re-exports create an unnecessary indirection layer — importers of hasDifferentSourceImages have to know to look in utils.ts rather than the more descriptively named variantSourceImages.ts.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "dependency::cross_hook_util_import",
+      "summary": "formSubmission/utils.ts imports from sibling hook directory (promptManagement/utils.ts), creating a lateral dependency between hook sub-modules",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/utils.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/utils.ts"
+      ],
+      "evidence": [
+        "formSubmission/utils.ts line 2: `import { toShortPrompt } from '../promptManagement/utils'`",
+        "toShortPrompt is a 3-line pure function that truncates a string to 30 chars — it belongs in a shared location rather than one hook sub-module importing from another"
+      ],
+      "suggestion": "Move toShortPrompt to a shared location within the ImageGenerationForm directory (e.g., ImageGenerationForm/utils.ts) or into shared/lib/utils.ts. Both formSubmission and promptManagement should import from the shared location rather than one depending on the other.",
+      "reasoning": "Lateral imports between sibling hook directories create implicit coupling. If promptManagement/utils.ts is refactored or restructured, formSubmission breaks. The function itself (a 3-line string truncation) is general enough to live at a higher level. This also relates to the duplicated truncation finding — toShortPrompt could be a parameterized call to a shared truncation utility.",
+      "confidence": "high"
+    }
+  ]
+}

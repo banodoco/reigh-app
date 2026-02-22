@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 
 // Import canonical types from single source of truth
 import {
@@ -18,7 +19,7 @@ import {
 } from './editSettingsTypes';
 
 // Re-export types for backwards compatibility
-export type { EditMode, LoraMode, QwenEditModel, EditAdvancedSettings, VideoEnhanceSettings, GenerationEditSettings };
+export type { EditMode, QwenEditModel, EditAdvancedSettings, VideoEnhanceSettings };
 // Defaults are internal-only - import from editSettingsTypes directly if needed
 
 /**
@@ -159,7 +160,7 @@ async function saveGenerationSettings(generationId: string, settings: AutoSaveGe
     ...currentParams,
     ui: {
       ...currentUi,
-      editSettings: settings as unknown as Json,
+      editSettings: toJson(settings),
       // Also save editMode at top level for backwards compatibility
       editMode: settings.editMode,
     }

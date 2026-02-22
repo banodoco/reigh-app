@@ -32,13 +32,7 @@ export function useImageGenSubmit({
     });
     let createdTaskIds: string[] = [];
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[handleNewGenerate] createBatchImageGenerationTasks start, prompts:', taskParams.prompts?.length);
-      }
       const createdTasks = await createBatchImageGenerationTasks(taskParams);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[handleNewGenerate] createBatchImageGenerationTasks done, tasks:', createdTasks.length);
-      }
       createdTaskIds = createdTasks.map((t) => t.task_id);
 
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(effectiveProjectId) });
@@ -53,17 +47,8 @@ export function useImageGenSubmit({
       handleError(error, { context: 'ImageGenerationToolPage.handleNewGenerate', toastTitle: error instanceof Error ? error.message : 'Failed to create tasks.' });
       return [];
     } finally {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[handleNewGenerate] refetchQueries start');
-      }
       await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[handleNewGenerate] refetchQueries paginatedAll done');
-      }
       await queryClient.refetchQueries({ queryKey: queryKeys.tasks.statusCountsAll });
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[handleNewGenerate] refetchQueries statusCountsAll done');
-      }
       removeIncomingTask(incomingTaskId);
     }
   }, [projectId, effectiveProjectId, queryClient, addIncomingTask, removeIncomingTask]);

@@ -6,7 +6,7 @@ import { imageGenerationSettings } from './image-generation/settings';
 import { characterAnimateSettings } from './character-animate/settings';
 import { joinClipsSettings } from './join-clips/settings';
 import { editImagesSettings } from './edit-images/settings';
-import { editVideoSettings } from '@/shared/lib/editVideoDefaults';
+import { editVideoSettings } from './edit-video/settings';
 import { trainingDataHelperSettings } from './training-data-helper/settings';
 import { userPreferencesSettings } from '../shared/settings/userPreferences';
 import { AppEnv, type AppEnvValue } from '../types/env';

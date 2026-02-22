@@ -56,16 +56,16 @@ export const preventDefaultDragOver = (e: React.DragEvent) => {
  * Used by edit tool pages (EditImagesPage, EditVideoPage) that share
  * the same drop-to-upload pattern.
  */
-export function createSingleFileDropHandler(opts: {
+export function createSingleFileDropHandler<T>(opts: {
   mimePrefix: string;
   mimeErrorMessage: string;
   resetDrag: () => void;
   getProjectId: () => string | undefined;
-  upload: (file: File) => Promise<unknown>;
-  onResult: (result: unknown) => void;
+  upload: (file: File) => Promise<T>;
+  onResult: (result: T) => void;
   context: string;
   toastTitle: string;
-  uploadOperation: { execute: (fn: () => Promise<unknown>, opts: { context: string; toastTitle: string }) => Promise<unknown> };
+  uploadOperation: { execute: (fn: () => Promise<T>, opts: { context: string; toastTitle: string }) => Promise<T | undefined> };
 }) {
   return async (e: React.DragEvent) => {
     e.preventDefault();

@@ -35,7 +35,7 @@ export interface GenerationVariant {
 /**
  * Return type for useVariants hook
  */
-export interface UseVariantsReturn {
+interface UseVariantsReturn {
   variants: GenerationVariant[];
   primaryVariant: GenerationVariant | null;
   activeVariant: GenerationVariant | null;

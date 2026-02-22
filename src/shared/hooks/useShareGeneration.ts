@@ -315,11 +315,13 @@ export function useShareGeneration(
       while (attempts < maxAttempts && !newSlug) {
         const candidateSlug = generateShareSlug(10);
 
-        const { data: newShare, error: insertError } = await (supabase
-          .from('shared_generations') as any)
+        // task_id is typed as non-nullable in generated types but is nullable in the DB
+        // TODO: regenerate Supabase types after confirming task_id is nullable in schema
+        const { data: newShare, error: insertError } = await supabase
+          .from('shared_generations')
           .insert({
             share_slug: candidateSlug,
-            task_id: taskId || null,  // Optional - share works without task
+            task_id: (taskId || null) as unknown as string,
             generation_id: generationId,
             creator_id: session.session.user.id,
             creator_username: (creatorRow as Record<string, unknown> | null)?.username as string ?? null,

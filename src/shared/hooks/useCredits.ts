@@ -49,30 +49,25 @@ interface CheckoutParams {
  * Get credit balance using direct Supabase call
  */
 async function fetchCreditBalance(): Promise<CreditBalance> {
-  try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('Authentication required');
-    }
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('credits')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to fetch credit balance: ${error.message}`);
-    }
-
-    return {
-      balance: data?.credits || 0,
-      currency: 'USD',
-    };
-  } catch (error) {
-    console.error('[fetchCreditBalance] Error:', error);
-    throw error;
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error('Authentication required');
   }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('credits')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to fetch credit balance: ${error.message}`);
+  }
+
+  return {
+    balance: data?.credits || 0,
+    currency: 'USD',
+  };
 }
 
 /**
@@ -146,7 +141,7 @@ export function useCredits() {
   // Fetch credit ledger with pagination using Supabase
   const useCreditLedger = (limit = 50, offset = 0) => {
     return useQuery<CreditLedgerResponse>({
-      queryKey: [...creditQueryKeys.ledger, limit, offset],
+      queryKey: creditQueryKeys.ledgerPaginated(limit, offset),
       queryFn: () => fetchCreditLedger(limit, offset),
       // Use userConfig preset - ledger updates after transactions
       ...QUERY_PRESETS.userConfig,

@@ -118,7 +118,7 @@ export interface VariantRecord {
 // Processed Events (after batching, ready for invalidation)
 // =============================================================================
 
-export type ProcessedEventType =
+type ProcessedEventType =
   | 'tasks-updated'
   | 'tasks-created'
   | 'generations-inserted'

@@ -45,7 +45,7 @@ import { GenerateVideoCTA } from '../../../GenerateVideoCTA';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
 import { JoinClipsSettingsForm, DEFAULT_JOIN_CLIPS_PHASE_CONFIG, BUILTIN_JOIN_CLIPS_DEFAULT_ID } from '@/shared/components/JoinClipsSettingsForm';
 
-export interface BatchModeContentProps {
+interface BatchModeContentProps {
   // Refs - must be passed from parent for DOM positioning
   ctaContainerRef?: (node: HTMLDivElement | null) => void;
   swapButtonRef: React.RefObject<HTMLButtonElement>;

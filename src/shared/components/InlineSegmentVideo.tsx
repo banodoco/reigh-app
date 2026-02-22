@@ -15,8 +15,6 @@ import type { InlineSegmentVideoProps } from './inline-segment-video/types';
 import { useLayoutProps } from './inline-segment-video/useLayoutProps';
 import { useSegmentBadge } from './inline-segment-video/useSegmentBadge';
 
-export type { InlineSegmentVideoProps } from './inline-segment-video/types';
-
 export const InlineSegmentVideo: React.FC<InlineSegmentVideoProps> = ({
   slot,
   pairIndex,

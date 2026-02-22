@@ -27,12 +27,25 @@ vi.mock('@/shared/lib/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-// Mock sub-hooks with minimal returns
+// Stable mock references to avoid infinite re-render loops
+// (unstable vi.fn() inside mock factory creates new refs every render,
+// causing useEffect deps to change → re-run → setState → re-render → loop)
+const mockGetVideoUrl = vi.fn().mockReturnValue('');
+const mockMarkVideoAsInvalid = vi.fn();
+const mockClearUrlCache = vi.fn();
+const mockFetchBatches = vi.fn();
+const mockSetSelectedBatchId = vi.fn();
+const mockCreateBatch = vi.fn();
+const mockUpdateBatch = vi.fn();
+const mockDeleteBatch = vi.fn();
+const mockUploadVideo = vi.fn();
+const mockUploadVideosWithSplitModes = vi.fn();
+
 vi.mock('../useVideoUrlCache', () => ({
   useVideoUrlCache: () => ({
-    getVideoUrl: vi.fn().mockReturnValue(''),
-    markVideoAsInvalid: vi.fn(),
-    clearUrlCache: vi.fn(),
+    getVideoUrl: mockGetVideoUrl,
+    markVideoAsInvalid: mockMarkVideoAsInvalid,
+    clearUrlCache: mockClearUrlCache,
   }),
 }));
 
@@ -40,19 +53,19 @@ vi.mock('../useTrainingDataBatches', () => ({
   useTrainingDataBatches: () => ({
     batches: [],
     selectedBatchId: 'batch-1',
-    setSelectedBatchId: vi.fn(),
-    fetchBatches: vi.fn(),
-    createBatch: vi.fn(),
-    updateBatch: vi.fn(),
-    deleteBatch: vi.fn(),
+    setSelectedBatchId: mockSetSelectedBatchId,
+    fetchBatches: mockFetchBatches,
+    createBatch: mockCreateBatch,
+    updateBatch: mockUpdateBatch,
+    deleteBatch: mockDeleteBatch,
   }),
 }));
 
 vi.mock('../useTrainingDataUpload', () => ({
   useTrainingDataUpload: () => ({
     isUploading: false,
-    uploadVideo: vi.fn(),
-    uploadVideosWithSplitModes: vi.fn(),
+    uploadVideo: mockUploadVideo,
+    uploadVideosWithSplitModes: mockUploadVideosWithSplitModes,
   }),
 }));
 
@@ -125,16 +138,14 @@ describe('useTrainingData', () => {
   });
 
   it('createSegment validates training data exists first', async () => {
-    // Set up a chain for the check query
-    const checkEq = vi.fn().mockReturnValue({
-      single: vi.fn().mockResolvedValue({
-        data: { id: 'td-1', batch_id: 'batch-1' },
-        error: null,
-      }),
+    // Set up table-based mock routing
+    const checkSingle = vi.fn().mockResolvedValue({
+      data: { id: 'td-1', batch_id: 'batch-1' },
+      error: null,
     });
+    const checkEq = vi.fn().mockReturnValue({ single: checkSingle });
     const checkSelect = vi.fn().mockReturnValue({ eq: checkEq });
 
-    // Set up a chain for the insert
     const insertSingle = vi.fn().mockResolvedValue({
       data: {
         id: 'seg-1',
@@ -149,29 +160,17 @@ describe('useTrainingData', () => {
       },
       error: null,
     });
-    const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
-    const insertFn = vi.fn().mockReturnValue({ select: insertSelect });
+    const insertSelectFn = vi.fn().mockReturnValue({ single: insertSingle });
+    const insertFn = vi.fn().mockReturnValue({ select: insertSelectFn });
 
-    let callCount = 0;
     mockFrom.mockImplementation((table: string) => {
       if (table === 'training_data') {
-        callCount++;
-        if (callCount === 1) {
-          // First call: check query
-          return { select: checkSelect };
-        }
+        return { select: checkSelect };
       }
-      if (table === 'training_data_segments') {
-        return {
-          select: mockSelect,
-          insert: insertFn,
-          update: mockUpdate,
-          delete: mockDeleteFn,
-        };
-      }
+      // training_data_segments or any other table
       return {
         select: mockSelect,
-        insert: mockInsert,
+        insert: insertFn,
         update: mockUpdate,
         delete: mockDeleteFn,
       };
@@ -203,31 +202,40 @@ describe('useTrainingData', () => {
       },
     ];
 
-    // First call fetches segments, then we test delete
-    let fetchCallCount = 0;
-    mockOrder.mockImplementation(() => {
-      fetchCallCount++;
-      if (fetchCallCount === 1) {
-        // segments fetch
-        return Promise.resolve({ data: segmentsData, error: null });
-      }
-      return Promise.resolve({ data: [], error: null });
-    });
+    // Use table-based routing to avoid global mock conflicts
+    const deleteEq = vi.fn().mockResolvedValue({ error: null });
+    const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
 
-    mockEq.mockReturnValue(Promise.resolve({ error: null }));
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'training_data_segments') {
+        return {
+          select: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: segmentsData, error: null }),
+            eq: mockEq,
+            single: mockSingle,
+          }),
+          insert: mockInsert,
+          update: mockUpdate,
+          delete: deleteFn,
+        };
+      }
+      return {
+        select: mockSelect,
+        insert: mockInsert,
+        update: mockUpdate,
+        delete: mockDeleteFn,
+      };
+    });
 
     const { result } = renderHook(() => useTrainingData());
 
-    // Wait for initial effects to complete
+    // Wait for initial data loading
     await waitFor(() => {
-      // segments may or may not be loaded depending on effect execution order
+      // effects may or may not have run
     });
 
-    // The segments are loaded by the fetchSegments effect
-    // Let's directly test deleteSegment behavior
-    // First add a segment manually via act
     await act(async () => {
-      // segments loaded from initial effect
+      // Allow effects to settle
     });
 
     // Delete

@@ -152,11 +152,6 @@ export function useJoinClipsGenerate({
       return result;
     },
     onSuccess: () => {
-      toast({
-        title: 'Task created',
-        description: 'Your join clips task has been queued',
-      });
-
       setShowSuccessState(true);
       setTimeout(() => setShowSuccessState(false), 1500);
       setVideosViewJustEnabled(true);

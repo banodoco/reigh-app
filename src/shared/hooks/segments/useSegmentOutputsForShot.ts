@@ -19,7 +19,7 @@ export type SegmentSlot =
   | { type: 'child'; child: GenerationRow; index: number; pairShotGenerationId?: string }
   | { type: 'placeholder'; index: number; expectedFrames?: number; expectedPrompt?: string; startImage?: string; endImage?: string; pairShotGenerationId?: string };
 
-export interface ExpectedSegmentData {
+interface ExpectedSegmentData {
   count: number;
   frames: number[];
   prompts: string[];
@@ -28,7 +28,7 @@ export interface ExpectedSegmentData {
   pairShotGenIds: string[];
 }
 
-export interface UseSegmentOutputsReturn {
+interface UseSegmentOutputsReturn {
   // Multiple parent generations (different "runs")
   parentGenerations: GenerationRow[];
   selectedParentId: string | null;
@@ -221,6 +221,14 @@ export function useSegmentOutputsForShot(
     return parents;
   }, [preloadedGenerations]);
 
+  // Memoize query keys to prevent React Query observer.setOptions() from seeing
+  // "changed" options on every render (shallowEqualObjects compares by reference).
+  // Without this, unstable keys + staleTime: 0 cause a fetch→render→fetch loop.
+  const parentQueryKey = useMemo(
+    () => segmentQueryKeys.parents(shotId!, projectId ?? undefined),
+    [shotId, projectId]
+  );
+
   // Fetch parent generations using the shot_final_videos view (single query, all filtering server-side)
   // Skip query when preloaded data is available
   const {
@@ -229,7 +237,7 @@ export function useSegmentOutputsForShot(
     isFetching: isFetchingParents,
     refetch: refetchParents,
   } = useQuery({
-    queryKey: segmentQueryKeys.parents(shotId!, projectId ?? undefined),
+    queryKey: parentQueryKey,
     queryFn: async () => {
       if (!shotId || !projectId) return [];
 
@@ -309,7 +317,13 @@ export function useSegmentOutputsForShot(
   }, [preloadedGenerations, selectedParentId, parentGenerations]);
 
   // Smart polling for segment children - allows new segments to appear after task completion
-  const childrenQueryKey = [...segmentQueryKeys.children(selectedParentId!)] as string[];
+  // CRITICAL: Memoize query key — an unstable array reference here was the root cause of a
+  // 15/sec render loop. React Query's setOptions() uses shallowEqualObjects which compares
+  // queryKey by reference. New array + staleTime: 0 → fetch→render→fetch infinite loop.
+  const childrenQueryKey = useMemo(
+    () => [...segmentQueryKeys.children(selectedParentId!)] as string[],
+    [selectedParentId]
+  );
   const childrenPollingConfig = useSmartPollingConfig(childrenQueryKey);
 
   // Fetch children for selected parent - skip if preloaded data available
@@ -372,6 +386,11 @@ export function useSegmentOutputsForShot(
       }));
   }, [preloadedGenerations]);
 
+  const liveTimelineQueryKey = useMemo(
+    () => segmentQueryKeys.liveTimeline(shotId!),
+    [shotId]
+  );
+
   // Fetch LIVE shot_generations to get current timeline order
   // This is the source of truth for video positioning - videos move with their images
   // Skip if preloaded data available
@@ -379,7 +398,7 @@ export function useSegmentOutputsForShot(
     data: liveTimelineData,
     refetch: refetchTimeline,
   } = useQuery({
-    queryKey: segmentQueryKeys.liveTimeline(shotId!),
+    queryKey: liveTimelineQueryKey,
     queryFn: async () => {
       if (!shotId) return [];
 

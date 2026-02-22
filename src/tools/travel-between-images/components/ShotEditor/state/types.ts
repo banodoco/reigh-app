@@ -12,7 +12,7 @@ export {
 } from '@/shared/types/steerableMotion';
 
 // JSON type for compatibility with Supabase client types
-export type Json =
+type Json =
   | string
   | number
   | boolean
@@ -49,8 +49,6 @@ export interface ShotEditorProps {
   // ============================================================================
   onShotImagesUpdate: () => void;
   onBack: () => void;
-  onPairConfigChange: (pairId: string, field: 'prompt' | 'frames' | 'context', value: string | number) => void;
-  onGenerateAllSegments: () => void;
 
   // ============================================================================
   // DIMENSION SETTINGS (not in context yet)

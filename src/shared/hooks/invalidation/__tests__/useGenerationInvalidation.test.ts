@@ -231,7 +231,7 @@ describe('invalidateVariantChange', () => {
     expect(queryKeysUsed).toContainEqual(queryKeys.generations.byShot(shotId));
   });
 
-  it('invalidates unified and global generation caches', async () => {
+  it('invalidates unified.all as fallback when no projectId', async () => {
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     await invalidateVariantChange(queryClient, {
@@ -243,11 +243,12 @@ describe('invalidateVariantChange', () => {
     const queryKeysUsed = calls.map(c => (c as { queryKey: unknown }).queryKey).filter(Boolean);
 
     expect(queryKeysUsed).toContainEqual(queryKeys.unified.all);
-    expect(queryKeysUsed).toContainEqual(queryKeys.generations.all);
     expect(queryKeysUsed).toContainEqual(queryKeys.generations.derivedAll);
+    // Should NOT invalidate generations.all (specific detail() already covers it)
+    expect(queryKeysUsed).not.toContainEqual(queryKeys.generations.all);
   });
 
-  it('invalidates project-scoped queries when projectId is provided', async () => {
+  it('invalidates project-scoped unified (not all) when projectId is provided', async () => {
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     const projectId = 'project-123';
 
@@ -261,6 +262,8 @@ describe('invalidateVariantChange', () => {
     const queryKeysUsed = calls.map(c => (c as { queryKey: unknown }).queryKey).filter(Boolean);
 
     expect(queryKeysUsed).toContainEqual(queryKeys.unified.projectPrefix(projectId));
+    // Should NOT invalidate unified.all when projectId is available
+    expect(queryKeysUsed).not.toContainEqual(queryKeys.unified.all);
   });
 
   it('applies delay when delayMs is specified', async () => {

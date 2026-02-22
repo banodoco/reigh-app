@@ -15,8 +15,8 @@ import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToSho
 // ==================== Types ====================
 
 interface TaskData {
-  params: Record<string, any>;
-  orchestrator: Record<string, any>;
+  params: Record<string, unknown>;
+  orchestrator: Record<string, unknown>;
 }
 
 interface ExtractedSettings {
@@ -158,8 +158,8 @@ export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
 
 export const extractSettings = (taskData: TaskData): ExtractedSettings => {
   // Cast to permissive record for dynamic property access from Supabase JSON
-  const params = taskData.params as Record<string, any>;
-  const orchestrator = taskData.orchestrator as Record<string, any>;
+  const params = taskData.params as Record<string, unknown>;
+  const orchestrator = taskData.orchestrator as Record<string, unknown>;
 
   const structureGuidance = (orchestrator.structure_guidance ?? params.structure_guidance) as Record<string, unknown> | undefined;
   const guidanceTarget = structureGuidance?.target as string | undefined;
@@ -489,7 +489,7 @@ export const applyLoRAs = (
         
         loras.forEach((loraData) => {
           const matchingLora = context.availableLoras.find(lora => {
-            const legacyDownloadLink = (lora as Record<string, any>)['Download Link'];
+            const legacyDownloadLink = (lora as Record<string, unknown>)['Download Link'];
             const loraUrl = lora.huggingface_url ?? (typeof legacyDownloadLink === 'string' ? legacyDownloadLink : '');
             return loraUrl === loraData.path ||
                    loraUrl.endsWith(loraData.path) ||

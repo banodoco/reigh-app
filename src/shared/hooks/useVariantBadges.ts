@@ -59,9 +59,6 @@ export function useVariantBadges(
       if (generationIds.length === 0) {
         return { derivedCounts: {}, hasUnviewedVariants: {}, unviewedVariantCounts: {} };
       }
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[VariantBadges] fetching badge data for', generationIds.length, 'ids');
-      }
       return calculateDerivedCountsSafe(generationIds);
     },
     enabled: enabled && generationIds.length > 0,
@@ -75,10 +72,6 @@ export function useVariantBadges(
   // keeping the old cached data available. Including isFetching here was causing
   // badges to be stripped on every task completion event.
   const isEffectivelyLoading = isLoading || !data;
-
-  if (process.env.NODE_ENV === 'development' && isFetching && data) {
-    console.log('[VariantBadges] background refetch in progress (badges kept visible, isFetching=true but data exists)');
-  }
 
   const getBadgeData = useCallback((generationId: string): VariantBadgeData => {
     const derivedCount = data?.derivedCounts[generationId] || 0;

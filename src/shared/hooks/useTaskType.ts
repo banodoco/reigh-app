@@ -109,7 +109,7 @@ async function fetchAllTaskTypesConfig(): Promise<Record<string, TaskTypeInfo>> 
  */
 export const useAllTaskTypesConfig = () => {
   return useQuery({
-    queryKey: [...taskQueryKeys.typesConfig, 'all'],
+    queryKey: taskQueryKeys.typesConfigAll,
     queryFn: fetchAllTaskTypesConfig,
     staleTime: 10 * 60 * 1000, // 10 minutes - task types config rarely changes
     gcTime: 30 * 60 * 1000, // 30 minutes

@@ -116,7 +116,7 @@ interface CreateShotOptions {
   onSuccess?: (result: ShotCreationResult) => void;
 }
 
-export interface UseShotCreationReturn {
+interface UseShotCreationReturn {
   /**
    * Create a new shot with optional generation or files.
    * 

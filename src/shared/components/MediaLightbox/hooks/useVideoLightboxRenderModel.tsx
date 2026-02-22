@@ -282,7 +282,7 @@ export function useVideoLightboxRenderModel(
 
   const panelVariant = (shouldShowSidePanelWithTrim && !env.isMobile) ? 'desktop' as const : 'mobile' as const;
   const panelTaskId = editModel.adjustedTaskDetailsData?.taskId
-    || ((media as unknown as Record<string, unknown>)?.source_task_id as string | null)
+    || media?.source_task_id
     || null;
 
   const controlsPanelContent = useVideoLightboxControlsPanel(

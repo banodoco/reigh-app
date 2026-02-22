@@ -269,10 +269,10 @@ export default function EditVideoPage() {
       resetDrag: resetDragState,
       getProjectId: () => selectedProjectId ?? undefined,
       upload: (file) => uploadVideo(file),
-      onResult: (result) => setSelectedMedia(result as GenerationRow),
+      onResult: (result) => setSelectedMedia(result),
       context: 'EditVideoPage',
       toastTitle: 'Failed to upload video',
-      uploadOperation: uploadOperation as any,
+      uploadOperation,
     }),
     [selectedProjectId, resetDragState, uploadOperation, uploadVideo, setSelectedMedia]
   );

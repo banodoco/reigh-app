@@ -19,7 +19,8 @@
  */
 
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
-import type { GenerationRow, GenerationMetadata } from '@/types/generations';
+import type { GenerationRow } from '@/types/shots';
+import type { GenerationMetadata } from '@/types/generationMetadata';
 import { supabase } from '@/integrations/supabase/client';
 import { stripQueryParameters } from '@/shared/lib/mediaUrl';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
@@ -57,7 +58,7 @@ function createEmptyDerivedCountsResult(): DerivedCountsResult {
  * @param generationIds - Array of generation IDs to count variants for
  * @returns Object with derivedCounts and hasUnviewedVariants maps
  */
-export async function calculateDerivedCounts(
+async function calculateDerivedCounts(
   generationIds: string[]
 ): Promise<DerivedCountsResult> {
   if (generationIds.length === 0) {

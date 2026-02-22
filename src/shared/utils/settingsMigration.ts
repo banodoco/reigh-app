@@ -27,7 +27,6 @@ import {
 } from '@/shared/types/segmentSettings';
 
 export type {
-  SegmentSettings,
   ShotVideoSettings,
   SegmentOverrides,
   LoraConfig,

@@ -1,0 +1,100 @@
+{
+  "batch": "AI Debt & Migrations",
+  "assessments": {
+    "ai_generated_debt": 78,
+    "incomplete_migration": 58,
+    "low_level_elegance": 74
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "migration::deprecated_reexport_shims_with_active_importers",
+      "summary": "Deprecated re-export shim files persist; one (useGenerationInvalidation) still has 14 active importers blocking deletion",
+      "related_files": [
+        "src/shared/hooks/useGenerationInvalidation.ts",
+        "src/shared/hooks/useSegmentSettings.ts",
+        "src/tools/edit-video/components/VideoPortionEditor.tsx",
+        "src/tools/travel-between-images/hooks/useSegmentOutputsForShot.ts"
+      ],
+      "evidence": [
+        "useGenerationInvalidation.ts is a 4-line @deprecated shim re-exporting from './invalidation/useGenerationInvalidation', but grep confirms 14 files still import from the old path (useShotsCrud.ts, useVariants.ts, useMakeMainVariant.ts, useRepositionVariantSave.ts, etc.). The migration was started but never driven to completion.",
+        "VideoPortionEditor.tsx and useSegmentOutputsForShot.ts are @deprecated shims with 0 remaining consumers, meaning they are dead code that could be deleted immediately. useSegmentSettings.ts has 0 production consumers (only a task doc references it)."
+      ],
+      "suggestion": "Delete the 3 shims with 0 consumers immediately (VideoPortionEditor.tsx, useSegmentOutputsForShot.ts, useSegmentSettings.ts). For useGenerationInvalidation.ts, do a bulk find-and-replace of the 14 importing files to use '@/shared/hooks/invalidation' then delete the shim.",
+      "reasoning": "Shims with zero consumers are pure dead code. The one with 14 consumers represents a stalled migration that creates confusion about which import path is canonical. Every shim adds an unnecessary layer of indirection.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "migration::deprecated_fields_across_types_and_storage",
+      "summary": "Multiple type interfaces and storageKeys carry deprecated fields from 3+ separate incomplete migrations with no removal timeline",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/lib/storageKeys.ts",
+        "src/shared/lib/generationTransformers.ts",
+        "src/shared/hooks/shots/mappers.ts"
+      ],
+      "evidence": [
+        "types.ts ProjectImageSettings: selectedLorasByTextModel (DEPRECATED per-model, migrated to selectedLorasByCategory), projectPrompts (DEPRECATED, moved to usePersistentToolState), selectedReferenceId (deprecated, replaced by selectedReferenceIdByShot), plus 6 legacy reference fields (styleReferenceImage, styleReferenceImageOriginal, styleReferenceStrength, subjectStrength, subjectDescription, inThisScene) all marked 'deprecated, kept for migration'. selectedLorasByTextModel is still referenced in useGenerationSource.ts.",
+        "storageKeys.ts: LAST_ACTIVE_LORA_SETTINGS and GLOBAL_LAST_ACTIVE_LORA_SETTINGS are marked @deprecated with only test file references remaining.",
+        "generationTransformers.ts RawGeneration: shot_generations array field marked 'DEPRECATED: Old join format' with runtime fallback at line 342-344. mappers.ts: shotImageEntryId and shot_generation_id marked 'DEPRECATED (kept for backwards compat during transition)'."
+      ],
+      "suggestion": "Delete the 2 storageKeys deprecated entries (only tests reference them). For generationTransformers, verify no query returns the shot_generations join format and remove the fallback branch plus the type field. For mappers.ts, grep for shotImageEntryId/shot_generation_id usage and migrate consumers. For ProjectImageSettings, add a one-time read-and-convert migration for selectedLorasByTextModel then remove the field.",
+      "reasoning": "The 'kept for migration' and 'kept for backwards compatibility' comments have no associated timeline or tracking, so these deprecated fields persist indefinitely. Each one is a maintenance trap where new code might accidentally depend on the old field instead of the replacement.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "ai_debt::hardcoded_color_classes_in_gallery_grid",
+      "summary": "MediaGalleryGrid uses hardcoded zinc/gray color classes via whiteText ternaries instead of semantic design tokens",
+      "related_files": [
+        "src/shared/components/MediaGallery/components/MediaGalleryGrid.tsx",
+        "src/shared/components/ShotFilter.tsx",
+        "src/shared/components/MediaTypeFilter.tsx"
+      ],
+      "evidence": [
+        "MediaGalleryGrid.tsx lines 239-259: Ternary patterns like `whiteText ? 'text-zinc-400 border-zinc-700 bg-zinc-800/50' : 'text-muted-foreground border bg-card shadow-sm'` and `whiteText ? 'text-zinc-500' : ''` scattered through empty-state messages. CLAUDE.md states 'never hardcode colors (use bg-background, text-foreground, etc.)'.",
+        "MediaGalleryGrid.tsx line 323: `border-gray-400` hardcoded in skeleton spinner, inconsistent with rest of codebase that uses zinc-* for dark surfaces.",
+        "ShotFilter.tsx and MediaTypeFilter.tsx have already migrated from whiteText to a darkSurface prop backed by semantic variant selection, but MediaGalleryGrid.tsx still uses the old pattern with inline ternaries."
+      ],
+      "suggestion": "Replace inline whiteText ternaries with the darkSurface variant pattern already adopted by ShotFilter and MediaTypeFilter. Use semantic tokens (text-foreground, bg-card, etc.) throughout. Fix the inconsistent border-gray-400 to match the design system.",
+      "reasoning": "Hardcoded color ternaries are a common AI-generation pattern ('make it work on dark backgrounds'). They violate the project's stated convention, create inconsistency as some components have migrated and others have not, and make dark mode/theming changes fragile.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "ai_debt::verbose_debug_scaffolding_in_runtime_hooks",
+      "summary": "Runtime hooks contain excessive debug comments, emoji-tagged fix markers, and global-scope debug utilities that clutter production code",
+      "related_files": [
+        "src/shared/hooks/useSmartPolling.ts",
+        "src/shared/lib/debugPolling.ts",
+        "src/shared/hooks/useShotImages.ts"
+      ],
+      "evidence": [
+        "useSmartPolling.ts: Comments tagged with emoji markers like '// \\ud83c\\udfaf FIX:', '// \\ud83c\\udfaf NEW:', '// \\ud83c\\udfaf OPTIMIZATION:' on lines 91, 98, 107, 146, 209 describe historical bug fixes rather than explaining current behavior. The [MobileHeatDebug] tag appears 4 times, narrating a specific debugging session that has concluded.",
+        "debugPolling.ts: checkPageVisibility() at line 78-79 is an empty no-op method. The module unconditionally mutates window at line 123-124 in dev mode, exposing debug utilities as a side effect of module import.",
+        "useShotImages.ts line 160: console.error with emoji '\\u274c' in production error path."
+      ],
+      "suggestion": "Strip the historical fix narration (emoji-tagged markers) from useSmartPolling and replace with concise comments explaining current behavior. Remove the empty checkPageVisibility method from debugPolling.ts. Replace console.error with the project's handleError utility in useShotImages.",
+      "reasoning": "Emoji-tagged narrative comments and empty debug methods are hallmarks of AI-assisted debugging sessions that leave scaffolding in place after the fix. They add noise during code review, make grep results noisy, and signal to future maintainers that the code is provisional when it is actually stable.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "elegance::useContentResponsive_unsafe_cast_and_duplicated_type",
+      "summary": "useContentResponsive casts through unknown to probe for an undeclared context member and duplicates a type definition",
+      "related_files": [
+        "src/shared/hooks/useContentResponsive.ts",
+        "src/shared/hooks/useSegmentSettingsForm.ts"
+      ],
+      "evidence": [
+        "useContentResponsive.ts lines 61-64: `const panesWithBreakpoints = panes as unknown as { contentBreakpoints?: ContentBreakpoints }` double-casts through unknown to access a property that may or may not exist on PanesContext, rather than extending the context type or using a type guard.",
+        "useContentResponsive.ts line 12: Defines a 'Local fallback type definition (mirrors original)' ContentBreakpoints interface instead of importing it from its source, creating drift risk.",
+        "useSegmentSettingsForm.ts has a similar pattern at a different scale: multiple interface types that mirror ReturnType<typeof useSegmentSettings> fields rather than using a single well-typed return interface, leading to verbose type threading."
+      ],
+      "suggestion": "Add contentBreakpoints as an optional member on PanesContext's type definition. Import ContentBreakpoints from its source rather than duplicating. For useSegmentSettingsForm, consider a simpler return type that extends the underlying hook's return directly.",
+      "reasoning": "Casting through unknown defeats TypeScript's type safety guarantee. If PanesContext is refactored, this code silently breaks at runtime rather than failing at compile time. Duplicated type definitions are a maintenance trap where the copy and original diverge.",
+      "confidence": "high"
+    }
+  ]
+}

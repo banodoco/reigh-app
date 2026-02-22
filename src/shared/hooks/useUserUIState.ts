@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRenderLogger } from '@/shared/lib/debugRendering';
 import type { Json } from '@/integrations/supabase/types';
@@ -155,6 +155,9 @@ export function useUserUIState<K extends keyof UISettings>(
   const [isLoading, setIsLoading] = useState(true);
   const userIdRef = useRef<string>();
   const debounceRef = useRef<NodeJS.Timeout>();
+  // Ref so that `update` can read the latest value without depending on it
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   // Helper function to save fallback values to database (preserves all existing settings)
   // This automatically backfills existing users with default values when they first load the app
@@ -265,10 +268,10 @@ export function useUserUIState<K extends keyof UISettings>(
   // Uses the global settings write queue (via updateToolSettingsSupabase) to prevent
   // race conditions with other hooks that write to users.settings (e.g., useToolSettings
   // writing user-preferences). The write queue serializes writes and uses an atomic RPC.
-  const update = (patch: Partial<UISettings[K]>) => {
+  const update = useCallback((patch: Partial<UISettings[K]>) => {
     // Immediately update local state for responsive UI (with normalization)
     const normalizedPatch = normalizeIfGenerationMethods({
-      ...(value as object),
+      ...(valueRef.current as object),
       ...(patch as object)
     } as UISettings[K]);
     setValue(normalizedPatch);
@@ -300,7 +303,7 @@ export function useUserUIState<K extends keyof UISettings>(
         handleError(error, { context: 'useUserUIState.update', showToast: false });
       }
     }, 200);
-  };
+  }, [key, normalizeIfGenerationMethods]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -311,9 +314,9 @@ export function useUserUIState<K extends keyof UISettings>(
     };
   }, []);
 
-  return { 
-    value, 
-    update, 
-    isLoading 
-  };
+  return useMemo(() => ({
+    value,
+    update,
+    isLoading
+  }), [value, update, isLoading]);
 } 

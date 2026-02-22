@@ -1,0 +1,114 @@
+{
+  "batch": "Conventions & Errors",
+  "assessments": {
+    "convention_outlier": 78,
+    "error_consistency": 72,
+    "mid_level_elegance": 82
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "error_consistency::context_hook_missing_provider_pattern",
+      "summary": "Context hook \"missing provider\" behavior uses three inconsistent patterns: throw+console.error, throw only, or silent fallback defaults",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/contexts/UserSettingsContext.tsx",
+        "src/shared/contexts/AIInputModeContext.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/contexts/ProjectContext.tsx",
+          "line": 122,
+          "snippet": "console.error('[ProjectContext]', errorMessage, { stack: new Error().stack, windowLocation: ... }); throw new Error(errorMessage);"
+        },
+        {
+          "file": "src/shared/contexts/AIInputModeContext.tsx",
+          "line": 37,
+          "snippet": "if (!context) { return { mode: 'voice' as AIInputMode, setMode: () => {}, isLoading: false }; }"
+        },
+        {
+          "file": "src/shared/contexts/UserSettingsContext.tsx",
+          "line": 155,
+          "snippet": "console.error('[UserSettingsContext]', errorMessage, { stack: new Error().stack }); throw new Error(errorMessage);"
+        }
+      ],
+      "suggestion": "Standardize on one pattern for context hooks. For required contexts, use the throw-only pattern (like CurrentShotContext, ShotsContext, PanesContext). For optional contexts that may be used outside their provider, use the 'safe hook' pattern (like LightboxStateContext's useLightboxCoreSafe). The console.error+throw combination in ProjectContext/UserSettingsContext/AuthContext is redundant since the thrown error will bubble up to error boundaries anyway. The silent fallback in AIInputModeContext should be documented as intentional or converted to a safe hook pattern.",
+      "reasoning": "Three different patterns for the same situation (hook called outside provider) makes the behavior unpredictable. Developers copying existing code may pick any of the three patterns, increasing drift. The console.error before throw is especially problematic because it creates noise in dev tools alongside the actual error.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "error_consistency::dual_error_utility_modules",
+      "summary": "Two overlapping error utility modules (errors.ts with AppError hierarchy, errorUtils.ts with utility guards) create ambiguity about which to use",
+      "related_files": [
+        "src/shared/lib/__tests__/errors.test.ts",
+        "src/shared/lib/__tests__/errorUtils.test.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/lib/__tests__/errors.test.ts",
+          "line": 1,
+          "snippet": "Tests for AppError, NetworkError, AuthError, isAppError, isNetworkError, isAuthError, categorizeError"
+        },
+        {
+          "file": "src/shared/lib/__tests__/errorUtils.test.ts",
+          "line": 1,
+          "snippet": "Tests for isError, isErrorWithCode, isErrorWithStatus, getErrorMessage, isAbortError, isCancellationError"
+        }
+      ],
+      "suggestion": "Consider merging errorUtils.ts into errors.ts or creating a clear boundary: errors.ts owns the AppError class hierarchy and type guards for AppError subclasses, while errorUtils.ts owns guards for raw Error objects (isError, isErrorWithCode, isAbortError). Document this split in the module-level JSDoc to prevent future overlap.",
+      "reasoning": "Both modules export error type guards and utilities. A developer looking for 'how to check if something is an abort error' might look in either file. The errors.ts file already handles abort detection via NetworkError.fromError and categorizeError, while errorUtils.ts has isAbortError and isCancellationError. This creates confusion about the canonical way to handle error classification.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "convention::test_file_naming_split",
+      "summary": "Test files in shared/lib use camelCase naming while component-level test files use kebab-case, creating an inconsistent pattern",
+      "related_files": [
+        "src/shared/lib/__tests__/galleryUtils.test.ts",
+        "src/shared/components/ShotImageManager/utils/__tests__/image-utils.test.ts",
+        "src/tools/travel-between-images/components/Timeline/utils/__tests__/time-utils.test.ts",
+        "src/shared/lib/__tests__/mediaTypeHelpers.test.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/lib/__tests__/",
+          "line": 0,
+          "snippet": "camelCase naming: galleryUtils.test.ts, mediaTypeHelpers.test.ts, taskCreation.test.ts, caseConversion.test.ts, deepEqual.test.ts"
+        },
+        {
+          "file": "src/shared/components/ShotImageManager/utils/__tests__/",
+          "line": 0,
+          "snippet": "kebab-case naming: image-utils.test.ts, reorder-utils.test.ts, external-generation-utils.test.ts"
+        }
+      ],
+      "suggestion": "Pick one convention. Since test files typically mirror their source file names (e.g., galleryUtils.ts -> galleryUtils.test.ts), the camelCase pattern in shared/lib is correct. The kebab-case files in component directories may mirror kebab-case source files. If source files also have mixed naming, standardize source naming first. If test files just deviate, rename to match source convention.",
+      "reasoning": "Mixed naming conventions across directories increase cognitive load when navigating the codebase. Developers looking for a test file need to guess which convention applies in the current directory. This is a low-severity issue but a clear convention outlier.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "error_consistency::supabase_query_error_handling_divergence",
+      "summary": "Supabase query errors handled inconsistently: some use console.error+throw, others use handleError with showToast:false",
+      "related_files": [
+        "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+        "src/shared/contexts/UserSettingsContext.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+          "line": 254,
+          "snippet": "console.error('[useSegmentOutputsForShot] Error fetching parent generations:', error); throw error;"
+        },
+        {
+          "file": "src/shared/contexts/UserSettingsContext.tsx",
+          "line": 66,
+          "snippet": "catch (error) { handleError(error, { context: 'UserSettingsContext', showToast: false }); setUserSettings({}); userSettingsRef.current = {}; }"
+        }
+      ],
+      "suggestion": "For React Query queryFn errors, the pattern should be throw (let React Query handle retries and error state). For non-query async operations, use handleError. The console.error in useSegmentOutputsForShot is redundant since React Query will capture the error. Remove the console.error calls before throw in query functions, and use handleError only for operations outside React Query's error boundary.",
+      "reasoning": "The divergence creates unpredictable error behavior. In useSegmentOutputsForShot, errors are logged AND thrown (double-reporting). In UserSettingsContext, errors are swallowed with handleError and recovery state is set. While the difference in behavior is partly justified (query vs. context initialization), the logging patterns should still be consistent. The console.error before throw inside a React Query queryFn is always redundant.",
+      "confidence": "high"
+    }
+  ]
+}

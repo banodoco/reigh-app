@@ -11,7 +11,8 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
   const [reconciliationId, setReconciliationId] = useState(0);
   const reconciliationTimeoutRef = useRef<NodeJS.Timeout>();
-  
+  const optimisticStartTimeRef = useRef<number>(0);
+
   // Enhanced reconciliation with debouncing, tracking IDs, and timeout-based recovery
   useEffect(() => {
     
@@ -44,9 +45,8 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
           }
         } else {
           
-          // Safety check: if optimistic update has been active for more than 5 seconds, force reconciliation
-          const optimisticStartTime = Date.now() - OPTIMISTIC_UPDATE_TIMEOUT;
-          if (optimisticStartTime > Date.now()) {
+          // Safety check: if optimistic update has been active too long, force reconciliation
+          if (Date.now() - optimisticStartTimeRef.current > OPTIMISTIC_UPDATE_TIMEOUT) {
             setIsOptimisticUpdate(false);
             setOptimisticOrder(images);
           }
@@ -76,11 +76,21 @@ export function useOptimisticOrder({ images }: UseOptimisticOrderProps) {
     };
   }, []);
   
+  const setIsOptimisticUpdateTracked = (value: boolean | ((prev: boolean) => boolean)) => {
+    setIsOptimisticUpdate((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      if (next && !prev) {
+        optimisticStartTimeRef.current = Date.now();
+      }
+      return next;
+    });
+  };
+
   return {
     optimisticOrder,
     setOptimisticOrder,
     isOptimisticUpdate,
-    setIsOptimisticUpdate,
+    setIsOptimisticUpdate: setIsOptimisticUpdateTracked,
     reconciliationId,
     setReconciliationId
   };

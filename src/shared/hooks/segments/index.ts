@@ -17,17 +17,12 @@
 export { useSegmentSettings } from './useSegmentSettings';
 export type {
   UseSegmentSettingsOptions,
-  UseSegmentSettingsReturn,
-  FieldOverrides,
-  ShotDefaults,
 } from './useSegmentSettings';
 
 // Segment outputs hook (moved from travel-between-images tool)
 export { useSegmentOutputsForShot } from './useSegmentOutputsForShot';
 export type {
   SegmentSlot,
-  ExpectedSegmentData,
-  UseSegmentOutputsReturn,
 } from './useSegmentOutputsForShot';
 
 // NOTE: The following are internal hooks used by useSegmentSettings.

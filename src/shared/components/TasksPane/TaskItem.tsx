@@ -90,7 +90,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
 
   // Parse task params
   const taskParams = useMemo(() => parseTaskParamsForDisplay(task.params), [task.params]);
-  const parsedTaskParams = taskParams.parsed as Record<string, any>;
+  const parsedTaskParams = taskParams.parsed as Record<string, unknown>;
 
   // Task content type detection - pass taskTypeInfo to avoid duplicate query
   const taskInfo = useTaskContentType({ task, taskParams, taskTypeInfo });
@@ -125,7 +125,7 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   const travelImageUrls = useMemo(() => {
     if (!taskInfo.isVideoTask) return [];
     const isIndividualSegment = task.taskType === 'individual_travel_segment';
-    const orchestratorDetails = parsedTaskParams.orchestrator_details as Record<string, any> | undefined;
+    const orchestratorDetails = parsedTaskParams.orchestrator_details as Record<string, unknown> | undefined;
     const segmentImages = parsedTaskParams.input_image_paths_resolved;
     const timelineImages = orchestratorDetails?.input_image_paths_resolved || parsedTaskParams.input_image_paths_resolved;
     const selected = isIndividualSegment ? segmentImages : timelineImages;

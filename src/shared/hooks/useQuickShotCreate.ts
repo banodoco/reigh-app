@@ -10,7 +10,7 @@ interface QuickCreateSuccessState {
   isLoading?: boolean;
 }
 
-export interface ShotOption {
+interface ShotOption {
   id: string;
   name: string;
 }

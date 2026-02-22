@@ -14,20 +14,8 @@
  */
 
 // =============================================================================
-// TYPES
+// CONSTANTS
 // =============================================================================
-
-export type {
-  PreloadableImage,
-  PreloadConfig,
-  TrackerLimits,
-  PriorityLevel,
-  TrackableImage,
-  PreloadingServiceState,
-  PreloadingEventType,
-  PreloadingEvent,
-  PreloadingSubscriber,
-} from './types';
 
 export { PRIORITY } from './types';
 
@@ -49,13 +37,5 @@ export {
   markImageLoaded,
   setImageLoadStatus,
   clearLoadedImages,
-  clearAllLoadedImages,
-  getLoadTrackerStats,
   getImageElement,
 } from './tracker';
-
-// =============================================================================
-// PRELOADER (for direct use)
-// =============================================================================
-
-export { preloadImages } from './preloader';

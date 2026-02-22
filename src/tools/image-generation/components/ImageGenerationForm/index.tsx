@@ -11,7 +11,4 @@
 // Main component
 export { ImageGenerationForm } from '@/shared/components/ImageGenerationForm';
 
-// Types used by this tool
-export type { PromptEntry } from '@/shared/components/ImageGenerationForm';
-
 // Note: Other exports (context hooks, sub-components) moved to shared - import from there directly

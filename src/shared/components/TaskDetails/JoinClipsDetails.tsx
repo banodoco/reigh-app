@@ -27,9 +27,9 @@ export const JoinClipsDetails: React.FC<TaskDetailsProps> = ({
   const config = getVariantConfig(variant, isMobile, inputImages.length);
   const [videoLoadedStates, setVideoLoadedStates] = useState<{[key: number]: boolean}>({});
 
-  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
-  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, any> | undefined;
-  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, any> | undefined;
+  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
+  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, unknown> | undefined;
+  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, unknown> | undefined;
 
   // Multi-clip format
   const rawClips = parsedParams?.clips || orchestratorDetails?.clips || orchestratorPayload?.clips;

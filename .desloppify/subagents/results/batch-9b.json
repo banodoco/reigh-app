@@ -1,0 +1,136 @@
+{
+  "batch": "Full Codebase Sweep (chunk 2/4: lightbox, UI, shot image manager)",
+  "assessments": {
+    "cross_module_architecture": 78,
+    "initialization_coupling": 72,
+    "convention_outlier": 68,
+    "error_consistency": 82,
+    "abstraction_fitness": 75,
+    "dependency_health": 80,
+    "test_strategy": 55,
+    "api_surface_coherence": 73,
+    "authorization_consistency": 85,
+    "ai_generated_debt": 65,
+    "incomplete_migration": 70,
+    "package_organization": 82,
+    "high_level_elegance": 76,
+    "mid_level_elegance": 72,
+    "low_level_elegance": 74
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "optimistic-order-timeout-logic-bug",
+      "summary": "useOptimisticOrder has a safety timeout condition that can never trigger: `Date.now() - OPTIMISTIC_UPDATE_TIMEOUT > Date.now()` is always false because subtracting a positive number from Date.now() always yields a value less than Date.now().",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/components/ShotImageManager/hooks/useOptimisticOrder.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/ShotImageManager/constants.ts"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/components/ShotImageManager/hooks/useOptimisticOrder.ts",
+          "lines": "48-52",
+          "snippet": "const optimisticStartTime = Date.now() - OPTIMISTIC_UPDATE_TIMEOUT;\nif (optimisticStartTime > Date.now()) {\n  setIsOptimisticUpdate(false);\n  setOptimisticOrder(images);\n}",
+          "description": "The condition `(Date.now() - 5000) > Date.now()` is always false. This means the safety fallback that force-reconciles stale optimistic updates never fires. If the server never confirms the reorder, the optimistic state persists indefinitely."
+        }
+      ],
+      "suggestion": "Track the actual start time of the optimistic update in a ref (e.g., `optimisticStartRef.current = Date.now()` when `setIsOptimisticUpdate(true)` is called), then compare `Date.now() - optimisticStartRef.current > OPTIMISTIC_UPDATE_TIMEOUT` in the timeout handler.",
+      "reasoning": "This is a logic bug in a safety mechanism. The dead-code safety fallback means that if a reorder mutation fails silently or the parent props never converge to the optimistic order, users will see a stale ordering until they reload. The pattern suggests the developer intended a time-based fallback but got the comparison backwards.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "useLightboxStateValue-variants-memoization-bypass",
+      "summary": "The `variants` sub-object in useLightboxStateValue uses `[input]` as its sole useMemo dependency, which means it re-creates on every render since `input` is a new object each call. The other three sub-objects (core, media, navigation) correctly list individual fields.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/hooks/useLightboxStateValue.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/contexts/LightboxStateContext.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/hooks/useLightboxStateValue.ts",
+          "lines": "118-140",
+          "snippet": "const variants = useMemo(() => ({\n    variants: input.variants,\n    activeVariant: input.activeVariant,\n    ...\n    variantsSectionRef: input.variantsSectionRef,\n  }), [input]);",
+          "description": "Using `[input]` as the dependency array. Since `input` is a parameter object, it is a new reference on every call, defeating useMemo entirely. The `core`, `media`, and `navigation` sub-objects correctly list their individual dependencies."
+        }
+      ],
+      "suggestion": "List the individual input fields as dependencies (matching the pattern used by the `core`, `media`, and `navigation` useMemo blocks), or destructure the variant-related fields from `input` and list them individually.",
+      "reasoning": "The stated purpose of useLightboxStateValue is to build individually-memoized sub-objects to prevent deep-tree re-renders. By depending on `[input]`, the variants sub-object is recreated every render, which propagates to all consumers of useLightboxVariantsSafe(). This undermines the performance optimization the file's doc comment explicitly describes. The inconsistency with the other three sub-objects confirms this is an oversight, not intentional.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "hardcoded-colors-in-settings-and-tasks-pane",
+      "summary": "SettingsModal and TasksPane use hardcoded gray/zinc color classes (bg-gray-200, dark:bg-gray-700, bg-zinc-900/95, etc.) instead of semantic theme tokens (bg-background, bg-muted, text-foreground, border-border), violating the CLAUDE.md convention to never hardcode colors.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/components/SettingsModal/SettingsModal.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/TasksPane/TasksPane.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/SettingsModal/sections/GenerationSection.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/components/SettingsModal/SettingsModal.tsx",
+          "lines": "160-161",
+          "snippet": "className={`relative inline-flex items-center bg-gray-200 dark:bg-gray-700 rounded-full p-0.5 shadow-inner`}",
+          "description": "Hardcoded bg-gray-200/dark:bg-gray-700 for the section toggle. Should use bg-muted or similar."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/components/TasksPane/TasksPane.tsx",
+          "lines": "394-396",
+          "snippet": "'absolute top-0 right-0 h-full w-full bg-zinc-900/95 border-l border-zinc-600 shadow-xl ...'",
+          "description": "TasksPane pane container uses bg-zinc-900/95 and border-zinc-600. There are 53 hardcoded zinc/gray occurrences across 8 TasksPane files."
+        }
+      ],
+      "suggestion": "Replace hardcoded color classes with semantic Tailwind tokens (bg-background, bg-muted, text-foreground, border-border, etc.). For the TasksPane dark backdrop specifically, bg-background/95 with border-border would maintain the visual intent while respecting theme switching.",
+      "reasoning": "CLAUDE.md explicitly states 'never hardcode colors (use bg-background, text-foreground, etc.)'. SettingsModal has 24 hardcoded color references across 3 files and TasksPane has 53 across 8 files. While the app may currently only use dark mode, these hardcoded values break theme consistency and make dark/light mode switching impossible for these components.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "video-travel-details-duplicated-phase-rendering",
+      "summary": "VideoTravelDetails.tsx contains two nearly identical blocks for rendering phase settings with LoRA details -- one for inline display and one for the right-column layout. Both map over `phaseConfig.phases` with the same JSX structure, creating ~90 lines of duplication.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/TaskDetails/JoinClipsDetails.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+          "lines": "324-354",
+          "snippet": "{!showPhaseContentInRightColumn && isAdvancedMode && phaseConfig?.phases && phaseConfig.phases.length > 0 && (\n  <div className=\"pt-2 border-t ...\">\n    {phaseConfig.phases.map((phase: PhaseSettings, phaseIndex: number) => (\n      ... // identical structure to lines 392-422\n    ))}\n  </div>\n)}",
+          "description": "The inline phase rendering block (lines 324-354) and right-column block (lines 392-422) have identical JSX for mapping over phases, rendering guidance scale, steps, and LoRA entries with copy buttons."
+        }
+      ],
+      "suggestion": "Extract a `PhasesList` component that takes `phaseConfig`, `config` (text size/font weight), `copiedLoraUrl`, `setCopiedLoraUrl`, and `availableLoras` as props. Render it in both locations, eliminating ~80 lines of duplication.",
+      "reasoning": "This duplication pattern is characteristic of AI-generated code where a second layout variant was added by copying and adapting the first block. Any future changes to phase rendering (new fields, styling updates, bug fixes) must be applied in both places. The component is already 427 lines, well over the 300-line threshold flagged in CLAUDE.md.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "media-lightbox-props-count-explosion",
+      "summary": "MediaLightboxProps has 49 individual props that are manually threaded through useBundledImageProps and into ImageLightbox/VideoLightbox. Despite sub-interface grouping in ImageLightbox, MediaLightboxProps itself remains a flat mega-interface, creating a large prop-drilling surface at the top level.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/TasksPane/TasksPane.tsx"
+      ],
+      "evidence": [
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/MediaLightbox.tsx",
+          "lines": "10-75",
+          "snippet": "export interface MediaLightboxProps {\n  media?: GenerationRow;\n  onClose: () => void;\n  onNext?: () => void;\n  // ... 46 more props\n  adjacentSegments?: AdjacentSegmentsData;\n}",
+          "description": "MediaLightboxProps is a 65-line flat interface with 49 individual optional props. ImageLightbox internally groups these into sub-interfaces (LightboxNavigationProps, LightboxShotWorkflowProps, etc.) via useBundledImageProps."
+        },
+        {
+          "file": "/Users/peteromalley/Documents/reigh/src/shared/components/TasksPane/TasksPane.tsx",
+          "lines": "583-613",
+          "snippet": "<MediaLightbox\n  media={lightboxProps.media}\n  onClose={handleCloseLightbox}\n  onNext={lightboxProps.onNext}\n  // ... 25+ props manually passed\n  fetchVariantsForSelf={lightboxProps.fetchVariantsForSelf}\n/>",
+          "description": "Callers must pass 25+ individual props. The internal grouping in ImageLightbox does not propagate to the external API."
+        }
+      ],
+      "suggestion": "Migrate MediaLightboxProps to use the same grouped sub-interfaces that ImageLightbox already defines (LightboxNavigationProps, LightboxShotWorkflowProps, LightboxFeatureFlags, LightboxActionHandlers), making callers pass `navigation={{...}}`, `shotWorkflow={{...}}`, etc. The useBundledImageProps adapter can then be removed.",
+      "reasoning": "The internal refactoring to sub-interfaces was done but stopped halfway: ImageLightbox receives grouped props but MediaLightboxProps still exposes the flat interface to callers. This means every consumer (TasksPane, ShotImageManagerContainer, etc.) must manually pass 25+ individual props, increasing call-site verbosity and making it easy to miss a prop. Callers already mentally group these props -- the type system should enforce that grouping.",
+      "confidence": "medium"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useMemo } from 'react';
 import { ShotEditorState, ShotEditorAction } from './types';
 
 // Initial state
@@ -111,78 +111,89 @@ export interface ShotEditorActions {
 export const useShotEditorState = (): { state: ShotEditorState; actions: ShotEditorActions } => {
   const [state, dispatch] = useReducer(shotEditorReducer, createInitialState());
 
-  // Action creators
-  const actions = {
-    setUploadingImage: useCallback((value: boolean) => {
-      dispatch({ type: 'SET_UPLOADING_IMAGE', payload: value });
-    }, []),
+  // Action creators — each useCallback has [] deps so they're stable across renders.
+  // The actions object itself must also be memoized to prevent downstream useMemo
+  // invalidation (it's a dependency of the ShotSettingsContext value).
+  const setUploadingImage = useCallback((value: boolean) => {
+    dispatch({ type: 'SET_UPLOADING_IMAGE', payload: value });
+  }, []);
+  const setUploadProgress = useCallback((value: number) => {
+    dispatch({ type: 'SET_UPLOAD_PROGRESS', payload: value });
+  }, []);
+  const setFileInputKey = useCallback((value: number) => {
+    dispatch({ type: 'SET_FILE_INPUT_KEY', payload: value });
+  }, []);
+  const setDeletingVideoId = useCallback((value: string | null) => {
+    dispatch({ type: 'SET_DELETING_VIDEO_ID', payload: value });
+  }, []);
+  const setDuplicatingImageId = useCallback((value: string | null) => {
+    dispatch({ type: 'SET_DUPLICATING_IMAGE_ID', payload: value });
+  }, []);
+  const setDuplicateSuccessImageId = useCallback((value: string | null) => {
+    dispatch({ type: 'SET_DUPLICATE_SUCCESS_IMAGE_ID', payload: value });
+  }, []);
+  const setPendingFramePositions = useCallback((value: Map<string, number>) => {
+    dispatch({ type: 'SET_PENDING_FRAME_POSITIONS', payload: value });
+  }, []);
+  const setCreatingTaskId = useCallback((value: string | null) => {
+    dispatch({ type: 'SET_CREATING_TASK_ID', payload: value });
+  }, []);
+  const setSettingsModalOpen = useCallback((value: boolean) => {
+    dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: value });
+  }, []);
+  const setModeReady = useCallback((value: boolean) => {
+    dispatch({ type: 'SET_MODE_READY', payload: value });
+  }, []);
+  const setSettingsError = useCallback((value: string | null) => {
+    dispatch({ type: 'SET_SETTINGS_ERROR', payload: value });
+  }, []);
+  const setEditingName = useCallback((value: boolean) => {
+    dispatch({ type: 'SET_EDITING_NAME', payload: value });
+  }, []);
+  const setEditingNameValue = useCallback((value: string) => {
+    dispatch({ type: 'SET_EDITING_NAME_VALUE', payload: value });
+  }, []);
+  const setTransitioningFromNameEdit = useCallback((value: boolean) => {
+    dispatch({ type: 'SET_TRANSITIONING_FROM_NAME_EDIT', payload: value });
+  }, []);
+  const setShowStepsNotification = useCallback((value: boolean) => {
+    dispatch({ type: 'SET_SHOW_STEPS_NOTIFICATION', payload: value });
+  }, []);
+  const setHasInitializedShot = useCallback((value: string | null) => {
+    dispatch({ type: 'SET_HAS_INITIALIZED_SHOT', payload: value });
+  }, []);
+  const setHasInitializedUISettings = useCallback((value: string | null) => {
+    dispatch({ type: 'SET_HAS_INITIALIZED_UI_SETTINGS', payload: value });
+  }, []);
 
-    setUploadProgress: useCallback((value: number) => {
-      dispatch({ type: 'SET_UPLOAD_PROGRESS', payload: value });
-    }, []),
-
-    setFileInputKey: useCallback((value: number) => {
-      dispatch({ type: 'SET_FILE_INPUT_KEY', payload: value });
-    }, []),
-
-    setDeletingVideoId: useCallback((value: string | null) => {
-      dispatch({ type: 'SET_DELETING_VIDEO_ID', payload: value });
-    }, []),
-
-    setDuplicatingImageId: useCallback((value: string | null) => {
-      dispatch({ type: 'SET_DUPLICATING_IMAGE_ID', payload: value });
-    }, []),
-
-    setDuplicateSuccessImageId: useCallback((value: string | null) => {
-      dispatch({ type: 'SET_DUPLICATE_SUCCESS_IMAGE_ID', payload: value });
-    }, []),
-
-    setPendingFramePositions: useCallback((value: Map<string, number>) => {
-      dispatch({ type: 'SET_PENDING_FRAME_POSITIONS', payload: value });
-    }, []),
-
-    // REMOVED: setLocalOrderedShotImages - no longer needed
-
-    setCreatingTaskId: useCallback((value: string | null) => {
-      dispatch({ type: 'SET_CREATING_TASK_ID', payload: value });
-    }, []),
-
-    setSettingsModalOpen: useCallback((value: boolean) => {
-      dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: value });
-    }, []),
-
-    setModeReady: useCallback((value: boolean) => {
-      dispatch({ type: 'SET_MODE_READY', payload: value });
-    }, []),
-
-    setSettingsError: useCallback((value: string | null) => {
-      dispatch({ type: 'SET_SETTINGS_ERROR', payload: value });
-    }, []),
-
-    setEditingName: useCallback((value: boolean) => {
-      dispatch({ type: 'SET_EDITING_NAME', payload: value });
-    }, []),
-
-    setEditingNameValue: useCallback((value: string) => {
-      dispatch({ type: 'SET_EDITING_NAME_VALUE', payload: value });
-    }, []),
-
-    setTransitioningFromNameEdit: useCallback((value: boolean) => {
-      dispatch({ type: 'SET_TRANSITIONING_FROM_NAME_EDIT', payload: value });
-    }, []),
-
-    setShowStepsNotification: useCallback((value: boolean) => {
-      dispatch({ type: 'SET_SHOW_STEPS_NOTIFICATION', payload: value });
-    }, []),
-
-    setHasInitializedShot: useCallback((value: string | null) => {
-      dispatch({ type: 'SET_HAS_INITIALIZED_SHOT', payload: value });
-    }, []),
-
-    setHasInitializedUISettings: useCallback((value: string | null) => {
-      dispatch({ type: 'SET_HAS_INITIALIZED_UI_SETTINGS', payload: value });
-    }, []),
-  };
+  // 🎯 PERF FIX: Memoize actions object — all callbacks have [] deps so this
+  // object is truly stable. Without memoization, a new actions object every render
+  // causes ShotSettingsContext value to change → all consumers re-render.
+  const actions = useMemo<ShotEditorActions>(() => ({
+    setUploadingImage,
+    setUploadProgress,
+    setFileInputKey,
+    setDeletingVideoId,
+    setDuplicatingImageId,
+    setDuplicateSuccessImageId,
+    setPendingFramePositions,
+    setCreatingTaskId,
+    setSettingsModalOpen,
+    setModeReady,
+    setSettingsError,
+    setEditingName,
+    setEditingNameValue,
+    setTransitioningFromNameEdit,
+    setShowStepsNotification,
+    setHasInitializedShot,
+    setHasInitializedUISettings,
+  }), [
+    setUploadingImage, setUploadProgress, setFileInputKey, setDeletingVideoId,
+    setDuplicatingImageId, setDuplicateSuccessImageId, setPendingFramePositions,
+    setCreatingTaskId, setSettingsModalOpen, setModeReady, setSettingsError,
+    setEditingName, setEditingNameValue, setTransitioningFromNameEdit,
+    setShowStepsNotification, setHasInitializedShot, setHasInitializedUISettings,
+  ]);
 
   return {
     state,

@@ -56,9 +56,9 @@ function targetKey(write: QueuedWrite): string {
 }
 
 /**
- * Deep merge two objects (shallow merge of nested objects)
+ * Shallow merge (one level deep)
  */
-function mergePatch(existing: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
+function shallowMergePatch(existing: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
   return { ...existing, ...incoming };
 }
 
@@ -141,7 +141,7 @@ export function enqueueSettingsWrite(
     
     if (existing) {
       // Merge with existing pending write
-      existing.write.patch = mergePatch(existing.write.patch, write.patch);
+      existing.write.patch = shallowMergePatch(existing.write.patch, write.patch);
       existing.resolvers.push({ resolve, reject });
 
       if (mode === 'immediate') {

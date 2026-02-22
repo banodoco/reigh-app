@@ -173,24 +173,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                           <span className="subtitle-link-text">an open source tool</span> for
                         </span>
                       </TooltipTrigger>
-                      {/* TooltipContent intentionally commented out
-                      <TooltipContent
-                        side="top"
-                        align="center"
-                        onClick={() => {
-                          handleOpenToolActivate();
-                          setTimeout(() => setOpenTipOpen(false), 50);
-                        }}
-                        className="group flex items-center gap-2 text-left p-3 max-w-xs border-2 border-transparent bg-wes-cream/80 dark:bg-card/95 rounded-lg shadow-md cursor-pointer transition-all duration-300 hover:bg-gradient-to-r hover:from-wes-pink/10 hover:via-wes-coral/10 hover:to-wes-vintage-gold/10 dark:hover:from-primary/10 dark:hover:via-accent/10 dark:hover:to-secondary/10 hover:border-transparent hover:bg-origin-border hover:shadow-2xl hover:-translate-y-1"
-                      >
-                        <div className="flex-shrink-0">
-                          <ChevronLeft className="hover-arrow w-6 h-6 text-wes-vintage-gold transition-transform transition-colors duration-700 ease-in-out group-hover:text-wes-coral group-hover:animate-sway-x" />
-                        </div>
-                        <p className="text-xs sm:text-sm leading-relaxed text-primary">
-                          Reigh is open source and can be run for free on your computer, or in the cloud for convenience.
-                        </p>
-                      </TooltipContent>
-                      */}
                     </Tooltip>
                   </TooltipProvider>
                   <br />
@@ -236,35 +218,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                           </svg>
                         </span>
                       </TooltipTrigger>
-                      {/* TooltipContent intentionally commented out
-                      <TooltipContent
-                        side="top"
-                        align="center"
-                        onClick={() => {
-                          handleEmergingActivate();
-                          setTimeout(() => setEmergingTipOpen(false), 50);
-                        }}
-                        className="group flex items-center gap-2 text-left p-4 max-w-xs min-h-[80px] border-2 border-transparent bg-wes-cream/80 dark:bg-card/95 rounded-lg shadow-md cursor-pointer transition-all duration-300 hover:bg-gradient-to-r hover:from-wes-pink/10 hover:via-wes-coral/10 hover:to-wes-vintage-gold/10 dark:hover:from-primary/10 dark:hover:via-accent/10 dark:hover:to-secondary/10 hover:border-transparent hover:bg-origin-border hover:shadow-2xl hover:-translate-y-1"
-                      >
-                        <div className="flex items-center gap-1 text-primary">
-                          <img
-                            src={currentExample.image1}
-                            alt="Input image 1"
-                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover border rounded ml-2"
-                          />
-                          <span className="text-lg sm:text-xl font-light px-3">+</span>
-                          <img
-                            src={currentExample.image2}
-                            alt="Input image 2"
-                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover border rounded"
-                          />
-                          <span className="text-lg sm:text-xl font-light pl-4">=</span>
-                        </div>
-                        <div className="flex-shrink-0 flex items-center">
-                          <ChevronRight className="hover-arrow w-6 h-6 text-primary transition-transform transition-colors duration-700 ease-in-out group-hover:text-primary group-hover:animate-sway-x" strokeWidth={1.5} />
-                        </div>
-                      </TooltipContent>
-                      */}
                     </Tooltip>
                   </TooltipProvider>
                 </p>

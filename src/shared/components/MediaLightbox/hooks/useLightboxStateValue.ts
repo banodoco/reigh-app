@@ -2,8 +2,13 @@
  * useLightboxStateValue
  *
  * Builds the LightboxStateContext value from MediaLightbox's state.
- * This centralizes the context value construction, making it easy to
- * see what state is exposed to child components via context.
+ * Centralizes context value construction — shows exactly what state is
+ * exposed to child components via context.
+ *
+ * Input properties are individually listed (not bundled) because they come
+ * from different sources (useSharedLightboxState sub-facades, environment
+ * hooks, variant badges). The 4 output sub-objects (core, media, variants,
+ * navigation) are individually memoized to prevent deep-tree re-renders.
  */
 
 import { useMemo, RefObject } from 'react';
@@ -132,7 +137,28 @@ export function useLightboxStateValue(
     unviewedVariantCount: input.unviewedVariantCount,
     onMarkAllViewed: input.onMarkAllViewed,
     variantsSectionRef: input.variantsSectionRef,
-  }), [input]);
+  }), [
+    input.variants,
+    input.activeVariant,
+    input.primaryVariant,
+    input.isLoadingVariants,
+    input.setActiveVariantId,
+    input.setPrimaryVariant,
+    input.deleteVariant,
+    input.onLoadVariantSettings,
+    input.onLoadVariantImages,
+    input.currentSegmentImages,
+    input.promoteSuccess,
+    input.isPromoting,
+    input.handlePromoteToGeneration,
+    input.isMakingMainVariant,
+    input.canMakeMainVariant,
+    input.handleMakeMainVariant,
+    input.pendingTaskCount,
+    input.unviewedVariantCount,
+    input.onMarkAllViewed,
+    input.variantsSectionRef,
+  ]);
 
   // Build navigation state
   const navigation = useMemo(() => ({

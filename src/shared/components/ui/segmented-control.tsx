@@ -148,8 +148,6 @@ SegmentedControlItem.displayName = "SegmentedControlItem"
 export {
   SegmentedControl,
   SegmentedControlItem,
-  segmentedControlVariants,
-  segmentedControlItemVariants,
 }
 
 

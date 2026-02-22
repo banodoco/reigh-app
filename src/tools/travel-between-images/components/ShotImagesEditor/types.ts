@@ -161,7 +161,7 @@ export interface PreviewSegment {
   durationFromFrames: number;
 }
 
-export interface PreviewTogetherDialogProps {
+interface PreviewTogetherDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   previewableSegments: PreviewSegment[];
@@ -169,5 +169,3 @@ export interface PreviewTogetherDialogProps {
   audioUrl?: string | null;
 }
 
-// Re-export PairData for convenience
-export type { PairData } from "../Timeline/TimelineContainer";

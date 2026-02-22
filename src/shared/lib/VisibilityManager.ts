@@ -272,5 +272,4 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   window.__VISIBILITY_MANAGER__ = VisibilityManager;
 }
 
-// Export types for consumers
-export type { VisibilityState, VisibilitySignals, VisibilityEventType, VisibilitySubscription };
+// Export types for consumers (VisibilitySignals/VisibilityEventType used by subscribe() callers)

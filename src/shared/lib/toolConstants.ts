@@ -13,6 +13,7 @@ export const TOOL_IDS = {
   EDIT_VIDEO: 'edit-video',
   EDIT_IMAGES: 'edit-images',
   CHARACTER_ANIMATE: 'character-animate',
+  TRAINING_DATA_HELPER: 'training-data-helper',
 } as const;
 
 export const TOOL_ROUTES = {
@@ -22,6 +23,7 @@ export const TOOL_ROUTES = {
   EDIT_VIDEO: '/tools/edit-video',
   EDIT_IMAGES: '/tools/edit-images',
   CHARACTER_ANIMATE: '/tools/character-animate',
+  TRAINING_DATA_HELPER: '/tools/training-data-helper',
 } as const;
 
 /** Build a shot-specific URL for the travel tool (navigates to a particular shot) */

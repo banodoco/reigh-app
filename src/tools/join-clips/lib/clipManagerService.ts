@@ -29,7 +29,6 @@ export {
   createEmptyClip,
 } from './clipInitService';
 
-export type { PendingClipAction } from './clipInitService';
 
 // Import createEmptyClip locally for use within this module
 import { createEmptyClip } from './clipInitService';

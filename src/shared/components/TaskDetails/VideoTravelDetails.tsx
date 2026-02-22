@@ -6,6 +6,7 @@ import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTy
 import { parseTaskParams, deriveInputImages, derivePrompt } from '@/shared/utils/taskParamsUtils';
 import { getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import type { PhaseSettings, PhaseLoraConfig } from '@/shared/types/phaseConfig';
 
 // Built-in preset ID → name mapping (matches segmentSettingsUtils.ts)
@@ -43,7 +44,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     setTimeout(() => setStateFn(false), 2000);
   };
 
-  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
+  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
   const derivedImages = useMemo(() => deriveInputImages(parsedParams), [parsedParams]);
 
   // For segment tasks, prefer derived images from task params (they're more accurate)
@@ -53,9 +54,9 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     ? derivedImages
     : (inputImages.length > 0 ? inputImages : derivedImages);
 
-  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, any> | undefined;
-  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, any> | undefined;
-  const individualSegmentParams = parsedParams?.individual_segment_params as Record<string, any> | undefined;
+  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, unknown> | undefined;
+  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, unknown> | undefined;
+  const individualSegmentParams = parsedParams?.individual_segment_params as Record<string, unknown> | undefined;
 
   // Phase config
   const phaseConfig = useMemo(() => (
@@ -63,7 +64,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     orchestratorPayload?.phase_config ||
     orchestratorDetails?.phase_config ||
     parsedParams?.phase_config
-  ) as Record<string, any> | undefined, [individualSegmentParams, orchestratorPayload, orchestratorDetails, parsedParams]);
+  ) as Record<string, unknown> | undefined, [individualSegmentParams, orchestratorPayload, orchestratorDetails, parsedParams]);
 
   // Check if in advanced mode - if not, we show additional_loras instead of phase config
   const isAdvancedMode = useMemo(() => {
@@ -139,7 +140,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
   const isDbPreset = presetId && !presetId.startsWith('__builtin_');
 
   const { data: dbPresetName } = useQuery({
-    queryKey: ['preset-name', presetId],
+    queryKey: presetQueryKeys.name(presetId!),
     queryFn: async () => {
       const { data } = await supabase
         .from('resources')

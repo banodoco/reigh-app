@@ -426,4 +426,213 @@ describe('useAutoSaveSettings', () => {
       expect(result.current.status).toBe('idle');
     });
   });
+
+  describe('entity-change flush', () => {
+    it('flushes dirty settings when entity changes in custom mode', async () => {
+      const mockLoad = vi.fn().mockResolvedValue({ prompt: 'loaded', mode: 'basic' });
+      const mockSave = vi.fn().mockResolvedValue(undefined);
+
+      const wrapper = createWrapper();
+      let entityId = 'entity-A';
+
+      const { result, rerender } = renderHook(
+        () => useAutoSaveSettings({
+          defaults,
+          customLoadSave: {
+            entityId,
+            load: mockLoad,
+            save: mockSave,
+          },
+        }),
+        { wrapper }
+      );
+
+      // Wait for initial load to complete
+      await act(async () => {
+        vi.advanceTimersByTime(10);
+      });
+      await act(async () => {});
+
+      expect(result.current.status).toBe('ready');
+      expect(result.current.settings.prompt).toBe('loaded');
+
+      // Make a dirty edit (no debounce fire yet)
+      act(() => {
+        result.current.updateField('prompt', 'dirty edit');
+      });
+      expect(result.current.settings.prompt).toBe('dirty edit');
+
+      // Clear save mock to isolate the flush call
+      mockSave.mockClear();
+
+      // Change entity — triggers cleanup flush of entity-A's pending edits
+      entityId = 'entity-B';
+      rerender();
+
+      // Allow flush promise to settle
+      await act(async () => {
+        vi.advanceTimersByTime(10);
+      });
+      await act(async () => {});
+
+      // Verify flush: mockSave should have been called with entity-A and dirty data
+      expect(mockSave).toHaveBeenCalledWith(
+        'entity-A',
+        expect.objectContaining({ prompt: 'dirty edit' })
+      );
+    });
+  });
+
+  describe('pending-edit protection', () => {
+    it('preserves user edits made during loading in custom mode', async () => {
+      let resolveLoad!: (value: TestSettings | null) => void;
+      const mockLoad = vi.fn().mockImplementation(
+        () => new Promise<TestSettings | null>((resolve) => { resolveLoad = resolve; })
+      );
+      const mockSave = vi.fn().mockResolvedValue(undefined);
+
+      const { result } = renderHook(
+        () => useAutoSaveSettings({
+          defaults,
+          customLoadSave: {
+            entityId: 'entity-pending',
+            load: mockLoad,
+            save: mockSave,
+          },
+        }),
+        { wrapper: createWrapper() }
+      );
+
+      // Trigger the load effect
+      await act(async () => {
+        vi.advanceTimersByTime(10);
+      });
+
+      expect(result.current.status).toBe('loading');
+      expect(mockLoad).toHaveBeenCalledWith('entity-pending');
+
+      // User types while load is in flight
+      act(() => {
+        result.current.updateField('prompt', 'user typed this');
+      });
+
+      expect(result.current.settings.prompt).toBe('user typed this');
+
+      // Now resolve the load with DB data
+      await act(async () => {
+        resolveLoad({ prompt: 'from database', mode: 'advanced' });
+      });
+      await act(async () => {});
+
+      // User's edit should be preserved — not overwritten by DB data
+      expect(result.current.settings.prompt).toBe('user typed this');
+      expect(result.current.status).toBe('ready');
+    });
+
+    it('preserves user edits made during loading in React Query mode', async () => {
+      const mockUpdate = vi.fn().mockResolvedValue(undefined);
+
+      // Start with loading state
+      (useToolSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        settings: null,
+        isLoading: true,
+        update: mockUpdate,
+        hasShotSettings: false,
+      });
+
+      const { result, rerender } = renderHook(
+        () => useAutoSaveSettings({ toolId: 'test', defaults, shotId: 'shot-rq' }),
+        { wrapper: createWrapper() }
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(10);
+      });
+
+      // Status should be loading
+      expect(result.current.status).toBe('loading');
+
+      // User types while DB query is in flight
+      act(() => {
+        result.current.updateField('prompt', 'typed during load');
+      });
+      expect(result.current.settings.prompt).toBe('typed during load');
+
+      // DB data arrives
+      (useToolSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        settings: { prompt: 'db value', mode: 'advanced' },
+        isLoading: false,
+        update: mockUpdate,
+        hasShotSettings: true,
+      });
+      rerender();
+
+      await act(async () => {
+        vi.advanceTimersByTime(10);
+      });
+      await act(async () => {});
+
+      // User's edit should be preserved
+      expect(result.current.settings.prompt).toBe('typed during load');
+      expect(result.current.status).toBe('ready');
+    });
+  });
+
+  describe('race condition: typing during save', () => {
+    it('preserves new edits made during an in-flight save in custom mode', async () => {
+      let resolveSave!: () => void;
+      const mockLoad = vi.fn().mockResolvedValue({ prompt: 'initial', mode: 'basic' });
+      const mockSave = vi.fn().mockImplementation(
+        () => new Promise<void>((resolve) => { resolveSave = resolve; })
+      );
+
+      const { result } = renderHook(
+        () => useAutoSaveSettings({
+          defaults,
+          debounceMs: 100,
+          customLoadSave: {
+            entityId: 'entity-race',
+            load: mockLoad,
+            save: mockSave,
+          },
+        }),
+        { wrapper: createWrapper() }
+      );
+
+      // Wait for load
+      await act(async () => {
+        vi.advanceTimersByTime(10);
+      });
+      await act(async () => {});
+
+      expect(result.current.status).toBe('ready');
+
+      // First edit — triggers debounced save
+      act(() => {
+        result.current.updateField('prompt', 'first edit');
+      });
+
+      // Fire the debounce — starts the save
+      await act(async () => {
+        vi.advanceTimersByTime(100);
+      });
+
+      // Save is now in-flight (mockSave was called but not resolved)
+      expect(mockSave).toHaveBeenCalledTimes(1);
+
+      // User types more while save is in-flight
+      act(() => {
+        result.current.updateField('prompt', 'second edit during save');
+      });
+
+      // Resolve the first save
+      await act(async () => {
+        resolveSave();
+      });
+      await act(async () => {});
+
+      // The second edit should still be in settings
+      expect(result.current.settings.prompt).toBe('second edit during save');
+    });
+  });
 });

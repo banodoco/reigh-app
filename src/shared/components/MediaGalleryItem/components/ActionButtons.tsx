@@ -14,7 +14,6 @@ interface ActionButtonsProps {
   showEdit: boolean;
   showDelete: boolean;
   onToggleStar?: (id: string, starred: boolean) => void;
-  // TODO: type properly — React Query mutation with complex generic types
   toggleStarMutation: { mutate: (vars: { id: string; starred: boolean }, options?: { onSettled?: () => void }) => void };
   setIsTogglingStar: (toggling: boolean) => void;
   setLocalStarred: (starred: boolean) => void;

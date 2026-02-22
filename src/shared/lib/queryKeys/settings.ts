@@ -4,4 +4,5 @@ export const settingsQueryKeys = {
   byTool: (toolId: string) => ['toolSettings', toolId] as const,
   all: ['toolSettings'] as const,
   user: ['user-settings'] as const,
+  generationModes: (projectId: string) => ['project-generation-modes', projectId] as const,
 } as const;

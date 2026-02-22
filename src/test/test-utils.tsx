@@ -94,6 +94,3 @@ export function renderHookWithProviders<TResult, TProps>(
   return renderHook(hook, { wrapper: Wrapper, ...hookOptions });
 }
 
-// Re-export everything from testing-library for convenience
-export { render, renderHook, screen, waitFor, act, within, fireEvent } from '@testing-library/react';
-export { default as userEvent } from '@testing-library/user-event';

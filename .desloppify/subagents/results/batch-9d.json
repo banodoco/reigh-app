@@ -1,0 +1,139 @@
+{
+  "batch": "Full Codebase Sweep (chunk 4/4: tools, tooling, types)",
+  "assessments": {
+    "cross_module_architecture": 72,
+    "initialization_coupling": 65,
+    "convention_outlier": 68,
+    "error_consistency": 78,
+    "abstraction_fitness": 60,
+    "dependency_health": 70,
+    "test_strategy": 55,
+    "api_surface_coherence": 65,
+    "authorization_consistency": 80,
+    "ai_generated_debt": 55,
+    "incomplete_migration": 45,
+    "package_organization": 70,
+    "high_level_elegance": 72,
+    "mid_level_elegance": 58,
+    "low_level_elegance": 62
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "duplicate-generation-types-across-files",
+      "summary": "GenerationParams, GenerationMetadata, GenerationRow, PairLoraConfig, and PairMotionSettings are each defined identically in TWO separate files: once in their own dedicated file (src/types/generationParams.ts, src/types/generationMetadata.ts, src/types/generationRow.ts) and again as full duplicate definitions in src/types/generations.ts. The barrel file src/types/shots.ts re-exports from generationMetadata.ts, not generations.ts, so the generations.ts copies are dead code that will silently drift if only one copy is updated.",
+      "related_files": [
+        "src/types/generations.ts",
+        "src/types/generationParams.ts",
+        "src/types/generationMetadata.ts",
+        "src/types/generationRow.ts",
+        "src/types/shots.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/types/generations.ts",
+          "detail": "Contains full duplicate definitions of GenerationParams (lines 7-19), PairLoraConfig (lines 25-32), PairMotionSettings (lines 38-41), GenerationMetadata (lines 46-59), and GenerationRow (lines 64-93). These are identical copies of types in generationParams.ts, generationMetadata.ts, and generationRow.ts."
+        },
+        {
+          "file": "src/types/generationRow.ts",
+          "detail": "The canonical GenerationRow definition here (lines 11-42) has DIFFERENT field nullability annotations than the duplicate in generations.ts. For example, generationRow.ts has 'thumbnail_url?: string | null' and 'name?: string | null' while generations.ts has 'thumbnail_url?: string | null' and 'name?: string' (missing null). These subtle divergences create type-safety gaps."
+        },
+        {
+          "file": "src/shared/lib/generationTransformers.ts",
+          "detail": "Only consumer of 'from @/types/generations' import path, meaning the duplicate file has exactly one dependent. All other consumers import from the split files via shots.ts barrel."
+        }
+      ],
+      "suggestion": "Delete src/types/generations.ts entirely and update the single consumer (generationTransformers.ts) to import from the canonical split files via '@/types/shots' or the individual type files. This eliminates the drift risk between the two sets of definitions.",
+      "reasoning": "This is a classic incomplete type extraction migration. The types were correctly split into individual files and re-exported through shots.ts, but the original combined file was never deleted. The subtle nullability differences between the two GenerationRow definitions prove the drift has already begun, which can cause runtime bugs when code assumes a field is non-null based on the wrong type definition.",
+      "confidence": 0.95
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "success-toast-on-task-creation",
+      "summary": "The join-clips tool shows a success toast ('Task created') on task creation, directly violating the project's UI convention documented in CLAUDE.md: 'Toasts: errors only (no success toasts for task creation)'. Other tools (character-animate, image-generation, travel-between-images) correctly follow this convention by using inline success state instead of toasts.",
+      "related_files": [
+        "src/tools/join-clips/hooks/useJoinClipsGenerate.ts",
+        "src/tools/character-animate/hooks/useCharacterAnimateGenerate.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/tools/join-clips/hooks/useJoinClipsGenerate.ts",
+          "detail": "Lines 155-158: onSuccess handler calls toast({ title: 'Task created', description: 'Your join clips task has been queued' }). This is a non-error toast on task creation."
+        },
+        {
+          "file": "src/tools/character-animate/hooks/useCharacterAnimateGenerate.ts",
+          "detail": "Lines 59-63: onSuccess handler uses setShowSuccessState(true) with a 1500ms auto-clear instead of a toast. This is the correct pattern per CLAUDE.md conventions."
+        }
+      ],
+      "suggestion": "Remove the success toast from useJoinClipsGenerate.ts onSuccess handler. The tool already has showSuccessState/videosViewJustEnabled patterns (lines 161-162) which handle the success UX correctly.",
+      "reasoning": "The join-clips tool follows the correct pattern for every OTHER aspect of task creation (inline success state, incoming task tracking, query invalidation) but uniquely adds a success toast that violates the project convention. This was likely an oversight during initial implementation or copied from an older pattern before the convention was established.",
+      "confidence": 0.92
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "as-any-casts-in-edit-images-inline-edit-state",
+      "summary": "The useInlineEditState hook in the edit-images tool uses five 'as any' type casts to bridge shared lightbox hooks (useInpainting, useMagicEditMode, useRepositionMode, useEditSettingsSync) into the inline edit context. These casts suppress TypeScript's type checking at critical hook boundaries, hiding interface mismatches between the shared hooks and the inline edit tool.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/shared/components/MediaLightbox/hooks/index.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/tools/edit-images/hooks/useInlineEditState.ts",
+          "detail": "Line 125: '} as any) as InpaintingHookResult' - casts the useInpainting params to any to bypass type checking. Line 148: '} as any) as MagicEditHookResult' - same pattern for useMagicEditMode. Line 172: '} as any) as RepositionHookResult'. Line 221: '} as any)' for useEditSettingsSync. Line 427: 'buildImageEditValueParams(...) as any'. Each cast hides what could be a real interface contract mismatch."
+        },
+        {
+          "file": "src/tools/edit-images/hooks/useInlineEditState.ts",
+          "detail": "The hook is 442 lines long and orchestrates 10+ shared hooks through a complex composition pattern. The 'as any' casts appear specifically where the inline-edit tool passes different props than the lightbox context expects (e.g., handleExitInpaintMode is a no-op '() => {}' at line 120, suggesting the shared hook expects a different interface)."
+        }
+      ],
+      "suggestion": "Define proper interface adapters or create tool-specific hook wrappers that properly type the parameter objects. For example, create an 'InlineInpaintingParams' type that extends the shared hook's expected params type, making the contract explicit rather than casting through any. Alternatively, refactor the shared hooks to accept optional/partial parameter objects so the inline-edit tool can legally omit unused callbacks.",
+      "reasoning": "Five 'as any' casts in a single file at hook call boundaries is a strong signal of interface mismatch between the shared hooks and this consumer. The casts were likely added to ship the edit-images tool quickly without updating the shared hook interfaces. This is AI-generated debt because the pattern of 'cast everything to any and cast the result back' is characteristic of AI code generation that prioritizes compilation over type safety. Any future change to the shared hook interfaces will silently break these call sites without TypeScript catching it.",
+      "confidence": 0.88
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "training-data-helper-hardcoded-tool-id",
+      "summary": "The training-data-helper tool uses a hardcoded string 'training-data-helper' as its tool ID in settings.ts instead of using the TOOL_IDS constant from shared/lib/toolConstants.ts. Every other tool uses TOOL_IDS for its settings ID, and training-data-helper is conspicuously absent from the TOOL_IDS constant.",
+      "related_files": [
+        "src/tools/training-data-helper/settings.ts",
+        "src/shared/lib/toolConstants.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/tools/training-data-helper/settings.ts",
+          "detail": "Line 9: 'id: \"training-data-helper\"' - hardcoded string literal instead of TOOL_IDS.TRAINING_DATA_HELPER. No import of TOOL_IDS exists in this file."
+        },
+        {
+          "file": "src/shared/lib/toolConstants.ts",
+          "detail": "The TOOL_IDS constant defines IDs for all 6 other tools (TRAVEL_BETWEEN_IMAGES, IMAGE_GENERATION, JOIN_CLIPS, EDIT_VIDEO, EDIT_IMAGES, CHARACTER_ANIMATE) but has no TRAINING_DATA_HELPER entry. Similarly TOOL_ROUTES has no entry for this tool."
+        }
+      ],
+      "suggestion": "Add TRAINING_DATA_HELPER to TOOL_IDS and TOOL_ROUTES in toolConstants.ts, then update training-data-helper/settings.ts to import and use the constant. This ensures the tool ID is discoverable and consistent with all other tools.",
+      "reasoning": "This is a clear convention outlier. The TOOL_IDS constant exists specifically to be the single source of truth for tool identifiers. Having one tool bypass this pattern means the ID could silently differ if someone renames it in one place but not the other. The training-data-helper tool was likely added before the TOOL_IDS convention was established, or the constant was extracted from the other tools without including this one.",
+      "confidence": 0.95
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "useShotEditorController-god-hook",
+      "summary": "useShotEditorController is a 938-line hook that orchestrates 30+ sub-hooks, manually builds 10+ memoized domain objects, and constructs a layoutProps object with 60+ fields. Despite internal extraction of sub-hooks, the controller itself remains a single point where all state is composed, making it extremely difficult to understand data flow or modify individual features without risking breakage.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/state/types.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts",
+          "detail": "Lines 62-938: A single hook function that calls usePromptSettings, useMotionSettings, useFrameSettings, usePhaseConfigSettings, useGenerationModeSettings, useSteerableMotionSettings, useLoraSettings, useVideoTravelSettings, useShotEditorSetup, useCurrentShot, useShotNavigation, useShotCreation, useAddImageToShot, useAddImageToShotWithoutPosition, useDemoteOrphanedVariants, useStructureVideo, useStructureVideoHandlers, useAudio, useLastVideoGeneration, useUpdateShotImageOrder, useToolSettings (x2), useTimelineCore, useIsMobile, useAspectAdjustedColumns, usePanes, useShotEditorState, useLoraSync, useJoinSegmentsSetup, useOutputSelection, useSegmentOutputsForShot, useEnsureSelectedOutput, useJoinSegmentsHandler, useGenerationActions, useModeReadiness, useSteerableMotionHandlers, useNameEditing, useApplySettingsHandler, useImageManagement, useGenerateBatch, useShotEditorBridge, and useShotSettingsValue."
+        },
+        {
+          "file": "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts",
+          "detail": "Lines 855-932: The layoutProps object has 60+ fields being assembled from the various hook results, including 10 manually-constructed useMemo blocks (structureVideoMemo, structureVideoHandlersMemo, audioMemo, generationModeMemo, generationHandlersMemo, joinStateMemo, dimensionsMemo). Each memo block must manually list all dependencies, creating a maintenance burden."
+        }
+      ],
+      "suggestion": "Split useShotEditorController into domain-specific composition hooks (e.g., useShotEditorMedia, useShotEditorGeneration, useShotEditorNavigation) that each compose their sub-hooks and return a smaller typed interface. The top-level controller would then compose these 3-5 domain hooks instead of 30+ individual hooks. Alternatively, the VideoTravelSettingsProvider context pattern (already used for settings) could be extended to cover more domains, reducing the number of values that need to flow through the controller.",
+      "reasoning": "While the sub-hooks have been properly extracted (good), the controller that composes them has grown to a point where it acts as a god object. The 60+ field layoutProps interface is a strong code smell - it means the layout component (ShotEditorLayout) receives everything through a single prop bag, losing the benefit of React's component composition. The manual memo construction (10 useMemo blocks with manually-maintained dependency arrays) is error-prone and will be a source of stale-closure bugs.",
+      "confidence": 0.85
+    }
+  ]
+}

@@ -14,7 +14,7 @@ export const ImageEnhanceDetails: React.FC<TaskDetailsProps> = ({
   isMobile = false,
 }) => {
   const config = getVariantConfig(variant, isMobile, inputImages.length);
-  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
+  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
 
   // Extract enhancement settings
   const scaleFactor = typeof parsedParams?.scale_factor === 'number' ? parsedParams.scale_factor : 2;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { useUpdateShotImageOrder, useAddImageToShotWithoutPosition } from "@/shared/hooks/useShots";
 import { useShotCreation } from "@/shared/hooks/useShotCreation";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
@@ -67,8 +67,6 @@ export function useShotEditorController({
   // Callbacks
   onShotImagesUpdate,
   onBack,
-  // onPairConfigChange, // Currently unused
-  // onGenerateAllSegments, // Currently unused
   // Dimension settings (not in context yet)
   dimensionSource,
   onDimensionSourceChange,
@@ -267,7 +265,7 @@ export function useShotEditorController({
     } catch (error) {
       handleError(error, { context: 'PromptClearLog', showToast: false });
     }
-  }, [promptSettings, clearAllEnhancedPrompts]);
+  }, [promptSettings.setPrompt, clearAllEnhancedPrompts]);
 
   const isMobile = useIsMobile();
   const { isPhone, aspectAdjustedColumns } = useAspectAdjustedColumns(effectiveAspectRatio);
@@ -537,7 +535,7 @@ export function useShotEditorController({
     if (simpleFilteredImages.length > 2 && motionSettings.turboMode) {
       motionSettings.setTurboMode(false);
     }
-  }, [simpleFilteredImages.length, motionSettings]);
+  }, [simpleFilteredImages.length, motionSettings.turboMode, motionSettings.setTurboMode]);
 
   // All modes are always available - no restrictions based on image count
   // Note: Model selection is handled by useGenerateBatch hook
@@ -717,6 +715,98 @@ export function useShotEditorController({
   // ============================================================================
   // Must be called before early return (Rules of Hooks)
   // If selectedShot is undefined, we return early and this value is never used
+
+  // 🎯 PERF FIX: Memoize domain objects to prevent useShotSettingsValue's useMemo
+  // from recomputing every render. Without this, inline object literals create new
+  // references every render → context value always changes → all consumers re-render.
+  const structureVideoMemo = useMemo(() => ({
+    structureVideoPath,
+    structureVideoMetadata,
+    structureVideoTreatment,
+    structureVideoMotionStrength,
+    structureVideoType,
+    structureVideoResourceId,
+    structureVideoUni3cEndPercent,
+    isLoading: isStructureVideoSettingsLoading,
+    structureVideos,
+    addStructureVideo,
+    updateStructureVideo,
+    removeStructureVideo,
+    clearAllStructureVideos,
+    setStructureVideos,
+  }), [
+    structureVideoPath, structureVideoMetadata, structureVideoTreatment,
+    structureVideoMotionStrength, structureVideoType, structureVideoResourceId,
+    structureVideoUni3cEndPercent, isStructureVideoSettingsLoading, structureVideos,
+    addStructureVideo, updateStructureVideo, removeStructureVideo,
+    clearAllStructureVideos, setStructureVideos,
+  ]);
+
+  const structureVideoHandlersMemo = useMemo(() => ({
+    handleStructureVideoMotionStrengthChange,
+    handleStructureTypeChangeFromMotionControl,
+    handleUni3cEndPercentChange,
+    handleStructureVideoInputChange,
+  }), [
+    handleStructureVideoMotionStrengthChange, handleStructureTypeChangeFromMotionControl,
+    handleUni3cEndPercentChange, handleStructureVideoInputChange,
+  ]);
+
+  const audioMemo = useMemo(() => ({
+    audioUrl,
+    audioMetadata,
+    handleAudioChange,
+    isLoading: isAudioSettingsLoading,
+  }), [audioUrl, audioMetadata, handleAudioChange, isAudioSettingsLoading]);
+
+  const generationModeMemo = useMemo(() => ({
+    generateMode,
+    setGenerateMode,
+    toggleGenerateModePreserveScroll,
+    isGenerationDisabled,
+    isSteerableMotionEnqueuing,
+    steerableMotionJustQueued,
+    currentMotionSettings,
+    accelerated,
+    onAcceleratedChange: handleAcceleratedChange,
+    randomSeed,
+    onRandomSeedChange: handleRandomSeedChange,
+  }), [
+    generateMode, setGenerateMode, toggleGenerateModePreserveScroll,
+    isGenerationDisabled, isSteerableMotionEnqueuing, steerableMotionJustQueued,
+    currentMotionSettings, accelerated, handleAcceleratedChange,
+    randomSeed, handleRandomSeedChange,
+  ]);
+
+  const generationHandlersMemo = useMemo(() => ({
+    handleGenerateBatch,
+    handleBatchVideoPromptChangeWithClear,
+    handleStepsChange,
+    clearAllEnhancedPrompts,
+  }), [handleGenerateBatch, handleBatchVideoPromptChangeWithClear, handleStepsChange, clearAllEnhancedPrompts]);
+
+  const joinStateMemo = useMemo(() => ({
+    joinSettings,
+    joinLoraManager,
+    joinValidationData,
+    handleJoinSegments,
+    isJoiningClips,
+    joinClipsSuccess,
+    handleRestoreJoinDefaults,
+  }), [
+    joinSettings, joinLoraManager, joinValidationData,
+    handleJoinSegments, isJoiningClips, joinClipsSuccess, handleRestoreJoinDefaults,
+  ]);
+
+  const dimensionsMemo = useMemo(() => ({
+    dimensionSource,
+    onDimensionSourceChange,
+    customWidth,
+    onCustomWidthChange,
+    customHeight,
+    onCustomHeightChange,
+  }), [dimensionSource, onDimensionSourceChange, customWidth, onCustomWidthChange, customHeight, onCustomHeightChange]);
+
   const contextValue = useShotSettingsValue({
     // Core
     selectedShot: selectedShot!,
@@ -739,35 +829,10 @@ export function useShotEditorController({
     videoOutputs,
     simpleFilteredImages,
     // Structure video
-    structureVideo: {
-      structureVideoPath,
-      structureVideoMetadata,
-      structureVideoTreatment,
-      structureVideoMotionStrength,
-      structureVideoType,
-      structureVideoResourceId,
-      structureVideoUni3cEndPercent,
-      isLoading: isStructureVideoSettingsLoading,
-      structureVideos,
-      addStructureVideo,
-      updateStructureVideo,
-      removeStructureVideo,
-      clearAllStructureVideos,
-      setStructureVideos,
-    },
-    structureVideoHandlers: {
-      handleStructureVideoMotionStrengthChange,
-      handleStructureTypeChangeFromMotionControl,
-      handleUni3cEndPercentChange,
-      handleStructureVideoInputChange,
-    },
+    structureVideo: structureVideoMemo,
+    structureVideoHandlers: structureVideoHandlersMemo,
     // Audio
-    audio: {
-      audioUrl,
-      audioMetadata,
-      handleAudioChange,
-      isLoading: isAudioSettingsLoading,
-    },
+    audio: audioMemo,
     // Image handlers
     generationActions,
     handleImageReorder: handleReorderImagesInShot,
@@ -776,45 +841,13 @@ export function useShotEditorController({
     shots,
     shotActions,
     // Generation mode state
-    generationMode: {
-      generateMode,
-      setGenerateMode,
-      toggleGenerateModePreserveScroll,
-      isGenerationDisabled,
-      isSteerableMotionEnqueuing,
-      steerableMotionJustQueued,
-      currentMotionSettings,
-      accelerated,
-      onAcceleratedChange: handleAcceleratedChange,
-      randomSeed,
-      onRandomSeedChange: handleRandomSeedChange,
-    },
+    generationMode: generationModeMemo,
     // Generation handlers
-    generationHandlers: {
-      handleGenerateBatch,
-      handleBatchVideoPromptChangeWithClear,
-      handleStepsChange,
-      clearAllEnhancedPrompts,
-    },
+    generationHandlers: generationHandlersMemo,
     // Join state
-    joinState: {
-      joinSettings,
-      joinLoraManager,
-      joinValidationData,
-      handleJoinSegments,
-      isJoiningClips,
-      joinClipsSuccess,
-      handleRestoreJoinDefaults,
-    },
+    joinState: joinStateMemo,
     // Dimension settings
-    dimensions: {
-      dimensionSource,
-      onDimensionSourceChange,
-      customWidth,
-      onCustomWidthChange,
-      customHeight,
-      onCustomHeightChange,
-    },
+    dimensions: dimensionsMemo,
     // Query client
     queryClient,
   });

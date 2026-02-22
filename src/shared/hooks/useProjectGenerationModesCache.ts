@@ -9,6 +9,7 @@ import {
   type GenerationModeNormalized
 } from '@/shared/lib/settingsResolution';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 
 /**
  * Project-wide generation modes cache
@@ -127,11 +128,11 @@ export function useProjectGenerationModesCache(projectId: string | null, options
   const queryClient = useQueryClient();
   
   // 🎯 SMART POLLING: Use DataFreshnessManager for intelligent polling decisions
-  const smartPollingConfig = useSmartPollingConfig(['project-generation-modes', projectId ?? '__no-project__']);
+  const smartPollingConfig = useSmartPollingConfig(settingsQueryKeys.generationModes(projectId ?? '__no-project__'));
   
   // Query to fetch all shot generation modes for the project
   const { data: projectModes, isLoading, error, refetch } = useQuery<Map<string, GenerationModeNormalized>>({
-    queryKey: ['project-generation-modes', projectId],
+    queryKey: settingsQueryKeys.generationModes(projectId!),
     queryFn: () => fetchProjectGenerationModesFromDB(projectId!),
     enabled: !!projectId && enabled,
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -141,48 +142,50 @@ export function useProjectGenerationModesCache(projectId: string | null, options
     refetchIntervalInBackground: true, // Enable background polling
   });
   
+  // PERF: Ref for projectModes so callbacks always read latest without needing it in deps.
+  // Maps break React Query's structural sharing → projectModes is a new reference on every
+  // refetch → callbacks with projectModes in deps are recreated → break React.memo on children.
+  const projectModesRef = useRef(projectModes);
+  projectModesRef.current = projectModes;
+
   // Update cache when data changes
   React.useEffect(() => {
     if (projectModes && projectId) {
       cacheRef.current.setProjectModes(projectId, projectModes);
     }
   }, [projectModes, projectId]);
-  
+
   const getShotGenerationMode = useCallback((shotId: string | null, isMobile: boolean = false): GenerationModeNormalized | null => {
     // Mobile always uses batch mode
     if (isMobile) {
       return 'batch';
     }
-    
+
     if (!projectId || !shotId) return null;
-    
+
     // First try cache
     const cachedMode = cacheRef.current.getShotMode(projectId, shotId);
     if (cachedMode !== null) {
       return cachedMode;
     }
-    
+
     // Then try current query data
-    if (projectModes) {
-      const value = projectModes.get(shotId);
-      return value !== undefined ? value : null;
-    }
-    
-    return null;
-  }, [projectId, projectModes]);
-  
+    const value = projectModesRef.current?.get(shotId);
+    return value !== undefined ? value : null;
+  }, [projectId]);
+
   const getAllShotModes = useCallback((): Map<string, GenerationModeNormalized> | null => {
     if (!projectId) return null;
-    
+
     // First try cache
     const cachedModes = cacheRef.current.getProjectModes(projectId);
     if (cachedModes) {
       return cachedModes;
     }
-    
+
     // Then try current query data
-    return projectModes || null;
-  }, [projectId, projectModes]);
+    return projectModesRef.current || null;
+  }, [projectId]);
   
   const clearCache = useCallback((): void => {
     cacheRef.current.clear();
@@ -211,7 +214,7 @@ export function useProjectGenerationModesCache(projectId: string | null, options
     // CRITICAL: Also update React Query cache so it persists across re-renders
     // The previous code created updatedModes but never saved it!
     queryClient.setQueryData<Map<string, GenerationModeNormalized>>(
-      ['project-generation-modes', projectId],
+      settingsQueryKeys.generationModes(projectId!),
       (oldData) => {
         if (!oldData) return oldData;
         const newData = new Map(oldData);

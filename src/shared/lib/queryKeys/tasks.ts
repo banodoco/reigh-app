@@ -17,6 +17,8 @@ export const taskQueryKeys = {
   activeJoinClips: (shotId: string) => ['active-join-clips-task', shotId] as const,
   allTypes: ['all-task-types'] as const,
   typesConfig: ['task-types-config'] as const,
+  typesConfigAll: ['task-types-config', 'all'] as const,
   type: (typeId: string) => ['task-type', typeId] as const,
   types: ['task-types'] as const,
+  log: (limit: number, page: number, filters: unknown) => ['task-log', limit, page, filters] as const,
 } as const;

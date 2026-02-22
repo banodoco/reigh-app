@@ -12,7 +12,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
@@ -91,7 +91,7 @@ export function useSegmentMutations({
         // Save
         const { error: updateError } = await supabase
           .from('shot_generations')
-          .update({ metadata: newMetadata as unknown as Json })
+          .update({ metadata: toJson(newMetadata) })
           .eq('id', pairShotGenerationId);
 
         if (updateError) {

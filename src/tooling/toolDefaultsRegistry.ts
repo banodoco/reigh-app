@@ -1,9 +1,9 @@
 import { videoTravelSettings } from '@/tools/travel-between-images/settings';
 import { imageGenerationSettings } from '@/tools/image-generation/settings';
 import { characterAnimateSettings } from '@/tools/character-animate/settings';
-import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
+import { joinClipsSettings } from '@/tools/join-clips/settings';
 import { editImagesSettings } from '@/tools/edit-images/settings';
-import { editVideoSettings } from '@/shared/lib/editVideoDefaults';
+import { editVideoSettings } from '@/tools/edit-video/settings';
 import { trainingDataHelperSettings } from '@/tools/training-data-helper/settings';
 import { userPreferencesSettings } from '@/shared/settings/userPreferences';
 

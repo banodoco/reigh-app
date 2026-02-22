@@ -1,17 +1,12 @@
 // Types
 export type {
-  StructureGuidanceConfig,
   StructureVideoConfig,
   StructureVideoConfigWithMetadata,
-  VideoMotionApiParams,
-  VideoModelApiParams,
-  VideoPromptApiParams,
   PromptConfig,
   MotionConfig,
   ModelConfig,
   TravelBetweenImagesTaskParams,
   StitchConfig,
-  TravelBetweenImagesTaskResult,
 } from './types';
 
 // convertLegacyStructureType is internal - import from types.ts if needed externally

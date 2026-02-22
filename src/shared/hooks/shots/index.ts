@@ -10,7 +10,6 @@
 
 // Mappers
 export { mapShotGenerationToRow } from './mappers';
-export type { ShotGenerationRow } from './mappers';
 
 // Shot CRUD operations
 export {

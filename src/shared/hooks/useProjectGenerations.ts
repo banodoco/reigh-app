@@ -451,17 +451,8 @@ export function useProjectGenerations(
   return result;
 }
 
-// ===== MUTATIONS (re-exported from useGenerationMutations.ts) =====
+// ===== MUTATIONS =====
+// These hooks live in useGenerationMutations.ts — import directly from there.
 
-export {
-  useDeleteGeneration,
-  useDeleteVariant,
-  useUpdateGenerationLocation,
-  useCreateGeneration,
-  useToggleGenerationStar,
-} from './useGenerationMutations';
-
-// ===== DERIVED ITEMS (re-exported from useDerivedItems.ts) =====
-
-/** @deprecated Import from '@/shared/hooks/useDerivedItems' instead */
-export { type DerivedItem, useDerivedItems } from './useDerivedItems';
+// ===== DERIVED ITEMS =====
+// DerivedItem and useDerivedItems live in useDerivedItems.ts — import directly from there.

@@ -49,7 +49,7 @@ describe('useShotNavigation', () => {
     expect(typeof result.current.navigateToPreviousShot).toBe('function');
   });
 
-  it('navigateToShot sets current shot and navigates', () => {
+  it('navigateToShot navigates without eagerly setting currentShotId', () => {
     const { result } = renderHook(() => useShotNavigation());
     const shot = makeShot('shot-1');
 
@@ -57,7 +57,9 @@ describe('useShotNavigation', () => {
       result.current.navigateToShot(shot);
     });
 
-    expect(mockSetCurrentShotId).toHaveBeenCalledWith('shot-1');
+    // Should NOT call setCurrentShotId — the hash drives resolution,
+    // and eager setCurrentShotId causes a race with navigate().
+    expect(mockSetCurrentShotId).not.toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith(
       '/travel#shot=shot-1',
       expect.objectContaining({
@@ -87,7 +89,8 @@ describe('useShotNavigation', () => {
     });
 
     expect(success!).toBe(true);
-    expect(mockSetCurrentShotId).toHaveBeenCalledWith('s2');
+    // navigateToShot does not eagerly set currentShotId (hash drives it)
+    expect(mockSetCurrentShotId).not.toHaveBeenCalled();
   });
 
   it('navigateToNextShot returns false when at end', () => {
@@ -112,7 +115,8 @@ describe('useShotNavigation', () => {
     });
 
     expect(success!).toBe(true);
-    expect(mockSetCurrentShotId).toHaveBeenCalledWith('s2');
+    // navigateToShot does not eagerly set currentShotId (hash drives it)
+    expect(mockSetCurrentShotId).not.toHaveBeenCalled();
   });
 
   it('navigateToPreviousShot returns false when at start', () => {

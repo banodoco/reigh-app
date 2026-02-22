@@ -1,6 +1,6 @@
-export type SettingsInvalidationScope = 'tool' | 'segment' | 'user' | 'pair' | 'all';
+type SettingsInvalidationScope = 'tool' | 'segment' | 'user' | 'pair' | 'all';
 
-export interface SettingsInvalidationOptions {
+interface SettingsInvalidationOptions {
   scope: SettingsInvalidationScope;
   reason: string;
   toolId?: string;

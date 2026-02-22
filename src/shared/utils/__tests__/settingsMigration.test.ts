@@ -130,12 +130,12 @@ describe('readSegmentOverrides', () => {
     const result = readSegmentOverrides({
       segmentOverrides: {
         structureMotionStrength: 0.8,
-        structureTreatment: 'custom',
+        structureTreatment: 'adjust',
         structureUni3cEndPercent: 50,
       },
     });
     expect(result.structureMotionStrength).toBe(0.8);
-    expect(result.structureTreatment).toBe('custom');
+    expect(result.structureTreatment).toBe('adjust');
     expect(result.structureUni3cEndPercent).toBe(50);
   });
 });

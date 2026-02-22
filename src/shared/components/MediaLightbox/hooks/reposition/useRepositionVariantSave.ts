@@ -10,7 +10,7 @@ import type { GenerationRow } from '@/types/shots';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 
 /** Extended media fields that may be present at runtime from gallery/query layer */
 interface MediaWithShotFields {
@@ -165,14 +165,14 @@ export function useRepositionVariantSave({
 
       if (createAsGeneration) {
         // Create a new generation with based_on pointing to the source
-        const generationParams = {
+        const generationParams = toJson({
           // Note: transform is baked into the image, we only save it for historical reference
           transform_applied: transform,
           saved_at: new Date().toISOString(),
           tool_type: toolTypeOverride || TOOL_IDS.EDIT_IMAGES,
           repositioned_from: actualGenerationId,
           ...(activeVariantId ? { source_variant_id: activeVariantId } : {}),
-        } as unknown as Json;
+        });
 
         const { data: insertedGeneration, error: genError } = await supabase
           .from('generations')
@@ -221,13 +221,13 @@ export function useRepositionVariantSave({
             is_primary: true,
             variant_type: 'repositioned',
             name: 'Repositioned',
-            params: {
+            params: toJson({
               // Note: transform is baked into the image, we only save it for historical reference
               transform_applied: transform,
               saved_at: new Date().toISOString(),
               tool_type: toolTypeOverride || TOOL_IDS.EDIT_IMAGES,
               ...(activeVariantId ? { source_variant_id: activeVariantId } : {}),
-            } as unknown as Json
+            })
           })
           .select('id')
           .single();

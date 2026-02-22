@@ -1,3 +1,5 @@
+import { TOOL_IDS } from '@/shared/lib/toolConstants';
+
 interface TrainingDataHelperSettings {
   // Basic settings for the tool
   autoPlaySegments: boolean;
@@ -6,7 +8,7 @@ interface TrainingDataHelperSettings {
 }
 
 export const trainingDataHelperSettings = {
-  id: 'training-data-helper',
+  id: TOOL_IDS.TRAINING_DATA_HELPER,
   scope: ['user'] as const,
   defaults: {
     autoPlaySegments: true,

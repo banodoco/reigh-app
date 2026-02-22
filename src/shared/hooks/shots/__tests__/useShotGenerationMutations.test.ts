@@ -225,7 +225,15 @@ describe('useRemoveImageFromShot', () => {
         eq: vi.fn().mockResolvedValue({ error: null }),
       }),
     });
-    mockRpc.mockResolvedValue({ error: null });
+    mockRpc.mockReturnValue({
+      abortSignal: vi.fn().mockResolvedValue({
+        data: [
+          { shot_generation_id: 'sg-2', timeline_frame: 0 },
+          { shot_generation_id: 'sg-3', timeline_frame: 50 },
+        ],
+        error: null,
+      }),
+    });
 
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useRemoveImageFromShot(), { wrapper });

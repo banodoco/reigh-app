@@ -8,7 +8,7 @@ import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 
 interface HeaderProps {
   selectedShot: Shot;
@@ -106,10 +106,10 @@ const HeaderComponent: React.FC<HeaderProps> = ({
           .from('shots')
           .update({
             aspect_ratio: newAspectRatio,
-            settings: {
+            settings: toJson({
               ...currentSettings,
               [TOOL_IDS.TRAVEL_BETWEEN_IMAGES]: updatedTravelSettings
-            } as unknown as Json
+            })
           })
           .eq('id', selectedShot.id);
         

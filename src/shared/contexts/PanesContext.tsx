@@ -2,9 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useIsMobile, useIsTablet } from '@/shared/hooks/use-mobile';
 import { PANE_CONFIG } from '@/shared/config/panes';
-import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 interface PanesContextType {
   isGenerationsPaneLocked: boolean;
@@ -142,6 +139,8 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [savePaneLocks, isSmallMobile, isMobile, isTablet]
   );
 
+  // Each call to createPaneLockSetter returns a NEW closure, so we must memoize
+  // to keep stable references in the context value.
   const setIsGenerationsPaneLocked = useMemo(() => createPaneLockSetter('gens'), [createPaneLockSetter]);
   const setIsShotsPaneLocked = useMemo(() => createPaneLockSetter('shots'), [createPaneLockSetter]);
   const setIsTasksPaneLocked = useMemo(() => createPaneLockSetter('tasks'), [createPaneLockSetter]);
@@ -158,31 +157,11 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [isSmallMobile]);
 
-  // Reset all pane locks immediately (used by ProductTour)
-  // This updates local state, useUserUIState value, and database without debounce
-  const resetAllPaneLocks = useCallback(async () => {
+  // Reset all pane locks (used by ProductTour)
+  const resetAllPaneLocks = useCallback(() => {
     const unlockedState = { shots: false, tasks: false, gens: false };
-
-    // Update local locks state immediately
     setLocks(unlockedState);
-
-    // Update the useUserUIState local value (prevents sync effect from restoring old value)
     savePaneLocks(unlockedState);
-
-    // Also save to database immediately (no debounce) for reliability
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await updateToolSettingsSupabase({
-          scope: 'user',
-          id: user.id,
-          toolId: 'ui',
-          patch: { paneLocks: unlockedState },
-        }, undefined, 'immediate');
-      }
-    } catch (error) {
-      handleError(error, { context: 'PanesContext', showToast: false });
-    }
   }, [savePaneLocks]);
 
   // Dimension setters

@@ -13,8 +13,6 @@ import {
 } from './sourceImageChanges/helpers';
 import { fetchSourceSlotData } from './sourceImageChanges/dataAccess';
 
-export type { SegmentSourceInfo, SourceMismatchInfo } from './sourceImageChanges/helpers';
-
 export function useSourceImageChanges(
   segments: SegmentSourceInfo[],
   enabled: boolean = true,

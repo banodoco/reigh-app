@@ -159,7 +159,6 @@ export function useProjectCRUD({
   const fetchProjects = useCallback(async () => {
     try {
       if (!userId) throw new Error('Not authenticated');
-      console.log('[ProjectCRUD] fetchProjects called, userId:', userId);
       const user = { id: userId };
 
       await ensureUserRecord(user.id);
@@ -192,7 +191,6 @@ export function useProjectCRUD({
         onProjectsLoaded([mappedProject], true);
       } else {
         const mappedProjects = projectsData.map(mapDbProjectToProject);
-        console.log('[ProjectCRUD] projects loaded:', mappedProjects.length, 'projects');
         setProjects(mappedProjects);
         onProjectsLoaded(mappedProjects, false);
       }

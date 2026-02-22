@@ -14,7 +14,7 @@
  * @see useShotSettings.ts - Settings management hook
  */
 
-import { useCallback, useRef, MutableRefObject } from 'react';
+import { useCallback, useMemo, useRef, MutableRefObject } from 'react';
 import { Shot } from '@/types/shots';
 import { VideoTravelSettings, PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '../settings';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID } from '../components/MotionControl';
@@ -413,7 +413,10 @@ export const useVideoTravelSettingsHandlers = ({
     });
   }, [shotSettingsRef, rebuildPhaseConfig]);
 
-  return {
+  // Memoize return to prevent object recreation on every render.
+  // This object is used as a dependency in VideoTravelSettingsProvider's context useMemo.
+  // Without memoization, the context value changes every render → all consumers re-render.
+  return useMemo(() => ({
     noOpCallback,
     handleVideoControlModeChange,
     handlePairConfigChange,
@@ -437,5 +440,29 @@ export const useVideoTravelSettingsHandlers = ({
     handleRestoreDefaults,
     handleGenerationModeChange,
     handleSelectedLorasChange,
-  };
+  }), [
+    noOpCallback,
+    handleVideoControlModeChange,
+    handlePairConfigChange,
+    handleBatchVideoPromptChange,
+    handleNegativePromptChange,
+    handleBatchVideoFramesChange,
+    handleBatchVideoStepsChange,
+    handleTextBeforePromptsChange,
+    handleTextAfterPromptsChange,
+    handleBlurSave,
+    handleEnhancePromptChange,
+    handleTurboModeChange,
+    handleSmoothContinuationsChange,
+    handleAmountOfMotionChange,
+    handleMotionModeChange,
+    handleGenerationTypeModeChange,
+    handleSteerableMotionSettingsChange,
+    handlePhaseConfigChange,
+    handlePhasePresetSelect,
+    handlePhasePresetRemove,
+    handleRestoreDefaults,
+    handleGenerationModeChange,
+    handleSelectedLorasChange,
+  ]);
 };

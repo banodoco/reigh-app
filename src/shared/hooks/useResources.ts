@@ -5,6 +5,7 @@ import type { LoraModel } from '@/shared/types/lora';
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database, Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
 import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';
 import { resourceQueryKeys } from '@/shared/lib/queryKeys/resources';
@@ -107,7 +108,7 @@ function mapResourceRow(row: ResourceRow, fallbackType?: ResourceType): Resource
 // List public resources (available to all users)
 export const useListPublicResources = (type: ResourceType) => {
     return useQuery<Resource[], Error>({
-        queryKey: [...resourceQueryKeys.public(type), 'v2'],
+        queryKey: resourceQueryKeys.publicByType(type),
         queryFn: async () => {
             
             // Manual pagination to bypass 1000 limit
@@ -159,7 +160,7 @@ export const useListPublicResources = (type: ResourceType) => {
 export const useListResources = (type: ResourceType) => {
     return useQuery<Resource[], Error>({
         // Note: Using ['resources', type] pattern for user resources (no projectId needed)
-        queryKey: [...resourceQueryKeys.all, type, 'v2'],
+        queryKey: resourceQueryKeys.listByType(type),
         queryFn: async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
@@ -222,7 +223,7 @@ export const useCreateResource = () => {
                 .from('resources')
                     .insert({
                         type,
-                        metadata: metadata as unknown as Json,
+                        metadata: toJson(metadata),
                         user_id: user.id,
                         is_public: isPublic
                     })
@@ -302,7 +303,7 @@ export const useUpdateResource = () => {
             // Now perform the update
             const { data, error } = await supabase
                 .from('resources')
-                .update({ metadata: metadata as unknown as Json, is_public: isPublic })
+                .update({ metadata: toJson(metadata), is_public: isPublic })
                 .eq('id', id)
                 .eq('user_id', user.id)
                 .select()
@@ -337,10 +338,7 @@ export const useUpdateResource = () => {
             return mapResourceRow(data, existingResource.type as ResourceType);
         },
         onSuccess: (data) => {
-            // Invalidate both v2 query keys to ensure fresh data
-            queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.all, data.type, 'v2'] });
-            queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.public(data.type), 'v2'] });
-            // Also invalidate without v2 for backwards compatibility
+            // Prefix invalidation: ['resources', type] prefix-matches ['resources', type, 'v2']
             queryClient.invalidateQueries({ queryKey: [...resourceQueryKeys.all, data.type] });
             queryClient.invalidateQueries({ queryKey: resourceQueryKeys.public(data.type) });
             // Invalidate specific-resources queries that include this resource ID

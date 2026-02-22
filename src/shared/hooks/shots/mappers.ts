@@ -8,7 +8,7 @@ import { GenerationRow } from '@/types/shots';
 /**
  * Row type for shot_generations table entries.
  */
-export interface ShotGenerationRow {
+interface ShotGenerationRow {
   id: string;
   generation_id: string;
   timeline_frame: number;

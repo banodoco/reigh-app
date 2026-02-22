@@ -15,6 +15,12 @@ export interface HandleErrorOptions {
   onError?: (error: AppError) => void;
 }
 
+/**
+ * Normalize, log, and optionally toast an error.
+ *
+ * @returns The normalized AppError — use when you need the error for
+ * conditional handling or chaining. Safe to ignore for fire-and-forget usage.
+ */
 export function handleError(error: unknown, options: HandleErrorOptions): AppError {
   const { context, logData, toastTitle, showToast, onError } = options;
   const appError = normalizeAppError(error, { context, logData });

@@ -15,7 +15,4 @@
 export {
   useSegmentSettings,
   type UseSegmentSettingsOptions,
-  type UseSegmentSettingsReturn,
-  type FieldOverrides,
-  type ShotDefaults,
 } from './segments';

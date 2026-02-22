@@ -27,7 +27,7 @@ export function getLoraTypeForModel(model: TextToImageModel): string {
   return TEXT_TO_IMAGE_MODELS.find(m => m.id === model)?.loraType ?? 'Qwen Image';
 }
 
-export interface MetadataLora {
+interface MetadataLora {
   id: string;
   name: string;
   path: string;
@@ -192,7 +192,7 @@ export type { ActiveLora } from "@/shared/components/ActiveLoRAsDisplay";
 // ============================================================================
 // Re-export API types from shared (single source of truth)
 // ============================================================================
-export type { ReferenceApiParams, HiresFixApiParams, ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
+export type { ReferenceApiParams, ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
 
 
 // ============================================================================

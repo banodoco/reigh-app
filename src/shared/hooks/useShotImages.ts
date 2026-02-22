@@ -108,7 +108,11 @@ const useAllShotGenerations = (
     // Use realtimeBacked preset - data freshness from realtime + mutations
     // (invalidated by RealtimeProvider + useGenerationInvalidation)
     ...QUERY_PRESETS.realtimeBacked,
-    staleTime: 0, // CRITICAL: Always refetch from DB when opening shot, even if primed
+    // realtimeBacked provides staleTime: 30_000 — don't override to 0.
+    // staleTime: 0 makes the query perpetually stale, which combined with React Query's
+    // observer.setOptions() running every render causes a fetch→render→fetch loop.
+    // refetchOnMount: 'always' ensures fresh data when opening a shot without the loop.
+    refetchOnMount: 'always',
     retry: STANDARD_RETRY,
     // NOTE: Removed placeholderData: (previousData) => previousData
     // This was causing cross-shot data leakage - when navigating to a new shot,

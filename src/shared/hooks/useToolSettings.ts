@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,9 +32,19 @@ interface UpdateToolSettingsParams {
  *
  * @internal Use updateToolSettingsSupabase (queued) for normal usage
  */
+async function fetchSettingsForScope(scope: SettingsScope, id: string) {
+  switch (scope) {
+    case 'user':
+      return supabase.from('users').select('settings').eq('id', id).single();
+    case 'project':
+      return supabase.from('projects').select('settings').eq('id', id).single();
+    case 'shot':
+      return supabase.from('shots').select('settings').eq('id', id).single();
+  }
+}
+
 async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string, unknown>> {
   const { scope, entityId: id, toolId, patch } = write;
-  const supabaseAny = supabase as any;
 
   try {
     let tableName: string;
@@ -55,11 +65,7 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
     // For patch updates, we need to fetch current settings to merge
     // This is necessary because the caller provides a partial update
     // TODO: In the future, consider passing full settings to eliminate this fetch
-    const { data: currentEntity, error: fetchError } = await supabaseAny
-      .from(tableName)
-      .select('settings')
-      .eq('id', id)
-      .single();
+    const { data: currentEntity, error: fetchError } = await fetchSettingsForScope(scope, id);
 
     if (fetchError) {
       // Check for network exhaustion - include the error type in the message for downstream handling
@@ -180,6 +186,88 @@ export function updateSettingsCache<T extends Record<string, unknown>>(
   };
 }
 
+// ============================================================================
+// Query retry helper
+// ============================================================================
+
+/** Determines whether a failed settings query should be retried. */
+function shouldRetrySettingsQuery(failureCount: number, error: Error): boolean {
+  // Don't retry auth errors, cancelled requests, or abort errors
+  if (error?.message?.includes('Authentication required') ||
+      error?.message?.includes('Request was cancelled') ||
+      error?.name === 'AbortError' ||
+      error?.message?.includes('signal is aborted')) {
+    return false;
+  }
+  // Don't retry on network exhaustion - retrying just makes it worse
+  if (error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
+      error?.message?.includes('Network exhaustion')) {
+    return false;
+  }
+  return failureCount < 3;
+}
+
+// ============================================================================
+// Mutation success/error helpers
+// ============================================================================
+
+/** Merge mutation result into query cache and refetch related caches. */
+function handleMutationSuccess(
+  fullMergedSettings: Record<string, unknown> | null,
+  toolId: string,
+  projectId: string | undefined,
+  shotId: string | undefined,
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  if (fullMergedSettings === null) return;
+
+  queryClient.setQueryData(
+    queryKeys.settings.tool(toolId, projectId, shotId),
+    (oldData: unknown) => {
+      const oldWrapper = isSettingsWrapper(oldData);
+      const oldSettings = oldWrapper
+        ? (((oldData as SettingsFetchResult).settings ?? {}) as Record<string, unknown>)
+        : ((oldData ?? {}) as Record<string, unknown>);
+      const mergedSettings = deepMerge({}, oldSettings, fullMergedSettings);
+
+      return {
+        settings: mergedSettings,
+        hasShotSettings: oldWrapper ? ((oldData as SettingsFetchResult).hasShotSettings ?? false) : false
+      };
+    }
+  );
+
+  if (shotId) {
+    queryClient.refetchQueries({ queryKey: queryKeys.shots.batchSettings(shotId) });
+  }
+}
+
+/** Log/toast mutation errors and invalidate cache for non-network failures. */
+function handleMutationError(
+  error: Error,
+  toolId: string,
+  projectId: string | undefined,
+  shotId: string | undefined,
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  if (error?.name === 'AbortError' ||
+      error?.message?.includes('Request was cancelled') ||
+      error?.message?.includes('signal is aborted')) {
+    return;
+  }
+
+  const isNetworkExhaustion = error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
+                               error?.message?.includes('Network exhaustion') ||
+                               error?.message?.includes('Failed to fetch');
+  if (isNetworkExhaustion) return;
+
+  handleError(error, { context: 'useToolSettings.update', toastTitle: `Failed to save ${toolId} settings` });
+
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.settings.tool(toolId, projectId, shotId)
+  });
+}
+
 // Type overloads
 export function useToolSettings<T>(toolId: string, context?: { projectId?: string; shotId?: string; enabled?: boolean }): {
   settings: T | undefined;
@@ -249,8 +337,6 @@ export function useToolSettings<T>(
         const result = await fetchToolSettingsSupabase(toolId, { projectId, shotId }, signal);
         return result;
       } catch (err: unknown) {
-        // For cancelled requests, throw a specific error that retry logic handles
-        // (React Query doesn't allow returning undefined from query functions)
         if (isCancellationError(err)) {
           throw new Error('Request was cancelled');
         }
@@ -258,26 +344,9 @@ export function useToolSettings<T>(
       }
     },
     enabled: !!toolId && fetchEnabled,
-    // Use static preset - tool settings rarely change, mutation invalidates on save
     ...QUERY_PRESETS.static,
-    staleTime: 10 * 60 * 1000, // Override: 10 minutes (longer than static default)
-    // Mobile-specific optimizations
-    retry: (failureCount, error) => {
-      // Don't retry auth errors, cancelled requests, or abort errors
-      if (error?.message?.includes('Authentication required') ||
-          error?.message?.includes('Request was cancelled') ||
-          error?.name === 'AbortError' ||
-          error?.message?.includes('signal is aborted')) {
-        return false;
-      }
-      // Don't retry on network exhaustion - retrying just makes it worse
-      if (error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
-          error?.message?.includes('Network exhaustion')) {
-        return false;
-      }
-      // Retry up to 3 times for network errors on mobile
-      return failureCount < 3;
-    },
+    staleTime: 10 * 60 * 1000,
+    retry: shouldRetrySettingsQuery,
     retryDelay: STANDARD_RETRY_DELAY,
     networkMode: 'online',
   });
@@ -300,19 +369,13 @@ export function useToolSettings<T>(
       signal?: AbortSignal;
       entityId?: string;
     }) => {
-      // Prefer explicitly provided entityId (snapshotted at schedule time) to avoid drift
       let idForScope: string | undefined = entityId;
 
       if (!idForScope) {
         if (scope === 'user') {
-          // Get userId from auth for user scope with timeout protection (aligned with global timeout)
-          // Use generous timeout for mobile networks
           const { data: { user } } = await getUserWithTimeout();
           idForScope = user?.id;
-          // Gracefully skip if user is not authenticated (e.g., on public share pages)
-          if (!idForScope) {
-            return null;
-          }
+          if (!idForScope) return null;
         } else if (scope === 'project') {
           idForScope = projectId;
         } else if (scope === 'shot') {
@@ -321,11 +384,9 @@ export function useToolSettings<T>(
       }
 
       if (!idForScope) {
-        // For project/shot scope, still throw if missing (these are programming errors)
         throw new Error(`Missing identifier for ${scope} tool settings update`);
       }
 
-      // updateToolSettingsSupabase now returns the full merged settings
       const fullMergedSettings = await updateToolSettingsSupabase({
           scope,
           id: idForScope,
@@ -333,65 +394,13 @@ export function useToolSettings<T>(
           patch: newSettings,
       }, signal);
 
-      // Return the full merged settings (not just the patch) for cache update
       return fullMergedSettings;
     },
     onSuccess: (fullMergedSettings) => {
-      // Skip cache update if mutation was skipped (e.g., user not authenticated)
-      if (fullMergedSettings === null) {
-        return;
-      }
-
-      // Optimistically update the cache by merging with existing cache
-      // CRITICAL: The cache stores { settings: T, hasShotSettings: boolean } shape
-      queryClient.setQueryData(
-        queryKeys.settings.tool(toolId, projectId, shotId),
-        (oldData: unknown) => {
-          const oldWrapper = isSettingsWrapper(oldData);
-          const oldSettings = oldWrapper
-            ? (((oldData as SettingsFetchResult).settings ?? {}) as Record<string, unknown>)
-            : ((oldData ?? {}) as Record<string, unknown>);
-          const mergedSettings = deepMerge({}, oldSettings, fullMergedSettings);
-
-          return {
-            settings: mergedSettings,
-            hasShotSettings: oldWrapper ? ((oldData as SettingsFetchResult).hasShotSettings ?? false) : false
-          };
-        }
-      );
-
-      // Also refetch shot-batch-settings cache used by useSegmentSettings
-      // This ensures "restore defaults" in segment settings picks up latest shot settings
-      // Use refetchQueries (not just invalidate) to force immediate update
-      if (shotId) {
-        queryClient.refetchQueries({ queryKey: queryKeys.shots.batchSettings(shotId) });
-      }
+      handleMutationSuccess(fullMergedSettings, toolId, projectId, shotId, queryClient);
     },
     onError: (error: Error) => {
-      // Don't log or show errors for cancelled requests during task cancellation
-      if (error?.name === 'AbortError' ||
-          error?.message?.includes('Request was cancelled') ||
-          error?.message?.includes('signal is aborted')) {
-        return; // Silent handling for expected cancellations
-      }
-
-      // Check if this is a network exhaustion error - don't invalidate or show toast
-      // as this would just create more requests and spam the user
-      const isNetworkExhaustion = error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
-                                   error?.message?.includes('Network exhaustion') ||
-                                   error?.message?.includes('Failed to fetch');
-
-      if (isNetworkExhaustion) {
-        return; // Don't invalidate - that would just make more requests
-      }
-
-      handleError(error, { context: 'useToolSettings.update', toastTitle: `Failed to save ${toolId} settings` });
-
-      // On error, invalidate to refetch correct state from server
-      // But only for non-network errors (auth issues, server errors, etc.)
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.settings.tool(toolId, projectId, shotId)
-      });
+      handleMutationError(error, toolId, projectId, shotId, queryClient);
     },
   });
 
@@ -432,12 +441,12 @@ export function useToolSettings<T>(
     }
   }, []); // Empty deps - all values accessed via refs for stability
 
-  return {
+  return useMemo(() => ({
     settings: settings as T | undefined,
     isLoading,
     error: error as Error | null,
     update,
     isUpdating: updateMutation.isPending,
     hasShotSettings,
-  };
+  }), [settings, isLoading, error, update, updateMutation.isPending, hasShotSettings]);
 }

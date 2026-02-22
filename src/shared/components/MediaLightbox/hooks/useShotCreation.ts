@@ -13,7 +13,7 @@ interface UseShotCreationProps {
   onShotChange?: (shotId: string) => void;
 }
 
-export interface UseShotCreationReturn {
+interface UseShotCreationReturn {
   isCreatingShot: boolean;
   quickCreateSuccess: QuickCreateSuccess;
   handleQuickCreateAndAdd: () => Promise<void>;

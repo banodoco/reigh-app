@@ -85,14 +85,19 @@ export function VideoTravelContent({
   );
 }
 
-export function useScrollToTopOnHashExit(hash: string) {
+export function useScrollToTopOnHashChange(hash: string) {
   const prevHashRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     const hasHash = hash && hash.length > 1;
     const hadHash = prevHashRef.current !== null && prevHashRef.current.length > 1;
+    const isFirstRender = prevHashRef.current === null;
 
-    if (!hasHash && (prevHashRef.current === null || hadHash)) {
+    // Scroll to top when toggling between shot list (no hash) and editor (hash).
+    // useLayoutEffect fires synchronously after DOM commit, before paint — so
+    // the editor is already in the DOM but hasn't been painted yet.
+    // Does NOT fire for hash→hash changes (chevron navigation handles its own scroll).
+    if ((isFirstRender && !hasHash) || (!isFirstRender && hasHash !== hadHash)) {
       window.scrollTo(0, 0);
       window.dispatchEvent(new CustomEvent('app:scrollToTop', { detail: { behavior: 'auto' } }));
     }
@@ -156,10 +161,16 @@ export function useResetShotOnMount(
   currentShotId: string | null,
   setCurrentShotId: (shotId: string | null) => void,
 ) {
+  // Clear stale currentShotId on mount (e.g. navigating back to the travel page
+  // from another tool when currentShotId is still set from a previous visit).
+  // Uses initial values via ref so it only evaluates once on mount.
+  const initialRef = useRef({ hash, viaShotClick, currentShotId });
+
   useEffect(() => {
-    const hasHashShotId = !!hash?.replace('#', '');
-    if (!viaShotClick && !hasHashShotId && currentShotId) {
+    const { hash: h, viaShotClick: v, currentShotId: c } = initialRef.current;
+    const hasHashShotId = !!h?.replace('#', '');
+    if (!v && !hasHashShotId && c) {
       setCurrentShotId(null);
     }
-  }, [currentShotId, hash, setCurrentShotId, viaShotClick]);
+  }, [setCurrentShotId]);
 }

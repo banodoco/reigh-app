@@ -10,7 +10,7 @@
  * - Join LoRA manager interface
  */
 
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useRef, useState } from 'react';
 import { useJoinSegmentsSettings, JoinSegmentsSettings } from '../../../hooks/useJoinSegmentsSettings';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal/types';
@@ -141,10 +141,17 @@ export function useJoinSegmentsSetup({
     stitchAfterGenerate,
   } = joinSettings.settings;
 
+  // Destructure stable function references from joinSettings
+  const { updateField: joinUpdateField, updateFields: joinUpdateFields } = joinSettings;
+
+  // Ref for joinSelectedLoras so lora manager handlers always read latest at call time
+  const joinSelectedLorasRef = useRef(joinSelectedLoras);
+  joinSelectedLorasRef.current = joinSelectedLoras;
+
   // Setter for generate mode (persisted)
   const setGenerateMode = useCallback((mode: 'batch' | 'join') => {
-    joinSettings.updateField('generateMode', mode);
-  }, [joinSettings]);
+    joinUpdateField('generateMode', mode);
+  }, [joinUpdateField]);
 
   // Toggle mode while preserving scroll position (prevents page jump when form height changes)
   const toggleGenerateModePreserveScroll = useCallback((newMode: 'batch' | 'join') => {
@@ -188,26 +195,28 @@ export function useJoinSegmentsSetup({
     phaseConfig: joinPhaseConfig,
     selectedPhasePresetId: joinSelectedPhasePresetId,
     randomSeed: joinRandomSeed,
-    updateField: joinSettings.updateField,
-    updateFields: joinSettings.updateFields,
+    updateField: joinUpdateField,
+    updateFields: joinUpdateFields,
   }), [
     joinPrompt, joinNegativePrompt, joinContextFrames, joinGapFrames, joinReplaceMode,
     joinKeepBridgingImages, joinEnhancePrompt, joinModel, joinNumInferenceSteps,
     joinGuidanceScale, joinSeed, joinMotionMode, joinPhaseConfig,
-    joinSelectedPhasePresetId, joinRandomSeed, joinSettings.updateField, joinSettings.updateFields,
+    joinSelectedPhasePresetId, joinRandomSeed, joinUpdateField, joinUpdateFields,
   ]);
 
   // LoRA manager interface for Join Segments (shot-level persistence via joinSettings)
   // This creates a compatible interface with useLoraManager for the JoinClipsSettingsForm
+  // Uses joinSelectedLorasRef in handlers so they always read the latest value at call time.
   const joinLoraManager = useMemo((): JoinLoraManager => ({
     selectedLoras: joinSelectedLoras,
     setSelectedLoras: (loras: SelectedLora[]) => {
-      joinSettings.updateField('selectedLoras', loras);
+      joinUpdateField('selectedLoras', loras);
     },
     isLoraModalOpen: isJoinLoraModalOpen,
     setIsLoraModalOpen: (open: boolean) => setIsJoinLoraModalOpen(open),
     handleAddLora: (loraToAdd: LoraModel, _isManualAction = true, initialStrength?: number) => {
-      if (joinSelectedLoras.find(sl => sl.id === loraToAdd["Model ID"])) {
+      const currentLoras = joinSelectedLorasRef.current;
+      if (currentLoras.find(sl => sl.id === loraToAdd["Model ID"])) {
         return; // Already exists
       }
       if (loraToAdd["Model Files"] && loraToAdd["Model Files"].length > 0) {
@@ -229,23 +238,23 @@ export function useJoinSegmentsSetup({
           lowNoisePath: hasLowNoise ? loraToAdd.low_noise_url : undefined,
           isMultiStage,
         };
-        joinSettings.updateField('selectedLoras', [...joinSelectedLoras, newLora]);
+        joinUpdateField('selectedLoras', [...currentLoras, newLora]);
       }
     },
     handleRemoveLora: (loraId: string) => {
-      joinSettings.updateField('selectedLoras', joinSelectedLoras.filter(l => l.id !== loraId));
+      joinUpdateField('selectedLoras', joinSelectedLorasRef.current.filter(l => l.id !== loraId));
     },
     handleLoraStrengthChange: (loraId: string, newStrength: number) => {
-      joinSettings.updateField('selectedLoras',
-        joinSelectedLoras.map(l => l.id === loraId ? { ...l, strength: newStrength } : l)
+      joinUpdateField('selectedLoras',
+        joinSelectedLorasRef.current.map(l => l.id === loraId ? { ...l, strength: newStrength } : l)
       );
     },
     hasEverSetLoras: joinSelectedLoras.length > 0,
     shouldApplyDefaults: false,
     markAsUserSet: () => {},
-  }), [joinSelectedLoras, joinSettings, isJoinLoraModalOpen]);
+  }), [joinSelectedLoras, joinUpdateField, isJoinLoraModalOpen]);
 
-  return {
+  return useMemo(() => ({
     // Raw settings
     joinSettings,
 
@@ -281,5 +290,15 @@ export function useJoinSegmentsSetup({
     // Derived values
     joinSettingsForHook,
     joinLoraManager,
-  };
+  }), [
+    joinSettings,
+    joinPrompt, joinNegativePrompt, joinContextFrames, joinGapFrames,
+    joinReplaceMode, joinKeepBridgingImages, joinEnhancePrompt, joinModel,
+    joinNumInferenceSteps, joinGuidanceScale, joinSeed, joinMotionMode,
+    joinPhaseConfig, joinSelectedPhasePresetId, joinRandomSeed, joinPriority,
+    joinUseInputVideoResolution, joinUseInputVideoFps, joinNoisedInputVideo,
+    joinLoopFirstClip, generateMode, joinSelectedLoras, stitchAfterGenerate,
+    setGenerateMode, toggleGenerateModePreserveScroll,
+    joinSettingsForHook, joinLoraManager,
+  ]);
 }

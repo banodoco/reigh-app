@@ -136,7 +136,7 @@ export async function preloadGenerationTaskMappings(
         // Optionally preload full task data
         if (preloadFullTaskData && taskId) {
           queryClient.prefetchQuery({
-            queryKey: [...taskQueryKeys.all, 'single', taskId],
+            queryKey: taskQueryKeys.single(taskId),
             queryFn: async () => {
               const { data, error } = await supabase
                 .from('tasks')
@@ -182,7 +182,7 @@ export function enhanceGenerationsWithTaskData(
     const taskId = cachedMapping?.taskId || null;
 
     // Try to get cached task data
-    const taskData = taskId ? queryClient.getQueryData<Task>([...taskQueryKeys.all, 'single', taskId]) : null;
+    const taskData = taskId ? queryClient.getQueryData<Task>(taskQueryKeys.single(taskId)) : null;
     
     return {
       ...generation,

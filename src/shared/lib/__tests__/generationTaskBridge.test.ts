@@ -28,6 +28,7 @@ vi.mock('@/shared/lib/queryKeys/tasks', () => ({
   taskQueryKeys: {
     all: ['tasks'],
     generationMapping: (id: string) => ['generation-task-mapping', id],
+    single: (id: string) => ['tasks', 'single', id],
   },
 }));
 

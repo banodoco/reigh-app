@@ -134,18 +134,24 @@ export function useJoinSegmentsSettings(
     saveImmediate,
     revert,
   } = autoSave;
-  
+
+  // Ref for saveImmediate to avoid putting it in effect dependency arrays.
+  // saveImmediate changes reference when entityId or updateSettings change,
+  // but these effects only need the latest version at call time.
+  const saveImmediateRef = useRef(saveImmediate);
+  saveImmediateRef.current = saveImmediate;
+
   // Save inherited settings to DB immediately if we have them
   // CRITICAL: Only save if the shot doesn't already have settings in DB
   useEffect(() => {
     if (inheritedSettings && shotId && status === 'ready') {
       if (!hasShotSettings) {
-        saveImmediate(inheritedSettings).catch(err => {
+        saveImmediateRef.current(inheritedSettings).catch(err => {
           console.error('[useJoinSegmentsSettings] Failed to save inherited settings:', err);
         });
       }
     }
-  }, [inheritedSettings, shotId, status, hasShotSettings, saveImmediate]);
+  }, [inheritedSettings, shotId, status, hasShotSettings]);
   
   // Persist settings to localStorage for future inheritance
   useEffect(() => {

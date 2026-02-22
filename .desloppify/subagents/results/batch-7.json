@@ -1,0 +1,61 @@
+{
+  "batch": "Package Organization",
+  "assessments": {
+    "package_organization": 62,
+    "high_level_elegance": 68
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "pkg::inconsistent_hook_naming_convention",
+      "summary": "4 hooks use kebab-case filenames (use-debounce, use-mobile, use-toast, use-voice-recording) while 98 hooks use camelCase (useDebounce, useMobile, etc.), creating an inconsistent naming convention in the same directory",
+      "related_files": [
+        "src/shared/hooks/use-debounce.ts",
+        "src/shared/hooks/use-mobile.tsx",
+        "src/shared/hooks/use-toast.ts"
+      ],
+      "evidence": [
+        "4 files with kebab-case: use-debounce.ts, use-mobile.tsx, use-toast.ts, use-voice-recording.ts",
+        "~98 files with camelCase: useDebounce.ts (does not exist separately, but all other hooks like useAIInteractionService.ts, useShots.ts, etc. follow camelCase)",
+        "Test file naming inherits the inconsistency: __tests__/use-debounce.test.ts vs __tests__/useAIInteractionService.test.ts"
+      ],
+      "suggestion": "Rename the 4 kebab-case hook files to camelCase (useDebounce.ts, useMobile.tsx, useToast.ts, useVoiceRecording.ts) to match the dominant convention used by 98 other hooks in the same directory. Update all import paths accordingly.",
+      "reasoning": "Having two naming conventions in the same directory creates confusion about which convention to follow for new hooks. The kebab-case files appear to be shadcn/ui scaffold remnants that were never normalized to the project convention. Developers must guess which convention a hook uses when writing imports, and tooling/autocomplete is less predictable.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "pkg::toast_triple_reexport_indirection",
+      "summary": "The toast function is accessible through 3 different import paths with a confusing re-export chain: ui/toast.tsx -> hooks/use-toast.ts -> ui/use-toast.ts",
+      "related_files": [
+        "src/shared/hooks/use-toast.ts",
+        "src/shared/hooks/__tests__/useAIInteractionService.test.ts"
+      ],
+      "evidence": [
+        "src/shared/hooks/use-toast.ts: imports toast from '@/shared/components/ui/toast' and re-exports it with a useToast wrapper that just returns { toast }",
+        "src/shared/components/ui/use-toast.ts: imports useToast from '@/shared/hooks/use-toast' (creating a back-reference from ui/ to hooks/) and re-exports both",
+        "Consumers import from 3 different paths: '@/shared/hooks/use-toast' (16 files), '@/shared/components/ui/use-toast' (1 file), '@/shared/components/ui/toast' (2 files)"
+      ],
+      "suggestion": "Eliminate the indirection: the useToast hook in hooks/use-toast.ts adds no value (just wraps toast in an object). Consumers should import toast directly from '@/shared/components/ui/toast'. Remove the re-export files and update all import paths to the canonical source.",
+      "reasoning": "The useToast hook is a trivial wrapper that returns { toast } - it provides no React state, no lifecycle, nothing that requires a hook. The three-layer re-export chain (ui/toast -> hooks/use-toast -> ui/use-toast) creates a confusing import graph where ui/ depends on hooks/ which depends on ui/. This makes it unclear which is the canonical import path and adds unnecessary indirection.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "pkg::mixed_test_colocation_strategy",
+      "summary": "Component tests in src/shared/components/ use two conflicting placement strategies: colocated (.test.tsx next to source) and __tests__/ subdirectory, with no clear rule for which to use",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "20 test files colocated directly in src/shared/components/ (e.g., ActiveLoRAsDisplay.test.tsx, AppErrorBoundary.test.tsx)",
+        "34+ test files in src/shared/components/__tests__/ (e.g., OnboardingModal.test.tsx, LoraManager.test.tsx)",
+        "Same component family split across both: LoraManager.test.tsx is in __tests__/ while ActiveLoRAsDisplay.test.tsx is colocated"
+      ],
+      "suggestion": "Standardize on one strategy. Given that the hooks directory already uses __tests__/ subdirectories consistently, adopt __tests__/ for components as well and move the 20 colocated test files into src/shared/components/__tests__/.",
+      "reasoning": "Having two test placement strategies in the same directory makes it harder to find tests for a given component. A developer looking for ActiveLoRAsDisplay tests might check __tests__/ first (since that is where many tests live) and miss the colocated file, or vice versa. Consistent placement reduces cognitive overhead.",
+      "confidence": "medium"
+    }
+  ]
+}

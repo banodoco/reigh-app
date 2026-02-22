@@ -1,3 +1,4 @@
+import { useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
@@ -30,69 +31,67 @@ interface ShotNavigationResult {
   navigateToPreviousShot: (shots: Shot[], currentShot: Shot, options?: ShotNavigationOptions) => boolean;
 }
 
+const DEFAULT_OPTIONS: Required<ShotNavigationOptions> = {
+  scrollToTop: true,
+  closeMobilePanes: true,
+  replace: false,
+  scrollBehavior: 'smooth',
+  scrollDelay: 200,
+  isNewlyCreated: false,
+};
+
+function performScroll(options: Required<ShotNavigationOptions>) {
+  if (options.scrollToTop) {
+    const scrollFn = () => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: options.scrollBehavior });
+        window.dispatchEvent(new CustomEvent('app:scrollToTop', { detail: { behavior: options.scrollBehavior } }));
+      });
+    };
+
+    if (options.scrollDelay > 0) {
+      setTimeout(scrollFn, options.scrollDelay);
+    } else {
+      scrollFn();
+    }
+  }
+}
+
+function closeMobilePanes(options: Required<ShotNavigationOptions>, isMobile: boolean) {
+  if (options.closeMobilePanes && isMobile) {
+    window.dispatchEvent(new CustomEvent('mobilePaneOpen', { detail: { side: null } }));
+  }
+}
+
 export const useShotNavigation = (): ShotNavigationResult => {
   const navigate = useNavigate();
   const { setCurrentShotId } = useCurrentShot();
   const isMobile = useIsMobile();
 
-  const defaultOptions: Required<ShotNavigationOptions> = {
-    scrollToTop: true,
-    closeMobilePanes: true,
-    replace: false,
-    scrollBehavior: 'smooth',
-    scrollDelay: 200, // Increased to 200ms to ensure DOM has updated
-    isNewlyCreated: false,
-  };
+  // 🎯 PERF FIX: Refs for all dependencies so callbacks are stable (empty deps).
+  // Without this, every component consuming useShotNavigation gets new function
+  // references on every render, breaking React.memo on downstream components
+  // and cascading re-renders through the entire shot editor tree.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  const setCurrentShotIdRef = useRef(setCurrentShotId);
+  setCurrentShotIdRef.current = setCurrentShotId;
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
 
-  // If we want an "already at top" feel, scroll BEFORE navigation.
-  // Only do this for non-animated (auto) scrolling to avoid a weird double-animation.
-  const preScrollToTopIfNeeded = (options: Required<ShotNavigationOptions>) => {
-    if (!options.scrollToTop) return;
-    if (options.scrollBehavior !== 'auto') return;
-    // Avoid delaying the "start at top" behavior.
-    if (options.scrollDelay !== 0) return;
-    window.scrollTo({ top: 0, behavior: 'auto' });
-    // Also dispatch event for custom scroll containers (e.g. mobile split view)
-    window.dispatchEvent(new CustomEvent('app:scrollToTop', { detail: { behavior: 'auto' } }));
-  };
+  const navigateToShot = useCallback((shot: Shot, options: ShotNavigationOptions = {}) => {
+    const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  const performScroll = (options: Required<ShotNavigationOptions>) => {
-    if (options.scrollToTop) {
-      const scrollFn = () => {
-        // Use requestAnimationFrame to ensure DOM has painted
-        requestAnimationFrame(() => {
-          // Always scroll the window - containerRef is just a wrapper div, not a scroll container
-          window.scrollTo({ top: 0, behavior: options.scrollBehavior });
-          // Also dispatch event for custom scroll containers (e.g. mobile split view)
-          window.dispatchEvent(new CustomEvent('app:scrollToTop', { detail: { behavior: options.scrollBehavior } }));
-        });
-      };
-      
-      if (options.scrollDelay > 0) {
-        setTimeout(scrollFn, options.scrollDelay);
-      } else {
-        scrollFn();
-      }
-    }
-  };
-
-  const closePanes = (options: Required<ShotNavigationOptions>) => {
-    if (options.closeMobilePanes && isMobile) {
-      window.dispatchEvent(new CustomEvent('mobilePaneOpen', { detail: { side: null } }));
-    }
-  };
-
-  const navigateToShot = (shot: Shot, options: ShotNavigationOptions = {}) => {
-    const opts = { ...defaultOptions, ...options };
-
-    preScrollToTopIfNeeded(opts);
-
-    // Update the current shot context
-    setCurrentShotId(shot.id);
-
-    // Navigate to the shot with hash
+    // NOTE: We intentionally do NOT call setCurrentShotId() here.
+    // navigate() and setCurrentShotId() are not batched by React — the context
+    // update renders before the router update, creating an intermediate frame
+    // where currentShotId is set but location.hash is empty. useUrlSync then
+    // clears currentShotId, causing a visible EDITOR → shot-list → EDITOR jolt.
+    // Instead, we let the hash drive everything: useSelectedShotResolution
+    // resolves shotToEdit from hashShotId + shotFromState, and useUrlSync/
+    // useSyncCurrentShotId set currentShotId from the hash after navigation.
     const targetUrl = travelShotUrl(shot.id);
-    navigate(targetUrl, {
+    navigateRef.current(targetUrl, {
       state: {
         fromShotClick: true,
         shotData: shot,
@@ -101,30 +100,25 @@ export const useShotNavigation = (): ShotNavigationResult => {
       replace: opts.replace,
     });
 
-    // Handle side effects
     performScroll(opts);
-    closePanes(opts);
+    closeMobilePanes(opts, isMobileRef.current);
+  }, []);
 
-  };
+  const navigateToShotEditor = useCallback((options: ShotNavigationOptions = {}) => {
+    const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  const navigateToShotEditor = (options: ShotNavigationOptions = {}) => {
-    const opts = { ...defaultOptions, ...options };
-    
-    // Clear current shot selection
-    setCurrentShotId(null);
-    
-    // Navigate to the shot editor without a specific shot
-    navigate(TOOL_ROUTES.TRAVEL_BETWEEN_IMAGES, {
+    setCurrentShotIdRef.current(null);
+
+    navigateRef.current(TOOL_ROUTES.TRAVEL_BETWEEN_IMAGES, {
       state: { fromShotClick: false },
       replace: opts.replace,
     });
-    
-    // Handle side effects
-    performScroll(opts);
-    closePanes(opts);
-  };
 
-  const navigateToNextShot = (shots: Shot[], currentShot: Shot, options: ShotNavigationOptions = {}): boolean => {
+    performScroll(opts);
+    closeMobilePanes(opts, isMobileRef.current);
+  }, []);
+
+  const navigateToNextShot = useCallback((shots: Shot[], currentShot: Shot, options: ShotNavigationOptions = {}): boolean => {
     const currentIndex = shots.findIndex(shot => shot.id === currentShot.id);
     if (currentIndex >= 0 && currentIndex < shots.length - 1) {
       const nextShot = shots[currentIndex + 1];
@@ -132,9 +126,9 @@ export const useShotNavigation = (): ShotNavigationResult => {
       return true;
     }
     return false;
-  };
+  }, [navigateToShot]);
 
-  const navigateToPreviousShot = (shots: Shot[], currentShot: Shot, options: ShotNavigationOptions = {}): boolean => {
+  const navigateToPreviousShot = useCallback((shots: Shot[], currentShot: Shot, options: ShotNavigationOptions = {}): boolean => {
     const currentIndex = shots.findIndex(shot => shot.id === currentShot.id);
     if (currentIndex > 0) {
       const previousShot = shots[currentIndex - 1];
@@ -142,12 +136,12 @@ export const useShotNavigation = (): ShotNavigationResult => {
       return true;
     }
     return false;
-  };
+  }, [navigateToShot]);
 
-  return {
+  return useMemo(() => ({
     navigateToShot,
     navigateToShotEditor,
     navigateToNextShot,
     navigateToPreviousShot,
-  };
-}; 
+  }), [navigateToShot, navigateToShotEditor, navigateToNextShot, navigateToPreviousShot]);
+};

@@ -128,8 +128,9 @@ export function useModeReadiness({
       return;
     }
 
-    // PERFORMANCE BOOST: Allow ready state if we have images + critical settings
-    if (hasImageData && criticalSettingsReady) {
+    // Allow ready state when we have images — don't gate on settings loading.
+    // The timeline section shows images, not settings; settings load in the background.
+    if (hasImageData) {
       actions.setModeReady(true);
       return;
     }

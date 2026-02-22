@@ -91,4 +91,3 @@ export interface SegmentSettingsFormProps {
 }
 
 export type { SegmentSettings } from '../segmentSettingsUtils';
-export type { LoraConfig } from '@/shared/types/segmentSettings';

@@ -22,7 +22,12 @@
  * ```
  */
 
-import React, { createContext, useContext, useMemo, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useRef
+} from 'react';
 import { Shot } from '@/types/shots';
 import { useShotSettings, UseShotSettingsReturn } from '../hooks/useShotSettings';
 import { useVideoTravelSettingsHandlers, VideoTravelSettingsHandlers } from '../hooks/useVideoTravelSettingsHandlers';
@@ -155,7 +160,7 @@ export function useVideoTravelSettings(): VideoTravelSettingsContextValue {
  */
 export function usePromptSettings() {
   const { settings, handlers } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     prompt: settings.prompt || '',
     negativePrompt: settings.negativePrompt || '',
     textBeforePrompts: settings.textBeforePrompts || '',
@@ -166,7 +171,7 @@ export function usePromptSettings() {
     setTextBeforePrompts: handlers.handleTextBeforePromptsChange,
     setTextAfterPrompts: handlers.handleTextAfterPromptsChange,
     setEnhancePrompt: handlers.handleEnhancePromptChange,
-  };
+  }), [settings.prompt, settings.negativePrompt, settings.textBeforePrompts, settings.textAfterPrompts, settings.enhancePrompt, handlers]);
 }
 
 /**
@@ -174,7 +179,7 @@ export function usePromptSettings() {
  */
 export function useMotionSettings() {
   const { settings, handlers, availableLoras } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     amountOfMotion: settings.amountOfMotion ?? 50,
     motionMode: settings.motionMode || 'basic',
     turboMode: settings.turboMode ?? false,
@@ -184,7 +189,7 @@ export function useMotionSettings() {
     setTurboMode: handlers.handleTurboModeChange,
     setSmoothContinuations: handlers.handleSmoothContinuationsChange,
     availableLoras,
-  };
+  }), [settings.amountOfMotion, settings.motionMode, settings.turboMode, settings.smoothContinuations, handlers, availableLoras]);
 }
 
 /**
@@ -192,12 +197,12 @@ export function useMotionSettings() {
  */
 export function useFrameSettings() {
   const { settings, handlers } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     batchVideoFrames: settings.batchVideoFrames ?? 61,
     batchVideoSteps: settings.batchVideoSteps ?? 6,
     setFrames: handlers.handleBatchVideoFramesChange,
     setSteps: handlers.handleBatchVideoStepsChange,
-  };
+  }), [settings.batchVideoFrames, settings.batchVideoSteps, handlers]);
 }
 
 /**
@@ -205,7 +210,7 @@ export function useFrameSettings() {
  */
 export function usePhaseConfigSettings() {
   const { settings, handlers } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     phaseConfig: settings.phaseConfig,
     selectedPhasePresetId: settings.selectedPhasePresetId,
     generationTypeMode: settings.generationTypeMode || 'i2v',
@@ -215,7 +220,7 @@ export function usePhaseConfigSettings() {
     removePreset: handlers.handlePhasePresetRemove,
     setGenerationTypeMode: handlers.handleGenerationTypeModeChange,
     restoreDefaults: handlers.handleRestoreDefaults,
-  };
+  }), [settings.phaseConfig, settings.selectedPhasePresetId, settings.generationTypeMode, settings.advancedMode, handlers]);
 }
 
 /**
@@ -223,10 +228,10 @@ export function usePhaseConfigSettings() {
  */
 export function useSteerableMotionSettings() {
   const { settings, handlers } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     steerableMotionSettings: settings.steerableMotionSettings,
     setSteerableMotionSettings: handlers.handleSteerableMotionSettingsChange,
-  };
+  }), [settings.steerableMotionSettings, handlers]);
 }
 
 /**
@@ -234,11 +239,11 @@ export function useSteerableMotionSettings() {
  */
 export function useLoraSettings() {
   const { settings, handlers, availableLoras } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     selectedLoras: settings.loras || [],
     availableLoras,
     setSelectedLoras: handlers.handleSelectedLorasChange,
-  };
+  }), [settings.loras, availableLoras, handlers]);
 }
 
 /**
@@ -246,12 +251,12 @@ export function useLoraSettings() {
  */
 export function useGenerationModeSettings() {
   const { settings, handlers } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     generationMode: settings.generationMode || 'timeline',
     videoControlMode: settings.videoControlMode || 'batch',
     setGenerationMode: handlers.handleGenerationModeChange,
     setVideoControlMode: handlers.handleVideoControlModeChange,
-  };
+  }), [settings.generationMode, settings.videoControlMode, handlers]);
 }
 
 /**
@@ -259,13 +264,13 @@ export function useGenerationModeSettings() {
  */
 export function useSettingsSave() {
   const { save, saveImmediate, handlers, isDirty, status } = useVideoTravelSettings();
-  return {
+  return useMemo(() => ({
     save,
     saveImmediate,
     onBlurSave: handlers.handleBlurSave,
     isDirty,
     isSaving: status === 'saving',
-  };
+  }), [save, saveImmediate, handlers, isDirty, status]);
 }
 
 // =============================================================================

@@ -122,13 +122,77 @@ export function getUserWithTimeout(_timeoutMs = 15000): Promise<{ data: { user: 
 }
 
 // ============================================================================
+// Settings fetch helpers
+// ============================================================================
+
+type SettingsRow = { data: { settings: unknown } | null; error: unknown };
+
+/** Fetch settings from all three scopes (user, project, shot) in parallel. */
+function fetchAllScopes(
+  userId: string,
+  ctx: ToolSettingsContext
+): Promise<[SettingsRow, SettingsRow, SettingsRow]> {
+  return Promise.all([
+    supabase
+      .from('users')
+      .select('settings')
+      .eq('id', userId)
+      .maybeSingle(),
+
+    ctx.projectId
+      ? supabase
+          .from('projects')
+          .select('settings')
+          .eq('id', ctx.projectId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+
+    ctx.shotId
+      ? supabase
+          .from('shots')
+          .select('settings')
+          .eq('id', ctx.shotId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]) as Promise<[SettingsRow, SettingsRow, SettingsRow]>;
+}
+
+/** Extract tool-specific settings from scope results and merge in priority order. */
+function extractAndMergeSettings(
+  userResult: SettingsRow,
+  projectResult: SettingsRow,
+  shotResult: SettingsRow,
+  toolId: string
+): SettingsFetchResult {
+  const userSettingsData = userResult.data?.settings as Record<string, unknown> | null;
+  const projectSettingsData = projectResult.data?.settings as Record<string, unknown> | null;
+  const shotSettingsData = shotResult.data?.settings as Record<string, unknown> | null;
+  const userSettings = (userSettingsData?.[toolId] as Record<string, unknown>) ?? {};
+  const projectSettings = (projectSettingsData?.[toolId] as Record<string, unknown>) ?? {};
+  const shotSettings = (shotSettingsData?.[toolId] as Record<string, unknown>) ?? {};
+
+  const hasShotSettings = shotSettings && Object.keys(shotSettings).length > 0;
+
+  // Merge in priority order: defaults -> user -> project -> shot
+  const merged = deepMerge(
+    {},
+    toolDefaultsRegistry[toolId] ?? {},
+    userSettings,
+    projectSettings,
+    shotSettings
+  );
+
+  return { settings: merged, hasShotSettings };
+}
+
+// ============================================================================
 // Settings fetch
 // ============================================================================
 
 /**
  * Fetch and merge tool settings from all scopes using direct Supabase calls.
  *
- * Merges in priority order: defaults -> user -> project -> shot.
+ * Pipeline: dedup → auth → fetchAllScopes → extractAndMerge.
  * Uses single-flight deduplication for concurrent identical requests.
  *
  * @returns `{ settings, hasShotSettings }` wrapper
@@ -139,7 +203,7 @@ export async function fetchToolSettingsSupabase(
   signal?: AbortSignal
 ): Promise<SettingsFetchResult> {
   try {
-    // Check if request was cancelled before starting - throw to signal cancellation
+    // Check if request was cancelled before starting
     if (signal?.aborted) {
       throw new DOMException('Request was cancelled', 'AbortError');
     }
@@ -152,70 +216,18 @@ export async function fetchToolSettingsSupabase(
     }
 
     const promise = (async (): Promise<SettingsFetchResult> => {
-      // Mobile optimization: Cache user info to avoid repeated auth calls
-      // Add timeout to prevent hanging on mobile connections (aligned with Supabase global timeout)
-      // Use generous timeout for mobile networks
       const { data: { user }, error: authError } = await getUserWithTimeout();
 
       if (authError || !user) {
         throw new Error('Authentication required');
       }
 
-      // Check again after auth call - throw to signal cancellation
-      // React Query's retry logic won't retry cancelled requests
       if (signal?.aborted) {
         throw new DOMException('Request was cancelled', 'AbortError');
       }
 
-      // Mobile optimization: Use more efficient queries with targeted JSON extraction
-      // NOTE: We fetch the entire settings JSON to avoid SQL path issues with tool IDs containing hyphens.
-      const [userResult, projectResult, shotResult] = await Promise.all([
-        supabase
-          .from('users')
-          .select('settings')
-          .eq('id', user.id)
-          .maybeSingle(),
-
-        ctx.projectId
-          ? supabase
-              .from('projects')
-              .select('settings')
-              .eq('id', ctx.projectId)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-
-        ctx.shotId
-          ? supabase
-              .from('shots')
-              .select('settings')
-              .eq('id', ctx.shotId)
-              .maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-      ]);
-
-      // Handle errors more gracefully for mobile
-
-      // Extract tool-specific settings from the full settings JSON
-      const userSettingsData = userResult.data?.settings as Record<string, unknown> | null;
-      const projectSettingsData = projectResult.data?.settings as Record<string, unknown> | null;
-      const shotSettingsData = shotResult.data?.settings as Record<string, unknown> | null;
-      const userSettings = (userSettingsData?.[toolId] as Record<string, unknown>) ?? {};
-      const projectSettings = (projectSettingsData?.[toolId] as Record<string, unknown>) ?? {};
-      const shotSettings = (shotSettingsData?.[toolId] as Record<string, unknown>) ?? {};
-
-      // Check if shot actually had settings stored (not just empty object)
-      const hasShotSettings = shotSettings && Object.keys(shotSettings).length > 0;
-
-        // Merge in priority order: defaults -> user -> project -> shot
-        const merged = deepMerge(
-          {},
-          toolDefaultsRegistry[toolId] ?? {},
-          userSettings,
-          projectSettings,
-          shotSettings
-      );
-
-      return { settings: merged, hasShotSettings };
+      const [userResult, projectResult, shotResult] = await fetchAllScopes(user.id, ctx);
+      return extractAndMergeSettings(userResult, projectResult, shotResult, toolId);
     })();
 
     inflightSettingsFetches.set(singleFlightKey, promise);
@@ -228,14 +240,10 @@ export async function fetchToolSettingsSupabase(
     return promise;
 
   } catch (error: unknown) {
-    // Handle abort errors silently to reduce noise during task cancellation
     if (isCancellationError(error)) {
-      // Don't log these as errors - they're expected during component unmounting
       throw new DOMException('Request was cancelled', 'AbortError');
     }
-    // Build context info without calling getSession() — getSession() can block
-    // indefinitely when an exclusive navigator.lock is held (e.g. during token refresh),
-    // which would turn a transient auth error into a permanent hang.
+    // Build context info without calling getSession() — can block during token refresh
     const errorMsg = getErrorMessage(error);
     const contextInfo = {
       visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
@@ -244,7 +252,6 @@ export async function fetchToolSettingsSupabase(
     };
 
     if (errorMsg.includes('Auth timeout') || errorMsg.includes('Auth request was cancelled')) {
-      // Return defaults rather than erroring, so UI remains usable
       return { settings: deepMerge({}, toolDefaultsRegistry[toolId] ?? {}), hasShotSettings: false };
     }
 

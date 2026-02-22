@@ -1,5 +1,5 @@
 import { debugConfig } from './debugConfig';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 
 // Lightweight logging helper that can be enabled/disabled via Vite env
 // Usage:
@@ -173,7 +173,7 @@ async function flushLogs(): Promise<void> {
     const { supabase } = await import('@/integrations/supabase/client');
     
     const { error } = await supabase.rpc('func_insert_logs_batch', { 
-      logs: logsToSend as unknown as Json,
+      logs: toJson(logsToSend),
     });
     
     if (error) {

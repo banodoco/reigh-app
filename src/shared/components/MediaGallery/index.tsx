@@ -35,22 +35,18 @@ import { GRID_COLUMN_CLASSES, getLayoutForAspectRatio } from './utils';
 
 // Import types
 import type {
-  MetadataLora,
-  DisplayableMetadata,
   GeneratedImageWithMetadata,
   MediaGalleryProps,
   GalleryFilterState,
   GalleryConfig,
 } from './types';
-export type { GalleryFilterState, GalleryConfig };
-export { DEFAULT_GALLERY_FILTERS, DEFAULT_GALLERY_CONFIG } from './types';
+export type { GalleryFilterState };
+export { DEFAULT_GALLERY_FILTERS } from './types';
 import { DEFAULT_GALLERY_CONFIG } from './types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
 // Re-export types that are used externally
 export type {
-  MetadataLora,
-  DisplayableMetadata,
   GeneratedImageWithMetadata,
 };
 
@@ -317,9 +313,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   // Merge badge data with paginated images (only when badge data is loaded)
   const paginatedImagesWithBadges = useMemo(() => {
     if (!paginationHook.paginatedImages) return [];
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[VariantBadges] merging badges, isBadgeDataLoading=', isBadgeDataLoading, 'images=', paginationHook.paginatedImages.length);
-    }
     return paginationHook.paginatedImages.map(img => {
       // Don't merge badge data while loading - prevents showing "0" badges
       // Strip out any existing derivedCount to prevent flash of "0"

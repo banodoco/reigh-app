@@ -97,7 +97,7 @@ export const useHydratedReferences = (
         const metadata = resource.metadata as StyleReferenceMetadata;
 
         // Check ownership - compare resource user_id with current user
-        const resourceOwnerId = resource.userId || (resource as unknown as { user_id?: string }).user_id;
+        const resourceOwnerId = resource.userId || resource.user_id;
         const isOwner = !!(currentUserId && resourceOwnerId === currentUserId);
 
         // Hydrate: Resource provides image data, pointer provides usage settings

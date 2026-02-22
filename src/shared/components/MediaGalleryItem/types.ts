@@ -35,7 +35,6 @@ export interface MediaGalleryItemProps {
   setMobilePopoverOpenImageId: (id: string | null) => void;
   setSelectedShotIdLocal: (id: string) => void;
   setLastAffectedShotId: (id: string) => void;
-  // TODO: type properly — React Query mutation with complex generic types
   toggleStarMutation: { mutate: (vars: { id: string; starred: boolean }, options?: { onSettled?: () => void }) => void };
   // Progressive loading props
   shouldLoad?: boolean;

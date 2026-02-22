@@ -395,7 +395,11 @@ export function EditorContent(props: {
   } = componentProps;
 
   const effectiveGenerationMode = isMobile ? 'batch' : generationMode;
-  const showSkeleton = !isModeReady || (data.positionsLoading && !data.memoizedShotGenerations.length && !data.hasEverHadData);
+  // Show skeleton only when we genuinely don't have data to display.
+  // Previously this gated on !isModeReady unconditionally, which caused a one-frame
+  // skeleton flash when entering a shot (isModeReady starts false, is set true in an effect).
+  // When preloaded images are available (from navigation state), skip the skeleton entirely.
+  const showSkeleton = (!isModeReady && !data.memoizedShotGenerations.length) || (data.positionsLoading && !data.memoizedShotGenerations.length && !data.hasEverHadData);
 
   if (showSkeleton) {
     return (

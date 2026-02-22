@@ -188,10 +188,10 @@ export default function EditImagesPage() {
       resetDrag: resetDragState,
       getProjectId: () => selectedProjectId ?? undefined,
       upload: (file) => uploadImage(file),
-      onResult: (result) => setSelectedMedia(result as GenerationRow),
+      onResult: (result) => setSelectedMedia(result),
       context: 'EditImagesPage',
       toastTitle: 'Failed to upload image',
-      uploadOperation: uploadOperation as any,
+      uploadOperation,
     }),
     [selectedProjectId, resetDragState, uploadOperation, uploadImage, setSelectedMedia]
   );

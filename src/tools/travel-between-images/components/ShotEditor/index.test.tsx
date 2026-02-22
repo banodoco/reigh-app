@@ -329,8 +329,6 @@ describe('ShotSettingsEditor', () => {
         projectId="project-1"
         onShotImagesUpdate={() => {}}
         onBack={() => {}}
-        onPairConfigChange={() => {}}
-        onGenerateAllSegments={() => {}}
       />,
     );
 
@@ -339,5 +337,53 @@ describe('ShotSettingsEditor', () => {
     expect(screen.getByTestId('timeline-section')).toBeInTheDocument();
     expect(screen.getByTestId('generation-section')).toBeInTheDocument();
     expect(screen.getByTestId('modals-section')).toBeInTheDocument();
+  });
+
+  it('renders section content text', () => {
+    render(
+      <ShotSettingsEditor
+        selectedShotId="shot-1"
+        projectId="project-1"
+        onShotImagesUpdate={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('header')).toBeInTheDocument();
+    expect(screen.getByText('final-video')).toBeInTheDocument();
+    expect(screen.getByText('timeline')).toBeInTheDocument();
+    expect(screen.getByText('generation')).toBeInTheDocument();
+    expect(screen.getByText('modals')).toBeInTheDocument();
+  });
+
+  it('accepts required props', () => {
+    expect(ShotSettingsEditor).toBeDefined();
+    // React.memo wraps the component — typeof is 'object', not 'function'
+    expect(typeof ShotSettingsEditor).toBe('object');
+    expect(ShotSettingsEditor).toHaveProperty('$$typeof');
+  });
+
+  it('renders all sections as children of the layout', () => {
+    const { container } = render(
+      <ShotSettingsEditor
+        selectedShotId="shot-1"
+        projectId="project-1"
+        onShotImagesUpdate={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    const headerSection = screen.getByTestId('header-section');
+    const finalVideoSection = screen.getByTestId('final-video-section');
+    const timelineSection = screen.getByTestId('timeline-section');
+    const generationSection = screen.getByTestId('generation-section');
+    const modalsSection = screen.getByTestId('modals-section');
+
+    expect(headerSection.textContent).toBe('header');
+    expect(finalVideoSection.textContent).toBe('final-video');
+    expect(timelineSection.textContent).toBe('timeline');
+    expect(generationSection.textContent).toBe('generation');
+    expect(modalsSection.textContent).toBe('modals');
+    expect(container.querySelector('[data-testid]')).not.toBeNull();
   });
 });

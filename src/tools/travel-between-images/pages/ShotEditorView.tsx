@@ -4,6 +4,7 @@ import {
   useRef,
   useCallback,
   Suspense,
+  useMemo,
   type MutableRefObject,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -11,11 +12,10 @@ import { Shot } from '@/types/shots';
 import { Button } from '@/shared/components/ui/button';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { PageFadeIn } from '@/shared/components/transitions';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useUpdateShotName } from '@/shared/hooks/useShots';
-import { useShotImages, usePrimeShotImagesCache } from '@/shared/hooks/useShotImages';
+import { usePrimeShotImagesCache } from '@/shared/hooks/useShotImages';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { useProjectVideoCountsCache } from '@/shared/hooks/useProjectVideoCountsCache';
 import { useProjectGenerationModesCache } from '@/shared/hooks/useProjectGenerationModesCache';
@@ -23,12 +23,10 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useVideoGalleryPreloader } from '@/shared/hooks/useVideoGalleryPreloader';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { ShotSettingsEditor } from '../components/ShotEditor';
-import { VideoTravelSettingsProvider } from '../providers';
+import { VideoTravelSettingsProvider, useVideoTravelSettings } from '../providers';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { VideoTravelFloatingOverlay } from '../components/VideoTravelFloatingOverlay';
 import {
-  useShotSettings,
-  useVideoTravelSettingsHandlers,
   useStickyHeader,
   useNavigationState,
   useOperationTracking,
@@ -71,6 +69,8 @@ export function ShotEditorView({
   const { setCurrentShotId } = useCurrentShot();
   const { navigateToPreviousShot, navigateToNextShot } = useShotNavigation();
   const updateShotNameMutation = useUpdateShotName();
+  const updateShotNameMutateRef = useRef(updateShotNameMutation.mutate);
+  updateShotNameMutateRef.current = updateShotNameMutation.mutate;
   const invalidateGenerations = useInvalidateGenerations();
 
   // Get generation location settings to auto-disable turbo mode when not in cloud
@@ -80,22 +80,6 @@ export function ShotEditorView({
   // Project caches
   const { getShotVideoCount, getFinalVideoCount, getHasStructureVideo, invalidateOnVideoChanges } = useProjectVideoCountsCache(selectedProjectId);
   const { updateShotMode } = useProjectGenerationModesCache(selectedProjectId);
-
-  // Shot settings
-  const shotSettings = useShotSettings(shotToEdit.id, selectedProjectId);
-  const shotSettingsRef = useRef(shotSettings);
-  shotSettingsRef.current = shotSettings;
-
-  // Settings handlers
-  const {
-    noOpCallback,
-    handlePairConfigChange,
-  } = useVideoTravelSettingsHandlers({
-    shotSettingsRef,
-    currentShotId: shotToEdit.id,
-    selectedShot: shotToEdit,
-    updateShotMode,
-  });
 
   // Dimension state (local, not persisted)
   const [dimensionSource, setDimensionSource] = useState<'project' | 'firstImage' | 'custom'>('firstImage');
@@ -114,35 +98,6 @@ export function ShotEditorView({
     setCustomHeight(height);
   }, []);
 
-  // Extract settings values
-  const {
-    turboMode = false,
-    advancedMode = false,
-  } = shotSettings.settings || {};
-
-  // Auto-disable turbo mode when cloud generation is disabled
-  useEffect(() => {
-    if (shotSettings.status !== 'ready' || shotSettings.shotId !== shotToEdit.id) {
-      return;
-    }
-    if (!isCloudGenerationEnabled && turboMode) {
-      shotSettingsRef.current.updateField('turboMode', false);
-    }
-  }, [isCloudGenerationEnabled, turboMode, shotSettings.status, shotSettings.shotId, shotToEdit.id]);
-
-  // Auto-disable advanced mode when turbo mode is on
-  useEffect(() => {
-    if (shotSettings.status !== 'ready' || shotSettings.shotId !== shotToEdit.id) {
-      return;
-    }
-    if (turboMode && advancedMode) {
-      shotSettingsRef.current.updateFields({
-        advancedMode: false,
-        motionMode: 'basic'
-      });
-    }
-  }, [turboMode, advancedMode, shotSettings.status, shotSettings.shotId, shotToEdit.id]);
-
   // Navigation state
   const { sortedShots, hasPrevious, hasNext } = useNavigationState({
     shots,
@@ -158,20 +113,17 @@ export function ShotEditorView({
 
   // Operation tracking
   const {
-    isShotOperationInProgress,
     isDraggingInTimeline,
     setIsDraggingInTimeline,
     signalShotOperation,
   } = useOperationTracking();
 
-  // Full image data for editor
+  // Prime the shot images cache with context data for instant display
   const contextImages = shotToEdit.images || [];
   usePrimeShotImagesCache(shotToEdit.id, contextImages);
-
-  useShotImages(
-    shotToEdit.id,
-    { disableRefetch: isShotOperationInProgress || isDraggingInTimeline }
-  );
+  // NOTE: useShotImages query is active in useShotEditorSetup — no need for a
+  // duplicate observer here. The duplicate caused ShotEditorView to re-render
+  // on every query state change (loading→success), cascading to all children.
 
   // Sticky header
   const headerContainerRef = useRef<HTMLDivElement>(null) as MutableRefObject<HTMLDivElement | null>;
@@ -228,12 +180,12 @@ export function ShotEditorView({
   }, [sortedShots, shotToEdit, navigateToNextShot]);
 
   const handleUpdateShotName = useCallback((newName: string) => {
-    updateShotNameMutation.mutate({
+    updateShotNameMutateRef.current({
       shotId: shotToEdit.id,
       newName: newName,
       projectId: selectedProjectId,
     });
-  }, [shotToEdit.id, selectedProjectId, updateShotNameMutation]);
+  }, [shotToEdit.id, selectedProjectId]);
 
   const handleShotImagesUpdate = useCallback(async () => {
     invalidateGenerations(shotToEdit.id, {
@@ -258,52 +210,49 @@ export function ShotEditorView({
     <>
       <div className="px-4 max-w-7xl mx-auto pt-4">
         <Suspense fallback={<LoadingSkeleton type="editor" />}>
-          <PageFadeIn>
-            <VideoTravelSettingsProvider
+          <VideoTravelSettingsProvider
+            projectId={selectedProjectId}
+            shotId={shotToEdit.id}
+            selectedShot={shotToEdit}
+            availableLoras={availableLoras}
+            updateShotMode={updateShotMode}
+          >
+            <SettingsAutoDisable shotId={shotToEdit.id} isCloudGenerationEnabled={isCloudGenerationEnabled} />
+            <ShotSettingsEditor
+              // Core identifiers
+              selectedShotId={shotToEdit.id}
               projectId={selectedProjectId}
-              shotId={shotToEdit.id}
-              selectedShot={shotToEdit}
-              availableLoras={availableLoras}
-              updateShotMode={updateShotMode}
-            >
-              <ShotSettingsEditor
-                // Core identifiers
-                selectedShotId={shotToEdit.id}
-                projectId={selectedProjectId}
-                optimisticShotData={isNewlyCreatedShot ? shotFromState : undefined}
-                // Callbacks
-                onShotImagesUpdate={handleShotImagesUpdate}
-                onBack={handleBackToShotList}
-                onPairConfigChange={handlePairConfigChange}
-                onGenerateAllSegments={noOpCallback}
-                // Dimension settings
-                dimensionSource={dimensionSource}
-                onDimensionSourceChange={handleDimensionSourceChange}
-                customWidth={customWidth}
-                onCustomWidthChange={handleCustomWidthChange}
-                customHeight={customHeight}
-                onCustomHeightChange={handleCustomHeightChange}
-                // Navigation
-                onPreviousShot={handlePreviousShot}
-                onNextShot={handleNextShot}
-                onPreviousShotNoScroll={handlePreviousShotNoScroll}
-                onNextShotNoScroll={handleNextShotNoScroll}
-                hasPrevious={hasPrevious}
-                hasNext={hasNext}
-                onUpdateShotName={handleUpdateShotName}
-                // Loading and cache
-                getShotVideoCount={getShotVideoCount}
-                getFinalVideoCount={getFinalVideoCount}
-                getHasStructureVideo={getHasStructureVideo}
-                invalidateVideoCountsCache={invalidateOnVideoChanges}
-                // UI coordination
-                onDragStateChange={setIsDraggingInTimeline}
-                headerContainerRef={headerCallbackRef}
-                nameClickRef={nameClickRef}
-                isSticky={stickyHeader.isSticky}
-              />
-            </VideoTravelSettingsProvider>
-          </PageFadeIn>
+              optimisticShotData={isNewlyCreatedShot ? shotFromState : undefined}
+              // Callbacks
+              onShotImagesUpdate={handleShotImagesUpdate}
+              onBack={handleBackToShotList}
+              // Dimension settings
+              dimensionSource={dimensionSource}
+              onDimensionSourceChange={handleDimensionSourceChange}
+              customWidth={customWidth}
+              onCustomWidthChange={handleCustomWidthChange}
+              customHeight={customHeight}
+              onCustomHeightChange={handleCustomHeightChange}
+              // Navigation
+              onPreviousShot={handlePreviousShot}
+              onNextShot={handleNextShot}
+              onPreviousShotNoScroll={handlePreviousShotNoScroll}
+              onNextShotNoScroll={handleNextShotNoScroll}
+              hasPrevious={hasPrevious}
+              hasNext={hasNext}
+              onUpdateShotName={handleUpdateShotName}
+              // Loading and cache
+              getShotVideoCount={getShotVideoCount}
+              getFinalVideoCount={getFinalVideoCount}
+              getHasStructureVideo={getHasStructureVideo}
+              invalidateVideoCountsCache={invalidateOnVideoChanges}
+              // UI coordination
+              onDragStateChange={setIsDraggingInTimeline}
+              headerContainerRef={headerCallbackRef}
+              nameClickRef={nameClickRef}
+              isSticky={stickyHeader.isSticky}
+            />
+          </VideoTravelSettingsProvider>
         </Suspense>
       </div>
 
@@ -328,6 +277,32 @@ export function ShotEditorView({
       />
     </>
   );
+}
+
+/**
+ * Renderless component that auto-disables conflicting settings.
+ * Lives inside VideoTravelSettingsProvider to access settings context.
+ */
+function SettingsAutoDisable({ shotId, isCloudGenerationEnabled }: {
+  shotId: string;
+  isCloudGenerationEnabled: boolean;
+}) {
+  const { settings, status, shotId: loadedShotId, updateField, updateFields } = useVideoTravelSettings();
+  const { turboMode = false, advancedMode = false } = settings;
+
+  // Auto-disable turbo mode when cloud generation is disabled
+  useEffect(() => {
+    if (status !== 'ready' || loadedShotId !== shotId) return;
+    if (!isCloudGenerationEnabled && turboMode) updateField('turboMode', false);
+  }, [isCloudGenerationEnabled, turboMode, status, loadedShotId, shotId, updateField]);
+
+  // Auto-disable advanced mode when turbo mode is on
+  useEffect(() => {
+    if (status !== 'ready' || loadedShotId !== shotId) return;
+    if (turboMode && advancedMode) updateFields({ advancedMode: false, motionMode: 'basic' });
+  }, [turboMode, advancedMode, status, loadedShotId, shotId, updateFields]);
+
+  return null;
 }
 
 /**

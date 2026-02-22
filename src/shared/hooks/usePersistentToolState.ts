@@ -172,9 +172,6 @@ export function usePersistentToolState<T extends object>(
 
   // Hydrate external state setters from persisted settings once entity is ready.
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[PersistentToolState:${toolId}] hydration check — entityKey=${entityKey}, autoSaveStatus=${autoSaveStatus}, hasHydrated=${hasHydratedRef.current}, enabled=${enabled}`);
-    }
     if (!enabled || !entityKey || hasHydratedRef.current || autoSaveStatus !== 'ready') return;
 
     const effectiveSettings = (autoSaveSettings || resolvedDefaults) as Partial<T>;

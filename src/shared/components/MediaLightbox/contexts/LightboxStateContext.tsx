@@ -231,9 +231,7 @@ export function useLightboxNavigationSafe(): LightboxNavigationState {
 export type {
   LightboxStateValue,
   LightboxCoreState,
-  LightboxMediaState,
   LightboxVariantState,
-  LightboxNavigationState,
 };
 
 // Note: Default export removed as it was not used externally.

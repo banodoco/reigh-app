@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getVisibleTaskTypes, getHiddenTaskTypes } from '@/shared/lib/taskConfig';
+import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 interface TaskWithCost {
   id: string;
@@ -47,7 +48,7 @@ export function useTaskLog(
   const offset = (page - 1) * limit;
   
   return useQuery<TaskLogResponse, Error>({
-    queryKey: ['task-log', limit, page, filters],
+    queryKey: taskQueryKeys.log(limit, page, filters),
     placeholderData: (previousData) => previousData, // Prevents table from disappearing during filter changes
     queryFn: async () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();

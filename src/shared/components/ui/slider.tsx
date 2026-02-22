@@ -4,14 +4,14 @@ import { cn } from "@/shared/lib/utils"
 
 interface SliderProps extends Omit<React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>, "children" | "onValueChange"> {
   variant?: "primary" | "secondary";
-  onValueChange?: (...args: any[]) => void;
+  onValueChange?: (value: number) => void;
   className?: string;
 }
 
 const Slider = React.forwardRef<
   HTMLDivElement,
   SliderProps
->(({ className, variant = "primary", ...props }, ref) => {
+>(({ className, variant = "primary", onValueChange, ...props }, ref) => {
   const rangeColorClass = variant === "secondary"
     ? "bg-muted-foreground/60"
     : "bg-primary";
@@ -28,6 +28,7 @@ const Slider = React.forwardRef<
         className
       )}
       {...props}
+      onValueChange={onValueChange ? (value) => onValueChange(value) : undefined}
     >
       <SliderPrimitive.Control className="flex w-full items-center">
         <SliderPrimitive.Track className={cn(

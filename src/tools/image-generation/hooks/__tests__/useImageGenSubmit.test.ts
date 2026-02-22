@@ -97,7 +97,7 @@ describe('useImageGenSubmit', () => {
     );
 
     const taskParams = {
-      prompts: [{ text: 'a beautiful landscape' }],
+      prompts: [{ fullPrompt: 'a beautiful landscape' }],
       project_id: 'proj-1',
     };
 
@@ -117,7 +117,7 @@ describe('useImageGenSubmit', () => {
     );
 
     const taskParams = {
-      prompts: [{ text: 'a beautiful landscape' }],
+      prompts: [{ fullPrompt: 'a beautiful landscape' }],
       project_id: 'proj-1',
     };
 
@@ -139,7 +139,7 @@ describe('useImageGenSubmit', () => {
 
     const longPrompt = 'a'.repeat(100);
     const taskParams = {
-      prompts: [{ text: longPrompt }],
+      prompts: [{ fullPrompt: longPrompt }],
       project_id: 'proj-1',
     };
 
@@ -160,7 +160,7 @@ describe('useImageGenSubmit', () => {
     );
 
     await act(async () => {
-      await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
+      await result.current.handleNewGenerate({ prompts: [{ fullPrompt: 'test' }] } as unknown);
     });
 
     expect(mockRemoveIncomingTask).toHaveBeenCalledWith('incoming-1');
@@ -174,7 +174,7 @@ describe('useImageGenSubmit', () => {
 
     let taskIds: string[] = [];
     await act(async () => {
-      taskIds = await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
+      taskIds = await result.current.handleNewGenerate({ prompts: [{ fullPrompt: 'test' }] } as unknown);
     });
 
     expect(taskIds).toEqual([]);
@@ -193,7 +193,7 @@ describe('useImageGenSubmit', () => {
 
     let taskIds: string[] = [];
     await act(async () => {
-      taskIds = await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
+      taskIds = await result.current.handleNewGenerate({ prompts: [{ fullPrompt: 'test' }] } as unknown);
     });
 
     expect(taskIds).toEqual([]);
@@ -214,7 +214,7 @@ describe('useImageGenSubmit', () => {
     );
 
     await act(async () => {
-      await result.current.handleNewGenerate({ prompts: [{ text: 'test' }] } as unknown);
+      await result.current.handleNewGenerate({ prompts: [{ fullPrompt: 'test' }] } as unknown);
     });
 
     expect(mockRemoveIncomingTask).toHaveBeenCalledWith('incoming-1');

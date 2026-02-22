@@ -5,4 +5,4 @@
  * Re-exported here for backwards compatibility with existing imports.
  */
 
-export { useEditVideoSettings, type EditVideoSettings } from '@/shared/hooks/useEditVideoSettings';
+export { useEditVideoSettings } from '@/shared/hooks/useEditVideoSettings';

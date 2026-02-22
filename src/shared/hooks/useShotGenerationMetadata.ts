@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import { useInvalidateGenerations } from '@/shared/hooks/useGenerationInvalidation';
 import { handleError } from '@/shared/lib/errorHandling/handleError';
 
@@ -99,7 +99,7 @@ export function useShotGenerationMetadata({
       
       const { error } = await supabase
         .from('shot_generations')
-        .update({ metadata: newMetadata as unknown as Json })
+        .update({ metadata: toJson(newMetadata) })
         .eq('id', shotGenerationId);
 
       if (error) {

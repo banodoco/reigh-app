@@ -6,17 +6,14 @@ import PaymentSuccessPage from '@/pages/PaymentSuccessPage';
 import PaymentCancelPage from '@/pages/PaymentCancelPage';
 import SharePage from '@/pages/SharePage';
 
-// Import ImageGenerationToolPage directly to prevent lazy loading issues with TanStack Query
+// Main tools: eagerly loaded because lazy() caused blank screens on Safari mobile
+// (dynamic import race with TanStack Query hydration — query cache not ready when component mounts)
 import ImageGenerationToolPage from '@/tools/image-generation/pages/ImageGenerationToolPage';
-// Import VideoTravelToolPage eagerly to avoid dynamic import issues on some mobile browsers (e.g. Safari)
 import VideoTravelToolPage from '@/tools/travel-between-images/pages/VideoTravelToolPage';
-// Import CharacterAnimatePage eagerly for consistency with other main tools
 import CharacterAnimatePage from '@/tools/character-animate/pages/CharacterAnimatePage';
-// Import JoinClipsPage eagerly for consistency with other main tools
 import JoinClipsPage from '@/tools/join-clips/pages/JoinClipsPage';
-// Import EditVideoPage eagerly to avoid dynamic import issues (consistent with other main tools)
 import EditVideoPage from '@/tools/edit-video/pages/EditVideoPage';
-// Keep other heavy tools lazy-loaded to preserve bundle size
+// Secondary tools: lazy-loaded (not default landing pages, so hydration race is less likely)
 const EditImagesPage = lazy(() => import('@/tools/edit-images/pages/EditImagesPage'));
 const TrainingDataHelperPage = lazy(() => import('@/tools/training-data-helper/pages/TrainingDataHelperPage'));
 import BlogListPage from '@/pages/Blog/BlogListPage';

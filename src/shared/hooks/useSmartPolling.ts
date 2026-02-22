@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef } from 'react';
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
 
 /**
@@ -207,14 +207,16 @@ function useSmartPolling(config: SmartPollingConfig): SmartPollingResult {
  */
 export function useSmartPollingConfig(queryKey: readonly string[], debug = false) {
   // 🎯 NEW: Default to minInterval: false to allow full polling disable
-  const { refetchInterval, staleTime } = useSmartPolling({ 
-    queryKey, 
+  const { refetchInterval, staleTime } = useSmartPolling({
+    queryKey,
     debug,
     minInterval: false // Allow polling to be disabled when realtime is healthy
   });
-  
-  return {
+
+  // Memoize to avoid creating a new object every render. When spread into useQuery
+  // options, unstable objects contribute to observer.setOptions() seeing "changed" options.
+  return useMemo(() => ({
     refetchInterval,
     staleTime
-  };
+  }), [refetchInterval, staleTime]);
 }

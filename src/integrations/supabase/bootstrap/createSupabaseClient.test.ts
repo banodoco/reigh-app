@@ -30,7 +30,7 @@ describe('createSupabaseClient', () => {
   });
 
   it('creates supabase client with realtime and fetch timeout config', () => {
-    const fakeClient = { tag: 'client' };
+    const fakeClient = { tag: 'client', rest: {}, auth: { onAuthStateChange: vi.fn() } };
     createClientMock.mockReturnValue(fakeClient);
 
     const client = createSupabaseClient();

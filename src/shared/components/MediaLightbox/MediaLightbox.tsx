@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { GenerationRow, Shot } from '@/types/shots';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from './types';
 import type { ShotOption, TaskDetailsData } from './types';
 import { ImageLightbox } from './ImageLightbox';
+import type { LightboxNavigationProps, LightboxShotWorkflowProps, LightboxFeatureFlags, LightboxActionHandlers } from './ImageLightbox';
 import { VideoLightbox } from './VideoLightbox';
 
-export interface MediaLightboxProps {
+interface MediaLightboxProps {
   media?: GenerationRow;
   onClose: () => void;
   onNext?: () => void;
@@ -73,7 +74,65 @@ export interface MediaLightboxProps {
   adjacentSegments?: AdjacentSegmentsData;
 }
 
+/** Bundle flat MediaLightboxProps into the grouped ImageLightbox sub-interfaces. */
+function useBundledImageProps(props: MediaLightboxProps & { media: GenerationRow }) {
+  const navigation: LightboxNavigationProps = useMemo(() => ({
+    onNext: props.onNext,
+    onPrevious: props.onPrevious,
+    showNavigation: props.showNavigation,
+    hasNext: props.hasNext,
+    hasPrevious: props.hasPrevious,
+  }), [props.onNext, props.onPrevious, props.showNavigation, props.hasNext, props.hasPrevious]);
+
+  const shotWorkflow: LightboxShotWorkflowProps = useMemo(() => ({
+    allShots: props.allShots,
+    selectedShotId: props.selectedShotId,
+    onShotChange: props.onShotChange,
+    onAddToShot: props.onAddToShot,
+    onAddToShotWithoutPosition: props.onAddToShotWithoutPosition,
+    onCreateShot: props.onCreateShot,
+    onNavigateToShot: props.onNavigateToShot,
+    onShowTick: props.onShowTick,
+    onShowSecondaryTick: props.onShowSecondaryTick,
+    onOptimisticPositioned: props.onOptimisticPositioned,
+    onOptimisticUnpositioned: props.onOptimisticUnpositioned,
+    optimisticPositionedIds: props.optimisticPositionedIds,
+    optimisticUnpositionedIds: props.optimisticUnpositionedIds,
+    positionedInSelectedShot: props.positionedInSelectedShot,
+    associatedWithoutPositionInSelectedShot: props.associatedWithoutPositionInSelectedShot,
+  }), [
+    props.allShots, props.selectedShotId, props.onShotChange,
+    props.onAddToShot, props.onAddToShotWithoutPosition,
+    props.onCreateShot, props.onNavigateToShot,
+    props.onShowTick, props.onShowSecondaryTick,
+    props.onOptimisticPositioned, props.onOptimisticUnpositioned,
+    props.optimisticPositionedIds, props.optimisticUnpositionedIds,
+    props.positionedInSelectedShot, props.associatedWithoutPositionInSelectedShot,
+  ]);
+
+  const features: LightboxFeatureFlags = useMemo(() => ({
+    showImageEditTools: props.showImageEditTools,
+    showDownload: props.showDownload,
+    showMagicEdit: props.showMagicEdit,
+    autoEnterInpaint: props.autoEnterInpaint,
+    showTaskDetails: props.showTaskDetails,
+  }), [props.showImageEditTools, props.showDownload, props.showMagicEdit, props.autoEnterInpaint, props.showTaskDetails]);
+
+  const actions: LightboxActionHandlers = useMemo(() => ({
+    onDelete: props.onDelete,
+    isDeleting: props.isDeleting,
+    onApplySettings: props.onApplySettings,
+    onToggleStar: props.onToggleStar,
+    starred: props.starred,
+  }), [props.onDelete, props.isDeleting, props.onApplySettings, props.onToggleStar, props.starred]);
+
+  return { navigation, shotWorkflow, features, actions };
+}
+
 const MediaLightbox: React.FC<MediaLightboxProps> = ({ media, segmentSlotMode, ...restProps }) => {
+  // Bundle flat props for ImageLightbox (hook must be called unconditionally)
+  const bundled = useBundledImageProps({ media: media!, ...restProps } as MediaLightboxProps & { media: GenerationRow });
+
   if (segmentSlotMode) {
     return (
       <VideoLightbox
@@ -100,10 +159,25 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({ media, segmentSlotMode, .
   return (
     <ImageLightbox
       media={media}
-      {...restProps}
+      onClose={restProps.onClose}
+      readOnly={restProps.readOnly}
+      shotId={restProps.shotId}
+      initialVariantId={restProps.initialVariantId}
+      toolTypeOverride={restProps.toolTypeOverride}
+      taskDetailsData={restProps.taskDetailsData}
+      onOpenExternalGeneration={restProps.onOpenExternalGeneration}
+      onNavigateToGeneration={restProps.onNavigateToGeneration}
+      showTickForImageId={restProps.showTickForImageId}
+      showTickForSecondaryImageId={restProps.showTickForSecondaryImageId}
+      tasksPaneOpen={restProps.tasksPaneOpen}
+      tasksPaneWidth={restProps.tasksPaneWidth}
+      adjacentSegments={restProps.adjacentSegments}
+      navigation={bundled.navigation}
+      shotWorkflow={bundled.shotWorkflow}
+      features={bundled.features}
+      actions={bundled.actions}
     />
   );
 };
 
 export default MediaLightbox;
-export type { ShotOption } from './types';

@@ -15,9 +15,9 @@ export const CharacterAnimateDetails: React.FC<TaskDetailsProps> = ({
   const config = getVariantConfig(variant, isMobile, inputImages.length);
   const [videoLoaded, setVideoLoaded] = useState(false);
 
-  const parsedParams = useMemo(() => parseTaskParams(task?.params) as Record<string, any>, [task?.params]);
-  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, any> | undefined;
-  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, any> | undefined;
+  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
+  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, unknown> | undefined;
+  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, unknown> | undefined;
 
   // Extract character animate data
   const mode = (parsedParams?.mode || orchestratorDetails?.mode || orchestratorPayload?.mode) as string | undefined;

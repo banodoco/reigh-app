@@ -1,0 +1,226 @@
+{
+  "assessments": {
+    "type_safety": 71
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "generation-row-vs-metadata-type-mismatch",
+      "summary": "Repeated unsafe casts between GeneratedImageWithMetadata and GenerationRow types across 4+ production files",
+      "confidence": "high",
+      "suggestion": "Unify GenerationRow and GeneratedImageWithMetadata into a single canonical type or make variantToGenerationRow return GenerationRow directly instead of Record<string, unknown>.",
+      "related_files": [
+        "src/tools/edit-images/pages/EditImagesPage.tsx",
+        "src/tools/edit-video/pages/EditVideoPage.tsx",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSourceGeneration.ts",
+        "src/shared/lib/mediaTypeHelpers.ts"
+      ],
+      "evidence": [
+        "variantToGenerationRow returns Record<string, unknown> then callers cast 'as unknown as GenerationRow' in 5+ files"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "untyped-json-params-access-pattern",
+      "summary": "Extensive use of 'as Record<string, unknown>' and 'as string' casts to access nested JSON params from database records",
+      "confidence": "high",
+      "suggestion": "Create typed interfaces for common nested param structures. individualTravelSegment.ts alone has 40+ primitive casts. A typed TravelSegmentOriginalParams interface would eliminate most.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/utils/taskParamsUtils.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "individualTravelSegment.ts lines 208-413: ~40 'as number|string|boolean' casts on UnknownRecord properties",
+        "galleryUtils.ts lines 38-54: all param access through Record<string, unknown> followed by primitive casts"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "realtime-event-boundary-casts",
+      "summary": "RealtimeEventProcessor uses 6 'as unknown as' casts on e.new/e.old from Supabase realtime events with no runtime validation",
+      "confidence": "medium",
+      "suggestion": "Add a runtime validation helper that checks required fields exist before casting to catch schema drift early.",
+      "related_files": [
+        "src/shared/realtime/RealtimeEventProcessor.ts"
+      ],
+      "evidence": [
+        "Lines 174, 195, 248, 271, 344, 388: 'e.new as unknown as TypeRecord' pattern with no runtime validation"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "postgrest-filter-builder-any",
+      "summary": "PostgrestFilterBuilder uses <any, any, any, any, any> generic params in useProjectGenerations",
+      "confidence": "medium",
+      "suggestion": "Type the first generic as Database['public'] to get table-level type checking on query builder operations.",
+      "related_files": [
+        "src/shared/hooks/useProjectGenerations.ts"
+      ],
+      "evidence": [
+        "Line 43: type AnyPostgrestFilterBuilder = PostgrestFilterBuilder<any, any, any, any, any>"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "share-generation-nullable-cast",
+      "summary": "task_id cast bypasses type system to insert nullable value into non-nullable typed column",
+      "confidence": "high",
+      "suggestion": "Regenerate Supabase types after confirming task_id is nullable in schema, as the TODO comment says.",
+      "related_files": [
+        "src/shared/hooks/useShareGeneration.ts"
+      ],
+      "evidence": [
+        "Line 324: task_id: (taskId || null) as unknown as string"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "generate-video-service-request-body-cast",
+      "summary": "generateVideoService builds requestBody as a loose object then casts to TravelBetweenImagesTaskParams",
+      "confidence": "medium",
+      "suggestion": "Build the requestBody using TravelBetweenImagesTaskParams type from the start to catch missing fields at compile time.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "Line 645: createTravelBetweenImagesTask(requestBody as unknown as TravelBetweenImagesTaskParams)",
+        "Line 114: const videoRecord = firstVideo as unknown as Record<string, unknown>"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "use-references-media-url-cast",
+      "summary": "useReferences casts GenerationRow to access 'url' field that exists at runtime but not in type",
+      "confidence": "medium",
+      "suggestion": "Add 'url' as an optional field to GenerationRow interface.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useReferences.ts"
+      ],
+      "evidence": [
+        "Line 42: const mediaWithUrl = media as unknown as { url?: string | null }"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "settings-migration-phase-config-cast",
+      "summary": "phaseConfig casts through toRecord() then 'as unknown as SegmentSettings[\"phaseConfig\"]' without validation",
+      "confidence": "medium",
+      "suggestion": "Create a parsePhaseConfig helper that validates the shape and returns SegmentSettings['phaseConfig'] | undefined.",
+      "related_files": [
+        "src/shared/utils/settingsMigration.ts"
+      ],
+      "evidence": [
+        "Line 146 and 215: phaseConfig double-cast through toRecord() then as unknown as SegmentSettings['phaseConfig']"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "motion-preset-filter-boolean-cast",
+      "summary": "filter(Boolean) followed by 'as unknown as Preset[]' erases null/undefined without proper narrowing",
+      "confidence": "medium",
+      "suggestion": "Replace with typed filter: '.filter((p): p is NonNullable<typeof p> => p != null)'",
+      "related_files": [
+        "src/shared/components/MotionPresetSelector/useMotionPresets.ts"
+      ],
+      "evidence": [
+        "Line 43: .filter(Boolean) as unknown as Preset[]"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "selected-preset-card-supabase-cast",
+      "summary": "SelectedPresetCard casts full Supabase resources row to narrow type without validation",
+      "confidence": "medium",
+      "suggestion": "Create a transformResourceToPreset function that extracts and validates needed fields.",
+      "related_files": [
+        "src/shared/components/MotionPresetSelector/SelectedPresetCard.tsx"
+      ],
+      "evidence": [
+        "Line 39: return data as unknown as { id: string; metadata: PresetMetadata }"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "use-user-ui-state-double-cast",
+      "summary": "useUserUIState casts Supabase query result and generic value through 'as unknown as'",
+      "confidence": "medium",
+      "suggestion": "Define a proper return type for the settings query. Use a type guard for generationMethods normalization.",
+      "related_files": [
+        "src/shared/hooks/useUserUIState.ts"
+      ],
+      "evidence": [
+        "Line 89: const typedResult = result as unknown as CachedSettingsResult",
+        "Line 137: const valObj = val as unknown as Record<string, unknown>"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "use-persistent-tool-state-generic-casts",
+      "summary": "usePersistentToolState casts between generic T and Record<string, unknown> in multiple places",
+      "confidence": "medium",
+      "suggestion": "Add constraint 'T extends Record<string, unknown>' to eliminate casting.",
+      "related_files": [
+        "src/shared/hooks/usePersistentToolState.ts"
+      ],
+      "evidence": [
+        "Line 151: defaults: resolvedDefaults as unknown as Record<string, unknown>",
+        "Lines 157-158: autoSave.settings and updateFields cast to Partial<T>"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "supabase-client-rest-internal-cast",
+      "summary": "createSupabaseClient patches internal .rest.fetch through 'as unknown as' cast",
+      "confidence": "low",
+      "suggestion": "Add comment explaining this accesses internal Supabase SDK API and may break on upgrades. Justified ecosystem boundary.",
+      "related_files": [
+        "src/integrations/supabase/bootstrap/createSupabaseClient.ts"
+      ],
+      "evidence": [
+        "Line 71: (client as unknown as { rest: { fetch: typeof dataFetch } }).rest.fetch = dataFetch"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "segment-outputs-db-row-cast",
+      "summary": "useSegmentOutputsForShot casts Supabase view/table results through 'as unknown as RawGenerationDbRow[]'",
+      "confidence": "medium",
+      "suggestion": "Use Supabase's .returns<RawGenerationDbRow[]>() method to get proper type inference from the query.",
+      "related_files": [
+        "src/shared/hooks/segments/useSegmentOutputsForShot.ts"
+      ],
+      "evidence": [
+        "Lines 258 and 354: ((data || []) as unknown as RawGenerationDbRow[]).map(transformToGenerationRow)"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "submit-segment-task-params-cast",
+      "summary": "submitSegmentTask casts built params object to IndividualTravelSegmentTaskParams at the end",
+      "confidence": "medium",
+      "suggestion": "Build params as IndividualTravelSegmentTaskParams from the start to catch missing fields at compile time.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts"
+      ],
+      "evidence": [
+        "Line 168: return params as unknown as IndividualTravelSegmentTaskParams"
+      ]
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "shot-batch-item-mobile-type-params-cast",
+      "summary": "ShotBatchItemMobile casts image through 'as unknown as Parameters<typeof fn>[0]'",
+      "confidence": "low",
+      "suggestion": "Widen getImageAspectRatioStyle parameter type to accept the image's actual type, or extract needed fields explicitly.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/ShotBatchItemMobile.tsx"
+      ],
+      "evidence": [
+        "Line 43: image as unknown as Parameters<typeof getImageAspectRatioStyle>[0]"
+      ]
+    }
+  ]
+}

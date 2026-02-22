@@ -8,7 +8,7 @@
 
 import { getTaskTypeConfigCache, isTaskTypeConfigCacheInitialized, type TaskTypeInfo } from '@/shared/hooks/useTaskType';
 
-export interface TaskTypeConfig {
+interface TaskTypeConfig {
   /** Whether this task type should be visible in the UI */
   isVisible: boolean;
   /** Display name for the task type (overrides the raw taskType) */

@@ -74,16 +74,9 @@ export function useMarkVariantViewed() {
       }
     },
     onSuccess: () => {
-
-      // Invalidate variant-level queries (VariantSelector)
+      // Only invalidate variant-level queries — viewed_at doesn't change generation data
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantsAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
-
-      // Invalidate generation-level queries (gallery, timeline, batch)
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.byShotAll });
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.positionsAll });
 
       // NOTE: We intentionally do NOT invalidate variant-badges here.
       // The optimistic update in onMutate already updated the badge count.
@@ -133,16 +126,9 @@ export function useMarkVariantViewed() {
       );
     },
     onSuccess: () => {
-
-      // Invalidate variant-level queries
+      // Only invalidate variant-level queries — viewed_at doesn't change generation data
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantsAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
-
-      // Invalidate generation-level queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.byShotAll });
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.positionsAll });
     },
     onError: (error) => {
       handleError(error, { context: 'useMarkVariantViewed', showToast: false });

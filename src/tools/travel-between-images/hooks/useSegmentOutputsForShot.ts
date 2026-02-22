@@ -6,7 +6,7 @@
  */
 export {
   useSegmentOutputsForShot,
-  type SegmentSlot,
-  type ExpectedSegmentData,
-  type UseSegmentOutputsReturn,
+} from '@/shared/hooks/segments';
+export type {
+  SegmentSlot,
 } from '@/shared/hooks/segments';

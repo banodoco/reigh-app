@@ -14,7 +14,7 @@ import {
   VideoTravelContent,
   useProjectErrorTimer,
   useResetShotOnMount,
-  useScrollToTopOnHashExit,
+  useScrollToTopOnHashChange,
   useShotSortModeState,
   useSyncCurrentShotId,
   type ShotEditorViewProps,
@@ -46,7 +46,7 @@ const VideoTravelToolPage: React.FC = () => {
   const currentProject = projects.find(project => project.id === selectedProjectId);
   const projectAspectRatio = currentProject?.aspectRatio;
 
-  useScrollToTopOnHashExit(location.hash);
+  useScrollToTopOnHashChange(location.hash);
 
   // Fetch shots and related data
   const {

@@ -221,7 +221,7 @@ export function ShotListView({
   // Shot selection handler
   const handleShotSelect = useCallback((shot: Shot) => {
     setShowVideosViewRaw(false);
-    navigateToShot(shot, { scrollBehavior: 'auto', scrollDelay: 0 });
+    navigateToShot(shot, { scrollToTop: false });
   }, [setShowVideosViewRaw, navigateToShot]);
 
   // Create shot modal handlers

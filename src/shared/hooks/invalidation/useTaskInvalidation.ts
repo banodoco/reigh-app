@@ -1,6 +1,6 @@
-export type TaskInvalidationScope = 'list' | 'detail' | 'counts' | 'all';
+type TaskInvalidationScope = 'list' | 'detail' | 'counts' | 'all';
 
-export interface TaskInvalidationOptions {
+interface TaskInvalidationOptions {
   scope?: TaskInvalidationScope;
   reason: string;
   taskId?: string;

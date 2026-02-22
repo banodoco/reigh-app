@@ -68,7 +68,6 @@ async function updateAutoTopupPreferences(params: UpdateAutoTopupParams): Promis
   const { data: { session }, error: authError } = await supabase.auth.getSession();
   
   if (authError || !session) {
-    console.error('[AutoTopup:Hook] Auth error:', authError);
     throw new Error('Authentication required');
   }
 
@@ -88,7 +87,6 @@ async function updateAutoTopupPreferences(params: UpdateAutoTopupParams): Promis
   });
   
   if ((data as Record<string, unknown> | null)?.error) {
-    console.error('[AutoTopup:Hook] Edge function returned error:', data);
     throw new Error(((data as Record<string, unknown>).message as string) || 'Failed to update auto-top-up preferences');
   }
   

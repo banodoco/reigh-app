@@ -10,6 +10,6 @@
  */
 
 export { default } from './TimelineContainer';
-export type { TimelineContainerProps, PairData } from './types';
+export type { PairData } from './types';
 
 // Note: Sub-components (ZoomControls, GuidanceVideoControls, etc.) are internal

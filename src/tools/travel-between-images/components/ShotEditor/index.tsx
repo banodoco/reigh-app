@@ -3,7 +3,7 @@ import { ShotEditorProps } from './state/types';
 import { ShotEditorLayout } from './ShotEditorLayout';
 import { useShotEditorController } from './useShotEditorController';
 
-const ShotSettingsEditor: React.FC<ShotEditorProps> = (props) => {
+const ShotSettingsEditor: React.FC<ShotEditorProps> = React.memo((props) => {
   const { hasSelectedShot, layoutProps } = useShotEditorController(props);
 
   if (!hasSelectedShot) {
@@ -15,8 +15,6 @@ const ShotSettingsEditor: React.FC<ShotEditorProps> = (props) => {
   }
 
   return <ShotEditorLayout {...layoutProps} />;
-};
+});
 
 export { ShotSettingsEditor };
-export default ShotSettingsEditor;
-export const ShotEditor = ShotSettingsEditor;

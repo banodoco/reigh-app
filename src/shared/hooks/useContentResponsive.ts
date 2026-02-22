@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { usePanes } from '@/shared/contexts/PanesContext';
 
 // Tailwind-standard breakpoint thresholds (px)
 const BREAKPOINT_SM = 640;
@@ -8,7 +7,6 @@ const BREAKPOINT_LG = 1024;
 const BREAKPOINT_XL = 1280;
 const BREAKPOINT_2XL = 1536;
 
-// Local fallback type definition (mirrors original)
 interface ContentBreakpoints {
   isSm: boolean;
   isMd: boolean;
@@ -21,15 +19,15 @@ interface ContentBreakpoints {
 
 /**
  * Hook for content-aware responsive breakpoints
- * 
+ *
  * Unlike CSS media queries that respond to viewport size, this hook responds to
  * the actual available content area, accounting for locked panes that reduce
  * the usable space.
- * 
+ *
  * @example
  * ```tsx
  * const { isLg, isSm, contentWidth } = useContentResponsive();
- * 
+ *
  * // Use for conditional rendering
  * return (
  *   <div className={isLg ? "flex-row" : "flex-col"}>
@@ -39,8 +37,6 @@ interface ContentBreakpoints {
  * ```
  */
 export const useContentResponsive = (): ContentBreakpoints => {
-  const panes = usePanes();
-
   const [viewport, setViewport] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 1200,
     height: typeof window !== 'undefined' ? window.innerHeight : 800,
@@ -57,13 +53,6 @@ export const useContentResponsive = (): ContentBreakpoints => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // If PanesContext provides contentBreakpoints, use them
-  const panesWithBreakpoints = panes as unknown as { contentBreakpoints?: ContentBreakpoints };
-  if (panesWithBreakpoints.contentBreakpoints && panesWithBreakpoints.contentBreakpoints.contentWidth > 0) {
-    return panesWithBreakpoints.contentBreakpoints;
-  }
-
-  // Fallback to viewport-based breakpoints
   const { width, height } = viewport;
 
   return {

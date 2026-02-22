@@ -2,9 +2,9 @@ import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { queryKeys } from '../../lib/queryKeys';
 
-export type InvalidationScope = 'all' | 'images' | 'metadata' | 'counts';
+type InvalidationScope = 'all' | 'images' | 'metadata' | 'counts';
 
-export interface InvalidationOptions {
+interface InvalidationOptions {
   scope?: InvalidationScope;
   reason: string;
   delayMs?: number;
@@ -13,7 +13,7 @@ export interface InvalidationOptions {
   includeProjectUnified?: boolean;
 }
 
-export interface VariantInvalidationOptions {
+interface VariantInvalidationOptions {
   reason: string;
   generationId: string;
   shotId?: string;
@@ -112,6 +112,7 @@ export async function invalidateVariantChange(
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
+  // Specific generation + variants
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.variants(generationId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.detail(generationId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantBadges });
@@ -120,18 +121,16 @@ export async function invalidateVariantChange(
     await queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
   }
 
-  queryClient.invalidateQueries({
-    predicate: (query) => query.queryKey[0] === queryKeys.generations.byShotAll[0],
-  });
-
-  queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
-
+  // Scoped: only invalidate project or fall back to all
   if (projectId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(projectId) });
+  } else {
+    queryClient.invalidateQueries({ queryKey: queryKeys.unified.all });
   }
 
+  queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
+
+  // Segments may reference this variant as source
   queryClient.invalidateQueries({
     predicate: (query) => query.queryKey[0] === queryKeys.segments.childrenAll[0],
   });

@@ -148,6 +148,14 @@ export const useShotSettings = (
     }
   }, [settings, shotId, projectId, status]);
   
+  // Refs for callbacks that need latest values without recreation
+  const autoSaveSettingsRef = useRef(autoSave.settings);
+  autoSaveSettingsRef.current = autoSave.settings;
+  const shotIdRef = useRef(shotId);
+  shotIdRef.current = shotId;
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
+
   // Wrapped updateField with special handling for advancedMode/phaseConfig
   const updateField = useCallback(<K extends keyof VideoTravelSettings>(
     key: K,
@@ -155,9 +163,9 @@ export const useShotSettings = (
   ) => {
     // Handle special case: when switching to advanced mode, initialize phaseConfig
     if (key === 'advancedMode' && value === true) {
-      const currentSettings = autoSave.settings;
+      const currentSettings = autoSaveSettingsRef.current;
       if (!currentSettings.phaseConfig) {
-        autoSave.updateFields({
+        autoSaveUpdateFields({
           [key]: value,
           phaseConfig: DEFAULT_PHASE_CONFIG,
         } as Partial<VideoTravelSettings>);
@@ -165,80 +173,79 @@ export const useShotSettings = (
       }
     }
     if (key === 'motionMode' && value === 'advanced') {
-      const currentSettings = autoSave.settings;
+      const currentSettings = autoSaveSettingsRef.current;
       if (!currentSettings.phaseConfig) {
-        autoSave.updateFields({
+        autoSaveUpdateFields({
           [key]: value,
           phaseConfig: DEFAULT_PHASE_CONFIG,
         } as Partial<VideoTravelSettings>);
         return;
       }
     }
-    
+
     autoSave.updateField(key, value);
-  }, [autoSave]);
+  }, [autoSave.updateField, autoSaveUpdateFields]);
   
   // Apply settings from another shot
   const applyShotSettings = useCallback(async (sourceShotId: string) => {
-    if (!shotId || !sourceShotId) {
+    if (!shotIdRef.current || !sourceShotId) {
       toast.error('Cannot apply settings: missing shot ID');
       return;
     }
-    
+
     try {
       const { data, error: fetchError } = await supabase
         .from('shots')
         .select('settings')
         .eq('id', sourceShotId)
         .single();
-      
+
       if (fetchError) throw fetchError;
-      
+
       const sourceSettings = (data?.settings as Record<string, unknown>)?.[TOOL_IDS.TRAVEL_BETWEEN_IMAGES] as VideoTravelSettings;
-      
+
       if (sourceSettings) {
-        // Apply all fields from source
-        autoSave.updateFields(sourceSettings);
+        autoSaveUpdateFields(sourceSettings);
       } else {
         toast.error('Source shot has no settings');
       }
     } catch (err) {
       handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply settings' });
     }
-  }, [shotId, autoSave]);
-  
+  }, [autoSaveUpdateFields]);
+
   // Apply project defaults
   const applyProjectDefaults = useCallback(async () => {
-    if (!projectId) {
+    if (!projectIdRef.current) {
       toast.error('Cannot apply defaults: no project selected');
       return;
     }
-    
+
     try {
       const { data, error: fetchError } = await supabase
         .from('projects')
         .select('settings')
-        .eq('id', projectId)
+        .eq('id', projectIdRef.current)
         .single();
-      
+
       if (fetchError) throw fetchError;
-      
+
       const projectDefaults = (data?.settings as Record<string, unknown>)?.[TOOL_IDS.TRAVEL_BETWEEN_IMAGES] as VideoTravelSettings;
-      
+
       if (projectDefaults) {
-        autoSave.updateFields(projectDefaults);
+        autoSaveUpdateFields(projectDefaults);
       } else {
         toast.error('Project has no default settings');
       }
     } catch (err) {
       handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply defaults' });
     }
-  }, [projectId, autoSave]);
-  
+  }, [autoSaveUpdateFields]);
+
   // Reset to hardcoded defaults
   const resetToDefaults = useCallback(() => {
-    autoSave.updateFields(videoTravelSettings.defaults);
-  }, [autoSave]);
+    autoSaveUpdateFields(videoTravelSettings.defaults);
+  }, [autoSaveUpdateFields]);
   
   // Memoize return value
   return useMemo(() => ({

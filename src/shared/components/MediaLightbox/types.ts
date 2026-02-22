@@ -43,7 +43,7 @@ export interface AdjacentSegmentsData {
   onNavigateToSegment: (pairIndex: number) => void;
 }
 
-export interface BrushStroke {
+interface BrushStroke {
   id: string;
   points: Array<{ x: number; y: number }>;
   isErasing: boolean;

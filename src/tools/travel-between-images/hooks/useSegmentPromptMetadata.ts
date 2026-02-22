@@ -10,7 +10,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { GenerationRow } from '@/types/shots';
 import { readSegmentOverrides, writeSegmentOverrides } from '@/shared/utils/settingsMigration';
@@ -106,7 +106,7 @@ export function useSegmentPromptMetadata({
 
     const { error } = await supabase
       .from('shot_generations')
-      .update({ metadata: updatedMetadata as unknown as Json })
+      .update({ metadata: toJson(updatedMetadata) })
       .eq('id', shotGen.id)
       .select();
 
@@ -166,7 +166,7 @@ export function useSegmentPromptMetadata({
     // Persist to database
     const { error } = await supabase
       .from('shot_generations')
-      .update({ metadata: restMetadata as unknown as Json })
+      .update({ metadata: toJson(restMetadata) })
       .eq('id', shotGen.id);
 
     if (error) {

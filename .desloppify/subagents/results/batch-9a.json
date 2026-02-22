@@ -1,0 +1,110 @@
+{
+  "batch": "Full Codebase Sweep (chunk 1/4: app, pages, shared/components)",
+  "assessments": {
+    "cross_module_architecture": 72,
+    "initialization_coupling": 68,
+    "convention_outlier": 74,
+    "error_consistency": 80,
+    "abstraction_fitness": 62,
+    "dependency_health": 75,
+    "test_strategy": 55,
+    "api_surface_coherence": 65,
+    "authorization_consistency": 78,
+    "ai_generated_debt": 60,
+    "incomplete_migration": 70,
+    "package_organization": 73,
+    "high_level_elegance": 70,
+    "mid_level_elegance": 58,
+    "low_level_elegance": 68
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "media-gallery-item-god-component",
+      "summary": "MediaGalleryItem.tsx is a 673-line component that mixes rendering, drag-and-drop handling, touch interaction detection, aspect ratio calculation, share functionality, task data fetching, variant badge management, and shot navigation into a single file. Despite hooks being extracted into a sub-directory, the main component still orchestrates too many concerns inline.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaGalleryItem.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaGallery/index.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaGalleryItem/types.ts"
+      ],
+      "evidence": [
+        "MediaGalleryItem.tsx is 673 lines with 87 destructured props (from MediaGalleryItemProps which has 62+ fields), 15+ hook calls, inline aspect ratio calculation (lines 294-331), inline touch/scroll detection logic (lines 350-402), and inline drag preview setup. The component contains rendering for placeholders, video content, image content, shot actions, info tooltips, share buttons, variant badges, star toggles, edit buttons, and delete buttons all in a single return statement.",
+        "MediaGallery/index.tsx is 639 lines passing 80+ props down to MediaGalleryGrid, which then passes them down to individual MediaGalleryItem instances - classic prop drilling pattern exceeding 3 levels.",
+        "MediaGalleryItemProps has 62 properties in its interface (types.ts), many of which are state setters being threaded through from MediaGallery state."
+      ],
+      "suggestion": "Extract aspect ratio calculation into a shared utility. Extract inline touch/scroll detection into a dedicated hook (useScrollAwareTap or similar). Consider a context or compound component pattern for MediaGallery to avoid threading 60+ props through intermediate Grid components. The shot-related props alone (selectedShotIdLocal, simplifiedShotOptions, isShotSelectorOpen, etc.) could be served by a ShotActionsContext.",
+      "reasoning": "The 300-LOC threshold from CLAUDE.md is exceeded by more than 2x. The prop drilling from MediaGallery through MediaGalleryGrid to MediaGalleryItem creates brittleness - any change to the gallery item's needs requires updating three layers. The component's cognitive load is very high, making it difficult to reason about behavior or modify safely.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "media-lightbox-excessive-hook-composition-depth",
+      "summary": "ImageLightbox uses a 5-layer deep hook composition chain (useImageLightboxEnvironment -> useImageLightboxSharedState -> useImageLightboxEditing -> useImageLightboxRenderModel -> useImageLightboxControlsPanel), each passing the full return value of previous layers. This creates very long useMemo dependency arrays (55+ items in useImageLightboxControlsPanel) and makes the data flow difficult to trace.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaLightbox/hooks/useLightboxStateValue.ts"
+      ],
+      "evidence": [
+        "ImageLightbox.tsx defines 5 custom hooks within the same file (useImageLightboxEnvironment, useImageLightboxSharedState, useImageLightboxEditing, useImageLightboxRenderModel, useImageLightboxControlsPanel) with explicit type aliases for each return type (ImageLightboxEnvironment, ImageLightboxSharedModel, ImageLightboxEditModel). The final render component passes all 4 model objects into useImageLightboxControlsPanel which has a useMemo with 55+ dependency items (lines 515-557).",
+        "useSharedLightboxState.ts is 693 lines and orchestrates 15+ sub-hooks (useVariants, useVariantSelection, useVariantPromotion, useLightboxNavigation, useSwipeNavigation, useStarToggle, useReferences, useJoinClips, useGenerationLineage, useShotPositioning, useShotCreation, useSourceGeneration, useMakeMainVariant, useEffectiveMedia, useLayoutMode, useButtonGroupProps), returning a deeply nested object with 10+ top-level sections.",
+        "useLightboxStateValue.ts memoizes the 'variants' sub-object with `[input]` as dependency (line 140), which defeats the purpose of individual memoization since `input` is a new object on every render."
+      ],
+      "suggestion": "The useMemo with [input] on line 140 of useLightboxStateValue.ts is a correctness issue - it should individually list the variant-related properties from input rather than using the entire input object. More broadly, consider whether the 5-layer hook chain could be flattened into 2-3 layers with clearer boundaries.",
+      "reasoning": "The [input] dependency in useLightboxStateValue defeats memoization since the input object is recreated every render. This means the variants context value changes on every render, potentially causing deep re-renders of variant-displaying children. The excessive composition depth also makes it very hard to understand what data flows where.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "duplicate-auth-session-reading-patterns",
+      "summary": "Auth session state is read from localStorage in multiple places using subtly different patterns (routes.tsx reads the raw token, createSupabaseClient.ts reads it for caching, useAuthGuard.ts reads via supabase.auth.getSession), creating coupling between the app initialization and auth token storage format.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/app/routes.tsx",
+        "/Users/peteromalley/Documents/reigh/src/integrations/supabase/bootstrap/createSupabaseClient.ts",
+        "/Users/peteromalley/Documents/reigh/src/app/hooks/useAuthGuard.ts"
+      ],
+      "evidence": [
+        "routes.tsx lines 39-48: hasStoredSession() reads localStorage key `sb-${projectRef}-auth-token`, parses JSON, checks for access_token. This is a synchronous check duplicating GoTrueClient internals.",
+        "createSupabaseClient.ts lines 13-25: readTokenFromStorage() reads the exact same localStorage key with the same parsing pattern but as a separate function.",
+        "Both functions hardcode the key format `sb-${projectRef}-auth-token` which is an internal GoTrueClient convention that could change across Supabase SDK versions."
+      ],
+      "suggestion": "Extract the localStorage session check into a single shared utility in the supabase integration layer (e.g., `readCachedSession()` in `src/integrations/supabase/utils/`). Both routes.tsx and createSupabaseClient.ts should import from this single source. This also makes it easier to update if the GoTrueClient key format changes.",
+      "reasoning": "Two independently maintained copies of the same GoTrueClient internal key format creates a maintenance risk. If the Supabase SDK changes its storage key format, the fix needs to be applied in multiple places. The synchronous session check in routes.tsx is particularly fragile since it's used for redirects before the full auth system initializes.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "inconsistent-event-bus-usage-for-cross-component-communication",
+      "summary": "The codebase uses CustomEvent-based communication via window.dispatchEvent/addEventListener for settings modal opening (useSettingsModal.ts) and realtime reconnection (ReconnectScheduler.ts), but also uses React context for similar cross-component communication elsewhere. This creates two parallel patterns for the same problem.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/app/hooks/useSettingsModal.ts",
+        "/Users/peteromalley/Documents/reigh/src/integrations/supabase/reconnect/ReconnectScheduler.ts",
+        "/Users/peteromalley/Documents/reigh/src/integrations/supabase/auth/AuthStateManager.ts"
+      ],
+      "evidence": [
+        "useSettingsModal.ts lines 26-38: Listens for 'openSettings' CustomEvent on window to open settings modal from external sources (welcome modal). This is a React-specific UI interaction being routed through the global event bus.",
+        "ReconnectScheduler.ts lines 100-109: Dispatches 'realtime:auth-heal' CustomEvent on window for realtime reconnection, which is appropriate since it's infrastructure-level signaling outside React's tree.",
+        "AuthStateManager.ts lines 9-19: Maintains its own listener registry pattern (subscribe/unsubscribe) separate from both React context and window events, creating a third communication pattern."
+      ],
+      "suggestion": "For React-to-React UI communication (like opening the settings modal from the welcome modal), prefer callback props or React context rather than window CustomEvents. The window event pattern should be reserved for cross-boundary communication where the sender is outside React's component tree (infrastructure code like ReconnectScheduler). AuthStateManager's custom listener registry could be replaced by simply using the existing onAuthStateChange from Supabase.",
+      "reasoning": "Three different cross-component communication patterns (React context, window CustomEvents, custom listener registry) for similar needs increases the learning curve and makes it harder to trace data flow. The settings modal case is particularly surprising since both the sender and receiver are React components that could communicate through context.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commented-out-tooltip-content-blocks-in-hero-section",
+      "summary": "HeroSection.tsx contains two large blocks of commented-out TooltipContent JSX (30+ lines each at lines 176-193 and 239-267) that are fully implemented but disabled. These appear to be AI-generated alternative implementations left in place rather than being removed or moved to a feature flag.",
+      "related_files": [
+        "/Users/peteromalley/Documents/reigh/src/pages/Home/components/HeroSection.tsx",
+        "/Users/peteromalley/Documents/reigh/src/shared/components/MediaGallery/index.tsx"
+      ],
+      "evidence": [
+        "HeroSection.tsx lines 176-193 and 239-267 contain two complete TooltipContent implementations wrapped in {/* ... */} comments with the annotation 'TooltipContent intentionally commented out'. These blocks include complex Tailwind classes, gradient hover effects, animations, and conditional rendering logic.",
+        "MediaGallery/index.tsx line 409: `reducedSpacing ? 'space-y-6' : 'space-y-6'` - a ternary that evaluates to the same value on both branches, likely left over from an iteration that was never cleaned up."
+      ],
+      "suggestion": "Remove the commented-out TooltipContent blocks from HeroSection.tsx. If the intent is to preserve them for future use, they should be in a separate component file or behind a feature flag. Fix the no-op ternary in MediaGallery.",
+      "reasoning": "Commented-out code of this size creates confusion about whether it's deprecated, experimental, or temporarily disabled. The no-op ternary `reducedSpacing ? 'space-y-6' : 'space-y-6'` is a clear sign of an incomplete edit, and while harmless at runtime, it misleads readers about what reducedSpacing is supposed to do.",
+      "confidence": "high"
+    }
+  ]
+}

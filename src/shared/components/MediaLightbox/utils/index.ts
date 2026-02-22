@@ -1,4 +1,4 @@
 export { downloadMedia } from './download';
-export { extractDimensionsFromMedia, resolutionToDimensions, aspectRatioToDimensions } from './dimensions';
+export { extractDimensionsFromMedia } from './dimensions';
 export { handleLightboxDownload } from './lightboxDownload';
 

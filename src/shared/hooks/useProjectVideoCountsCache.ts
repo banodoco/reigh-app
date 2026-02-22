@@ -154,6 +154,17 @@ export function useProjectVideoCountsCache(projectId: string | null) {
     refetchIntervalInBackground: true, // Enable background polling
   });
 
+  // PERF: Ref for projectCounts so callbacks always read latest without needing it in deps.
+  // Maps break React Query's structural sharing → projectCounts is a new reference on every
+  // refetch → callbacks with projectCounts in deps are recreated → break React.memo on children.
+  const projectCountsRef = useRef(projectCounts);
+  projectCountsRef.current = projectCounts;
+
+  // 🎯 PERF FIX: Ref for refetch — useQuery returns a new refetch reference on every render
+  // (it's bound in createResult). Using it in useCallback deps would recreate callbacks every render.
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
+
   // Update cache when data changes
   React.useEffect(() => {
     if (projectCounts && projectId) {
@@ -171,13 +182,9 @@ export function useProjectVideoCountsCache(projectId: string | null) {
     }
 
     // Then try current query data
-    if (projectCounts) {
-      const counts = projectCounts.get(shotId);
-      return counts !== undefined ? counts.videoCount : null;
-    }
-
-    return null;
-  }, [projectId, projectCounts]);
+    const counts = projectCountsRef.current?.get(shotId);
+    return counts !== undefined ? counts.videoCount : null;
+  }, [projectId]);
 
   const getFinalVideoCount = useCallback((shotId: string | null): number | null => {
     if (!projectId || !shotId) return null;
@@ -189,13 +196,9 @@ export function useProjectVideoCountsCache(projectId: string | null) {
     }
 
     // Then try current query data
-    if (projectCounts) {
-      const counts = projectCounts.get(shotId);
-      return counts !== undefined ? counts.finalVideoCount : null;
-    }
-
-    return null;
-  }, [projectId, projectCounts]);
+    const counts = projectCountsRef.current?.get(shotId);
+    return counts !== undefined ? counts.finalVideoCount : null;
+  }, [projectId]);
 
   const getHasStructureVideo = useCallback((shotId: string | null): boolean | null => {
     if (!projectId || !shotId) return null;
@@ -207,13 +210,9 @@ export function useProjectVideoCountsCache(projectId: string | null) {
     }
 
     // Then try current query data
-    if (projectCounts) {
-      const counts = projectCounts.get(shotId);
-      return counts !== undefined ? counts.hasStructureVideo : null;
-    }
-
-    return null;
-  }, [projectId, projectCounts]);
+    const counts = projectCountsRef.current?.get(shotId);
+    return counts !== undefined ? counts.hasStructureVideo : null;
+  }, [projectId]);
 
   const getAllShotCounts = useCallback((): Map<string, ShotCounts> | null => {
     if (!projectId) return null;
@@ -225,8 +224,8 @@ export function useProjectVideoCountsCache(projectId: string | null) {
     }
 
     // Then try current query data
-    return projectCounts || null;
-  }, [projectId, projectCounts]);
+    return projectCountsRef.current || null;
+  }, [projectId]);
 
   const clearCache = useCallback((): void => {
     cacheRef.current.clear();
@@ -245,9 +244,9 @@ export function useProjectVideoCountsCache(projectId: string | null) {
   const invalidateOnVideoChanges = useCallback(() => {
     if (projectId) {
       cacheRef.current.deleteProject(projectId);
-      refetch();
+      refetchRef.current();
     }
-  }, [projectId, refetch]);
+  }, [projectId]);
 
   return {
     getShotVideoCount,

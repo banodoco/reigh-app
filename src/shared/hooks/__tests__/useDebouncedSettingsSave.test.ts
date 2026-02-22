@@ -44,12 +44,10 @@ describe('useDebouncedSettingsSave', () => {
     entityId: 'entity-1',
     debounceMs: 300,
     status: 'ready' as const,
-    flushConfig: {
-      isCustomMode: false,
-      scope: 'shot' as const,
-      toolId: 'test-tool',
-      projectId: 'project-1',
-    },
+    isCustomMode: false,
+    scope: 'shot' as const,
+    toolId: 'test-tool',
+    projectId: 'project-1',
     customSaveRef: { current: mockCustomSave },
     onFlushRef: { current: mockOnFlush },
     saveImmediateRef: { current: mockSaveImmediate },
@@ -213,5 +211,77 @@ describe('useDebouncedSettingsSave', () => {
 
     // getLatestSettings should not be called since save was cancelled
     expect(mockGetLatestSettings).not.toHaveBeenCalled();
+  });
+
+  it('flushes pending settings on entity change via cleanup effect', async () => {
+    const localCustomSave = vi.fn().mockResolvedValue(undefined);
+    const localOnFlush = vi.fn();
+
+    let entityId = 'entity-1';
+
+    const { result, rerender } = renderHook(
+      () => useDebouncedSettingsSave<TestSettings>({
+        ...defaultOptions,
+        entityId,
+        isCustomMode: true,
+        scope: 'shot',
+        toolId: 'test-tool',
+        projectId: 'project-1',
+        customSaveRef: { current: localCustomSave },
+        onFlushRef: { current: localOnFlush },
+      }),
+      { wrapper: createWrapper() }
+    );
+
+    // Track pending update for entity-1
+    act(() => {
+      result.current.trackPendingUpdate({ prompt: 'dirty', mode: 'basic' }, 'entity-1');
+    });
+
+    // Change entity — triggers cleanup effect which should flush
+    entityId = 'entity-2';
+    rerender();
+
+    // Allow flush promise to settle
+    await act(async () => {
+      vi.advanceTimersByTime(10);
+    });
+    await act(async () => {});
+
+    // Custom save should have been called with entity-1's pending data
+    expect(localCustomSave).toHaveBeenCalledWith('entity-1', { prompt: 'dirty', mode: 'basic' });
+    // onFlush callback should fire after save completes
+    expect(localOnFlush).toHaveBeenCalledWith('entity-1', { prompt: 'dirty', mode: 'basic' });
+  });
+
+  it('does not flush when no pending settings exist', async () => {
+    const localCustomSave = vi.fn().mockResolvedValue(undefined);
+
+    let entityId = 'entity-1';
+
+    const { rerender } = renderHook(
+      () => useDebouncedSettingsSave<TestSettings>({
+        ...defaultOptions,
+        entityId,
+        isCustomMode: true,
+        scope: 'shot',
+        toolId: 'test-tool',
+        projectId: 'project-1',
+        customSaveRef: { current: localCustomSave },
+      }),
+      { wrapper: createWrapper() }
+    );
+
+    // Change entity without any pending updates
+    entityId = 'entity-2';
+    rerender();
+
+    await act(async () => {
+      vi.advanceTimersByTime(10);
+    });
+    await act(async () => {});
+
+    // Custom save should NOT have been called
+    expect(localCustomSave).not.toHaveBeenCalled();
   });
 });

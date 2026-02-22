@@ -13,7 +13,7 @@
 import React, { useMemo, useRef } from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
-import { useShotImages, useTimelineImages, useUnpositionedImages, useVideoOutputs } from '@/shared/hooks/useShotImages';
+import { useShotImages } from '@/shared/hooks/useShotImages';
 import { Shot, GenerationRow } from '@/types/shots';
 import type { Project } from '@/types/project';
 
@@ -148,13 +148,6 @@ export function useShotEditorSetup({
   );
   const isLoadingFullImages = fullImagesQueryResult.isLoading;
 
-  // [SelectorPattern] Use selector hooks for filtered views of shot data.
-  // Cache is primed by VideoTravelToolPage, so selectors have data immediately.
-  // Optimistic updates in mutations update the cache; selectors automatically reflect changes.
-  const timelineImagesQuery = useTimelineImages(selectedShotId);
-  const unpositionedImagesQuery = useUnpositionedImages(selectedShotId);
-  const videoOutputsQuery = useVideoOutputs(selectedShotId);
-
   // All shot images - use query data when available, fall back to context images during transition
   // This prevents the "flash to empty" when navigating between shots
   // PERF: Memoize to prevent ShotImagesEditor re-renders when reference doesn't actually change
@@ -162,33 +155,37 @@ export function useShotEditorSetup({
     return fullShotImages.length > 0 ? fullShotImages : contextImages;
   }, [fullShotImages, contextImages]);
 
-  // Selector data with fallbacks derived from contextImages during transitions
-  // This prevents UI flicker when navigating between shots
+  // PERF: Derive filtered views from the single useShotImages query instead of
+  // calling selector hooks (useTimelineImages, useUnpositionedImages, useVideoOutputs).
+  // Each selector hook internally calls useAllShotGenerations(shotId), creating a separate
+  // React Query observer. 4 observers for the same query key amplify the render loop
+  // because each runs observer.setOptions() every render.
   const timelineImages = useMemo(() => {
-    if (timelineImagesQuery.data && timelineImagesQuery.data.length > 0) {
-      return timelineImagesQuery.data;
-    }
-    // Fallback: filter contextImages the same way the selector does
-    return contextImages
-      .filter(g => g.timeline_frame != null && g.timeline_frame >= 0 && !g.type?.includes('video'))
+    return allShotImages
+      .filter(g => {
+        const location = g.imageUrl || g.location;
+        const hasValidLocation = location && location !== '/placeholder.svg';
+        return g.timeline_frame != null &&
+               g.timeline_frame >= 0 &&
+               !g.type?.includes('video') &&
+               hasValidLocation;
+      })
       .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
-  }, [timelineImagesQuery.data, contextImages]);
+  }, [allShotImages]);
 
   const unpositionedImages = useMemo(() => {
-    if (unpositionedImagesQuery.data && unpositionedImagesQuery.data.length > 0) {
-      return unpositionedImagesQuery.data;
-    }
-    // Fallback: filter contextImages the same way the selector does
-    return contextImages.filter(g => g.timeline_frame == null && !g.type?.includes('video'));
-  }, [unpositionedImagesQuery.data, contextImages]);
+    return allShotImages.filter(g => {
+      const location = g.imageUrl || g.location;
+      const hasValidLocation = location && location !== '/placeholder.svg';
+      return g.timeline_frame == null &&
+             !g.type?.includes('video') &&
+             hasValidLocation;
+    });
+  }, [allShotImages]);
 
   const videoOutputs = useMemo(() => {
-    if (videoOutputsQuery.data && videoOutputsQuery.data.length > 0) {
-      return videoOutputsQuery.data;
-    }
-    // Fallback: filter contextImages the same way the selector does
-    return contextImages.filter(g => g.type?.includes('video'));
-  }, [videoOutputsQuery.data, contextImages]);
+    return allShotImages.filter(g => g.type?.includes('video'));
+  }, [allShotImages]);
 
   // PERF: Derive initial parent generations from fast videoOutputs cache
   // This allows FinalVideoSection to show thumbnail immediately while full segment data loads

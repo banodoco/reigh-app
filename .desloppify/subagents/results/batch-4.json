@@ -1,0 +1,126 @@
+{
+  "batch": "Testing & API",
+  "assessments": {
+    "test_strategy": 62,
+    "api_surface_coherence": 68,
+    "mid_level_elegance": 72
+  },
+  "findings": [
+    {
+      "dimension": "test_strategy",
+      "identifier": "test::stub_only_generateVideoService_test",
+      "summary": "generateVideoService.test.ts is a stub that only checks export existence, providing zero behavioral coverage for the most complex service in the batch",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts",
+          "lines": "6-12",
+          "snippet": "describe('generateVideoService', () => {\n  it('exports expected members', () => {\n    expect(buildBasicModePhaseConfig).toBeDefined();\n    expect(true).not.toBe(false);\n    expect(true).not.toBe(false);\n  });\n});"
+        }
+      ],
+      "suggestion": "generateVideoService.ts has 650+ lines of pure logic (resolution resolution, pair config building, model selection, phase config validation, structure guidance building). The extracted helper functions (buildImagePayload, buildTimelinePairConfig, buildBatchPairConfig, resolveModelPhaseSelection, validatePhaseConfigConsistency, buildStructureGuidance) are all unit-testable without React or Supabase mocking. Write focused tests for each extracted function, particularly edge cases like empty shot_generations, single-image shots, and invalid phase configs.",
+      "reasoning": "This is the most complex service file in the batch (654 LOC) with rich pure-function extraction already done, making it highly testable. The existing test file contains placeholder assertions (`expect(true).not.toBe(false)`) and only verifies that one export exists. This leaves critical video generation logic (resolution fallback chains, pair config construction from timeline metadata, model/phase selection branching) completely untested.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "api::duplicated_MetadataLora_interface",
+      "summary": "MetadataLora interface is identically defined in two separate type files, creating a maintenance risk and confusing import choices",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/components/MediaGallery/types.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/components/MediaGallery/types.ts",
+          "lines": "11-18",
+          "snippet": "// Define types here to avoid circular imports\nexport interface MetadataLora {\n  id: string;\n  name: string;\n  path: string;\n  strength: number;\n  previewImageUrl?: string;\n}"
+        },
+        {
+          "file": "src/shared/components/ImageGenerationForm/types.ts",
+          "lines": "30-36",
+          "snippet": "export interface MetadataLora {\n  id: string;\n  name: string;\n  path: string;\n  strength: number; \n  previewImageUrl?: string;\n}"
+        }
+      ],
+      "suggestion": "Extract MetadataLora to a shared type file (e.g., src/shared/types/lora.ts) and have both files import from there. The comment 'Define types here to avoid circular imports' in MediaGallery/types.ts suggests this was a workaround, but a dedicated shared types file would break the cycle cleanly.",
+      "reasoning": "Having two identical interface definitions with the same name in different files violates DRY and creates confusion about which is canonical. If one is updated (e.g., adding a new field), the other may be missed, leading to subtle type mismatches at module boundaries.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "test::no_tests_addImageToShotHelpers",
+      "summary": "addImageToShotHelpers.ts has no test coverage despite containing complex optimistic cache update logic and multiple mutation paths",
+      "related_files": [
+        "src/shared/hooks/shots/addImageToShotHelpers.ts",
+        "src/shared/hooks/shots/cacheUtils.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/hooks/shots/addImageToShotHelpers.ts",
+          "lines": "128-138",
+          "snippet": "export function runAddImageMutation(variables: AddImageToShotVariables): Promise<Record<string, unknown>> {\n  const { shot_id, generation_id, timelineFrame } = variables;\n\n  if (timelineFrame === null) {\n    return insertUnpositionedShotGeneration(shot_id, generation_id);\n  }\n  if (timelineFrame === undefined) {\n    return insertAutoPositionedShotGeneration(shot_id, generation_id);\n  }\n  return insertExplicitlyPositionedShotGeneration(shot_id, generation_id, timelineFrame);\n}"
+        }
+      ],
+      "suggestion": "Write tests for the pure functions: resolveOptimisticFrame (null/undefined/explicit frame logic), createOptimisticGenerationItem (correct identity shape), applyOptimisticCaches (cache mutation correctness), replaceOptimisticItemInCache (temp ID replacement), and toAddImageErrorMessage (error message mapping). These are all testable with a mock QueryClient, similar to the existing cacheUtils.test.ts pattern.",
+      "reasoning": "This file contains the optimistic update logic for adding images to shots -- a critical user-facing operation. The three-way branching on timelineFrame (null vs undefined vs number) is subtle and error-prone. The sibling cacheUtils.ts has thorough tests, but this file (which is a primary consumer of cacheUtils) has none, leaving a gap in the mutation pipeline's test coverage.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "elegance::VideoPortionTimeline_monolith",
+      "summary": "VideoPortionTimeline is a 738-line single-component file mixing drag/touch handling, video seeking, RAF throttling, and rendering with no decomposition",
+      "related_files": [
+        "src/shared/components/VideoPortionTimeline/index.tsx",
+        "src/tools/travel-between-images/components/Timeline/constants.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/components/VideoPortionTimeline/index.tsx",
+          "lines": "160-170",
+          "snippet": "export function MultiPortionTimeline({\n  duration,\n  selections,\n  activeSelectionId,\n  onSelectionChange,\n  onSelectionClick,\n  videoRef,\n  videoUrl,\n  fps,\n  maxGapFrames,\n}: MultiPortionTimelineProps) {"
+        },
+        {
+          "file": "src/shared/components/VideoPortionTimeline/index.tsx",
+          "lines": "172-194",
+          "snippet": "  const trackRef = useRef<HTMLDivElement>(null);\n  const scrubberRef = useRef<HTMLDivElement>(null);\n  const [dragging, setDragging] = useState<{ id: string; handle: 'start' | 'end' } | null>(null);\n  const [currentTime, setCurrentTime] = useState(0);\n  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);\n  const [selectedHandle, setSelectedHandle] = useState<{ id: string; handle: 'start' | 'end' } | null>(null);\n  const wasPlayingRef = useRef(false);\n  const dragOffsetRef = useRef<{ id: string; handle: 'start' | 'end'; offsetPx: number } | null>(null);\n  const [, setDragTick] = useState(0);\n  const currentDragTimeRef = useRef<number | null>(null);\n  const [isDragExceedingMax, setIsDragExceedingMax] = useState(false);\n  const selectionsRef = useRef(selections);"
+        }
+      ],
+      "suggestion": "Extract drag handling logic into a custom hook (e.g., useTimelineDrag) that encapsulates handleMove, handleEnd, dragOffsetRef, RAF throttling, and video seeking during drag. Similarly, extract the playhead scrubber logic (startPlayheadDrag, handleScrubberInteraction, isDraggingPlayhead) into usePlayheadScrubber. The FrameThumbnail inner component is already extracted but could be moved to its own file. This would bring the component under 300 LOC.",
+      "reasoning": "The component has 12+ refs/state variables and mixes three distinct interaction modes (selection drag, playhead scrub, tap-to-move). The handleMove callback alone is 80 lines. Extracting these concerns into hooks would improve readability, testability, and maintainability.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "api::inconsistent_error_return_patterns",
+      "summary": "Service functions use inconsistent error handling patterns: some throw, some return result objects with error fields, some return silent defaults",
+      "related_files": [
+        "src/shared/lib/taskCreation.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        {
+          "file": "src/shared/lib/taskCreation.ts",
+          "lines": "171-250",
+          "snippet": "export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreationResult> {\n  // ... throws AuthError, NetworkError, or normalized error on failure"
+        },
+        {
+          "file": "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+          "lines": "536-653",
+          "snippet": "export async function generateVideo(params: GenerateVideoParams): Promise<GenerateVideoResult> {\n  // ... returns { success: false, error: string } on failure instead of throwing"
+        },
+        {
+          "file": "src/shared/lib/generationTaskBridge.ts",
+          "lines": "44-59",
+          "snippet": "async function getTaskIdForGeneration(generationId: string): Promise<{ taskId: string | null }> {\n  // ... throws Error on failure"
+        }
+      ],
+      "suggestion": "Standardize on one error handling pattern for service-layer functions. The generateVideo result-object pattern (GenerateVideoResult with success/error) is reasonable for top-level orchestrators that handle errors internally, but it should be documented as the chosen pattern for service functions that callers should not try-catch around. Meanwhile, lower-level utilities like createTask and getTaskIdForGeneration correctly throw, which is appropriate for composable building blocks. Add JSDoc annotations clarifying which functions throw vs return error objects.",
+      "reasoning": "Callers of these APIs need to know whether to try-catch or check result.success. The inconsistency means each call site has to guess or inspect the implementation. This is particularly confusing since generateVideo calls createTravelBetweenImagesTask (which presumably throws) and catches internally, while createTask throws directly.",
+      "confidence": "medium"
+    }
+  ]
+}

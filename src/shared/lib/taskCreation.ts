@@ -191,10 +191,6 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
     // task if this key was already used.
     const idempotency_key = generateUUID();
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[createTask] invoking create-task edge function', taskParams.task_type);
-    }
-
     const response = await fetch(`${SUPABASE_URL}/functions/v1/create-task`, {
       method: 'POST',
       headers: {
@@ -220,10 +216,6 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
     }
 
     const data = await response.json() as TaskCreationResult;
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[createTask] create-task returned', { hasData: !!data, data, durationMs: Date.now() - startTime });
-    }
 
     // Task creation events are now handled by DataFreshnessManager via realtime events
     // No manual invalidation needed - the smart polling system handles cache updates automatically

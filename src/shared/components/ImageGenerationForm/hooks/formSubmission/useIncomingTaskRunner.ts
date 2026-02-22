@@ -46,28 +46,16 @@ export function useIncomingTaskRunner(input: UseIncomingTaskRunnerInput): RunInc
     });
 
     void (async () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[IncomingTaskRunner] execute start', { context: options.context, label: options.label, expectedCount: options.expectedCount });
-      }
       try {
         await options.execute();
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[IncomingTaskRunner] execute success', options.context);
-        }
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
           console.error('[IncomingTaskRunner] execute FAILED', options.context, error);
         }
         handleError(error, { context: options.context, toastTitle: options.toastTitle });
       } finally {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[IncomingTaskRunner] refetching task queries', options.context);
-        }
         await refetchTaskQueries(queryClient);
         const processingCount = getProcessingCount(queryClient, options.projectIdForCounts);
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[IncomingTaskRunner] refetch done, processingCount:', processingCount, options.context);
-        }
         completeIncomingTask(incomingTaskId, processingCount);
       }
     })();

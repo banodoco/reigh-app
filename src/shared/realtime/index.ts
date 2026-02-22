@@ -30,7 +30,6 @@ export type {
   ConnectionState,
   ConnectionStatus,
   ProcessedEvent,
-  ProcessedEventType,
   TasksUpdatedEvent,
   TasksCreatedEvent,
   GenerationsInsertedEvent,

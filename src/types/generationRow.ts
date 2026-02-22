@@ -39,4 +39,6 @@ export interface GenerationRow {
   pair_shot_generation_id?: string | null;
   // FK to the primary variant record (generation_variants.id)
   primary_variant_id?: string | null;
+  // Task that created this generation (for task details panel in lightbox)
+  source_task_id?: string | null;
 }

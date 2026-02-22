@@ -48,7 +48,6 @@ export function useRenderLogger(label: string, data?: Record<string, unknown>): 
         data ?? ''
       );
     } else if (debugConfig.isEnabled('renderLogging') && (total <= 3 || total % 25 === 0)) {
-      console.log(`[RenderCount] ${label} #${total}`, data ?? '');
     }
   }
 }
@@ -81,9 +80,6 @@ export function useChangedDepsLogger(
         if (!Object.is(deps[key], prevRef.current[key])) {
           changed[key] = { from: prevRef.current[key], to: deps[key] };
         }
-      }
-      if (Object.keys(changed).length > 0) {
-        console.log(`[DepsChanged] ${label}`, changed);
       }
     }
     // Always update ref so tracking stays accurate when logging is toggled at runtime

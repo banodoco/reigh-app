@@ -15,7 +15,6 @@
  */
 
 import React, { useMemo } from 'react';
-import type { LoraMode } from '../hooks/editSettingsTypes';
 
 // Sub-contexts
 import {
@@ -38,7 +37,6 @@ import {
 // Re-export sub-context types and hooks for direct consumption
 export type { ImageEditCanvasState, ImageEditFormState, ImageEditStatusState, ImageEditMode };
 export { useImageEditCanvasSafe, useImageEditFormSafe, useImageEditStatusSafe };
-export type { LoraMode };
 
 // ============================================================================
 // Composed Type (backward-compatible)
