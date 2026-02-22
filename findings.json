@@ -1,5 +1,5 @@
 {
-  "batch": "Combined holistic review (updated 2026-02-22)",
+  "batch": "Combined holistic review (updated 2026-02-22 round 2)",
   "assessments": {
     "cross_module_architecture": 83,
     "high_level_elegance": 83,
@@ -7,15 +7,17 @@
     "error_consistency": 85,
     "mid_level_elegance": 80,
     "abstraction_fitness": 77,
-    "dependency_health": 77,
+    "dependency_health": 75,
     "low_level_elegance": 82,
-    "test_strategy": 57,
+    "test_strategy": 62,
     "api_surface_coherence": 82,
     "authorization_consistency": 88,
     "ai_generated_debt": 76,
     "incomplete_migration": 72,
     "package_organization": 84,
-    "initialization_coupling": 69
+    "initialization_coupling": 78,
+    "logic_clarity": 73,
+    "type_safety": 67
   },
   "findings": [
     {
@@ -1726,6 +1728,584 @@
         "30 fields, buildSegmentState 120 lines"
       ],
       "suggestion": "Group into smaller structs.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "dep-next-themes-unused",
+      "summary": "next-themes dependency is effectively unused; useTheme() called without ThemeProvider yields no effect",
+      "related_files": [
+        "src/shared/components/ui/sonner.tsx",
+        "package.json"
+      ],
+      "evidence": [
+        "sonner.tsx imports useTheme from next-themes but no ThemeProvider exists in the app"
+      ],
+      "suggestion": "Remove next-themes from package.json and the useTheme() call from sonner.tsx",
+      "confidence": "high"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "dep-types-jszip-stub",
+      "summary": "@types/jszip is a stub package; jszip ships its own TypeScript definitions",
+      "related_files": [
+        "package.json"
+      ],
+      "evidence": [
+        "node_modules/@types/jszip/package.json declares typings: null"
+      ],
+      "suggestion": "Remove @types/jszip from devDependencies",
+      "confidence": "high"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "dep-uuid-single-use",
+      "summary": "uuid package imported in one file; codebase already uses crypto.randomUUID() elsewhere",
+      "related_files": [
+        "src/shared/hooks/useHuggingFaceUpload.ts",
+        "package.json"
+      ],
+      "evidence": [
+        "Only import of uuid is in useHuggingFaceUpload.ts; taskCreation.ts uses crypto.randomUUID()"
+      ],
+      "suggestion": "Replace uuidv4() with crypto.randomUUID() and remove uuid dependency",
+      "confidence": "high"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "dep-duplicate-time-formatting",
+      "summary": "Hand-rolled relative time formatting duplicates date-fns formatDistanceToNow in multiple files",
+      "related_files": [
+        "src/shared/components/VariantSelector/utils.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "Three independent time-ago implementations alongside date-fns usage"
+      ],
+      "suggestion": "Consolidate into a single shared utility wrapping date-fns",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "unlisted-nanoid-dependency",
+      "summary": "nanoid is directly imported in 6 source files but not declared in package.json",
+      "related_files": [
+        "package.json"
+      ],
+      "evidence": [
+        "Six files import from nanoid but it is not in package.json"
+      ],
+      "suggestion": "Add nanoid as an explicit dependency",
+      "confidence": "high"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "edge-function-supabase-js-version-fragmentation",
+      "summary": "Edge Functions use three inconsistent import patterns for @supabase/supabase-js with mixed version pinning",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Three distinct patterns: esm.sh@2.39.7, esm.sh@2, npm:@supabase/supabase-js@2"
+      ],
+      "suggestion": "Standardize all edge functions to a single import pattern",
+      "confidence": "high"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "visibility-listener-duplication-bypasses-manager",
+      "summary": "Multiple files add direct document.visibilitychange listeners instead of using centralized VisibilityManager",
+      "related_files": [
+        "src/tools/join-clips/pages/JoinClipsPage.tsx",
+        "src/shared/lib/VisibilityManager.ts"
+      ],
+      "evidence": [
+        "JoinClipsPage.tsx and others bypass VisibilityManager singleton"
+      ],
+      "suggestion": "Migrate to VisibilityManager.subscribe()",
+      "confidence": "high"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "edge-function-deno-std-version-pinning",
+      "summary": "Edge functions pin Deno standard library to specific old version via URL imports without centralized version management",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Pinned to deno.land/std@0.224.0 in URL"
+      ],
+      "suggestion": "Use a Deno import map to centralize versions",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "no-tests-billing-shared",
+      "summary": "billing.ts has zero test coverage despite being imported by 5 edge functions",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "No tests exist; contains critical billing logic"
+      ],
+      "suggestion": "Add unit tests for extractOrchestratorRef and getSubTaskOrchestratorId",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "no-tests-rate-limit",
+      "summary": "rateLimit.ts has zero test coverage despite being used by 6 edge functions",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "No test file exists; fail-open behavior untested"
+      ],
+      "suggestion": "Add unit tests for checkRateLimit fail-open behavior",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "no-tests-complete-task-storage",
+      "summary": "complete_task/storage.ts has zero test coverage for file upload, thumbnail generation, and cleanup logic",
+      "related_files": [
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "No tests; 3 code paths in handleStorageOperations"
+      ],
+      "suggestion": "Add unit tests with mocked supabase storage client",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "shallow-test-generate-video-service",
+      "summary": "generateVideoService.test.ts only tests that exports exist -- zero coverage of the 650-line generateVideo function",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "Test file is 12 lines with single assertion"
+      ],
+      "suggestion": "Test pure helper functions in isolation",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "no-tests-createTask-function",
+      "summary": "taskCreation.ts tests skip the critical createTask() function handling auth, fetch, timeout, and error normalization",
+      "related_files": [
+        "src/shared/lib/taskCreation.ts"
+      ],
+      "evidence": [
+        "createTask() untested; handles auth token, fetch, abort, error classification"
+      ],
+      "suggestion": "Add tests for createTask() with mocked fetch",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "no-test-client-thumbnail-generator-core",
+      "summary": "clientThumbnailGenerator tests cover upload but not the core generateClientThumbnail function",
+      "related_files": [
+        "src/shared/lib/clientThumbnailGenerator.ts"
+      ],
+      "evidence": [
+        "Core function with Canvas API logic completely untested"
+      ],
+      "suggestion": "Test with mocked Image/Canvas/FileReader",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "test-fragility-timing-fake-timers",
+      "summary": "useGenerationInvalidation tests use fake timers without proper cleanup between tests",
+      "related_files": [
+        "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts"
+      ],
+      "evidence": [
+        "vi.useFakeTimers() inside test without afterEach cleanup"
+      ],
+      "suggestion": "Move to beforeEach/afterEach pattern",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "test-coupling-supabase-chain-mocking",
+      "summary": "useLineageChain test mocks entire Supabase call chain, coupling tests to ORM implementation details",
+      "related_files": [
+        "src/shared/hooks/__tests__/useLineageChain.test.ts"
+      ],
+      "evidence": [
+        "Mock builds chained method calls from().select().eq().single()"
+      ],
+      "suggestion": "Extract data-access function that can be mocked at boundary",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "no-integration-test-settings-merge",
+      "summary": "toolSettingsService tests mock deepMerge preventing verification of actual settings merge priority",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts"
+      ],
+      "evidence": [
+        "deepMerge mocked as Object.assign, not real deep merge"
+      ],
+      "suggestion": "Add test using real deepMerge for 4-layer merge",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "button-test-css-class-coupling",
+      "summary": "Button tests assert on specific CSS class names, creating fragile coupling to implementation details",
+      "related_files": [
+        "src/shared/components/ui/button.test.tsx"
+      ],
+      "evidence": [
+        "Asserts on h-9, inline-flex, theme-button class names"
+      ],
+      "suggestion": "Test behavior rather than CSS classes",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "supabase-client-singleton-untested",
+      "summary": "Supabase client singleton pattern (HMR-safe window caching) has no test coverage",
+      "related_files": [
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "No test file; 143 importers"
+      ],
+      "suggestion": "Test singleton reuse and window global assignment",
+      "confidence": "high"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "error-presentation-no-direct-tests",
+      "summary": "errorPresentation.ts and errorNormalization.ts lack direct unit tests",
+      "related_files": [
+        "src/shared/lib/errorHandling/errorPresentation.ts",
+        "src/shared/lib/errorHandling/errorNormalization.ts"
+      ],
+      "evidence": [
+        "Only tested indirectly through errorHandler.test.ts"
+      ],
+      "suggestion": "Add direct unit tests for getErrorTitle and getErrorDescription",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "getInstallMethod-dead-branches",
+      "summary": "getInstallMethod has three branches that all return 'none', making firefox and isDesktopChromium checks dead logic",
+      "related_files": [
+        "src/shared/hooks/platformInstall/helpers.ts"
+      ],
+      "evidence": [
+        "Lines 97-105: all three branches return 'none'"
+      ],
+      "suggestion": "Remove dead branches or add comment explaining intent",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "transformVariant-always-true-else",
+      "summary": "else-if branch is always true when reached, making it identical to a plain else",
+      "related_files": [
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "Lines 468-472: !isVideo is always true when first if is false"
+      ],
+      "suggestion": "Replace else-if with plain else",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "getUserWithTimeout-dead-error-check",
+      "summary": "getUserWithTimeout always returns error: null, so authError check is dead code",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts"
+      ],
+      "evidence": [
+        "Line 106: error is always null; line 221: if (authError || !user) - authError always null"
+      ],
+      "suggestion": "Simplify to if (!user)",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "gallery-reducedspacing-identical-branches",
+      "summary": "Conditional reducedSpacing ? 'space-y-6' : 'space-y-6' has identical branches",
+      "related_files": [
+        "src/shared/components/MediaGallery/index.tsx"
+      ],
+      "evidence": [
+        "Line 405: both branches are 'space-y-6'"
+      ],
+      "suggestion": "Replace with just 'space-y-6' or fix the reduced branch",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "individual-travel-model-fallback-dead",
+      "summary": "Double fallback where left side is a string constant, making right side unreachable",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "DEFAULT_I2V_MODEL is a const string; ?? VACE_GENERATION_DEFAULTS.model is dead code"
+      ],
+      "suggestion": "Remove dead fallback",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "image-gen-additional-loras-overwrite",
+      "summary": "additional_loras field can be silently overwritten by later spread",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "Lines 346-362 build additional_loras; line 394 spreads params.additional_loras which overwrites it"
+      ],
+      "suggestion": "Merge the two lora maps instead of overwriting",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "magic-edit-batch-seed-identical",
+      "summary": "When seed is random, adding index is meaningless noise on an already-random value",
+      "related_files": [
+        "src/shared/lib/tasks/magicEdit.ts"
+      ],
+      "evidence": [
+        "Lines 265-273: random seed + index is redundant"
+      ],
+      "suggestion": "Make intent explicit for random vs fixed seed cases",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "debounced-save-flush-unreliable",
+      "summary": "flushPendingSettings is fire-and-forget in beforeunload, making flush unreliable",
+      "related_files": [
+        "src/shared/hooks/useDebouncedSettingsSave.ts"
+      ],
+      "evidence": [
+        "Async DB calls unlikely to complete in beforeunload window"
+      ],
+      "suggestion": "Use navigator.sendBeacon or document as best-effort",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "payloadBuilder-redundant-null-coalesce",
+      "summary": "params.shot_id ?? undefined is a no-op",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "Lines 141, 155: ?? undefined converts null to undefined with no behavioral difference"
+      ],
+      "suggestion": "Simplify to plain assignment or use conditional spread",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "clipInitService-fill-type-misleading",
+      "summary": "PendingClipAction type field is set but ignored by consumer function",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts"
+      ],
+      "evidence": [
+        "Line 165 sets type; lines 190-213 ignore it"
+      ],
+      "suggestion": "Remove the type field or use it",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "joinClipsResults-unreachable-heading",
+      "summary": "Inside shouldShowSkeleton block, hasValidData is necessarily false making true-branch dead",
+      "related_files": [
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "shouldShowSkeleton requires !hasValidData; ternary checks hasValidData"
+      ],
+      "suggestion": "Simplify to just 'Loading Results...'",
+      "confidence": "high"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "defaultAbbreviate-regex-day-noop",
+      "summary": "Regex .replace(/days?/, 'days') is a no-op that misleadingly replaces day with days",
+      "related_files": [
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "Line 51: regex matches both day and days, replacing both with days"
+      ],
+      "suggestion": "Remove the replace call",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "calc-cost-task-as-unknown-casts",
+      "summary": "(task as unknown).projects.user_id casts bypass type checking for joined relation data",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "6 occurrences of (task as unknown).projects.*"
+      ],
+      "suggestion": "Define interface for task query result including projects join",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "calc-cost-breakdown-unknown",
+      "summary": "calculateVideoEnhanceCost declares breakdown as unknown then assigns properties on it",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Line 35: const breakdown: unknown = {}; then assigns properties"
+      ],
+      "suggestion": "Type breakdown as its actual shape",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "calc-cost-taskparams-unknown",
+      "summary": "calculateVideoEnhanceCost accepts taskParams: unknown then accesses deep properties without narrowing",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Line 33: taskParams: unknown; accesses .result, .interpolation_compute_seconds"
+      ],
+      "suggestion": "Define interface for expected task params shape",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "verifyFileExists-sync-return-promise-type",
+      "summary": "verifyFileExists declares Promise return type but returns plain objects synchronously",
+      "related_files": [
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "Non-async function with Promise return type annotation"
+      ],
+      "suggestion": "Make function async or remove Promise from return type",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "billing-extractOrchestratorRef-untyped",
+      "summary": "Property access on params: unknown after only typeof object check without type assertion",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "Lines 34-39: accesses params.orchestrator_task_id_ref without cast"
+      ],
+      "suggestion": "Cast to Record<string, unknown> after type guard",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "rateLimit-supabaseAdmin-untyped",
+      "summary": "checkRateLimit parameter supabaseAdmin typed as unknown, defeats type safety for .rpc() calls",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "Line 57: supabaseAdmin: unknown; line 69: .rpc() call"
+      ],
+      "suggestion": "Type as SupabaseClient",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "storage-supabase-all-functions-untyped",
+      "summary": "All five functions in storage.ts accept supabase: unknown, losing type safety for storage operations",
+      "related_files": [
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "Lines 25, 84, 133, 169, 189: all use supabase: unknown"
+      ],
+      "suggestion": "Import and use SupabaseClient type",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "usePaginatedTasks-non-null-assertion",
+      "summary": "buildCountQuery and buildDataQuery use non-null assertion on effectiveProjectId",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "Lines 103, 130: effectiveProjectId! on nullable type"
+      ],
+      "suggestion": "Add explicit null check or narrow type",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "VisibilityManager-constructor-document-access",
+      "summary": "VisibilityManager singleton accesses document.hidden in constructor at import time, will fail in SSR/test without DOM",
+      "related_files": [
+        "src/shared/lib/VisibilityManager.ts"
+      ],
+      "evidence": [
+        "Lines 66-67: document.hidden and document.visibilityState in constructor; line 268: singleton at module scope"
+      ],
+      "suggestion": "Guard with typeof document check or use lazy initialization",
+      "confidence": "high"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "DataFreshnessManager-singleton-import-time",
+      "summary": "DataFreshnessManager instantiated as singleton at module scope and assigned to window in dev mode",
+      "related_files": [
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "Line 354: export const singleton; lines 357-359: window assignment"
+      ],
+      "suggestion": "Consider lazy initialization pattern",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "routes-module-scope-env-and-router",
+      "summary": "routes.tsx reads env and creates entire router tree at module scope, coupling route config to import-time",
+      "related_files": [
+        "src/app/routes.tsx"
+      ],
+      "evidence": [
+        "Line 30: env read; line 57: router created at module scope"
+      ],
+      "suggestion": "Move router creation into component or factory function",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "timelineWriteQueue-module-singletons-no-test-reset",
+      "summary": "Four module-level mutable Maps/counter with no test isolation mechanism",
+      "related_files": [
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "Lines 95-98: persistent Maps and counter with no reset function"
+      ],
+      "suggestion": "Add _resetForTesting() export",
       "confidence": "medium"
     }
   ]
