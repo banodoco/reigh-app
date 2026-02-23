@@ -1,0 +1,71 @@
+{
+  "assessments": {
+    "naming_quality": 84.7
+  },
+  "findings": [
+    {
+      "dimension": "naming_quality",
+      "identifier": "duplicate_derive_input_images_contracts",
+      "summary": "`deriveInputImages` is exported with different contracts and behaviors.",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/TasksPane/utils/task-utils.ts",
+        "src/shared/components/MediaGallery/utils/mediaGallery-utils.ts"
+      ],
+      "evidence": [
+        "`taskParamsUtils.ts` defines `deriveInputImages(parsedParams)` for parsed params with orchestrator/segment fallbacks.",
+        "`task-utils.ts` defines `deriveInputImages(task)` and branches on `task.taskType`.",
+        "`mediaGallery-utils.ts` defines `deriveInputImages(task)` with quote-cleaning behavior that differs from the other two."
+      ],
+      "suggestion": "Use contract-specific names (for example `deriveInputImagesFromParams`, `deriveInputImagesFromTask`, `deriveInputImagesForGallery`) and centralize shared extraction logic in one canonical helper.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "calculate_next_available_frame_name_collision",
+      "summary": "`calculateNextAvailableFrame` names a pure helper and an async DB-backed operation.",
+      "related_files": [
+        "src/shared/lib/timelinePositionCalculator.ts",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/timelineDropHelpers.ts"
+      ],
+      "evidence": [
+        "`timelinePositionCalculator.ts` exports `calculateNextAvailableFrame(existingFrames, explicitSpacing?)` as a synchronous pure function.",
+        "`timelineDropHelpers.ts` exports `calculateNextAvailableFrame(shotId, targetFrame)` as an async Supabase query with error fallbacks.",
+        "Both symbols imply the same operation name while one is local math and the other is remote state lookup."
+      ],
+      "suggestion": "Rename the async variant to something side-effect explicit (for example `fetchNextAvailableFrameForShot`) and keep the pure calculator name for local computation only.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "build_basic_mode_phase_config_overloaded_semantics",
+      "summary": "`buildBasicModePhaseConfig` has conflicting units and return shapes across modules.",
+      "related_files": [
+        "src/shared/types/phaseConfig.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`phaseConfig.ts` exports `buildBasicModePhaseConfig(useVaceModel, _amountOfMotion, userLoras): PhaseConfig` with motion normalized to 0-1.",
+        "`generateVideoService.ts` exports another `buildBasicModePhaseConfig(amountOfMotion, userLoras)` that expects 0-100 and returns `{ model, phaseConfig }`.",
+        "Same name hides important differences in unit expectations and output contract."
+      ],
+      "suggestion": "Rename the service wrapper to an intent-specific name (for example `buildBasicModeGenerationRequest`) and rename the numeric argument to `motionPercent` to encode units at call sites.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "media_gallery_constants_name_mismatch",
+      "summary": "`mediaGallery-constants.ts` contains layout algorithms, not just constants.",
+      "related_files": [
+        "src/shared/components/MediaGallery/utils/mediaGallery-constants.ts"
+      ],
+      "evidence": [
+        "The file defines behavior-heavy helpers like `calculateDynamicColumns`, `calculateDynamicRows`, and `getLayoutForAspectRatio`.",
+        "`getLayoutForAspectRatio` also depends on container dimensions and spacing flags, so the name is narrower than its behavior.",
+        "A helper named `getTargetImageWidth(_aspectRatio)` accepts an aspect ratio argument it does not use, which weakens intent signaling."
+      ],
+      "suggestion": "Split constants from computation (`mediaGalleryLayout.constants.ts` + `mediaGalleryLayout.ts`), and rename `getLayoutForAspectRatio` to `calculateGalleryLayout` (or equivalent) to match actual inputs and behavior.",
+      "confidence": "medium"
+    }
+  ]
+}

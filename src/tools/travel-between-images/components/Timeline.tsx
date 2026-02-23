@@ -15,7 +15,7 @@ import { TimelineEmptyState } from "./TimelineEmptyState";
 import { isVideoGeneration } from "@/shared/lib/typeGuards";
 import { useTaskFromUnifiedCache } from "@/shared/hooks/useTaskPrefetch";
 import { useGetTask } from "@/shared/hooks/useTasks";
-import { deriveInputImages } from "@/shared/components/MediaGallery/utils";
+import { deriveGalleryInputImages } from "@/shared/components/MediaGallery/utils";
 import type { SegmentSlot } from "@/shared/hooks/segments";
 import type { PairData } from "@/shared/types/pairData";
 
@@ -394,7 +394,7 @@ const Timeline: React.FC<TimelineProps> = ({
   // Derive input images from task metadata
   const inputImages = React.useMemo(() => {
     if (!task) return [];
-    return deriveInputImages(task);
+    return deriveGalleryInputImages(task);
   }, [task]);
 
   // Preload next/previous images when lightbox is open for faster navigation

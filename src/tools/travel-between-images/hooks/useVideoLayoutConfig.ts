@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getLayoutForAspectRatio } from '@/shared/components/MediaGallery/utils';
+import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 
 interface UseVideoLayoutConfigOptions {
   /** Project aspect ratio (e.g., "16:9", "9:16") */
@@ -37,7 +37,7 @@ export function useVideoLayoutConfig({
 
   const videoLayoutConfig = useMemo(() => {
     // Use the same layout calculation as MediaGallery for reference
-    getLayoutForAspectRatio(projectAspectRatio, isMobile, windowWidth * 0.95, undefined, false);
+    calculateGalleryLayout(projectAspectRatio, isMobile, windowWidth * 0.95, undefined, false);
 
     // For videos: use fixed 3 columns (videos are larger than images)
     // Mobile gets 2 columns

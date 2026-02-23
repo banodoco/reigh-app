@@ -3,6 +3,7 @@ import {
   calculateFrameForIndex, 
   extractExistingFrames 
 } from '@/shared/lib/timelinePositionCalculator';
+import { parseRatio } from '@/shared/lib/aspectRatios';
 
 /**
  * Calculate frame position for inserting at a given index
@@ -56,14 +57,10 @@ export const getImageRange = (
  */
 export const getAspectRatioStyle = (projectAspectRatio?: string) => {
   if (projectAspectRatio) {
-    const [w, h] = projectAspectRatio.split(':').map(Number);
-    if (!isNaN(w) && !isNaN(h)) {
-      const aspectRatio = w / h;
-      return { aspectRatio: `${aspectRatio}` };
-    }
+    const aspectRatio = parseRatio(projectAspectRatio);
+    if (Number.isFinite(aspectRatio)) return { aspectRatio: `${aspectRatio}` };
   }
   
   // Default to square aspect ratio
   return { aspectRatio: '1' };
 };
-

@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import type { ImageEditState, ImageEditMode } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
-import { DEFAULT_ADVANCED_SETTINGS } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
 import type { BrushStroke, AnnotationMode } from '@/shared/components/MediaLightbox/hooks/inpainting/types';
 import type { StrokeOverlayHandle } from '@/shared/components/MediaLightbox/components/StrokeOverlay';
 import type { ImageTransform } from '@/shared/components/MediaLightbox/hooks/useRepositionMode';
 import type { LoraMode } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
+import type { EditAdvancedSettings, QwenEditModel } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
 import type { CSSProperties } from 'react';
 
 // ============================================================================
@@ -19,10 +19,12 @@ interface UseImageEditValueParams {
 
   // Mode setters
   setIsInpaintMode: (value: boolean) => void;
+  setIsMagicEditMode: (value: boolean) => void;
   setEditMode: (mode: ImageEditState['editMode']) => void;
 
   // Mode entry/exit handlers
   handleEnterInpaintMode: () => void;
+  handleExitInpaintMode: () => void;
   handleExitMagicEditMode: () => void;
   handleEnterMagicEditMode: () => void;
 
@@ -102,6 +104,10 @@ interface UseImageEditValueParams {
   // Generation options
   createAsGeneration: boolean;
   setCreateAsGeneration: (value: boolean) => void;
+  qwenEditModel: QwenEditModel;
+  setQwenEditModel: (model: QwenEditModel) => void;
+  advancedSettings: EditAdvancedSettings;
+  setAdvancedSettings: (settings: EditAdvancedSettings) => void;
 
   // Generation status
   isGeneratingInpaint: boolean;
@@ -127,10 +133,10 @@ function buildModeState(params: UseImageEditValueParams): Partial<ImageEditState
     isSpecialEditMode: params.isSpecialEditMode,
     editMode: params.editMode,
     setIsInpaintMode: params.setIsInpaintMode,
-    setIsMagicEditMode: () => {},
+    setIsMagicEditMode: params.setIsMagicEditMode,
     setEditMode: params.setEditMode,
     handleEnterInpaintMode: params.handleEnterInpaintMode,
-    handleExitInpaintMode: params.handleExitMagicEditMode,
+    handleExitInpaintMode: params.handleExitInpaintMode,
     handleEnterMagicEditMode: params.handleEnterMagicEditMode,
     handleExitMagicEditMode: params.handleExitMagicEditMode,
   };
@@ -199,10 +205,10 @@ function buildFormAndGenerationState(params: UseImageEditValueParams): Partial<I
     setCustomLoraUrl: params.setCustomLoraUrl,
     createAsGeneration: params.createAsGeneration,
     setCreateAsGeneration: params.setCreateAsGeneration,
-    qwenEditModel: 'qwen-edit-2511',
-    setQwenEditModel: () => {},
-    advancedSettings: DEFAULT_ADVANCED_SETTINGS,
-    setAdvancedSettings: () => {},
+    qwenEditModel: params.qwenEditModel,
+    setQwenEditModel: params.setQwenEditModel,
+    advancedSettings: params.advancedSettings,
+    setAdvancedSettings: params.setAdvancedSettings,
     isGeneratingInpaint: params.isGeneratingInpaint,
     inpaintGenerateSuccess: params.inpaintGenerateSuccess,
     isGeneratingImg2Img: params.isGeneratingImg2Img,

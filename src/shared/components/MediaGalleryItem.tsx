@@ -34,7 +34,7 @@ import { useTaskFromUnifiedCache, usePrefetchTaskData } from "@/shared/hooks/use
 import { useTaskType } from "@/shared/hooks/useTaskType";
 import { useGetTask } from "@/shared/hooks/useTasks";
 import { useShareGeneration } from "@/shared/hooks/useShareGeneration";
-import { deriveInputImages } from "./MediaGallery/utils";
+import { deriveGalleryInputImages } from "./MediaGallery/utils";
 import { isImageEditTaskType } from "@/shared/lib/taskParamsUtils";
 import { VariantBadge } from "@/shared/components/VariantBadge";
 import { useMarkVariantViewed } from "@/shared/hooks/useMarkVariantViewed";
@@ -149,7 +149,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   }, [isMobile, actualGenerationId, prefetchTaskData]);
 
   // Derive input images for guidance tooltip
-  const inputImages = useMemo(() => deriveInputImages(taskData), [taskData]);
+  const inputImages = useMemo(() => deriveGalleryInputImages(taskData), [taskData]);
 
   // Only use the actual task type name (like 'wan_2_2_t2i'), not tool_type (like 'image-generation')
   // tool_type and task type name are different concepts - tool_type is a broader category

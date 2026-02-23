@@ -1,13 +1,7 @@
-/**
- * Type guard for Error instances
- */
 export function isError(value: unknown): value is Error {
   return value instanceof Error;
 }
 
-/**
- * Type guard for errors with a code property (e.g., Supabase errors)
- */
 interface ErrorWithCode extends Error {
   code?: string;
 }
@@ -16,9 +10,6 @@ export function isErrorWithCode(value: unknown): value is ErrorWithCode {
   return isError(value) && 'code' in value;
 }
 
-/**
- * Type guard for errors with status (e.g., HTTP errors)
- */
 interface ErrorWithStatus extends Error {
   status?: number;
 }
@@ -27,9 +18,6 @@ export function isErrorWithStatus(value: unknown): value is ErrorWithStatus {
   return isError(value) && typeof (value as ErrorWithStatus).status === 'number';
 }
 
-/**
- * Safely extract error message from unknown error
- */
 export function getErrorMessage(error: unknown): string {
   if (isError(error)) return error.message;
   if (typeof error === 'string') return error;

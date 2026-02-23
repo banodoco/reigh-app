@@ -1,0 +1,85 @@
+{
+  "assessments": {
+    "type_safety": 76.0
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "raw_database_event_delete_shape_mismatch",
+      "summary": "Realtime event type encodes DELETE payloads as non-null `new` records",
+      "related_files": [
+        "src/shared/realtime/types.ts",
+        "src/shared/realtime/RealtimeEventProcessor.ts"
+      ],
+      "evidence": [
+        "`RawDatabaseEvent` always declares `new: T` regardless of `eventType` (`src/shared/realtime/types.ts:53-57`).",
+        "Processor methods repeatedly cast `e.new` to concrete records to satisfy this contract (`src/shared/realtime/RealtimeEventProcessor.ts:174`, `src/shared/realtime/RealtimeEventProcessor.ts:248`).",
+        "Delete handlers already need `(e.old || e.new)` fallbacks, showing runtime payload shape differs from the type (`src/shared/realtime/RealtimeEventProcessor.ts:316-317`, `src/shared/realtime/RealtimeEventProcessor.ts:417`)."
+      ],
+      "suggestion": "Model `RawDatabaseEvent` as a discriminated union by `eventType` (INSERT/UPDATE/DELETE) with DELETE using `old` as the authoritative row and `new` as nullable/partial. Then remove `as unknown as` casts and rely on narrowed types.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "shot_generation_delete_reads_new_record",
+      "summary": "Shot-generation DELETE processing reads `e.new` and can emit invalid typed IDs",
+      "related_files": [
+        "src/shared/realtime/RealtimeEventProcessor.ts"
+      ],
+      "evidence": [
+        "All `shot_generations` events are routed to `processShotGenerationChanges`, including DELETE (`src/shared/realtime/RealtimeEventProcessor.ts:150-151`).",
+        "That method always reads `const newRecord = e.new as ...` and then uses `newRecord.shot_id`/`newRecord.generation_id` (`src/shared/realtime/RealtimeEventProcessor.ts:344-360`).",
+        "Unlike generation/variant delete handlers, there is no `e.old` fallback for DELETE rows (`src/shared/realtime/RealtimeEventProcessor.ts:316-317`, `src/shared/realtime/RealtimeEventProcessor.ts:417`)."
+      ],
+      "suggestion": "Handle DELETE explicitly in `processShotGenerationChanges`: read from `(e.old ?? e.new)`, validate required IDs, and skip/guard malformed payloads before building `ShotGenerationsChangedEvent`.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "variant_to_generation_row_contract_is_too_loose",
+      "summary": "Variant conversion returns untyped records and is force-cast to `GenerationRow`",
+      "related_files": [
+        "src/shared/lib/mediaTypeHelpers.ts",
+        "src/tools/edit-video/pages/EditVideoPage.tsx",
+        "src/tools/edit-images/pages/EditImagesPage.tsx"
+      ],
+      "evidence": [
+        "`variantToGenerationRow` returns `Record<string, unknown>` instead of a concrete row type (`src/shared/lib/mediaTypeHelpers.ts:67-79`).",
+        "It sets `id` from `getGenerationId`, whose contract is `string | null` (`src/shared/lib/mediaTypeHelpers.ts:22-30`, `src/shared/lib/mediaTypeHelpers.ts:81`).",
+        "Callers silence mismatch via `as unknown as GenerationRow` (`src/tools/edit-video/pages/EditVideoPage.tsx:120`, `src/tools/edit-images/pages/EditImagesPage.tsx:210`)."
+      ],
+      "suggestion": "Return a strict type from `variantToGenerationRow` (e.g., `GenerationRow` or a dedicated lightbox row), enforce/derive non-null `id` inside the helper, and remove call-site double assertions.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "nullable_task_id_forced_to_string",
+      "summary": "`task_id` is nullable at runtime but force-cast to non-null string",
+      "related_files": [
+        "src/shared/hooks/useShareGeneration.ts"
+      ],
+      "evidence": [
+        "Code comment states generated types mark `task_id` non-null while DB behavior is nullable (`src/shared/hooks/useShareGeneration.ts:316-317`).",
+        "Insert payload uses `task_id: (taskId || null) as unknown as string` (`src/shared/hooks/useShareGeneration.ts:322`).",
+        "Compile-time contract (`string`) therefore does not match possible runtime value (`null`)."
+      ],
+      "suggestion": "Align insert typing with runtime (`task_id: string | null`) by regenerating Supabase types or introducing a local insert payload type, then remove the `unknown` double cast.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "task_param_extractors_use_unchecked_string_casts",
+      "summary": "Task param helpers cast unknown JSON to `string`/`string[]` without narrowing",
+      "related_files": [
+        "src/shared/components/TasksPane/utils/task-utils.ts"
+      ],
+      "evidence": [
+        "`deriveInputImages` returns `(Array.isArray(images) ? images : []).filter(Boolean) as string[]`, which does not verify element types (`src/shared/components/TasksPane/utils/task-utils.ts:22`).",
+        "Several paths spread arrays cast as `string[]` from unknown JSON (`src/shared/components/TasksPane/utils/task-utils.ts:30-44`).",
+        "Extractor functions cast nested unknown fields directly to `string` in OR chains (`src/shared/components/TasksPane/utils/task-utils.ts:81-84`, `src/shared/components/TasksPane/utils/task-utils.ts:96-100`, `src/shared/components/TasksPane/utils/task-utils.ts:112-114`)."
+      ],
+      "suggestion": "Introduce runtime guards (`getString`, `getStringArray`) that validate `typeof value === 'string'` per element before returning typed values; otherwise return `null`/`undefined` safely.",
+      "confidence": "medium"
+    }
+  ]
+}

@@ -64,7 +64,14 @@ export function useSharePageData(shareId: string | undefined): UseSharePageDataR
         .rpc('get_shared_shot_data', { share_slug_param: shareId });
 
       const sharePayload = toSharedShotPayload(data);
-      if (fetchError || !sharePayload || sharePayload.error) {
+      if (fetchError) {
+        handleError(fetchError, { context: 'SharePage', showToast: false });
+        setError('Failed to load shared generation');
+        setLoading(false);
+        return;
+      }
+
+      if (!sharePayload || sharePayload.error) {
         setError('Share not found or no longer available');
         setLoading(false);
         return;

@@ -55,7 +55,7 @@ vi.mock('@/shared/components/MediaGallery/hooks', () => ({
 }));
 
 vi.mock('@/shared/components/MediaGallery/utils', () => ({
-  getLayoutForAspectRatio: () => ({
+  calculateGalleryLayout: () => ({
     columns: 4,
     itemsPerPage: 36,
   }),

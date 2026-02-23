@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } from 'react';
 import { TOOL_IDS } from '@/shared/lib/toolConstants';
 import { useContainerDimensions } from '@/shared/components/MediaGallery/hooks';
-import { getLayoutForAspectRatio } from '@/shared/components/MediaGallery/utils';
+import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 import { useProjectGenerations } from '@/shared/hooks/useProjectGenerations';
 import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
 import { useStableObject } from '@/shared/hooks/useStableObject';
@@ -65,7 +65,7 @@ export function useImageGenGallery({
   const [galleryRef, containerDimensions] = useContainerDimensions(150, isPhoneOnly);
 
   const galleryLayout = useMemo(() => {
-    return getLayoutForAspectRatio(
+    return calculateGalleryLayout(
       projectAspectRatio,
       isMobile,
       containerDimensions.width,
@@ -79,7 +79,7 @@ export function useImageGenGallery({
   if (skeletonLayoutRef.current === null) {
     const estimatedWidth = typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.9) : 800;
     const estimatedHeight = typeof window !== 'undefined' ? window.innerHeight - 150 : 600;
-    const stableLayout = getLayoutForAspectRatio(projectAspectRatio, isMobile, estimatedWidth, estimatedHeight, true);
+    const stableLayout = calculateGalleryLayout(projectAspectRatio, isMobile, estimatedWidth, estimatedHeight, true);
     skeletonLayoutRef.current = {
       columns: stableLayout.columns,
       itemsPerPage: stableLayout.itemsPerPage,

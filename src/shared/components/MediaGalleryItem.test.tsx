@@ -150,7 +150,7 @@ vi.mock('@/shared/hooks/useShareGeneration', () => ({
 }));
 
 vi.mock('./MediaGallery/utils', () => ({
-  deriveInputImages: () => [],
+  deriveGalleryInputImages: () => [],
 }));
 
 vi.mock('@/shared/lib/taskParamsUtils', () => ({

@@ -340,33 +340,39 @@ export class RealtimeEventProcessor {
     const affectedShotIds = new Set<string>();
     let allInserts = true;
 
-    const changes = events.map((e) => {
-      const newRecord = e.new as unknown as ShotGenerationRecord;
-      const oldRecord = e.old as Partial<ShotGenerationRecord> | null;
+    const changes = events
+      .map((e) => {
+        const currentRecord = (e.eventType === 'DELETE' ? (e.old ?? e.new) : e.new) as Partial<ShotGenerationRecord> | null;
+        const previousRecord = e.old as Partial<ShotGenerationRecord> | null;
+        if (!currentRecord?.shot_id || !currentRecord?.generation_id) {
+          return null;
+        }
 
-      const isNowPositioned =
-        newRecord.timeline_frame !== null && newRecord.timeline_frame !== undefined;
-      const wasPositioned =
-        oldRecord?.timeline_frame !== null && oldRecord?.timeline_frame !== undefined;
+        const isNowPositioned = e.eventType === 'DELETE'
+          ? false
+          : (currentRecord.timeline_frame !== null && currentRecord.timeline_frame !== undefined);
+        const wasPositioned =
+          previousRecord?.timeline_frame !== null && previousRecord?.timeline_frame !== undefined;
 
-      affectedShotIds.add(newRecord.shot_id);
+        affectedShotIds.add(currentRecord.shot_id);
 
-      if (e.eventType !== 'INSERT') {
-        allInserts = false;
-      }
+        if (e.eventType !== 'INSERT') {
+          allInserts = false;
+        }
 
-      return {
-        shotId: newRecord.shot_id,
-        generationId: newRecord.generation_id,
-        eventType: e.eventType,
-        isNowPositioned,
-        wasPositioned,
-      };
-    });
+        return {
+          shotId: currentRecord.shot_id,
+          generationId: currentRecord.generation_id,
+          eventType: e.eventType,
+          isNowPositioned,
+          wasPositioned,
+        };
+      })
+      .filter((change): change is ShotGenerationsChangedEvent['changes'][number] => change !== null);
 
     return {
       type: 'shot-generations-changed',
-      batchSize: events.length,
+      batchSize: changes.length,
       processedAt,
       changes,
       affectedShotIds: Array.from(affectedShotIds),

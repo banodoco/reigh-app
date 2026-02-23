@@ -5,6 +5,8 @@
  * Used by batch view components (ShotBatchItemMobile, ShotBatchItemDesktop).
  */
 
+import { parseRatio } from '@/shared/lib/aspectRatios';
+
 interface ImageWithMetadata {
   metadata?: {
     width?: number;
@@ -58,11 +60,8 @@ export function getImageAspectRatioStyle(
 
   // Fall back to project aspect ratio if available
   if (projectAspectRatio) {
-    const [w, h] = projectAspectRatio.split(':').map(Number);
-    if (!isNaN(w) && !isNaN(h)) {
-      const aspectRatio = w / h;
-      return { aspectRatio: `${aspectRatio}` };
-    }
+    const aspectRatio = parseRatio(projectAspectRatio);
+    if (Number.isFinite(aspectRatio)) return { aspectRatio: `${aspectRatio}` };
   }
 
   // Default to square aspect ratio

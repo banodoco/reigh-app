@@ -1,0 +1,78 @@
+{
+  "batch": "Architecture & Coupling",
+  "assessments": {
+    "cross_module_architecture": 71.8,
+    "high_level_elegance": 78.6
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error_handler_ui_coupling_hub",
+      "summary": "Shared error utility is a cross-layer hub that couples core error flow to UI toast rendering",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` imports `toast` from a UI module and calls it as part of default behavior, while also doing normalization/logging.",
+        "Feature hooks (`useMediaGalleryHandlers`, `useMediaGalleryItemState`) call this shared function for domain/control-flow errors, so non-UI logic depends on a UI-coupled hub.",
+        "The same API mixes infrastructure concerns (normalize/log), presentation concern (toast), and callback orchestration (`onError`) in one high-fan-in entry point."
+      ],
+      "suggestion": "Split `handleError` into a pure core reporter (normalize + log) and a UI adapter (toast presentation). Keep hooks importing only the core reporter, and trigger toasts at component/presentation boundaries (or via injected reporter strategy) to restore dependency direction.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "deprecated_shot_types_facade_still_active",
+      "summary": "Deprecated `shots` type facade still participates in active feature imports",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is explicitly marked deprecated and only re-exports `@/types/generationAndShots`.",
+        "`useMediaGalleryHandlers` still imports `Shot` from `@/types/shots`.",
+        "This keeps two import paths alive for the same domain type, which blurs ownership of the canonical type boundary."
+      ],
+      "suggestion": "Migrate callers in this area to import from `@/types/generationAndShots` directly, then enforce a temporary lint ban on `@/types/shots` (except the shim file) and remove the facade after remaining callers are migrated.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "browser_runtime_side_effects_are_distributed",
+      "summary": "Global browser/runtime coordination is spread across modules without a single bootstrap boundary",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx"
+      ],
+      "evidence": [
+        "`supabase/client.ts` eagerly initializes on import (`export const supabase = getOrCreateSupabaseClient()`), mutates `window.__supabase_client__` / `window.supabase`, and runs runtime init.",
+        "`useMobile.tsx` directly reads `window`/`navigator` and installs multiple resize/media-query listeners across separate hooks.",
+        "`LightboxShell.tsx` directly mutates global document/window state (`lightbox-open` class, scroll restoration, global focusout listener) and relies on a global z-index protocol (`> 100000`)."
+      ],
+      "suggestion": "Introduce a dedicated browser runtime boundary (e.g., `shared/runtime/*`) that owns global mutations/listeners and exposes typed services. Make Supabase initialization explicit/lazy at app bootstrap, and have hooks/components consume that boundary rather than coordinating globals independently.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "tooltip_overlay_ownership_is_fragmented",
+      "summary": "Tooltip/overlay behavior is implemented in several ownership patterns instead of one coherent contract",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx"
+      ],
+      "evidence": [
+        "`ui/tooltip.tsx` includes a `TouchableTooltip` that creates its own `TooltipProvider` internally.",
+        "`ShotActions` wraps individual controls in local `TooltipProvider` instances with delay `0`.",
+        "`CreativePartnerPane` uses its own provider and separate custom mobile open/disable logic.",
+        "`LightboxShell` wraps the whole dialog subtree in another `TooltipProvider` with delay `500`."
+      ],
+      "suggestion": "Define a single provider ownership rule (typically layout-level), remove internal provider creation from reusable tooltip components, and centralize mobile tooltip/open-close policy in one shared abstraction adopted by feature components.",
+      "confidence": "medium"
+    }
+  ]
+}

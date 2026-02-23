@@ -555,33 +555,47 @@ function useSharedButtonGroupState(params: {
   }, [onDelete, media.id]);
 
   return useButtonGroupProps({
-    isVideo,
-    readOnly: !!readOnly,
-    isSpecialEditMode,
-    selectedProjectId: selectedProjectId ?? undefined,
-    isCloudMode,
-    mediaId: media.id,
-    handleEnterMagicEditMode,
-    showDownload: !!showDownload,
-    isDownloading,
-    onDelete,
-    handleDelete,
-    isDeleting,
-    onClose,
-    isUpscaling,
-    handleUpscale: async () => {
-      await Promise.resolve(handleUpscale());
+    shared: {
+      isVideo,
+      readOnly: !!readOnly,
+      isSpecialEditMode,
+      selectedProjectId: selectedProjectId ?? undefined,
+      isCloudMode,
     },
-    localStarred,
-    handleToggleStar,
-    toggleStarPending,
-    isAddingToReferences,
-    addToReferencesSuccess,
-    handleAddToReferences,
-    handleAddToJoin,
-    isAddingToJoin,
-    addToJoinSuccess,
-    onGoToJoin: handleGoToJoin,
+    mediaId: media.id,
+    topLeft: {
+      handleEnterMagicEditMode,
+    },
+    topRight: {
+      showDownload: !!showDownload,
+      isDownloading,
+      onDelete,
+      handleDelete,
+      isDeleting,
+      onClose,
+    },
+    bottomLeft: {
+      handleEnterMagicEditMode,
+      isUpscaling,
+      handleUpscale: async () => {
+        await Promise.resolve(handleUpscale());
+      },
+      localStarred,
+      handleToggleStar,
+      toggleStarPending,
+    },
+    bottomRight: {
+      localStarred,
+      handleToggleStar,
+      toggleStarPending,
+      isAddingToReferences,
+      addToReferencesSuccess,
+      handleAddToReferences,
+      handleAddToJoin,
+      isAddingToJoin,
+      addToJoinSuccess,
+      onGoToJoin: handleGoToJoin,
+    },
   });
 }
 

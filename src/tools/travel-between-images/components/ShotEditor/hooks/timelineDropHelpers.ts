@@ -101,7 +101,7 @@ export const cropImagesToShotAspectRatio = async (
 
 // Note: ensureUniqueFrame is now imported from @/shared/lib/timelinePositionCalculator
 
-export const calculateNextAvailableFrame = async (
+export const fetchNextAvailableFrameForShot = async (
   shotId: string,
   targetFrame: number | undefined
 ): Promise<number> => {

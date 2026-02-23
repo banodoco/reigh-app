@@ -13,7 +13,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { TOOL_ROUTES } from '@/shared/lib/toolConstants';
 import { MediaGallery, type GalleryFilterState } from '@/shared/components/MediaGallery';
 import { useContainerWidth } from '@/shared/components/MediaGallery/hooks';
-import { getLayoutForAspectRatio } from '@/shared/components/MediaGallery/utils';
+import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import PaneControlTab from '../PaneControlTab';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
@@ -73,7 +73,7 @@ const GenerationsPaneComponent: React.FC = () => {
   // Calculate items per page based on actual container width
   // Pane uses fewer rows (PANE_ROWS=3) than full galleries (9 rows)
   const paneLayout = useMemo(() => {
-    const layout = getLayoutForAspectRatio(projectAspectRatio, isMobile, containerWidth, undefined, true);
+    const layout = calculateGalleryLayout(projectAspectRatio, isMobile, containerWidth, undefined, true);
     // Override rows for the pane (3 rows instead of 9)
     return {
       ...layout,

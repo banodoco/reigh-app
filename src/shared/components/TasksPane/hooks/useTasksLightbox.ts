@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/types/shots';
 import { Task } from '@/types/tasks';
-import { deriveInputImages } from '../utils/task-utils';
+import { deriveTaskInputImages } from '../utils/task-utils';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { expandShotData } from '@/shared/lib/shotData';
@@ -41,7 +41,7 @@ export function useTasksLightbox({
     task: lightboxData.task,
     isLoading: false,
     error: null,
-    inputImages: deriveInputImages(lightboxData.task),
+    inputImages: deriveTaskInputImages(lightboxData.task),
     taskId: lightboxData.task.id,
     onApplySettingsFromTask: undefined,
     onClose: undefined
@@ -225,5 +225,4 @@ export function useTasksLightbox({
     handleOpenExternalGeneration,
   };
 }
-
 

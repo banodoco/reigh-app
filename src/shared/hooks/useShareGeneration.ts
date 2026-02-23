@@ -18,6 +18,10 @@ interface UseShareGenerationOptions {
   onShareCreated?: (generationId: string, slug: string) => void;
 }
 
+function asNullableString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
 /**
  * Sanitize task data before caching in shared_generations
  * Removes potentially sensitive fields from params
@@ -312,23 +316,24 @@ export function useShareGeneration(
 
       while (attempts < maxAttempts && !newSlug) {
         const candidateSlug = generateShareSlug(10);
+        const creator = (creatorRow as Record<string, unknown> | null) ?? null;
+        const normalizedTaskId = typeof taskId === 'string' && taskId.length > 0 ? taskId : null;
+        const sharedGenerationInsert = {
+          share_slug: candidateSlug,
+          ...(normalizedTaskId ? { task_id: normalizedTaskId } : {}),
+          generation_id: generationId,
+          creator_id: session.session.user.id,
+          creator_username: asNullableString(creator?.username),
+          creator_name: asNullableString(creator?.name),
+          creator_avatar_url: asNullableString(creator?.avatar_url),
+          cached_generation_data: generationResult.data,
+          cached_task_data: sanitizeTaskDataForSharing(augmentedTaskData),
+          shot_id: shotId || null,
+        };
 
-        // task_id is typed as non-nullable in generated types but is nullable in the DB
-        // TODO: regenerate Supabase types after confirming task_id is nullable in schema
         const { data: newShare, error: insertError } = await supabase
           .from('shared_generations')
-          .insert({
-            share_slug: candidateSlug,
-            task_id: (taskId || null) as unknown as string,
-            generation_id: generationId,
-            creator_id: session.session.user.id,
-            creator_username: (creatorRow as Record<string, unknown> | null)?.username as string ?? null,
-            creator_name: (creatorRow as Record<string, unknown> | null)?.name as string ?? null,
-            creator_avatar_url: (creatorRow as Record<string, unknown> | null)?.avatar_url as string ?? null,
-            cached_generation_data: generationResult.data,
-            cached_task_data: sanitizeTaskDataForSharing(augmentedTaskData),
-            shot_id: shotId || null,
-          })
+          .insert(sharedGenerationInsert)
           .select('share_slug')
           .single();
 

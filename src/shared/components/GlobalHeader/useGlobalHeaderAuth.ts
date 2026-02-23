@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import type { ReferralStats, GlobalHeaderAuthState } from './types';
+import { handleError } from '@/shared/lib/errorHandling/handleError';
 
 /** Fetch username for a given user ID */
 async function fetchUsername(userId: string): Promise<string | null> {
@@ -9,12 +10,14 @@ async function fetchUsername(userId: string): Promise<string | null> {
     .from('users')
     .select('username')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
-  if (data?.username && !error) {
-    return data.username;
+  if (error) {
+    handleError(error, { context: 'GlobalHeader.fetchUsername', showToast: false });
+    return null;
   }
-  return null;
+
+  return data?.username ?? null;
 }
 
 /**
@@ -29,12 +32,15 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
   // Track session + username
   useEffect(() => {
     const getSessionAndUserData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        handleError(error, { context: 'GlobalHeader.getSession', showToast: false });
+      }
       setSession(session);
 
       if (session?.user?.id) {
         const name = await fetchUsername(session.user.id);
-        if (name) setUsername(name);
+        setUsername(name);
       }
     };
 
@@ -52,7 +58,7 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
         setReferralStats(null);
       } else {
         const name = await fetchUsername(newSession.user.id);
-        if (name) setUsername(name);
+        setUsername(name);
       }
     };
 
@@ -82,19 +88,26 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
           .from('referral_stats')
           .select('total_visits, successful_referrals')
           .eq('username', username)
-          .single();
+          .maybeSingle();
 
-        if (data && !error) {
-          setReferralStats({
-            total_visits: data.total_visits ?? 0,
-            successful_referrals: data.successful_referrals ?? 0,
-          });
-        } else {
-          // No stats yet, show zeros
-          setReferralStats({ total_visits: 0, successful_referrals: 0 });
+        if (error) {
+          handleError(error, { context: 'GlobalHeader.referralStats', showToast: false });
+          setReferralStats(null);
+          return;
         }
-      } catch {
-        setReferralStats({ total_visits: 0, successful_referrals: 0 });
+
+        if (!data) {
+          setReferralStats({ total_visits: 0, successful_referrals: 0 });
+          return;
+        }
+
+        setReferralStats({
+          total_visits: data.total_visits ?? 0,
+          successful_referrals: data.successful_referrals ?? 0,
+        });
+      } catch (error) {
+        handleError(error, { context: 'GlobalHeader.referralStats', showToast: false });
+        setReferralStats(null);
       }
     };
 

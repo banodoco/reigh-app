@@ -13,7 +13,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 import {
-  deriveInputImages,
+  deriveTaskInputImages,
   getAbbreviatedTaskName,
   parseTaskParamsForDisplay,
   extractShotId,
@@ -36,43 +36,43 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
   ...overrides,
 });
 
-describe('deriveInputImages', () => {
+describe('deriveTaskInputImages', () => {
   it('returns empty array for null task', () => {
-    expect(deriveInputImages(null)).toEqual([]);
+    expect(deriveTaskInputImages(null)).toEqual([]);
   });
 
   it('returns empty array for task with no params', () => {
-    expect(deriveInputImages(makeTask({ params: {} }))).toEqual([]);
+    expect(deriveTaskInputImages(makeTask({ params: {} }))).toEqual([]);
   });
 
   it('extracts from input_image string', () => {
     const task = makeTask({ params: { input_image: 'https://example.com/img.png' } });
-    expect(deriveInputImages(task)).toEqual(['https://example.com/img.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['https://example.com/img.png']);
   });
 
   it('extracts from image string', () => {
     const task = makeTask({ params: { image: 'https://example.com/img.png' } });
-    expect(deriveInputImages(task)).toEqual(['https://example.com/img.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['https://example.com/img.png']);
   });
 
   it('extracts from init_image string', () => {
     const task = makeTask({ params: { init_image: 'https://example.com/init.png' } });
-    expect(deriveInputImages(task)).toEqual(['https://example.com/init.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['https://example.com/init.png']);
   });
 
   it('extracts from control_image string', () => {
     const task = makeTask({ params: { control_image: 'https://example.com/ctrl.png' } });
-    expect(deriveInputImages(task)).toEqual(['https://example.com/ctrl.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['https://example.com/ctrl.png']);
   });
 
   it('extracts from images array', () => {
     const task = makeTask({ params: { images: ['img1.png', 'img2.png'] } });
-    expect(deriveInputImages(task)).toEqual(['img1.png', 'img2.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['img1.png', 'img2.png']);
   });
 
   it('extracts from input_images array', () => {
     const task = makeTask({ params: { input_images: ['a.png', 'b.png'] } });
-    expect(deriveInputImages(task)).toEqual(['a.png', 'b.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['a.png', 'b.png']);
   });
 
   it('extracts from full_orchestrator_payload.input_image_paths_resolved', () => {
@@ -83,7 +83,7 @@ describe('deriveInputImages', () => {
         },
       },
     });
-    expect(deriveInputImages(task)).toEqual(['resolved1.png', 'resolved2.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['resolved1.png', 'resolved2.png']);
   });
 
   it('extracts from orchestrator_details.input_image_paths_resolved', () => {
@@ -94,7 +94,7 @@ describe('deriveInputImages', () => {
         },
       },
     });
-    expect(deriveInputImages(task)).toEqual(['orch1.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['orch1.png']);
   });
 
   it('extracts from top-level input_image_paths_resolved', () => {
@@ -103,7 +103,7 @@ describe('deriveInputImages', () => {
         input_image_paths_resolved: ['top.png'],
       },
     });
-    expect(deriveInputImages(task)).toEqual(['top.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['top.png']);
   });
 
   it('handles individual_travel_segment with individual_segment_params', () => {
@@ -115,7 +115,7 @@ describe('deriveInputImages', () => {
         },
       },
     });
-    expect(deriveInputImages(task)).toEqual(['seg1.png', 'seg2.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['seg1.png', 'seg2.png']);
   });
 
   it('filters out falsy values', () => {
@@ -124,7 +124,7 @@ describe('deriveInputImages', () => {
         images: ['valid.png', '', null, undefined, 'also_valid.png'],
       },
     });
-    expect(deriveInputImages(task)).toEqual(['valid.png', 'also_valid.png']);
+    expect(deriveTaskInputImages(task)).toEqual(['valid.png', 'also_valid.png']);
   });
 });
 

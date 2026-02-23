@@ -541,13 +541,23 @@ function useImageLightboxRenderModel(
   const { sharedState, handleSlotNavNext, handleSlotNavPrev } = sharedModel;
   const { editOrchestrator, adjustedTaskDetailsData, variantBadges } = editModel;
 
-  const lightboxStateValue = useLightboxStateValue({
+  const lightboxCore = useMemo(() => ({
     onClose,
     readOnly,
     isMobile: env.isMobile,
     isTabletOrLarger: sharedState.layout.isTabletOrLarger,
     selectedProjectId: env.selectedProjectId,
     actualGenerationId: env.actualGenerationId,
+  }), [
+    onClose,
+    readOnly,
+    env.isMobile,
+    sharedState.layout.isTabletOrLarger,
+    env.selectedProjectId,
+    env.actualGenerationId,
+  ]);
+
+  const lightboxMedia = useMemo(() => ({
     media,
     isVideo: false,
     effectiveMediaUrl: sharedState.effectiveMedia.mediaUrl ?? '',
@@ -555,13 +565,22 @@ function useImageLightboxRenderModel(
     effectiveImageDimensions: sharedState.effectiveMedia.imageDimensions,
     imageDimensions: env.imageDimensions,
     setImageDimensions: env.setImageDimensions,
+  }), [
+    media,
+    sharedState.effectiveMedia.mediaUrl,
+    sharedState.effectiveMedia.imageDimensions,
+    env.imageDimensions,
+    env.setImageDimensions,
+  ]);
+
+  const lightboxVariants = useMemo(() => ({
     variants: sharedState.variants.list,
     activeVariant: sharedState.variants.activeVariant,
     primaryVariant: sharedState.variants.primaryVariant,
     isLoadingVariants: sharedState.variants.isLoading,
-    setActiveVariantId: sharedState.variants.setActiveVariantId,
-    setPrimaryVariant: sharedState.variants.setPrimaryVariant,
-    deleteVariant: sharedState.variants.deleteVariant,
+    handleVariantSelect: sharedState.variants.setActiveVariantId,
+    handleMakePrimary: sharedState.variants.setPrimaryVariant,
+    handleDeleteVariant: sharedState.variants.deleteVariant,
     onLoadVariantSettings: env.setVariantParamsToLoad,
     promoteSuccess: sharedState.variants.promoteSuccess,
     isPromoting: sharedState.variants.isPromoting,
@@ -573,12 +592,48 @@ function useImageLightboxRenderModel(
     unviewedVariantCount: variantBadges.unviewedVariantCount,
     onMarkAllViewed: variantBadges.handleMarkAllViewed,
     variantsSectionRef: env.variantsSectionRef,
+  }), [
+    sharedState.variants.list,
+    sharedState.variants.activeVariant,
+    sharedState.variants.primaryVariant,
+    sharedState.variants.isLoading,
+    sharedState.variants.setActiveVariantId,
+    sharedState.variants.setPrimaryVariant,
+    sharedState.variants.deleteVariant,
+    env.setVariantParamsToLoad,
+    sharedState.variants.promoteSuccess,
+    sharedState.variants.isPromoting,
+    sharedState.variants.handlePromoteToGeneration,
+    sharedState.makeMainVariant.isMaking,
+    sharedState.makeMainVariant.canMake,
+    sharedState.makeMainVariant.handle,
+    variantBadges.pendingTaskCount,
+    variantBadges.unviewedVariantCount,
+    variantBadges.handleMarkAllViewed,
+    env.variantsSectionRef,
+  ]);
+
+  const lightboxNavigation = useMemo(() => ({
     showNavigation: navigation?.showNavigation ?? true,
     hasNext: navigation?.hasNext ?? false,
     hasPrevious: navigation?.hasPrevious ?? false,
     handleSlotNavNext,
     handleSlotNavPrev,
     swipeNavigation: sharedState.navigation.swipeNavigation,
+  }), [
+    navigation?.showNavigation,
+    navigation?.hasNext,
+    navigation?.hasPrevious,
+    handleSlotNavNext,
+    handleSlotNavPrev,
+    sharedState.navigation.swipeNavigation,
+  ]);
+
+  const lightboxStateValue = useLightboxStateValue({
+    core: lightboxCore,
+    media: lightboxMedia,
+    variants: lightboxVariants,
+    navigation: lightboxNavigation,
   });
 
   const handleDownload = () => handleLightboxDownload({

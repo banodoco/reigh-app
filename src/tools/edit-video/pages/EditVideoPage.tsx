@@ -117,7 +117,7 @@ export default function EditVideoPage() {
   // Transform variant data to GenerationRow format for lightbox (using parent generation id)
   const transformVariantToGeneration = useCallback(
     (media: GeneratedImageWithMetadata): GenerationRow =>
-      variantToGenerationRow(media, 'video', selectedProjectId || '') as unknown as GenerationRow,
+      variantToGenerationRow(media, 'video', selectedProjectId || ''),
     [selectedProjectId]
   );
   

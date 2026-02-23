@@ -1,0 +1,73 @@
+{
+  "assessments": {
+    "abstraction_fitness": 72.6
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "button_group_prop_bag_passthrough",
+      "summary": "Button-group abstraction passes a very wide prop bag with almost no behavior",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts"
+      ],
+      "evidence": [
+        "UseButtonGroupPropsParams collects a large mixed option bag, and useButtonGroupProps mostly re-emits those fields into topLeft/topRight/bottomLeft/bottomRight.",
+        "useSharedButtonGroupState in useSharedLightboxState extracts values and forwards them almost unchanged into useButtonGroupProps.",
+        "The only added logic is thin wrappers (for delete/upscale), so the layer adds ceremony and maintenance surface more than design leverage."
+      ],
+      "suggestion": "Replace this with narrower per-group builders (or a compact LightboxActions model) so each control group receives only the fields it actually uses.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_state_translation_layer",
+      "summary": "Lightbox state context hook is mostly a one-to-one translation layer",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useLightboxStateValue.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "UseLightboxStateValueInput is a very wide interface, but useLightboxStateValue mainly rebuilds objects with direct field assignment.",
+        "Most transformations are naming wrappers (set* to handle*) and async pass-through wrappers that do not change behavior.",
+        "Both Image and Video render paths already prepare the same data, so this hook introduces an extra translation boundary with little policy."
+      ],
+      "suggestion": "Pass already-grouped submodels (core/media/variants/navigation) directly to the provider, and remove the translation layer unless it enforces real cross-cutting behavior.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_state_dto_overlayering",
+      "summary": "Inline edit state hook adds a large DTO layer used by only one consumer",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "useInlineEditState defines multiple internal DTO interfaces (CanvasEnvironmentState, InpaintingState, TransformState, GenerationState) that are only used in this module.",
+        "buildImageEditValueParams and buildInlineEditStateResult mostly map existing hook outputs into new shapes with 1:1 property forwarding.",
+        "useInlineEditState is consumed directly by InlineEditView, so these extra DTO assembly layers do not provide polymorphic reuse."
+      ],
+      "suggestion": "Collapse the intermediate DTO builders and expose a smaller set of focused sub-hooks (or return existing hook results directly) to reduce forwarding-only abstraction.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "timestamp_hook_duplication_and_noop_alias",
+      "summary": "Timestamp hooks duplicate the same live-date abstraction and keep a no-op alias",
+      "related_files": [
+        "src/shared/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "useCompletedTimestamp and useProcessingTimestamp each define a local useLiveTimestamp with the same parsing and updater mechanics.",
+        "The two hooks differ primarily by formatter string, but maintain separate internal abstraction stacks.",
+        "useTaskTimestamp forwards directly to useUpdatingTimestamp with the same default abbreviation behavior, adding an extra named layer without new policy."
+      ],
+      "suggestion": "Extract one shared relative-timestamp hook with formatter input, and either remove useTaskTimestamp or make it enforce task-specific behavior that differs from defaults.",
+      "confidence": "medium"
+    }
+  ]
+}

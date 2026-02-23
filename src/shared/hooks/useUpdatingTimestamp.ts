@@ -1,7 +1,6 @@
-import { useMemo } from 'react';
-import { formatDistanceToNow, isValid } from 'date-fns';
-import { useTimestampUpdater } from './useTimestampUpdater';
+import { formatDistanceToNow } from 'date-fns';
 import { abbreviateRelativeTime } from '@/shared/lib/timeFormatting';
+import { useLiveRelativeTimestamp } from './useLiveRelativeTimestamp';
 
 /**
  * Simple hook that returns a live-updating formatted timestamp string
@@ -29,40 +28,31 @@ export function useUpdatingTimestamp({
   abbreviate = abbreviateRelativeTime,
   disabled = false 
 }: UseUpdatingTimestampOptions = {}): string | null {
-  
-  const parsedDate = useMemo(() => {
-    if (!date) return null;
-    const parsed = typeof date === 'string' ? new Date(date) : date;
-    return isValid(parsed) ? parsed : null;
-  }, [date]);
-  
-  // Get live update trigger
-  const { updateTrigger } = useTimestampUpdater({
-    date: parsedDate,
+  return useLiveRelativeTimestamp({
+    dateInput: date,
     disabled,
-    isVisible: true // Explicitly set to ensure TaskPane timestamps update
-  });
-  
-  // Format timestamp with live updates
-  const formattedTime = useMemo(() => {
-    if (!parsedDate) return null;
-    void updateTrigger;
-    
+    formatter: (parsedDate) => {
     const formatted = formatDistanceToNow(parsedDate, { addSuffix: true });
-    const abbreviated = abbreviate(formatted);
-    
-    return abbreviated;
-  }, [parsedDate, updateTrigger, abbreviate]);
-  
-  return formattedTime;
+      return abbreviate(formatted);
+    },
+  });
+}
+
+function abbreviateTaskRelativeTime(relativeTime: string): string {
+  const abbreviated = abbreviateRelativeTime(relativeTime);
+  if (!abbreviated) {
+    return '<1 min ago';
+  }
+  return abbreviated;
 }
 
 /**
- * Hook specifically for task timestamps with consistent abbreviation
+ * Task-specific wrapper keeps compact task-list formatting stable even if
+ * generic timestamp defaults evolve.
  */
 export function useTaskTimestamp(date?: string | Date | null) {
-  return useUpdatingTimestamp({ 
+  return useUpdatingTimestamp({
     date,
-    abbreviate: abbreviateRelativeTime
+    abbreviate: abbreviateTaskRelativeTime,
   });
 }

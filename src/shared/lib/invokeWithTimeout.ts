@@ -18,6 +18,7 @@ export async function invokeWithTimeout<T = unknown>(functionName: string, optio
   const { body, headers, timeoutMs = 20000, signal } = options;
 
   const controller = new AbortController();
+  let didTimeout = false;
   const signals: AbortSignal[] = [];
   if (signal) signals.push(signal);
   signals.push(controller.signal);
@@ -31,6 +32,7 @@ export async function invokeWithTimeout<T = unknown>(functionName: string, optio
   });
 
   const tid = setTimeout(() => {
+    didTimeout = true;
     try { controller.abort(); } catch { /* intentionally ignored */ }
   }, timeoutMs);
 
@@ -60,10 +62,14 @@ export async function invokeWithTimeout<T = unknown>(functionName: string, optio
     return data;
   } catch (err: unknown) {
     if (isAbortError(err)) {
-      throw new Error(`Function ${functionName} timed out after ${timeoutMs}ms`);
+      if (didTimeout) {
+        throw new Error(`Function ${functionName} timed out after ${timeoutMs}ms`);
+      }
+      throw err;
     }
     throw err;
   } finally {
     clearTimeout(tid);
+    signals.forEach(s => s.removeEventListener('abort', onAbort));
   }
 }

@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { deriveInputImages } from '../mediaGallery-utils';
+import { deriveGalleryInputImages } from '../mediaGallery-utils';
 
-describe('deriveInputImages', () => {
+describe('deriveGalleryInputImages', () => {
   it('returns empty array for null task', () => {
-    expect(deriveInputImages(null)).toEqual([]);
+    expect(deriveGalleryInputImages(null)).toEqual([]);
   });
 
   it('returns empty array for undefined task', () => {
-    expect(deriveInputImages(undefined)).toEqual([]);
+    expect(deriveGalleryInputImages(undefined)).toEqual([]);
   });
 
   it('returns empty array for task with no params', () => {
-    expect(deriveInputImages({})).toEqual([]);
+    expect(deriveGalleryInputImages({})).toEqual([]);
   });
 
   it('extracts from params.input_images', () => {
@@ -20,7 +20,7 @@ describe('deriveInputImages', () => {
         input_images: ['https://example.com/img1.png', 'https://example.com/img2.png'],
       },
     };
-    expect(deriveInputImages(task)).toEqual([
+    expect(deriveGalleryInputImages(task)).toEqual([
       'https://example.com/img1.png',
       'https://example.com/img2.png',
     ]);
@@ -32,7 +32,7 @@ describe('deriveInputImages', () => {
         input_images: ['"https://example.com/img1.png"', "'https://example.com/img2.png'"],
       },
     };
-    expect(deriveInputImages(task)).toEqual([
+    expect(deriveGalleryInputImages(task)).toEqual([
       'https://example.com/img1.png',
       'https://example.com/img2.png',
     ]);
@@ -46,7 +46,7 @@ describe('deriveInputImages', () => {
         },
       },
     };
-    expect(deriveInputImages(task)).toEqual(['https://example.com/resolved.png']);
+    expect(deriveGalleryInputImages(task)).toEqual(['https://example.com/resolved.png']);
   });
 
   it('extracts from top-level params.input_image_paths_resolved', () => {
@@ -55,7 +55,7 @@ describe('deriveInputImages', () => {
         input_image_paths_resolved: ['https://example.com/top-level.png'],
       },
     };
-    expect(deriveInputImages(task)).toEqual(['https://example.com/top-level.png']);
+    expect(deriveGalleryInputImages(task)).toEqual(['https://example.com/top-level.png']);
   });
 
   it('prefers input_images over other sources', () => {
@@ -65,7 +65,7 @@ describe('deriveInputImages', () => {
         input_image_paths_resolved: ['https://example.com/fallback.png'],
       },
     };
-    expect(deriveInputImages(task)).toEqual(['https://example.com/preferred.png']);
+    expect(deriveGalleryInputImages(task)).toEqual(['https://example.com/preferred.png']);
   });
 
   it('returns empty array when no recognized image fields exist', () => {
@@ -75,6 +75,6 @@ describe('deriveInputImages', () => {
         seed: 42,
       },
     };
-    expect(deriveInputImages(task)).toEqual([]);
+    expect(deriveGalleryInputImages(task)).toEqual([]);
   });
 });

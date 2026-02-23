@@ -24,7 +24,7 @@ import Layout from './Layout'; // Import the new Layout component
 import { AppEnv } from '@/types/env';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { ToolErrorBoundary } from '@/shared/components/ToolErrorBoundary';
-import { getSupabaseUrl } from '@/integrations/supabase/config/env';
+import { hasStoredSessionToken } from '@/shared/lib/supabaseSession';
 
 // Determine the environment
 const currentEnv = (import.meta.env.VITE_APP_ENV?.toLowerCase() || AppEnv.WEB);
@@ -35,13 +35,10 @@ const LazyLoadingFallback = () => (
 );
 
 // Read cached session from localStorage without acquiring navigator.locks.
-// Key format matches GoTrueClient: sb-${hostname[0]}-auth-token
+// Key format matches GoTrueClient: sb-${projectRef}-auth-token
 function hasStoredSession(): boolean {
   try {
-    const projectRef = new URL(getSupabaseUrl()).hostname.split('.')[0];
-    const raw = localStorage.getItem(`sb-${projectRef}-auth-token`);
-    if (!raw) return false;
-    return !!(JSON.parse(raw) as { access_token?: string })?.access_token;
+    return hasStoredSessionToken();
   } catch {
     return false;
   }

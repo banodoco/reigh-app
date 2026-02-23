@@ -50,14 +50,28 @@ export type DatabaseTable =
   | 'generation_variants';
 
 /** Raw event from Supabase postgres_changes */
-export interface RawDatabaseEvent<T = Record<string, unknown>> {
+interface RawDatabaseEventBase<T = Record<string, unknown>> {
   table: DatabaseTable;
   eventType: DatabaseEventType;
-  new: T;
-  old: Partial<T> | null;
   /** Timestamp when event was received */
   receivedAt: number;
 }
+
+interface RawInsertOrUpdateEvent<T = Record<string, unknown>> extends RawDatabaseEventBase<T> {
+  eventType: 'INSERT' | 'UPDATE';
+  new: T;
+  old: Partial<T> | null;
+}
+
+interface RawDeleteEvent<T = Record<string, unknown>> extends RawDatabaseEventBase<T> {
+  eventType: 'DELETE';
+  new: Partial<T> | null;
+  old: Partial<T> | null;
+}
+
+export type RawDatabaseEvent<T = Record<string, unknown>> =
+  | RawInsertOrUpdateEvent<T>
+  | RawDeleteEvent<T>;
 
 // =============================================================================
 // Typed Record Shapes (matching database schema)

@@ -8,55 +8,48 @@ import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
  */
 
 export const debugPolling = {
+  async runDebugCheck(label: string, checkFn: () => Promise<{ error: unknown }>): Promise<boolean> {
+    try {
+      const { error } = await checkFn();
+      if (error) {
+        console.error(`[PollingDebug] ${label} failed:`, error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error(`[PollingDebug] ${label} exception:`, err);
+      return false;
+    }
+  },
+
   /**
    * Test basic Supabase connection
    */
   async testConnection(projectId: string) {
-    
-    try {
-      const { error } = await supabase
+    return this.runDebugCheck('Connection test', async () => {
+      const result = await supabase
         .from('tasks')
         .select('id')
         .eq('project_id', projectId)
         .limit(1);
-        
-      if (error) {
-        console.error('[PollingDebug] Connection test failed:', error);
-        return false;
-      }
-      
-      return true;
-    } catch (err) {
-      console.error('[PollingDebug] Connection test exception:', err);
-      return false;
-    }
+      return { error: result.error };
+    });
   },
 
   /**
    * Test the exact query that's failing
    */
   async testTaskStatusQuery(projectId: string) {
-
-    try {
+    return this.runDebugCheck('Processing query', async () => {
       const processingQuery = supabase
         .from('tasks')
         .select('id', { count: 'exact', head: true })
         .eq('project_id', projectId)
         .in('status', ['Queued', 'In Progress'])
         .is('params->orchestrator_task_id_ref', null);
-        
       const { error } = await processingQuery;
-      
-      if (error) {
-        console.error('[PollingDebug] Processing query failed:', error);
-        return false;
-      }
-      
-      return true;
-    } catch (err) {
-      console.error('[PollingDebug] Query test exception:', err);
-      return false;
-    }
+      return { error };
+    });
   },
 
   /**

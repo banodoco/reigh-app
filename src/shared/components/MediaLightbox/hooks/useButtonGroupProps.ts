@@ -1,31 +1,18 @@
-/**
- * useButtonGroupProps Hook
- *
- * Centralizes the props for all four button group components (TopLeft, TopRight,
- * BottomLeft, BottomRight) to ensure consistency across layout branches.
- *
- * This prevents prop divergence bugs where one layout branch gets updated
- * but others don't.
- */
-
 import { useMemo } from 'react';
 
-interface UseButtonGroupPropsParams {
-  // Shared base props
+interface SharedButtonGroupContext {
   isVideo: boolean;
   readOnly: boolean;
   isSpecialEditMode: boolean;
   selectedProjectId: string | undefined;
   isCloudMode: boolean;
-  mediaId: string;
+}
 
-  // TopLeft & BottomLeft - Edit mode
+interface TopLeftButtonGroupInput {
   handleEnterMagicEditMode: () => void;
+}
 
-  // TopRight - Download & Delete
-  // NOTE: handleDownload is optional here because it requires media-specific logic
-  // (variant selection, content type). Parent components (ImageLightbox/VideoLightbox)
-  // MUST provide it when building the final buttonGroupProps.
+interface TopRightButtonGroupInput {
   showDownload: boolean;
   handleDownload?: () => Promise<void>;
   isDownloading: boolean;
@@ -33,12 +20,18 @@ interface UseButtonGroupPropsParams {
   handleDelete?: () => void;
   isDeleting?: string | null;
   onClose: () => void;
+}
 
-  // BottomLeft - Upscale
+interface BottomLeftButtonGroupInput {
+  handleEnterMagicEditMode: () => void;
   isUpscaling: boolean;
   handleUpscale: () => Promise<void>;
+  localStarred: boolean;
+  handleToggleStar: () => void;
+  toggleStarPending: boolean;
+}
 
-  // BottomRight - Star & References
+interface BottomRightButtonGroupInput {
   localStarred: boolean;
   handleToggleStar: () => void;
   toggleStarPending: boolean;
@@ -51,129 +44,102 @@ interface UseButtonGroupPropsParams {
   onGoToJoin?: () => void;
 }
 
-export function useButtonGroupProps({
-  // Shared base props
-  isVideo,
-  readOnly,
-  isSpecialEditMode,
-  selectedProjectId,
-  isCloudMode,
-  mediaId,
+interface UseButtonGroupPropsParams {
+  shared: SharedButtonGroupContext;
+  mediaId: string;
+  topLeft: TopLeftButtonGroupInput;
+  topRight: TopRightButtonGroupInput;
+  bottomLeft: BottomLeftButtonGroupInput;
+  bottomRight: BottomRightButtonGroupInput;
+}
 
-  // TopLeft & BottomLeft
-  handleEnterMagicEditMode,
+function buildTopLeftProps(
+  shared: SharedButtonGroupContext,
+  input: TopLeftButtonGroupInput,
+) {
+  return {
+    isVideo: shared.isVideo,
+    readOnly: shared.readOnly,
+    isSpecialEditMode: shared.isSpecialEditMode,
+    selectedProjectId: shared.selectedProjectId,
+    isCloudMode: shared.isCloudMode,
+    handleEnterMagicEditMode: input.handleEnterMagicEditMode,
+  };
+}
 
-  // TopRight
-  showDownload,
-  handleDownload,
-  isDownloading,
-  onDelete,
-  handleDelete,
-  isDeleting,
-  onClose,
-
-  // BottomLeft - Upscale
-  isUpscaling,
-  handleUpscale,
-
-  // BottomRight
-  localStarred,
-  handleToggleStar,
-  toggleStarPending,
-  isAddingToReferences,
-  addToReferencesSuccess,
-  handleAddToReferences,
-  handleAddToJoin,
-  isAddingToJoin,
-  addToJoinSuccess,
-  onGoToJoin,
-}: UseButtonGroupPropsParams) {
-  return useMemo(() => ({
-    topLeft: {
-      isVideo,
-      readOnly,
-      isSpecialEditMode,
-      selectedProjectId,
-      isCloudMode,
-      handleEnterMagicEditMode,
-    },
-
-    topRight: {
-      isVideo,
-      readOnly,
-      isSpecialEditMode,
-      selectedProjectId,
-      isCloudMode,
-      showDownload,
-      handleDownload,
-      isDownloading,
-      onDelete,
-      handleDelete,
-      isDeleting,
-      mediaId,
-      onClose,
-    },
-
-    bottomLeft: {
-      isVideo,
-      readOnly,
-      isSpecialEditMode,
-      selectedProjectId,
-      isCloudMode,
-      handleEnterMagicEditMode,
-      isUpscaling,
-      handleUpscale,
-      // Star button (moved from bottomRight)
-      localStarred,
-      handleToggleStar,
-      toggleStarPending,
-    },
-
-    bottomRight: {
-      isVideo,
-      readOnly,
-      isSpecialEditMode,
-      selectedProjectId,
-      isCloudMode,
-      localStarred,
-      handleToggleStar,
-      toggleStarPending,
-      isAddingToReferences,
-      addToReferencesSuccess,
-      handleAddToReferences,
-      handleAddToJoin,
-      isAddingToJoin,
-      addToJoinSuccess,
-      onGoToJoin,
-    },
-  }), [
-    isVideo,
-    readOnly,
-    isSpecialEditMode,
-    selectedProjectId,
-    isCloudMode,
+function buildTopRightProps(
+  shared: SharedButtonGroupContext,
+  mediaId: string,
+  input: TopRightButtonGroupInput,
+) {
+  return {
+    isVideo: shared.isVideo,
+    readOnly: shared.readOnly,
+    isSpecialEditMode: shared.isSpecialEditMode,
+    selectedProjectId: shared.selectedProjectId,
+    isCloudMode: shared.isCloudMode,
+    showDownload: input.showDownload,
+    handleDownload: input.handleDownload,
+    isDownloading: input.isDownloading,
+    onDelete: input.onDelete,
+    handleDelete: input.handleDelete,
+    isDeleting: input.isDeleting,
     mediaId,
-    handleEnterMagicEditMode,
-    showDownload,
-    handleDownload,
-    isDownloading,
-    onDelete,
-    handleDelete,
-    isDeleting,
-    onClose,
-    isUpscaling,
-    handleUpscale,
-    localStarred,
-    handleToggleStar,
-    toggleStarPending,
-    isAddingToReferences,
-    addToReferencesSuccess,
-    handleAddToReferences,
-    handleAddToJoin,
-    isAddingToJoin,
-    addToJoinSuccess,
-    onGoToJoin,
-  ]);
+    onClose: input.onClose,
+  };
+}
+
+function buildBottomLeftProps(
+  shared: SharedButtonGroupContext,
+  input: BottomLeftButtonGroupInput,
+) {
+  return {
+    isVideo: shared.isVideo,
+    readOnly: shared.readOnly,
+    isSpecialEditMode: shared.isSpecialEditMode,
+    selectedProjectId: shared.selectedProjectId,
+    isCloudMode: shared.isCloudMode,
+    handleEnterMagicEditMode: input.handleEnterMagicEditMode,
+    isUpscaling: input.isUpscaling,
+    handleUpscale: input.handleUpscale,
+    localStarred: input.localStarred,
+    handleToggleStar: input.handleToggleStar,
+    toggleStarPending: input.toggleStarPending,
+  };
+}
+
+function buildBottomRightProps(
+  shared: SharedButtonGroupContext,
+  input: BottomRightButtonGroupInput,
+) {
+  return {
+    isVideo: shared.isVideo,
+    readOnly: shared.readOnly,
+    isSpecialEditMode: shared.isSpecialEditMode,
+    selectedProjectId: shared.selectedProjectId,
+    isCloudMode: shared.isCloudMode,
+    localStarred: input.localStarred,
+    handleToggleStar: input.handleToggleStar,
+    toggleStarPending: input.toggleStarPending,
+    isAddingToReferences: input.isAddingToReferences,
+    addToReferencesSuccess: input.addToReferencesSuccess,
+    handleAddToReferences: input.handleAddToReferences,
+    handleAddToJoin: input.handleAddToJoin,
+    isAddingToJoin: input.isAddingToJoin,
+    addToJoinSuccess: input.addToJoinSuccess,
+    onGoToJoin: input.onGoToJoin,
+  };
+}
+
+export function useButtonGroupProps(params: UseButtonGroupPropsParams) {
+  return useMemo(() => {
+    return {
+      topLeft: buildTopLeftProps(params.shared, params.topLeft),
+      topRight: buildTopRightProps(params.shared, params.mediaId, params.topRight),
+      bottomLeft: buildBottomLeftProps(params.shared, params.bottomLeft),
+      bottomRight: buildBottomRightProps(params.shared, params.bottomRight),
+    };
+  }, [params]);
 }
 
 export type ButtonGroupProps = ReturnType<typeof useButtonGroupProps>;

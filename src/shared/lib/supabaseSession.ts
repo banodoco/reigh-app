@@ -36,6 +36,10 @@ function readRawSession(): Record<string, unknown> | null {
   }
 }
 
+function readString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
 /**
  * Read the access token directly from localStorage -- synchronous, no navigator.locks.
  * Returns null if no session exists in storage (user is signed out).
@@ -43,7 +47,7 @@ function readRawSession(): Record<string, unknown> | null {
 export function readAccessTokenFromStorage(): string | null {
   const parsed = readRawSession();
   if (!parsed) return null;
-  return (parsed as { access_token?: string }).access_token ?? null;
+  return readString(parsed.access_token);
 }
 
 /**
@@ -53,5 +57,11 @@ export function readAccessTokenFromStorage(): string | null {
 export function readUserIdFromStorage(): string | null {
   const parsed = readRawSession();
   if (!parsed) return null;
-  return (parsed as { user?: { id?: string } }).user?.id ?? null;
+  const user = parsed.user;
+  if (!user || typeof user !== 'object') return null;
+  return readString((user as Record<string, unknown>).id);
+}
+
+export function hasStoredSessionToken(): boolean {
+  return readAccessTokenFromStorage() !== null;
 }

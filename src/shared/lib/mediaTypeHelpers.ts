@@ -2,6 +2,8 @@
  * Loose type for objects that might have generation_id and/or id.
  * Use this when dealing with untyped or loosely-typed media objects.
  */
+import type { GenerationRow } from '@/types/shots';
+
 interface MaybeHasGenerationId {
   generation_id?: string | null;
   id?: string | null;
@@ -76,9 +78,12 @@ export function variantToGenerationRow(
   },
   mediaType: 'video' | 'image',
   projectId: string,
-): Record<string, unknown> {
+): GenerationRow {
+  const generationId = getGenerationId(media) ?? media.id;
+
   return {
-    id: getGenerationId(media),
+    id: generationId,
+    generation_id: generationId,
     location: media.url,
     thumbnail_url: media.thumbUrl,
     type: mediaType,

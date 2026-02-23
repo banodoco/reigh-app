@@ -12,11 +12,12 @@ import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { supabase } from '@/integrations/supabase/client';
 import {
   cropImagesToShotAspectRatio,
-  calculateNextAvailableFrame,
+  fetchNextAvailableFrameForShot,
   persistTimelinePositions
 } from './timelineDropHelpers';
 import { DEFAULT_FRAME_SPACING } from '@/shared/lib/timelinePositionCalculator';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
+import { useDemoteOrphanedVariants } from '../../../hooks/useDemoteOrphanedVariants';
 
 interface UseDropActionsProps {
   actions: {
@@ -37,6 +38,7 @@ export const useDropActions = ({
   const queryClient = useQueryClient();
   const addImageToShotMutation = useAddImageToShot();
   const handleExternalImageDropMutation = useHandleExternalImageDrop();
+  const { demoteOrphanedVariants } = useDemoteOrphanedVariants();
   const { settings: uploadSettings } = useToolSettings<{ cropToProjectSize?: boolean }>('upload', { projectId });
 
   // Stability refs - prevent callback recreation when data/mutation state changes
@@ -67,6 +69,9 @@ export const useDropActions = ({
   const queryClientRef = useRef(queryClient);
   queryClientRef.current = queryClient;
 
+  const demoteOrphanedVariantsRef = useRef(demoteOrphanedVariants);
+  demoteOrphanedVariantsRef.current = demoteOrphanedVariants;
+
   /**
    * Handle dropping external image files onto the timeline
    */
@@ -84,7 +89,7 @@ export const useDropActions = ({
       actionsRef.current.setUploadingImage(true);
 
       // 1. Calculate target positions BEFORE upload
-      const calculatedTargetFrame = await calculateNextAvailableFrame(
+      const calculatedTargetFrame = await fetchNextAvailableFrameForShot(
         currentShot.id,
         targetFrame
       );
@@ -140,6 +145,9 @@ export const useDropActions = ({
         }
       }
 
+      // Demote orphaned video variants now that new images are in place
+      await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
+
     } catch (error) {
       handleError(error, { context: 'TimelineDrop', toastTitle: 'Failed to add images' });
       throw error;
@@ -179,6 +187,9 @@ export const useDropActions = ({
         timelineFrame: targetFrame,
         project_id: currentProjectId
       });
+
+      // Demote orphaned video variants now that the new image is in place
+      await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
     } catch (error) {
       handleError(error, { context: 'GenerationDrop', toastTitle: 'Failed to add generation' });
       throw error;
@@ -208,7 +219,7 @@ export const useDropActions = ({
       actionsRef.current.setUploadingImage(true);
 
       // 1. Calculate target frame positions with collision detection
-      const startFrame = targetFrame ?? await calculateNextAvailableFrame(currentShot.id, undefined);
+      const startFrame = targetFrame ?? await fetchNextAvailableFrameForShot(currentShot.id, undefined);
 
       // For multiple files, ensure each position is unique
       const existingGens = queryClientRef.current.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(currentShot.id)) || [];
@@ -305,6 +316,9 @@ export const useDropActions = ({
         );
       }
 
+      // Demote orphaned video variants now that new images are in place
+      await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
+
     } catch (error) {
       handleError(error, { context: 'BatchDrop', toastTitle: 'Failed to add images' });
 
@@ -355,6 +369,9 @@ export const useDropActions = ({
         project_id: currentProjectId,
         timelineFrame: targetFrame,
       });
+
+      // Demote orphaned video variants now that the new image is in place
+      await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
     } catch (error) {
       handleError(error, { context: 'BatchDrop', toastTitle: 'Failed to add generation' });
       throw error;

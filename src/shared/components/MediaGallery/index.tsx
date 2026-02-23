@@ -31,7 +31,7 @@ import { MobileBottomBar } from './components/MobileBottomBar';
 import { useMediaGalleryDebugTools } from './hooks/useMediaGalleryDebugTools';
 
 // Import utils
-import { GRID_COLUMN_CLASSES, getLayoutForAspectRatio } from './utils';
+import { GRID_COLUMN_CLASSES, calculateGalleryLayout } from './utils';
 
 // Import types
 import type {
@@ -147,9 +147,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   // - Tall images (9:16) → smaller target width → more columns
   // - Wider containers → more columns fit
   // - Narrower containers → fewer columns fit
-  // Tweak TARGET_IMAGE_WIDTH.BASE in mediaGallery-constants.ts to adjust density
+  // Tweak TARGET_IMAGE_WIDTH.BASE in mediaGallery-constants.ts to adjust density.
   const aspectRatioLayout = React.useMemo(() => {
-    return getLayoutForAspectRatio(projectAspectRatio, isMobile, containerWidth, undefined, reducedSpacing);
+    return calculateGalleryLayout(projectAspectRatio, isMobile, containerWidth, undefined, reducedSpacing);
   }, [projectAspectRatio, isMobile, containerWidth, reducedSpacing]);
 
   // Use aspect-ratio-aware defaults, but allow explicit override via props

@@ -1,0 +1,23 @@
+{
+  "assessments": {
+    "logic_clarity": 92.0
+  },
+  "findings": [
+    {
+      "dimension": "logic_clarity",
+      "identifier": "add_without_position_adapter_drops_false_result",
+      "summary": "Adapter always reports success even when add-without-position returns false.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useShotActions.ts"
+      ],
+      "evidence": [
+        "`onAddToShotWithoutPosition` is declared as `Promise<boolean>` in `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:30`.",
+        "`handleAddToShotWithoutPositionAdapter` awaits that handler but unconditionally returns `true` on the non-throw path (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:166-173`).",
+        "`executeWithRetry` treats the returned boolean as the success gate before triggering optimistic UI updates (`src/shared/components/MediaGalleryItem/hooks/useShotActions.ts:77-81`)."
+      ],
+      "suggestion": "Return the underlying boolean result instead of forcing success, e.g. `return await onAddToShotWithoutPosition(targetShotId, generationId);` and keep `catch` returning `false`.",
+      "confidence": "high"
+    }
+  ]
+}

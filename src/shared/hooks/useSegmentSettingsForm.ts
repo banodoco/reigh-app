@@ -24,7 +24,7 @@
  * ```
  */
 
-import { useMemo, useRef, useCallback } from 'react';
+import { useMemo, useRef, useCallback, useState } from 'react';
 import { useSegmentSettings, UseSegmentSettingsOptions } from './segments';
 import type { SegmentSettingsFormProps } from '@/shared/components/SegmentSettingsForm';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
@@ -166,24 +166,25 @@ interface SegmentSettingsFormPropsInput {
 }
 
 function useEnhancePromptToggle({
-  enhancePromptEnabled,
   saveEnhancePromptEnabled,
 }: UseEnhancePromptToggleInput): {
   effectiveEnhanceEnabled: boolean;
   enhancePromptRef: React.MutableRefObject<boolean>;
   handleEnhancePromptChange: (enabled: boolean) => void;
 } {
-  const effectiveEnhanceEnabled = enhancePromptEnabled ?? false;
-  const enhancePromptRef = useRef(effectiveEnhanceEnabled);
-  enhancePromptRef.current = effectiveEnhanceEnabled;
+  // Always start with enhance prompt disabled — don't persist preference across form opens.
+  const [localEnabled, setLocalEnabled] = useState(false);
+  const enhancePromptRef = useRef(false);
+  enhancePromptRef.current = localEnabled;
 
   const handleEnhancePromptChange = useCallback((enabled: boolean) => {
     enhancePromptRef.current = enabled;
+    setLocalEnabled(enabled);
     saveEnhancePromptEnabled(enabled);
   }, [saveEnhancePromptEnabled]);
 
   return {
-    effectiveEnhanceEnabled,
+    effectiveEnhanceEnabled: localEnabled,
     enhancePromptRef,
     handleEnhancePromptChange,
   };

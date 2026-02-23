@@ -55,12 +55,12 @@ function extractPairOverrides(metadata: Record<string, unknown> | null | undefin
  * Build phase config for basic mode based on motion amount and user LoRAs.
  * Wraps the shared buildBasicModePhaseConfig, adding model selection.
  */
-export function buildBasicModePhaseConfig(
-  amountOfMotion: number,
+export function buildBasicModeGenerationRequest(
+  motionPercent: number,
   userLoras: Array<{ path: string; strength: number; lowNoisePath?: string; isMultiStage?: boolean }>,
 ): { model: string; phaseConfig: PhaseConfig } {
   const model = 'wan_2_2_i2v_lightning_baseline_2_2_2';
-  const phaseConfig = buildPhaseConfigCore(false, amountOfMotion / 100, userLoras);
+  const phaseConfig = buildPhaseConfigCore(false, motionPercent / 100, userLoras);
   return { model, phaseConfig };
 }
 
@@ -222,12 +222,14 @@ function resolveGenerationResolution(selectedShot: Shot, effectiveAspectRatio: s
   return DEFAULT_RESOLUTION;
 }
 
-async function waitForPendingMutations(queryClient: QueryClient): Promise<void> {
-  const mutationCache = queryClient.getMutationCache();
-  const pendingMutations = mutationCache.getAll().filter(mutation => mutation.state.status === 'pending');
-  if (pendingMutations.length === 0) return;
+async function waitForPendingMutations(queryClient: QueryClient, timeoutMs = 5000): Promise<void> {
+  if (queryClient.isMutating() === 0) return;
 
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  const start = Date.now();
+  while (queryClient.isMutating() > 0) {
+    if (Date.now() - start > timeoutMs) break;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
 }
 
 async function fetchFreshShotGenerations(selectedShotId: string): Promise<ShotGenRow[]> {
@@ -416,7 +418,7 @@ function resolveModelPhaseSelection(
     };
   }
 
-  const basicConfig = buildBasicModePhaseConfig(amountOfMotion, userLorasForPhaseConfig);
+  const basicConfig = buildBasicModeGenerationRequest(amountOfMotion, userLorasForPhaseConfig);
   return {
     actualModelName: basicConfig.model,
     effectivePhaseConfig: basicConfig.phaseConfig,
@@ -500,7 +502,7 @@ function buildTravelRequestBody(params: {
     amountOfMotion: params.amountOfMotion ?? 50,
     motionMode: params.motionMode ?? 'basic',
     useAdvancedMode: params.useAdvancedMode ?? false,
-    effectivePhaseConfig: params.effectivePhaseConfig ?? buildBasicModePhaseConfig(50, []).phaseConfig,
+    effectivePhaseConfig: params.effectivePhaseConfig ?? buildBasicModeGenerationRequest(50, []).phaseConfig,
     selectedPhasePresetId: params.selectedPhasePresetId,
   };
   const resolvedGenerationParams: GenerationParams = generationParams ?? {
@@ -605,6 +607,7 @@ export {
   buildBatchPairConfig,
   resolveModelPhaseSelection,
   validatePhaseConfigConsistency,
+  buildBasicModeGenerationRequest as buildBasicModePhaseConfig,
 };
 export type { ShotGenRow, ImagePayload, PairConfigPayload, ModelPhaseSelection };
 

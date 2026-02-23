@@ -23,6 +23,12 @@ interface UseLoadVariantImagesProps {
   };
 }
 
+function throwWithContext(message: string, cause: unknown): never {
+  const error = new Error(message);
+  (error as Error & { cause?: unknown }).cause = cause;
+  throw error;
+}
+
 /**
  * Extract the storage path from a full URL or relative path for matching.
  */
@@ -199,7 +205,7 @@ async function loadSingleImage(pos: {
       .single();
 
     if (error) {
-      throw new Error(`Failed to create variant: ${error.message}`);
+      throwWithContext(`Failed to create variant: ${error.message}`, error);
     }
   }
 }
@@ -214,6 +220,6 @@ async function setPrimaryById(variantId: string) {
     .eq('id', variantId);
 
   if (error) {
-    throw new Error(`Failed to set primary variant: ${error.message}`);
+    throwWithContext(`Failed to set primary variant: ${error.message}`, error);
   }
 }

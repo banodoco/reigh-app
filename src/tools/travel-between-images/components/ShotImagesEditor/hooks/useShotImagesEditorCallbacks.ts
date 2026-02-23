@@ -168,8 +168,7 @@ export function useShotImagesEditorCallbacks(options: UseShotImagesEditorCallbac
       return false;
     }
     try {
-      await onAddToShotWithoutPosition(targetShotId, generationId);
-      return true;
+      return await onAddToShotWithoutPosition(targetShotId, generationId);
     } catch {
       return false;
     }

@@ -44,19 +44,25 @@ function toJsonObject(value: unknown): Record<string, Json | undefined> {
  * timeline content, and featured video from the template project.
  */
 const copyTemplateToNewUser = async (newProjectId: string, newShotId: string): Promise<void> => {
-  try {
-    const { error } = await supabase.rpc('copy_onboarding_template', {
-      target_project_id: newProjectId,
-      target_shot_id: newShotId,
-    });
+  const { error } = await supabase.rpc('copy_onboarding_template', {
+    target_project_id: newProjectId,
+    target_shot_id: newShotId,
+  });
 
-    if (error) {
-      console.error('[ProjectContext] Template copy failed:', error);
-      return;
-    }
-  } catch (err) {
-    console.error('[ProjectContext] Template copy failed:', err);
-    handleError(err, { context: 'ProjectContext', showToast: false });
+  if (error) {
+    throw error;
+  }
+};
+
+const cleanupFailedProjectSetup = async (projectId: string, userId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+    .eq('user_id', userId);
+
+  if (error) {
+    handleError(error, { context: 'ProjectContext.cleanupFailedProjectSetup', showToast: false });
   }
 };
 
@@ -65,34 +71,32 @@ const createDefaultShot = async (
   projectId: string,
   initialSettings?: Record<string, Json | undefined>,
   isFirstProject: boolean = false
-): Promise<string | null> => {
-  try {
-    const shotName = isFirstProject ? 'Getting Started' : 'Default Shot';
+): Promise<string> => {
+  const shotName = isFirstProject ? 'Getting Started' : 'Default Shot';
 
-    const { data: shot, error } = await supabase
-      .from('shots')
-      .insert({
-        name: shotName,
-        project_id: projectId,
-        settings: initialSettings || {},
-      })
-      .select('id')
-      .single();
+  const { data: shot, error } = await supabase
+    .from('shots')
+    .insert({
+      name: shotName,
+      project_id: projectId,
+      settings: initialSettings || {},
+    })
+    .select('id')
+    .single();
 
-    if (error) {
-      handleError(error, { context: 'ProjectContext', showToast: false });
-      return null;
-    }
-
-    if (isFirstProject && shot) {
-      await copyTemplateToNewUser(projectId, shot.id);
-    }
-
-    return shot?.id || null;
-  } catch (err) {
-    handleError(err, { context: 'ProjectContext', showToast: false });
-    return null;
+  if (error) {
+    throw error;
   }
+
+  if (!shot?.id) {
+    throw new Error('Default shot creation returned no shot id');
+  }
+
+  if (isFirstProject) {
+    await copyTemplateToNewUser(projectId, shot.id);
+  }
+
+  return shot.id;
 };
 
 /** Ensure the user record exists in the users table. */
@@ -183,8 +187,12 @@ export function useProjectCRUD({
           .single();
 
         if (createError) throw createError;
-
-        await createDefaultShot(newProject.id, undefined, true);
+        try {
+          await createDefaultShot(newProject.id, undefined, true);
+        } catch (setupError) {
+          await cleanupFailedProjectSetup(newProject.id, user.id);
+          throw setupError;
+        }
 
         const mappedProject = mapDbProjectToProject(newProject);
         setProjects([mappedProject]);
@@ -239,7 +247,12 @@ export function useProjectCRUD({
         ? toJsonObject(await buildShotSettingsForNewProject(selectedProjectId, settingsToInherit))
         : {};
 
-      await createDefaultShot(newProject.id, shotSettingsToInherit);
+      try {
+        await createDefaultShot(newProject.id, shotSettingsToInherit);
+      } catch (setupError) {
+        await cleanupFailedProjectSetup(newProject.id, user.id);
+        throw setupError;
+      }
 
       const mappedProject = mapDbProjectToProject(newProject);
       setProjects(prevProjects => sortProjectsByCreatedAt([...prevProjects, mappedProject]));
@@ -321,7 +334,7 @@ export function useProjectCRUD({
     } finally {
       setIsDeletingProject(false);
     }
-  }, [onProjectDeleted, projects]);
+  }, [onProjectDeleted, projects, userId]);
 
   return {
     projects,

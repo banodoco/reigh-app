@@ -1,0 +1,69 @@
+{
+  "assessments": {
+    "ai_generated_debt": 89.0
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "barrel_comment_ceremony",
+      "summary": "Barrel modules carry multi-line commentary for near-trivial re-exports.",
+      "related_files": [
+        "src/shared/hooks/useShots.ts",
+        "src/shared/hooks/shots/index.ts",
+        "src/shared/components/SegmentSettingsForm/components/index.ts",
+        "src/types/shots.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useShots.ts` uses a 6-line explanatory header above a single `export * from './shots'`.",
+        "`src/types/shots.ts` has a multi-line deprecation block above one re-export.",
+        "`src/shared/components/SegmentSettingsForm/components/index.ts` adds a docblock for only two obvious exports."
+      ],
+      "suggestion": "Trim barrel-file comments to one concise compatibility note only where needed, and move migration/background details to a dedicated migration doc.",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "docstring_restatement_on_simple_helpers",
+      "summary": "Several helper files use repetitive docstrings that mostly restate signatures.",
+      "related_files": [
+        "src/shared/lib/errorHandling/errorUtils.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/errorHandling/errorUtils.ts` repeats one-line purpose comments above tiny guards like `isError`, `isErrorWithCode`, and `isErrorWithStatus`.",
+        "`src/shared/hooks/useProcessingTimestamp.ts` includes extensive explanatory prose and example usage around a thin wrapper that delegates to `useLiveTimestamp`."
+      ],
+      "suggestion": "Collapse repeated prose into a short module-level contract and keep per-function comments only for non-obvious behavior (e.g., DOMException edge cases).",
+      "confidence": "medium"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "duplicate_aspect_ratio_boilerplate",
+      "summary": "Aspect-ratio parsing/fallback logic is duplicated across utilities.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/imageAspectRatio.ts"
+      ],
+      "evidence": [
+        "`getAspectRatioStyle` in `src/shared/components/ShotImageManager/utils/image-utils.ts` parses `w:h` and falls back to `'1'`.",
+        "`getImageAspectRatioStyle` in `src/shared/lib/imageAspectRatio.ts` duplicates the same parse/`isNaN`/fallback pattern for project ratio handling."
+      ],
+      "suggestion": "Extract a shared `parseAspectRatio` helper and reuse it in both modules to remove copy-paste formulaic logic.",
+      "confidence": "high"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "repeated_debug_try_catch_template",
+      "summary": "Debug polling methods repeat the same try/catch/log/boolean template.",
+      "related_files": [
+        "src/shared/lib/debug/debugPolling.ts"
+      ],
+      "evidence": [
+        "`testConnection` and `testTaskStatusQuery` both implement nearly identical flow: run query, log error, return false, catch/log, return false.",
+        "The repeated error-handling template creates boilerplate-heavy debugging code with little per-method differentiation."
+      ],
+      "suggestion": "Add a shared `runDebugCheck(label, checkFn)` wrapper for standardized error handling and move method-specific logic to query construction only.",
+      "confidence": "medium"
+    }
+  ]
+}

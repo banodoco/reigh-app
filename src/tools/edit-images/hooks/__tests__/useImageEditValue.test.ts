@@ -2,21 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useImageEditValue } from '../useImageEditValue';
 
-// Mock the DEFAULT_ADVANCED_SETTINGS import
-vi.mock('@/shared/components/MediaLightbox/hooks/editSettingsTypes', () => ({
-  DEFAULT_ADVANCED_SETTINGS: {
-    enabled: false,
-    num_inference_steps: 12,
-    resolution_scale: 1.5,
-    base_steps: 8,
-    hires_scale: 1.1,
-    hires_steps: 8,
-    hires_denoise: 0.5,
-    lightning_lora_strength_phase_1: 0.9,
-    lightning_lora_strength_phase_2: 0.5,
-  },
-}));
-
 function createMockParams() {
   return {
     // Mode state
@@ -26,10 +11,12 @@ function createMockParams() {
 
     // Mode setters
     setIsInpaintMode: vi.fn(),
+    setIsMagicEditMode: vi.fn(),
     setEditMode: vi.fn(),
 
     // Mode entry/exit handlers
     handleEnterInpaintMode: vi.fn(),
+    handleExitInpaintMode: vi.fn(),
     handleExitMagicEditMode: vi.fn(),
     handleEnterMagicEditMode: vi.fn(),
 
@@ -103,6 +90,20 @@ function createMockParams() {
     // Generation options
     createAsGeneration: false,
     setCreateAsGeneration: vi.fn(),
+    qwenEditModel: 'qwen-edit-2511' as const,
+    setQwenEditModel: vi.fn(),
+    advancedSettings: {
+      enabled: false,
+      num_inference_steps: 12,
+      resolution_scale: 1.5,
+      base_steps: 8,
+      hires_scale: 1.1,
+      hires_steps: 8,
+      hires_denoise: 0.5,
+      lightning_lora_strength_phase_1: 0.9,
+      lightning_lora_strength_phase_2: 0.5,
+    },
+    setAdvancedSettings: vi.fn(),
 
     // Generation status
     isGeneratingInpaint: false,
@@ -178,44 +179,30 @@ describe('useImageEditValue', () => {
     expect(result.current.isSpecialEditMode).toBe(true);
   });
 
-  it('maps handleExitMagicEditMode to handleExitInpaintMode', () => {
+  it('uses the provided handleExitInpaintMode callback', () => {
     const params = createMockParams();
     const { result } = renderHook(() => useImageEditValue(params));
 
     result.current.handleExitInpaintMode();
-    expect(params.handleExitMagicEditMode).toHaveBeenCalled();
+    expect(params.handleExitInpaintMode).toHaveBeenCalled();
   });
 
-  it('provides hardcoded defaults for non-parameterized fields', () => {
+  it('passes through external mutators and settings', () => {
     const params = createMockParams();
     const { result } = renderHook(() => useImageEditValue(params));
 
-    // These are always hardcoded in the hook
     expect(result.current.isFlippedHorizontally).toBe(false);
     expect(result.current.isSaving).toBe(false);
-    expect(result.current.qwenEditModel).toBe('qwen-edit-2511');
+    expect(result.current.qwenEditModel).toBe(params.qwenEditModel);
+    expect(result.current.advancedSettings).toEqual(params.advancedSettings);
 
-    // No-op setters
-    expect(typeof result.current.setIsMagicEditMode).toBe('function');
-    expect(typeof result.current.setQwenEditModel).toBe('function');
-    expect(typeof result.current.setAdvancedSettings).toBe('function');
-  });
+    result.current.setIsMagicEditMode(true);
+    result.current.setQwenEditModel('qwen-edit-2509');
+    result.current.setAdvancedSettings(params.advancedSettings);
 
-  it('provides DEFAULT_ADVANCED_SETTINGS for advancedSettings', () => {
-    const params = createMockParams();
-    const { result } = renderHook(() => useImageEditValue(params));
-
-    expect(result.current.advancedSettings).toEqual({
-      enabled: false,
-      num_inference_steps: 12,
-      resolution_scale: 1.5,
-      base_steps: 8,
-      hires_scale: 1.1,
-      hires_steps: 8,
-      hires_denoise: 0.5,
-      lightning_lora_strength_phase_1: 0.9,
-      lightning_lora_strength_phase_2: 0.5,
-    });
+    expect(params.setIsMagicEditMode).toHaveBeenCalledWith(true);
+    expect(params.setQwenEditModel).toHaveBeenCalledWith('qwen-edit-2509');
+    expect(params.setAdvancedSettings).toHaveBeenCalledWith(params.advancedSettings);
   });
 
   it('returns memoized value when params have not changed', () => {

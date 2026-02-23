@@ -2,7 +2,7 @@
  * Derive input images from task params
  * Strips any surrounding quotes from URLs that may have been improperly stored
  */
-export const deriveInputImages = (task: { params?: unknown } | null | undefined): string[] => {
+export const deriveGalleryInputImages = (task: { params?: unknown } | null | undefined): string[] => {
   const cleanUrl = (url: string): string => {
     if (typeof url !== 'string') return url;
     // Remove surrounding quotes if present

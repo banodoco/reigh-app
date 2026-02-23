@@ -30,7 +30,7 @@ import { generateClientThumbnail, uploadImageWithThumbnail } from '@/shared/lib/
 import MediaLightbox from '@/shared/components/MediaLightbox';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
-import { deriveInputImages } from '@/shared/components/MediaGallery/utils';
+import { deriveGalleryInputImages } from '@/shared/components/MediaGallery/utils';
 import { parseRatio } from '@/shared/lib/aspectRatios';
 import { variantToGenerationRow } from '@/shared/lib/mediaTypeHelpers';
 import { MediaSelectionPanel } from '@/shared/components/MediaSelectionPanel';
@@ -207,7 +207,7 @@ export default function EditImagesPage() {
 
   // Transform variant data to GenerationRow format for lightbox
   const transformVariantToGeneration = (media: GeneratedImageWithMetadata): GenerationRow =>
-    variantToGenerationRow(media, 'image', selectedProjectId || '') as unknown as GenerationRow;
+    variantToGenerationRow(media, 'image', selectedProjectId || '');
 
   const handleResultClick = (media: GeneratedImageWithMetadata) => {
     const index = resultsItems.findIndex((item) => item.id === media.id);
@@ -259,7 +259,7 @@ export default function EditImagesPage() {
   // Derive input images from task params
   const inputImages = useMemo(() => {
     if (!taskData?.params) return [];
-    return deriveInputImages(taskData.params as Record<string, unknown>);
+    return deriveGalleryInputImages(taskData.params as Record<string, unknown>);
   }, [taskData]);
 
   // Helper to render the results gallery (used in both views)
