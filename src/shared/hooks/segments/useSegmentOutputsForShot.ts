@@ -88,22 +88,12 @@ function getPairIdentifiers(
   generation: { pair_shot_generation_id?: string | null } | null,
   params: Record<string, unknown> | null
 ): { pairShotGenId?: string; startGenId?: string } {
-  // Check the FK column first (new format with referential integrity)
   const columnValue = generation?.pair_shot_generation_id;
-  if (columnValue) {
-    const individualParams = params?.individual_segment_params as Record<string, unknown> | undefined;
-    return {
-      pairShotGenId: columnValue,
-      startGenId: (individualParams?.start_image_generation_id || params?.start_image_generation_id) as string | undefined,
-    };
-  }
-
-  // Fallback to params JSONB (legacy format)
-  if (!params) return {};
-  const individualParams = (params.individual_segment_params || {}) as Record<string, unknown>;
+  if (!columnValue) return {};
+  const individualParams = params?.individual_segment_params as Record<string, unknown> | undefined;
   return {
-    pairShotGenId: (individualParams.pair_shot_generation_id || params.pair_shot_generation_id) as string | undefined,
-    startGenId: (individualParams.start_image_generation_id || params.start_image_generation_id) as string | undefined,
+    pairShotGenId: columnValue,
+    startGenId: (individualParams?.start_image_generation_id || params?.start_image_generation_id) as string | undefined,
   };
 }
 
@@ -457,17 +447,6 @@ export function useSegmentOutputsForShot(
   const segmentSlots = useMemo((): SegmentSlot[] => {
     const hasLocalPositions = !!localShotGenPositions && localShotGenPositions.size > 0;
     const localPositionCount = localShotGenPositions?.size ?? 0;
-    const livePositionCount = liveShotGenIdToPosition.size;
-    const localCountMismatch = hasLocalPositions && livePositionCount > 0 && localPositionCount !== livePositionCount;
-    const localMissingInLive = hasLocalPositions && livePositionCount > 0
-      ? [...localShotGenPositions.keys()].some((id) => !liveShotGenIdToPosition.has(id))
-      : false;
-    const localOrderMismatchEntries = hasLocalPositions && livePositionCount > 0
-      ? [...localShotGenPositions.entries()]
-          .filter(([id, localIndex]) => liveShotGenIdToPosition.get(id) !== localIndex)
-          .slice(0, 8)
-      : [];
-    const localOrderMismatch = localOrderMismatchEntries.length > 0;
     const useLocalPositions = hasLocalPositions;
 
     const positionMap = useLocalPositions ? localShotGenPositions : liveShotGenIdToPosition;
@@ -541,8 +520,16 @@ export function useSegmentOutputsForShot(
         if (derivedSlot !== undefined && endGenId && effectiveTimelineData) {
           const endImageInTimeline = effectiveTimelineData[derivedSlot + 1];
           if (endImageInTimeline && endImageInTimeline.generation_id !== endGenId) {
-            derivedSlot = undefined;
-            slotSource = 'STALE_END_IMAGE';
+            // Only demote if the end image is still AFTER this slot (X inserted between A and B)
+            // or is gone entirely (end image deleted). If the end image moved BEFORE this slot
+            // (swap/reorder), the video should follow its start image — ambiguous order > lost data.
+            const endImageNewSlot = effectiveTimelineData.findIndex(
+              item => item.generation_id === endGenId
+            );
+            if (endImageNewSlot === -1 || endImageNewSlot > derivedSlot) {
+              derivedSlot = undefined;
+              slotSource = 'STALE_END_IMAGE';
+            }
           }
         }
       }
@@ -618,7 +605,7 @@ export function useSegmentOutputsForShot(
     }
 
     return slots;
-  }, [segments, expectedSegmentData, effectiveTimelineData, liveShotGenIdToPosition, localShotGenPositions, trailingShotGenId, shotId, selectedParentId]);
+  }, [segments, expectedSegmentData, effectiveTimelineData, liveShotGenIdToPosition, localShotGenPositions, trailingShotGenId]);
 
   // Calculate progress
   const segmentProgress = useMemo(() => {

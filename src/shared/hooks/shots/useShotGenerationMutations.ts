@@ -380,6 +380,8 @@ export const useUpdateShotImageOrder = () => {
       queryClient.invalidateQueries({
         predicate: query => query.queryKey[0] === 'source-slot-generations',
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.segments.liveTimeline(data.shotId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.segments.parents(data.shotId, data.projectId) });
     },
   });
 };

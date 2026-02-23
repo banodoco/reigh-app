@@ -6,7 +6,6 @@ import { useRemoveImageFromShot } from "@/shared/hooks/shots";
 import { useQueryClient } from '@tanstack/react-query';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation/useGenerationInvalidation';
-import { useDemoteOrphanedVariants } from '../../../hooks/useDemoteOrphanedVariants';
 
 interface UseDeleteActionsProps {
   selectedShot: Shot;
@@ -21,8 +20,6 @@ export const useDeleteActions = ({
 }: UseDeleteActionsProps) => {
   const queryClient = useQueryClient();
   const removeImageFromShotMutation = useRemoveImageFromShot();
-  const { demoteOrphanedVariants } = useDemoteOrphanedVariants();
-
   // Stability refs - prevent callback recreation when data/mutation state changes
   const orderedShotImagesRef = useRef(orderedShotImages);
   orderedShotImagesRef.current = orderedShotImages;
@@ -38,9 +35,6 @@ export const useDeleteActions = ({
 
   const queryClientRef = useRef(queryClient);
   queryClientRef.current = queryClient;
-
-  const demoteOrphanedVariantsRef = useRef(demoteOrphanedVariants);
-  demoteOrphanedVariantsRef.current = demoteOrphanedVariants;
 
   const handleDeleteImageFromShot = useCallback(async (shotImageEntryId: string) => {
     const currentShot = selectedShotRef.current;
@@ -136,9 +130,6 @@ export const useDeleteActions = ({
         includeShots: true,
         projectId: currentProjectId
       });
-
-      // Check for orphaned video variants after image deletion
-      await demoteOrphanedVariantsRef.current(currentShot.id, 'single-image-delete');
     } catch (error) {
       handleError(error, { context: 'DeleteDebug', showToast: false });
     }
@@ -162,9 +153,6 @@ export const useDeleteActions = ({
 
     try {
       await Promise.all(removePromises);
-
-      // Check for orphaned video variants after batch deletion
-      await demoteOrphanedVariantsRef.current(currentShot.id, 'batch-image-delete');
     } catch (error) {
       handleError(error, {
         context: 'useDeleteActions.handleBatchDeleteImages',

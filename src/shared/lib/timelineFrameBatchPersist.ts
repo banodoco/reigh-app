@@ -18,7 +18,6 @@ interface PersistTimelineFrameBatchOptions {
   timeoutOperationName: string;
   timeoutFloorMs?: number;
   timeoutPerUpdateMs?: number;
-  allowSequentialFallback?: boolean;
   logPrefix: string;
   log: (message: string, payload: Record<string, unknown>) => void;
 }
@@ -81,7 +80,6 @@ export async function persistTimelineFrameBatch({
   timeoutOperationName,
   timeoutFloorMs = DEFAULT_TIMEOUT_FLOOR_MS,
   timeoutPerUpdateMs = DEFAULT_TIMEOUT_PER_UPDATE_MS,
-  allowSequentialFallback = true,
   logPrefix,
   log,
 }: PersistTimelineFrameBatchOptions): Promise<PersistTimelineFrameBatchResult> {
@@ -247,43 +245,7 @@ export async function persistTimelineFrameBatch({
       }
     }
 
-    if (allowSequentialFallback && rpcError.code === '42883') {
-      for (const update of canonicalUpdates) {
-        const sequentialStart = Date.now();
-        log(`${logPrefix} sequential update start`, {
-          shotId: shortId(shotId),
-          operation: operationLabel,
-          shotGenerationId: shortId(update.shotGenerationId),
-          timelineFrame: update.timelineFrame,
-        });
-        await runTimelineWriteWithTimeout(
-          `${timeoutOperationName}-sequential`,
-          async (signal) => {
-            const { error } = await supabase
-              .from('shot_generations')
-              .update({
-                timeline_frame: update.timelineFrame,
-                metadata: (update.metadata ?? {}) as Json,
-              })
-              .eq('id', update.shotGenerationId)
-              .abortSignal(signal);
-            if (error) throw error;
-          },
-          {
-            timeoutMs: Math.max(timeoutFloorMs, canonicalUpdates.length * timeoutPerUpdateMs),
-          },
-        );
-        log(`${logPrefix} sequential update succeeded`, {
-          shotId: shortId(shotId),
-          operation: operationLabel,
-          shotGenerationId: shortId(update.shotGenerationId),
-          timelineFrame: update.timelineFrame,
-          durationMs: Date.now() - sequentialStart,
-        });
-      }
-    } else {
-      throw rpcError;
-    }
+    throw rpcError;
   }
 
   const returnedIds = new Set(
