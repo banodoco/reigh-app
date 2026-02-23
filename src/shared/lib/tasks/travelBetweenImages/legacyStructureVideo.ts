@@ -1,6 +1,17 @@
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { PathLoraConfig } from '@/shared/types/lora';
 
+/**
+ * Compatibility shim for legacy travel-between-images payload fields.
+ *
+ * Sunset contract:
+ * - Owner: video-workflow
+ * - Remove by: 2026-05-31
+ * - Removal gate: no callers emitting or parsing deprecated structure video fields.
+ */
+export const LEGACY_STRUCTURE_VIDEO_SHIM_OWNER = 'video-workflow';
+export const LEGACY_STRUCTURE_VIDEO_SHIM_REMOVE_BY = '2026-05-31';
+
 export interface LegacyStructureVideoFields {
   /** @deprecated Use structure_guidance.strength instead */
   motion_strength?: number;
@@ -31,6 +42,6 @@ export interface LegacyTravelBetweenImagesTaskParams {
   /** @deprecated Use structure_guidance.target === 'uni3c' instead */
   use_uni3c?: boolean;
 
-  // Retained in shim for compatibility with legacy payload parsing paths.
+  // Retained until the shim sunset contract above is fulfilled.
   phase_config?: PhaseConfig;
 }

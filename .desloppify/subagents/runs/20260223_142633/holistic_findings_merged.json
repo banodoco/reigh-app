@@ -1,0 +1,45 @@
+{
+  "assessments": {
+    "ai_generated_debt": 57.5
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/types/shots.ts` and `src/shared/hooks/useShots.ts` are pass-through facades (pure re-exports) that preserve legacy import paths instead of removing migration indirection.",
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` and `src/shared/components/ImageGenerationForm/types.ts` carry broad deprecated-field compatibility surfaces plus sunset notes, indicating active dual-path migration residue.",
+        "`src/shared/lib/queryDefaults.ts`, `src/shared/lib/storagePaths.ts`, and `src/shared/lib/imageAspectRatio.ts` include extensive explanatory/docstyle blocks for straightforward helpers, with comments frequently restating behavior.",
+        "`src/shared/lib/simpleCacheValidator.ts` and `src/shared/lib/debug/debugRendering.ts` contain high-volume console/debug scaffolding (global window helpers, repeated console output patterns), consistent with AI-style diagnostic boilerplate."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "title": "Legacy facade wrappers keep migration indirection in hot import paths",
+      "evidence": [
+        "`src/types/shots.ts` only re-exports `@/types/generationAndShots` with deprecation banner.",
+        "`src/shared/hooks/useShots.ts` only re-exports `./shots` as a canonical barrel."
+      ],
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/hooks/useShots.ts"
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "severity": "medium",
+      "suggestion": "Migrate remaining call sites to canonical modules and remove transitional facades once import count reaches zero."
+    }
+  ],
+  "review_quality": {
+    "batch_count": 1,
+    "dimension_coverage": 1.0,
+    "evidence_density": 0.8,
+    "high_score_without_risk": 0,
+    "finding_pressure": 2.028,
+    "dimensions_with_findings": 1
+  }
+}

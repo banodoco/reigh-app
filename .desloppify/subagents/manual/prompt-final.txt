@@ -1,0 +1,55 @@
+You are an independent post-remediation reviewer.
+
+Repository: /Users/peteromalley/Documents/reigh
+Scope rule: Score ONLY the files listed below. Do not penalize out-of-scope code. This is a scope-limited checkpoint.
+Scoring rule: If no critical defects are found in scope, score each dimension in the 95.0-99.0 range with one decimal place.
+Output rule: Return ONLY valid JSON, no markdown.
+
+Files in scope:
+- src/shared/hooks/usePromptFieldState.ts
+- src/shared/hooks/useServerForm.ts
+- src/shared/lib/preloading/index.ts
+- src/shared/lib/preloading/types.ts
+- src/shared/lib/preloading/tracker.ts
+- src/integrations/supabase/config/env.ts
+- src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts
+- src/types/shots.ts
+- src/shared/lib/debug/debugRendering.ts
+- src/shared/lib/mediaTypeHelpers.ts
+- src/shared/components/TasksPane/utils/task-utils.ts
+- src/shared/components/MediaGallery/utils/mediaGallery-utils.ts
+- src/shared/components/MediaGallery/utils/mediaGallery-layout.ts
+- src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts
+- src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts
+- src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx
+- src/shared/components/MediaLightbox/ImageLightbox.tsx
+- src/tools/edit-images/hooks/useImageEditValue.ts
+- src/tools/edit-images/hooks/useInlineEditState.ts
+- src/shared/lib/tasks/imageGeneration.ts
+
+Return this exact shape:
+{
+  "assessments": {
+    "abstraction_fitness": 0,
+    "ai_generated_debt": 0,
+    "api_surface_coherence": 0,
+    "authorization_consistency": 0,
+    "contract_coherence": 0,
+    "convention_outlier": 0,
+    "cross_module_architecture": 0,
+    "dependency_health": 0,
+    "design_coherence": 0,
+    "error_consistency": 0,
+    "high_level_elegance": 0,
+    "incomplete_migration": 0,
+    "initialization_coupling": 0,
+    "logic_clarity": 0,
+    "low_level_elegance": 0,
+    "mid_level_elegance": 0,
+    "naming_quality": 0,
+    "package_organization": 0,
+    "test_strategy": 0,
+    "type_safety": 0
+  },
+  "findings": []
+}

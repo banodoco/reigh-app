@@ -1,0 +1,104 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 1,
+  "assessments": {
+    "ai_generated_debt": 62.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/types/shots.ts` and `src/shared/hooks/useShots.ts` are pass-through facades (pure re-exports) that preserve legacy import paths instead of removing migration indirection.",
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` and `src/shared/components/ImageGenerationForm/types.ts` carry broad deprecated-field compatibility surfaces plus sunset notes, indicating active dual-path migration residue.",
+        "`src/shared/lib/queryDefaults.ts`, `src/shared/lib/storagePaths.ts`, and `src/shared/lib/imageAspectRatio.ts` include extensive explanatory/docstyle blocks for straightforward helpers, with comments frequently restating behavior.",
+        "`src/shared/lib/simpleCacheValidator.ts` and `src/shared/lib/debug/debugRendering.ts` contain high-volume console/debug scaffolding (global window helpers, repeated console output patterns), consistent with AI-style diagnostic boilerplate."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "title": "Legacy facade wrappers keep migration indirection in hot import paths",
+      "evidence": [
+        "`src/types/shots.ts` only re-exports `@/types/generationAndShots` with deprecation banner.",
+        "`src/shared/hooks/useShots.ts` only re-exports `./shots` as a canonical barrel."
+      ],
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/hooks/useShots.ts"
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "severity": "medium",
+      "suggestion": "Migrate remaining call sites to canonical modules and remove transitional facades once import count reaches zero."
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "title": "Dual-path compatibility fields suggest stalled migration boundaries",
+      "evidence": [
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` keeps multiple deprecated payload keys plus a long-lived shim contract.",
+        "`src/shared/components/ImageGenerationForm/types.ts` retains many deprecated settings fields for backward compatibility."
+      ],
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/components/ImageGenerationForm/types.ts"
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "severity": "high",
+      "suggestion": "Add a single migration adapter at I/O boundaries and remove deprecated fields from shared runtime types after caller cleanup."
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "title": "Comment/docstring verbosity restates code instead of clarifying non-obvious intent",
+      "evidence": [
+        "`src/shared/lib/imageAspectRatio.ts` and `src/shared/components/ShotImageManager/utils/image-utils.ts` include tutorial-style comment blocks for simple value fallback logic.",
+        "`src/shared/lib/storagePaths.ts` and `src/shared/lib/queryDefaults.ts` carry long narrative sections and examples around otherwise direct utility presets."
+      ],
+      "related_files": [
+        "src/shared/lib/imageAspectRatio.ts",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/storagePaths.ts",
+        "src/shared/lib/queryDefaults.ts"
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "severity": "medium",
+      "suggestion": "Trim comments to constraint/why-focused notes and remove descriptive restatements of obvious code flow."
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "title": "Debug helper modules are over-instrumented with noisy console workflows",
+      "evidence": [
+        "`src/shared/lib/simpleCacheValidator.ts` injects multiple global `window` debug commands with repeated console logs and emoji-heavy diagnostics.",
+        "`src/shared/lib/debug/debugRendering.ts` logs render/deps behavior with additional runtime toggles and repeated object dumps."
+      ],
+      "related_files": [
+        "src/shared/lib/simpleCacheValidator.ts",
+        "src/shared/lib/debug/debugRendering.ts"
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "severity": "medium",
+      "suggestion": "Consolidate debug hooks behind one gated debug API and reduce default log volume to targeted warning paths only."
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "title": "Broad fallback chains across loosely typed shapes indicate defensive overgeneralization",
+      "evidence": [
+        "`src/shared/lib/galleryUtils.ts` resolves multiple legacy param layouts (`orchestrator_details`, `individual_segment_params`, top-level keys) in one helper.",
+        "`src/shared/lib/mediaTypeHelpers.ts` uses polymorphic shape checks across `generation_id`, `metadata.generation_id`, and `id` to normalize ambiguous objects."
+      ],
+      "related_files": [
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/mediaTypeHelpers.ts"
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "severity": "high",
+      "suggestion": "Introduce explicit normalized DTOs at data ingress and narrow helper inputs to one canonical shape per workflow."
+    }
+  ]
+}

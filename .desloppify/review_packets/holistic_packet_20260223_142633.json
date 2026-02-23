@@ -14175,6 +14175,7 @@
   },
   "next_command": "desloppify review --run-batches --runner codex --parallel",
   "config": {
+    "target_strict_score": 95,
     "review_max_age_days": 30,
     "holistic_max_age_days": 30,
     "generate_scorecard": true,

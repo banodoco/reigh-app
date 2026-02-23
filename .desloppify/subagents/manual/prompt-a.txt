@@ -1,0 +1,52 @@
+You are an independent code quality reviewer.
+
+Repository: /Users/peteromalley/Documents/reigh
+Task: Assess these dimensions using only the listed files, with one decimal place scores 0-100.
+Dimensions:
+- cross_module_architecture
+- high_level_elegance
+- mid_level_elegance
+- low_level_elegance
+- package_organization
+- design_coherence
+- incomplete_migration
+- initialization_coupling
+- dependency_health
+
+Files to review:
+- src/app/routes.tsx
+- src/integrations/supabase/client.ts
+- src/integrations/supabase/config/env.ts
+- src/shared/components/MediaGallery/index.tsx
+- src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts
+- src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts
+- src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx
+- src/shared/components/MediaLightbox/ImageLightbox.tsx
+- src/shared/hooks/usePromptFieldState.ts
+- src/shared/hooks/useServerForm.ts
+- src/shared/lib/preloading/index.ts
+- src/shared/lib/preloading/types.ts
+- src/shared/lib/preloading/tracker.ts
+- src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts
+- src/shared/lib/tasks/imageGeneration.ts
+- src/shared/lib/generationTaskBridge.ts
+- src/shared/lib/mediaTypeHelpers.ts
+- src/types/generationAndShots.ts
+- src/types/shots.ts
+- src/tools/edit-images/hooks/useInlineEditState.ts
+
+Return ONLY JSON in this shape:
+{
+  "assessments": {
+    "cross_module_architecture": 0,
+    "high_level_elegance": 0,
+    "mid_level_elegance": 0,
+    "low_level_elegance": 0,
+    "package_organization": 0,
+    "design_coherence": 0,
+    "incomplete_migration": 0,
+    "initialization_coupling": 0,
+    "dependency_health": 0
+  },
+  "findings": []
+}
