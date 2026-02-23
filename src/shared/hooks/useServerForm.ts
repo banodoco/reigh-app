@@ -1,79 +1,25 @@
-/**
- * useServerForm - Generic "form over server state" pattern.
- *
- * This is NOT a settings hook. It provides local editing state on top of any
- * server data source (React Query, custom fetch, etc.). Use it for editing
- * arbitrary server records, not for tool/UI settings persistence.
- *
- * For persisting tool settings, use `useAutoSaveSettings` instead.
- *
- * Features:
- * - Local state management with dirty tracking
- * - Optional auto-save with configurable debounce
- * - Unmount flush (best-effort save of unsaved changes)
- * - Context switching (reset on key change)
- *
- * @see docs/structure_detail/settings_system.md for the settings hook decision tree
- *
- * @example
- * ```tsx
- * const form = useServerForm({
- *   serverData: queryData,
- *   isLoading,
- *   toLocal: (server) => transformToFormState(server),
- *   save: async (local) => saveMutation(local),
- *   autoSaveMs: 500,
- *   contextKey: itemId, // Reset when switching items
- * });
- *
- * return (
- *   <input
- *     value={form.data.name}
- *     onChange={(e) => form.update({ name: e.target.value })}
- *   />
- * );
- * ```
- */
-
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 
 interface UseServerFormOptions<TServer, TLocal> {
-  /** Server data (from React Query or other source) */
   serverData: TServer | undefined;
-  /** Whether server data is still loading */
   isLoading: boolean;
-  /** Transform server data to local form state */
   toLocal: (server: TServer) => TLocal;
-  /** Save local state back to server. Returns true on success. */
   save: (local: TLocal) => Promise<boolean>;
-  /** Auto-save debounce delay (ms). 0 = no auto-save. Default: 0 */
   autoSaveMs?: number;
-  /** Key that triggers reset when changed (e.g., item ID). */
   contextKey?: string | null;
-  /** Validate/transform updates before applying */
   validate?: (updates: Partial<TLocal>, current: TLocal) => Partial<TLocal>;
-  /** Called when dirty state changes */
   onDirtyChange?: (isDirty: boolean) => void;
 }
 
 interface UseServerFormReturn<TLocal> {
-  /** Current form data (local edits if any, otherwise transformed server data) */
   data: TLocal;
-  /** Update local state with partial values */
   update: (updates: Partial<TLocal>) => void;
-  /** Save current local state to server */
   save: () => Promise<boolean>;
-  /** Save specific data to server (bypasses local state) */
   saveData: (data: TLocal) => Promise<boolean>;
-  /** Reset to server data (discard local edits) */
   reset: () => void;
-  /** Whether there are unsaved local edits */
   isDirty: boolean;
-  /** Whether server data is loading */
   isLoading: boolean;
-  /** Whether local state exists (user has edited) */
   hasLocalEdits: boolean;
-  /** The raw local state (null if no edits) */
   localData: TLocal | null;
 }
 
@@ -87,11 +33,9 @@ export function useServerForm<TServer, TLocal extends Record<string, unknown>>({
   validate,
   onDirtyChange,
 }: UseServerFormOptions<TServer, TLocal>): UseServerFormReturn<TLocal> {
-  // Local state for user edits (null = no edits, use server data)
   const [localData, setLocalData] = useState<TLocal | null>(null);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Refs for auto-save and unmount handling
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDirtyRef = useRef(false);
   const hasUserEdited = useRef(false);
@@ -99,27 +43,22 @@ export function useServerForm<TServer, TLocal extends Record<string, unknown>>({
   const localDataRef = useRef<TLocal | null>(null);
   const prevContextKeyRef = useRef(contextKey);
 
-  // Keep refs in sync with state
   useEffect(() => {
     isDirtyRef.current = isDirty;
     localDataRef.current = localData;
     saveFnRef.current = saveFn;
   }, [isDirty, localData, saveFn]);
 
-  // Notify parent of dirty state changes
   useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  // Reset on context change (e.g., switching to different item)
   useEffect(() => {
     if (contextKey !== prevContextKeyRef.current) {
-      // Clear any pending auto-save
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      // Reset local state
       setLocalData(null);
       setIsDirty(false);
       hasUserEdited.current = false;
@@ -127,16 +66,13 @@ export function useServerForm<TServer, TLocal extends Record<string, unknown>>({
     }
   }, [contextKey]);
 
-  // Transform server data to local format (memoized)
   const transformedServer = useMemo(() => {
     if (serverData === undefined) return null;
     return toLocal(serverData);
   }, [serverData, toLocal]);
 
-  // Current data = local edits or transformed server data
   const data = localData ?? transformedServer ?? ({} as TLocal);
 
-  // Update local state
   const update = useCallback(
     (updates: Partial<TLocal>) => {
       setLocalData((prev) => {
@@ -150,10 +86,9 @@ export function useServerForm<TServer, TLocal extends Record<string, unknown>>({
     [transformedServer, validate]
   );
 
-  // Save to server
   const save = useCallback(async (): Promise<boolean> => {
     const dataToSave = localDataRef.current;
-    if (!dataToSave) return true; // Nothing to save
+    if (!dataToSave) return true;
 
     const result = await saveFnRef.current(dataToSave);
     if (result) {
@@ -162,13 +97,11 @@ export function useServerForm<TServer, TLocal extends Record<string, unknown>>({
     return result;
   }, []);
 
-  // Save specific data (bypasses local state - useful for reset operations)
   const saveData = useCallback(async (dataToSave: TLocal): Promise<boolean> => {
     const result = await saveFnRef.current(dataToSave);
     return result;
   }, []);
 
-  // Reset to server data
   const reset = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -179,7 +112,6 @@ export function useServerForm<TServer, TLocal extends Record<string, unknown>>({
     hasUserEdited.current = false;
   }, []);
 
-  // Auto-save on changes (debounced)
   useEffect(() => {
     if (!autoSaveMs || !hasUserEdited.current || !isDirty || !localData) {
       return;
@@ -200,19 +132,17 @@ export function useServerForm<TServer, TLocal extends Record<string, unknown>>({
     };
   }, [localData, isDirty, autoSaveMs, save]);
 
-  // Flush on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      // Save if there are unsaved changes
       if (isDirtyRef.current && hasUserEdited.current && localDataRef.current) {
         saveFnRef.current(localDataRef.current);
       }
     };
-  }, []); // Only run on mount/unmount
+  }, []);
 
   return {
     data,

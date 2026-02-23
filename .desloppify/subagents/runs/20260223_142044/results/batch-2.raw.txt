@@ -1,0 +1,80 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 2,
+  "assessments": {
+    "ai_generated_debt": 78.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/shared/hooks/usePromptFieldState.ts:1` and `src/shared/hooks/useServerForm.ts:1` contain large explanatory blocks and inline step-by-step comments that restate code behavior in detail rather than documenting hidden constraints.",
+        "`src/shared/lib/preloading/index.ts:1` and `src/shared/lib/preloading/types.ts:1` use repeated section-banner/comment scaffolding for small modules, adding ceremony without additional operational guidance.",
+        "`src/types/shots.ts:1` is a deprecated re-export facade and `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:4` is a legacy shim with many deprecated fields, but neither encodes sunset/removal conditions; this preserves migration debt indefinitely.",
+        "`src/integrations/supabase/config/env.ts:36` and `src/shared/lib/preloading/tracker.ts:67`/`src/shared/lib/preloading/tracker.ts:145` retain forced instrumentation flags and unconditional debug logs, matching noisy diagnostic residue patterns."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_overhang_in_small_modules",
+      "summary": "Generated-style comment volume restates obvious flow and lowers signal-to-noise.",
+      "related_files": [
+        "src/shared/hooks/usePromptFieldState.ts",
+        "src/shared/hooks/useServerForm.ts",
+        "src/shared/lib/preloading/index.ts",
+        "src/shared/lib/preloading/types.ts"
+      ],
+      "evidence": [
+        "`usePromptFieldState` has a 100+ line preamble and repeated priority comments mirroring the same branching implemented at `src/shared/hooks/usePromptFieldState.ts:146`.",
+        "`useServerForm` front-loads long usage/features prose and dense per-block comments while implementation is straightforward state/ref/effect orchestration (`src/shared/hooks/useServerForm.ts:90-215`).",
+        "Preloading modules use repeated section dividers and prose headers (`src/shared/lib/preloading/index.ts:16`, `src/shared/lib/preloading/types.ts:7`) for short exports/type declarations."
+      ],
+      "suggestion": "Trim comments to non-obvious constraints only; remove section banners and examples that duplicate code; keep concise contract-level docs on exported APIs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "migration_shims_without_sunset_contract",
+      "summary": "Legacy/deprecated compatibility surfaces remain open-ended with no enforceable removal path.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/integrations/supabase/config/env.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts:1` keeps a deprecated facade export but does not encode timeline/owner/removal trigger.",
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:4` defines multiple deprecated fields in a compatibility shim with no explicit expiry gate.",
+        "`src/integrations/supabase/config/env.ts:10` includes migration language in comments, indicating ongoing dual-path transition residue."
+      ],
+      "suggestion": "Add explicit migration contracts (owner + remove-by date/version + tracked callers) and enforce with follow-up cleanup tickets; remove deprecated facade/shim once callers are migrated.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "diagnostic_noise_left_enabled",
+      "summary": "Debug instrumentation and logs are left always-on in core paths.",
+      "related_files": [
+        "src/integrations/supabase/config/env.ts",
+        "src/shared/lib/preloading/tracker.ts",
+        "src/shared/lib/debug/debugRendering.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/config/env.ts:36` and `src/integrations/supabase/config/env.ts:38` set FORCE ENABLED debug flags to `true`.",
+        "`src/shared/lib/preloading/tracker.ts:67` and `src/shared/lib/preloading/tracker.ts:145` emit `console.log` for eviction/clear events with no local debug gate.",
+        "`src/shared/lib/debug/debugRendering.ts` already provides gated dev diagnostics, but logging strategy is inconsistent across modules."
+      ],
+      "suggestion": "Route tracker/env diagnostics through a shared debug gate (same pattern as `debugRendering`) and default heavy instrumentation flags to env-controlled off in non-debug flows.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

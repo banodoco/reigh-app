@@ -1044,11 +1044,15 @@
           "importers": 4
         },
         {
+          "file": "src/shared/lib/tasks/travelBetweenImages/types.ts",
+          "importers": 3
+        },
+        {
           "file": "src/shared/lib/timeFormatting.ts",
           "importers": 3
         },
         {
-          "file": "src/tools/travel-between-images/components/Timeline/TimelineMediaContext.tsx",
+          "file": "src/shared/components/VideoPortionTimeline/types.ts",
           "importers": 3
         },
         {
@@ -1056,11 +1060,7 @@
           "importers": 3
         },
         {
-          "file": "src/shared/lib/tasks/travelBetweenImages/types.ts",
-          "importers": 3
-        },
-        {
-          "file": "src/shared/components/VideoPortionTimeline/types.ts",
+          "file": "src/tools/travel-between-images/components/Timeline/TimelineMediaContext.tsx",
           "importers": 3
         }
       ]
@@ -1103,8 +1103,8 @@
             "production": 5
           },
           "imports_from_dirs": {
-            "src/app/hooks/": 6,
             "src/shared/contexts/": 6,
+            "src/app/hooks/": 6,
             "src/shared/components/": 6,
             "src/pages/": 6,
             "src/shared/lib/": 4,
@@ -1133,9 +1133,9 @@
           "imports_from_dirs": {
             "src/shared/contexts/": 2,
             "src/shared/components/GlobalHeader/": 1,
-            "src/shared/hooks/": 1,
             "src/shared/lib/": 1,
-            "src/shared/components/": 1
+            "src/shared/components/": 1,
+            "src/shared/hooks/": 1
           },
           "imported_by_dirs": {
             "src/app/": 2
@@ -1239,10 +1239,10 @@
             "src/shared/lib/": 1,
             "src/integrations/supabase/config/": 1,
             "src/shared/lib/errorHandling/": 1,
-            "src/integrations/supabase/reconnect/": 1,
+            "src/integrations/supabase/auth/": 1,
             "src/integrations/supabase/instrumentation/realtime/": 1,
             "src/integrations/supabase/dev/": 1,
-            "src/integrations/supabase/auth/": 1
+            "src/integrations/supabase/reconnect/": 1
           },
           "imported_by_dirs": {
             "src/integrations/supabase/": 2
@@ -1273,10 +1273,10 @@
             "src/shared/hooks/shots/": 10,
             "src/shared/components/MediaLightbox/hooks/": 9,
             "src/tools/travel-between-images/components/": 6,
+            "src/tools/training-data-helper/hooks/": 5,
             "src/shared/components/TasksPane/hooks/": 5,
             "src/tools/travel-between-images/hooks/": 5,
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 5,
-            "src/tools/training-data-helper/hooks/": 5,
             "src/shared/hooks/segments/": 4
           }
         },
@@ -1296,12 +1296,12 @@
           },
           "imported_by_dirs": {
             "src/shared/lib/": 4,
-            "src/integrations/supabase/dev/": 1,
             "src/integrations/supabase/bootstrap/": 1,
-            "src/integrations/supabase/instrumentation/realtime/": 1,
-            "src/integrations/supabase/instrumentation/window/": 1,
             "src/integrations/supabase/utils/": 1,
-            "src/shared/lib/taskCreation/": 1
+            "src/integrations/supabase/dev/": 1,
+            "src/shared/lib/taskCreation/": 1,
+            "src/integrations/supabase/instrumentation/window/": 1,
+            "src/integrations/supabase/instrumentation/realtime/": 1
           }
         },
         "src/integrations/supabase/dev/": {
@@ -1340,8 +1340,8 @@
           },
           "imports_from_dirs": {
             "src/integrations/supabase/utils/": 2,
-            "src/integrations/supabase/config/": 1,
-            "src/shared/lib/errorHandling/": 1
+            "src/shared/lib/errorHandling/": 1,
+            "src/integrations/supabase/config/": 1
           },
           "imported_by_dirs": {
             "src/integrations/supabase/": 1
@@ -1400,9 +1400,9 @@
             "src/integrations/supabase/config/": 1
           },
           "imported_by_dirs": {
-            "src/integrations/supabase/utils/__tests__/": 2,
             "src/integrations/supabase/instrumentation/realtime/": 2,
-            "src/integrations/supabase/instrumentation/window/": 2
+            "src/integrations/supabase/instrumentation/window/": 2,
+            "src/integrations/supabase/utils/__tests__/": 2
           }
         },
         "src/": {
@@ -1447,10 +1447,10 @@
             "src/pages/payment-success/components/": 3,
             "src/pages/share/components/": 3,
             "src/pages/art/": 2,
-            "src/pages/share/hooks/": 2,
             "src/tools/travel-between-images/components/": 2,
-            "src/shared/contexts/": 2,
+            "src/pages/share/hooks/": 2,
             "src/pages/shots/hooks/": 2,
+            "src/shared/contexts/": 2,
             "src/shared/components/transitions/": 1,
             "src/shared/lib/errorHandling/": 1
           },
@@ -1726,8 +1726,8 @@
           "imports_from_dirs": {
             "src/types/": 2,
             "src/shared/hooks/": 2,
-            "src/shared/lib/queryKeys/": 1,
             "src/shared/components/ui/": 1,
+            "src/shared/lib/queryKeys/": 1,
             "src/shared/lib/errorHandling/": 1
           },
           "imported_by_dirs": {
@@ -1846,8 +1846,8 @@
             "src/app/": 6,
             "src/shared/components/SegmentSettingsForm/components/": 5,
             "src/shared/hooks/segments/": 5,
-            "src/shared/components/ImageGenerationForm/": 4,
-            "src/shared/components/ImageGenerationForm/hooks/": 4
+            "src/shared/components/ImageGenerationForm/hooks/": 4,
+            "src/shared/components/ImageGenerationForm/": 4
           }
         },
         "src/shared/components/CreditsManagement/": {
@@ -1866,8 +1866,8 @@
             "production": 2
           },
           "imports_from_dirs": {
-            "src/shared/components/CreditsManagement/hooks/": 3,
             "src/shared/components/CreditsManagement/components/": 3,
+            "src/shared/components/CreditsManagement/hooks/": 3,
             "src/shared/hooks/": 2,
             "src/shared/components/ui/": 1
           },
@@ -1954,19 +1954,19 @@
             "src/shared/components/TaskDetails/": 6,
             "src/shared/lib/": 3,
             "src/types/": 2,
-            "src/shared/types/": 1,
-            "src/shared/components/ui/": 1,
-            "src/shared/components/": 1,
-            "src/shared/components/LoraSelectorModal/": 1,
             "src/shared/components/MediaGallery/": 1,
+            "src/shared/components/LoraSelectorModal/": 1,
+            "src/shared/components/ui/": 1,
+            "src/shared/types/": 1,
+            "src/shared/components/": 1,
             "src/shared/hooks/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/": 2,
-            "src/shared/components/VariantSelector/components/": 1,
-            "src/shared/components/GenerationDetails/__tests__/": 1,
             "src/shared/components/MediaGalleryItem/components/": 1,
-            "src/shared/components/TasksPane/components/": 1
+            "src/shared/components/GenerationDetails/__tests__/": 1,
+            "src/shared/components/TasksPane/components/": 1,
+            "src/shared/components/VariantSelector/components/": 1
           }
         },
         "src/shared/components/GenerationsPane/": {
@@ -1983,16 +1983,16 @@
             "production": 1
           },
           "imports_from_dirs": {
-            "src/shared/hooks/": 5,
             "src/shared/components/ui/": 5,
+            "src/shared/hooks/": 5,
             "src/shared/lib/": 4,
-            "src/shared/components/": 4,
             "src/shared/contexts/": 4,
+            "src/shared/components/": 4,
+            "src/shared/components/MediaGallery/": 1,
             "src/shared/lib/debug/": 1,
             "src/shared/constants/": 1,
-            "src/shared/components/MediaGallery/utils/": 1,
-            "src/shared/lib/queryKeys/": 1,
-            "src/shared/components/MediaGallery/hooks/": 1
+            "src/shared/components/MediaGallery/hooks/": 1,
+            "src/shared/lib/queryKeys/": 1
           },
           "imported_by_dirs": {
             "src/app/": 1
@@ -2021,8 +2021,8 @@
           },
           "imports_from_dirs": {
             "src/shared/hooks/": 4,
-            "src/shared/components/ui/": 4,
             "src/shared/lib/": 4,
+            "src/shared/components/ui/": 4,
             "src/shared/contexts/": 3,
             "src/shared/components/": 3,
             "src/types/": 1,
@@ -2054,10 +2054,10 @@
           "imports_from_dirs": {
             "src/shared/components/ImageGenerationForm/hooks/": 16,
             "src/shared/components/ImageGenerationForm/components/": 13,
-            "src/shared/components/ImageGenerationForm/components/reference/": 7,
             "src/shared/components/ImageGenerationForm/hooks/referenceManagement/": 7,
-            "src/shared/components/ImageGenerationForm/hooks/promptManagement/": 6,
+            "src/shared/components/ImageGenerationForm/components/reference/": 7,
             "src/shared/components/ImageGenerationForm/hooks/formSubmission/": 6,
+            "src/shared/components/ImageGenerationForm/hooks/promptManagement/": 6,
             "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/": 5,
             "src/shared/components/": 4,
             "src/shared/components/ImageGenerationForm/state/": 3,
@@ -2067,12 +2067,12 @@
             "src/shared/components/ImageGenerationForm/hooks/": 11,
             "src/shared/components/ImageGenerationForm/components/": 7,
             "src/shared/components/ImageGenerationForm/components/reference/": 6,
-            "src/shared/components/ImageGenerationForm/hooks/promptManagement/": 6,
             "src/shared/components/ImageGenerationForm/hooks/referenceManagement/": 6,
+            "src/shared/components/ImageGenerationForm/hooks/promptManagement/": 6,
             "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/": 5,
             "src/shared/components/ImageGenerationForm/hooks/formSubmission/": 3,
-            "src/tools/image-generation/components/ImageGenerationForm/": 2,
             "src/shared/components/": 2,
+            "src/tools/image-generation/components/ImageGenerationForm/": 2,
             "src/shared/components/ImageGenerationForm/hooks/referenceUpload/": 2
           }
         },
@@ -2106,10 +2106,10 @@
           "imported_by_dirs": {
             "src/shared/components/ImageGenerationForm/": 13,
             "src/tools/travel-between-images/components/": 2,
-            "src/tools/travel-between-images/components/ShotImagesEditor/components/": 1,
-            "src/tools/travel-between-images/components/ShotImagesEditor/": 1,
             "src/shared/components/JoinClipsSettingsForm/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/sections/generation/": 1
+            "src/tools/travel-between-images/components/ShotEditor/sections/generation/": 1,
+            "src/tools/travel-between-images/components/ShotImagesEditor/": 1,
+            "src/tools/travel-between-images/components/ShotImagesEditor/components/": 1
           }
         },
         "src/shared/components/ImageGenerationForm/components/reference/": {
@@ -2209,8 +2209,8 @@
             "src/shared/components/ImageGenerationForm/": 3,
             "src/shared/components/ui/": 3,
             "src/shared/lib/": 1,
-            "src/shared/lib/tasks/": 1,
             "src/types/": 1,
+            "src/shared/lib/tasks/": 1,
             "src/shared/hooks/": 1
           },
           "imported_by_dirs": {
@@ -2326,13 +2326,13 @@
             "src/shared/hooks/": 4,
             "src/shared/lib/queryKeys/": 2,
             "src/shared/components/ImageGenerationForm/": 2,
-            "src/shared/lib/errorHandling/": 2,
             "src/shared/components/ui/": 2,
+            "src/shared/lib/errorHandling/": 2,
             "src/integrations/supabase/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/ImageGenerationForm/": 2,
-            "src/shared/components/ImageGenerationForm/hooks/": 2
+            "src/shared/components/ImageGenerationForm/hooks/": 2,
+            "src/shared/components/ImageGenerationForm/": 2
           }
         },
         "src/shared/components/ImageGenerationForm/state/": {
@@ -2371,10 +2371,10 @@
             "src/shared/components/ui/": 8,
             "src/shared/lib/": 3,
             "src/shared/components/MotionPresetSelector/": 2,
-            "src/shared/components/": 1,
             "src/shared/components/ImageGenerationForm/components/": 1,
-            "src/shared/types/": 1,
-            "src/shared/hooks/": 1
+            "src/shared/components/": 1,
+            "src/shared/hooks/": 1,
+            "src/shared/types/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/JoinClipsSettingsForm/__tests__/": 3,
@@ -2417,22 +2417,22 @@
           "imports_from_dirs": {
             "src/shared/hooks/": 5,
             "src/shared/components/ui/": 3,
-            "src/shared/components/LoraSelectorModal/components/": 1,
             "src/shared/components/LoraSelectorModal/components/MyLorasTab/": 1,
             "src/shared/components/LoraSelectorModal/utils/": 1,
+            "src/shared/components/LoraSelectorModal/components/": 1,
             "src/shared/types/": 1
           },
           "imported_by_dirs": {
-            "src/tools/travel-between-images/components/ShotEditor/hooks/": 4,
             "src/shared/components/VariantSelector/components/": 4,
+            "src/tools/travel-between-images/components/ShotEditor/hooks/": 4,
             "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/": 3,
-            "src/shared/components/ImageGenerationForm/hooks/": 3,
             "src/tools/travel-between-images/components/": 3,
+            "src/shared/components/ImageGenerationForm/hooks/": 3,
             "src/shared/components/LoraSelectorModal/components/": 3,
             "src/shared/components/LoraSelectorModal/__tests__/": 2,
-            "src/shared/components/LoraSelectorModal/hooks/": 2,
             "src/shared/components/LoraSelectorModal/components/MyLorasTab/": 2,
-            "src/tools/travel-between-images/components/ShotEditor/": 2
+            "src/shared/components/LoraSelectorModal/hooks/": 2,
+            "src/shared/components/": 2
           }
         },
         "src/shared/components/LoraSelectorModal/__tests__/": {
@@ -2555,12 +2555,12 @@
             "src/shared/lib/errorHandling/": 2,
             "src/integrations/supabase/": 1,
             "src/shared/lib/": 1,
-            "src/shared/components/LoraSelectorModal/utils/": 1,
-            "src/shared/components/ui/": 1
+            "src/shared/components/ui/": 1,
+            "src/shared/components/LoraSelectorModal/utils/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/__tests__/": 2,
-            "src/shared/components/LoraSelectorModal/components/MyLorasTab/": 2
+            "src/shared/components/LoraSelectorModal/components/MyLorasTab/": 2,
+            "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/__tests__/": 2
           }
         },
         "src/shared/components/LoraSelectorModal/components/__tests__/": {
@@ -2617,8 +2617,8 @@
             "src/shared/components/LoraSelectorModal/components/": 1,
             "src/shared/components/LoraSelectorModal/": 1,
             "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/": 1,
-            "src/shared/components/": 1,
-            "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/": 1
+            "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/": 1,
+            "src/shared/components/": 1
           }
         },
         "src/shared/components/MediaGallery/components/": {
@@ -2644,13 +2644,13 @@
             "src/shared/hooks/": 2,
             "src/shared/components/MediaGallery/": 2,
             "src/shared/components/MediaGalleryItem/": 1,
+            "src/shared/lib/errorHandling/": 1,
             "src/integrations/supabase/": 1,
-            "src/shared/lib/queryKeys/": 1,
-            "src/shared/lib/errorHandling/": 1
+            "src/shared/lib/queryKeys/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/MediaGallery/components/__tests__/": 5,
-            "src/shared/components/MediaGallery/": 5
+            "src/shared/components/MediaGallery/": 5,
+            "src/shared/components/MediaGallery/components/__tests__/": 5
           }
         },
         "src/shared/components/MediaGallery/components/__tests__/": {
@@ -2718,8 +2718,8 @@
             "src/shared/components/MediaGallery/": 7,
             "src/shared/lib/": 5,
             "src/shared/lib/errorHandling/": 2,
-            "src/shared/hooks/": 1,
             "src/shared/types/": 1,
+            "src/shared/hooks/": 1,
             "src/shared/components/ui/": 1,
             "src/types/": 1
           },
@@ -2748,26 +2748,26 @@
           "imports_from_dirs": {
             "src/shared/components/MediaGallery/components/": 5,
             "src/shared/hooks/": 5,
+            "src/shared/components/MediaGallery/hooks/": 2,
             "src/shared/lib/": 2,
             "src/shared/contexts/": 2,
-            "src/shared/components/MediaGallery/hooks/": 2,
-            "src/shared/components/ui/": 1,
             "src/shared/components/ShotImageManager/hooks/": 1,
+            "src/shared/components/ui/": 1,
             "src/shared/components/MediaGallery/utils/": 1,
-            "src/types/": 1,
-            "src/shared/types/": 1
+            "src/shared/types/": 1,
+            "src/types/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/MediaGallery/hooks/": 7,
             "src/shared/components/MediaGalleryItem/components/": 5,
             "src/shared/components/": 3,
-            "src/shared/components/MediaGalleryItem/hooks/": 2,
             "src/shared/components/MediaGallery/components/": 2,
-            "src/shared/components/GenerationsPane/": 1,
+            "src/shared/components/MediaGalleryItem/hooks/": 2,
+            "src/tools/travel-between-images/components/": 1,
+            "src/tools/image-generation/pages/": 1,
             "src/tools/join-clips/pages/": 1,
-            "src/tools/image-generation/hooks/": 1,
-            "src/tools/character-animate/pages/components/": 1,
-            "src/tools/image-generation/pages/": 1
+            "src/tools/travel-between-images/hooks/": 1,
+            "src/tools/edit-images/pages/": 1
           }
         },
         "src/shared/components/MediaGallery/utils/__tests__/": {
@@ -2803,14 +2803,14 @@
           "imported_by_dirs": {
             "src/shared/components/MediaGallery/utils/__tests__/": 3,
             "src/tools/travel-between-images/components/": 2,
-            "src/shared/components/GenerationsPane/": 1,
-            "src/tools/join-clips/pages/": 1,
             "src/shared/components/MediaGallery/": 1,
-            "src/tools/image-generation/hooks/": 1,
-            "src/tools/character-animate/pages/components/": 1,
-            "src/tools/travel-between-images/hooks/": 1,
+            "src/tools/join-clips/pages/": 1,
+            "src/shared/components/": 1,
             "src/tools/edit-images/pages/": 1,
-            "src/shared/components/": 1
+            "src/tools/travel-between-images/hooks/": 1,
+            "src/tools/character-animate/pages/components/": 1,
+            "src/shared/components/GenerationsPane/": 1,
+            "src/tools/image-generation/hooks/": 1
           }
         },
         "src/shared/components/MediaGalleryItem/components/": {
@@ -2837,8 +2837,8 @@
             "src/shared/components/GenerationDetails/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/MediaGalleryItem/components/__tests__/": 5,
-            "src/shared/components/": 5
+            "src/shared/components/": 5,
+            "src/shared/components/MediaGalleryItem/components/__tests__/": 5
           }
         },
         "src/shared/components/MediaGalleryItem/components/__tests__/": {
@@ -2895,15 +2895,15 @@
             "production": 5
           },
           "imports_from_dirs": {
-            "src/shared/components/MediaGallery/": 2,
             "src/shared/lib/": 2,
+            "src/shared/components/MediaGallery/": 2,
             "src/shared/types/": 2,
             "src/shared/components/MediaGalleryItem/": 2,
             "src/shared/lib/preloading/": 1,
             "src/shared/lib/errorHandling/": 1,
             "src/shared/components/ui/": 1,
-            "src/shared/settings/": 1,
-            "src/shared/hooks/": 1
+            "src/shared/hooks/": 1,
+            "src/shared/settings/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/MediaGalleryItem/hooks/__tests__/": 5,
@@ -2930,9 +2930,9 @@
             "src/shared/hooks/": 4,
             "src/shared/components/MediaLightbox/hooks/": 4,
             "src/shared/contexts/": 2,
-            "src/shared/lib/": 2,
             "src/shared/components/MediaLightbox/components/layouts/": 2,
             "src/shared/components/MediaLightbox/contexts/": 2,
+            "src/shared/lib/": 2,
             "src/shared/components/MediaLightbox/utils/": 1,
             "src/shared/lib/errorHandling/": 1
           },
@@ -3018,8 +3018,8 @@
             "src/shared/components/MediaLightbox/hooks/": 5,
             "src/tools/edit-video/components/": 2,
             "src/shared/components/MediaLightbox/contexts/": 1,
-            "src/shared/components/MediaLightbox/hooks/inpainting/": 1,
             "src/tools/edit-images/hooks/": 1,
+            "src/shared/components/MediaLightbox/hooks/inpainting/": 1,
             "src/tools/edit-images/components/": 1
           }
         },
@@ -3084,8 +3084,8 @@
             "src/shared/components/MediaLightbox/hooks/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/MediaLightbox/components/controls/__tests__/": 6,
-            "src/shared/components/MediaLightbox/components/": 6
+            "src/shared/components/MediaLightbox/components/": 6,
+            "src/shared/components/MediaLightbox/components/controls/__tests__/": 6
           }
         },
         "src/shared/components/MediaLightbox/components/controls/__tests__/": {
@@ -3125,13 +3125,13 @@
             "src/shared/components/ui/": 5,
             "src/shared/lib/": 3,
             "src/shared/components/MediaLightbox/hooks/inpainting/": 1,
-            "src/shared/components/LoraSelectorModal/": 1,
             "src/shared/hooks/": 1,
-            "src/shared/components/": 1
+            "src/shared/components/": 1,
+            "src/shared/components/LoraSelectorModal/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/MediaLightbox/components/editModes/__tests__/": 3,
-            "src/shared/components/MediaLightbox/components/": 3
+            "src/shared/components/MediaLightbox/components/": 3,
+            "src/shared/components/MediaLightbox/components/editModes/__tests__/": 3
           }
         },
         "src/shared/components/MediaLightbox/components/editModes/__tests__/": {
@@ -3221,21 +3221,21 @@
           },
           "imports_from_dirs": {
             "src/shared/components/MediaLightbox/hooks/": 2,
-            "src/shared/components/MediaLightbox/hooks/inpainting/": 1,
             "src/shared/components/MediaLightbox/components/": 1,
+            "src/shared/components/MediaLightbox/hooks/inpainting/": 1,
+            "src/shared/components/VariantSelector/": 1,
             "src/types/": 1,
             "src/shared/hooks/": 1,
-            "src/shared/components/VariantSelector/": 1,
-            "src/shared/components/VideoPortionTimeline/": 1,
-            "src/shared/types/": 1
+            "src/shared/types/": 1,
+            "src/shared/components/VideoPortionTimeline/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/MediaLightbox/components/": 13,
             "src/shared/components/MediaLightbox/hooks/": 8,
             "src/shared/components/MediaLightbox/contexts/__tests__/": 6,
             "src/shared/components/MediaLightbox/components/layouts/": 4,
-            "src/tools/edit-images/hooks/": 2,
             "src/shared/components/MediaLightbox/": 2,
+            "src/tools/edit-images/hooks/": 2,
             "src/tools/edit-images/components/": 1
           }
         },
@@ -3437,18 +3437,18 @@
             "src/shared/components/MediaLightbox/hooks/": 2,
             "src/shared/lib/tasks/": 2,
             "src/integrations/supabase/": 1,
-            "src/shared/hooks/": 1,
             "src/shared/components/MediaLightbox/components/": 1,
-            "src/shared/components/ui/": 1
+            "src/shared/components/ui/": 1,
+            "src/shared/hooks/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/MediaLightbox/hooks/": 6,
             "src/shared/components/MediaLightbox/hooks/inpainting/__tests__/": 4,
             "src/shared/components/MediaLightbox/components/": 2,
             "src/tools/edit-images/hooks/": 2,
-            "src/shared/components/MediaLightbox/contexts/": 1,
             "src/tools/edit-images/components/": 1,
-            "src/shared/components/MediaLightbox/components/editModes/": 1
+            "src/shared/components/MediaLightbox/components/editModes/": 1,
+            "src/shared/components/MediaLightbox/contexts/": 1
           }
         },
         "src/shared/components/MediaLightbox/hooks/reposition/__tests__/": {
@@ -3494,14 +3494,14 @@
             "src/shared/components/ui/": 2,
             "src/shared/hooks/": 1,
             "src/shared/lib/tasks/": 1,
-            "src/integrations/supabase/": 1,
             "src/shared/hooks/invalidation/": 1,
-            "src/shared/constants/": 1,
-            "src/shared/lib/errorHandling/": 1
+            "src/shared/lib/errorHandling/": 1,
+            "src/integrations/supabase/": 1,
+            "src/shared/constants/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/MediaLightbox/hooks/": 6,
-            "src/shared/components/MediaLightbox/hooks/reposition/__tests__/": 6
+            "src/shared/components/MediaLightbox/hooks/reposition/__tests__/": 6,
+            "src/shared/components/MediaLightbox/hooks/": 6
           }
         },
         "src/shared/components/MediaLightbox/utils/__tests__/": {
@@ -3519,9 +3519,9 @@
           },
           "imports_from_dirs": {
             "src/shared/components/MediaLightbox/utils/": 4,
-            "src/shared/hooks/": 1,
+            "src/types/": 1,
             "src/shared/lib/": 1,
-            "src/types/": 1
+            "src/shared/hooks/": 1
           }
         },
         "src/shared/components/MediaLightbox/utils/": {
@@ -3539,8 +3539,8 @@
             "production": 4
           },
           "imports_from_dirs": {
-            "src/types/": 2,
             "src/shared/lib/": 2,
+            "src/types/": 2,
             "src/shared/lib/errorHandling/": 2,
             "src/shared/components/ui/": 1,
             "src/shared/hooks/": 1
@@ -3576,8 +3576,8 @@
           },
           "imported_by_dirs": {
             "src/shared/components/MotionPresetSelector/__tests__/": 3,
-            "src/shared/components/VideoPortionEditor/": 2,
             "src/shared/components/JoinClipsSettingsForm/": 2,
+            "src/shared/components/VideoPortionEditor/": 2,
             "src/shared/components/SegmentSettingsForm/components/": 1,
             "src/shared/lib/": 1
           }
@@ -3619,8 +3619,8 @@
             "src/shared/components/LoraSelectorModal/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/": 1,
             "src/shared/components/PhaseConfigSelectorModal/__tests__/": 1,
+            "src/shared/components/": 1,
             "src/shared/components/PhaseConfigSelectorModal/components/": 1
           }
         },
@@ -3640,13 +3640,13 @@
           },
           "imports_from_dirs": {
             "src/shared/components/ui/": 10,
-            "src/shared/components/PhaseConfigSelectorModal/components/sections/": 4,
             "src/shared/hooks/": 4,
-            "src/shared/lib/": 2,
+            "src/shared/components/PhaseConfigSelectorModal/components/sections/": 4,
             "src/shared/lib/errorHandling/": 2,
+            "src/shared/lib/": 2,
+            "src/shared/components/LoraSelectorModal/": 1,
             "src/shared/components/PhaseConfigSelectorModal/hooks/": 1,
             "src/shared/types/": 1,
-            "src/shared/components/LoraSelectorModal/": 1,
             "src/shared/components/PhaseConfigSelectorModal/": 1,
             "src/shared/components/": 1
           },
@@ -3691,15 +3691,15 @@
           "imports_from_dirs": {
             "src/shared/components/ui/": 21,
             "src/shared/lib/": 2,
-            "src/shared/types/": 1,
             "src/shared/components/LoraSelectorModal/": 1,
-            "src/shared/components/": 1,
+            "src/shared/types/": 1,
             "src/shared/hooks/": 1,
+            "src/shared/components/": 1,
             "src/shared/components/PhaseConfigSelectorModal/components/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/PhaseConfigSelectorModal/components/": 4,
-            "src/shared/components/PhaseConfigSelectorModal/components/sections/__tests__/": 4
+            "src/shared/components/PhaseConfigSelectorModal/components/sections/__tests__/": 4,
+            "src/shared/components/PhaseConfigSelectorModal/components/": 4
           }
         },
         "src/shared/components/PhaseConfigSelectorModal/components/sections/__tests__/": {
@@ -3738,8 +3738,8 @@
           },
           "imports_from_dirs": {
             "src/shared/lib/": 2,
-            "src/shared/hooks/": 1,
-            "src/shared/contexts/": 1
+            "src/shared/contexts/": 1,
+            "src/shared/hooks/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/ProductTour/__tests__/": 1
@@ -3761,11 +3761,11 @@
           "imports_from_dirs": {
             "src/shared/components/ui/": 3,
             "src/shared/types/": 2,
+            "src/shared/components/SegmentSettingsForm/components/": 1,
             "src/shared/hooks/": 1,
+            "src/shared/lib/errorHandling/": 1,
             "src/shared/lib/": 1,
             "src/shared/components/SegmentSettingsForm/hooks/": 1,
-            "src/shared/components/SegmentSettingsForm/components/": 1,
-            "src/shared/lib/errorHandling/": 1,
             "src/shared/components/": 1,
             "src/shared/lib/tasks/travelBetweenImages/": 1
           },
@@ -3865,12 +3865,12 @@
           "imports_from_dirs": {
             "src/shared/hooks/": 2,
             "src/shared/components/SegmentSettingsForm/": 1,
-            "src/integrations/supabase/": 1,
+            "src/shared/components/ui/": 1,
             "src/shared/lib/": 1,
-            "src/shared/components/": 1,
-            "src/shared/lib/tasks/travelBetweenImages/": 1,
             "src/shared/lib/errorHandling/": 1,
-            "src/shared/components/ui/": 1
+            "src/integrations/supabase/": 1,
+            "src/shared/lib/tasks/travelBetweenImages/": 1,
+            "src/shared/components/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/SegmentSettingsForm/components/": 2,
@@ -3894,8 +3894,8 @@
           "imports_from_dirs": {
             "src/shared/hooks/": 8,
             "src/shared/components/SettingsModal/sections/": 3,
-            "src/shared/components/ui/": 2,
             "src/shared/contexts/": 2,
+            "src/shared/components/ui/": 2,
             "src/integrations/supabase/": 1,
             "src/shared/lib/": 1
           },
@@ -3998,8 +3998,8 @@
             "src/shared/components/ShotImageManager/__tests__/": 7,
             "src/shared/components/ShotImageManager/hooks/": 5,
             "src/shared/components/ShotImageManager/components/": 3,
-            "src/tools/travel-between-images/components/ShotImagesEditor/components/": 1,
             "src/pages/": 1,
+            "src/tools/travel-between-images/components/ShotImagesEditor/components/": 1,
             "src/tools/travel-between-images/hooks/": 1
           }
         },
@@ -4177,11 +4177,11 @@
             "src/shared/lib/": 2
           },
           "imported_by_dirs": {
-            "src/shared/components/ShotImageManager/hooks/": 3,
             "src/shared/components/ShotImageManager/utils/__tests__/": 3,
+            "src/shared/components/ShotImageManager/hooks/": 3,
             "src/shared/components/ShotImageManager/": 2,
-            "src/tools/travel-between-images/components/Timeline/": 1,
-            "src/shared/components/ShotImageManager/components/": 1
+            "src/shared/components/ShotImageManager/components/": 1,
+            "src/tools/travel-between-images/components/Timeline/": 1
           }
         },
         "src/shared/components/TaskDetails/": {
@@ -4208,8 +4208,8 @@
             "src/shared/components/ui/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/TaskDetails/__tests__/": 6,
-            "src/shared/components/GenerationDetails/": 6
+            "src/shared/components/GenerationDetails/": 6,
+            "src/shared/components/TaskDetails/__tests__/": 6
           }
         },
         "src/shared/components/TaskDetails/__tests__/": {
@@ -4252,8 +4252,8 @@
           "imports_from_dirs": {
             "src/shared/hooks/": 13,
             "src/shared/components/ui/": 9,
-            "src/shared/contexts/": 8,
             "src/shared/lib/": 8,
+            "src/shared/contexts/": 8,
             "src/shared/components/TasksPane/hooks/": 7,
             "src/types/": 5,
             "src/shared/components/TasksPane/components/": 4,
@@ -4306,13 +4306,13 @@
             "src/types/": 4,
             "src/shared/lib/": 3,
             "src/shared/components/TasksPane/": 2,
-            "src/shared/components/LoraSelectorModal/": 1,
             "src/shared/components/TasksPane/utils/": 1,
-            "src/shared/components/GenerationDetails/": 1
+            "src/shared/components/GenerationDetails/": 1,
+            "src/shared/components/LoraSelectorModal/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/TasksPane/components/__tests__/": 4,
-            "src/shared/components/TasksPane/": 4
+            "src/shared/components/TasksPane/": 4,
+            "src/shared/components/TasksPane/components/__tests__/": 4
           }
         },
         "src/shared/components/TasksPane/components/__tests__/": {
@@ -4401,8 +4401,8 @@
             "test": 2
           },
           "imports_from_dirs": {
-            "src/types/": 2,
             "src/shared/components/TasksPane/utils/": 2,
+            "src/types/": 2,
             "src/integrations/supabase/": 1
           }
         },
@@ -4425,8 +4425,8 @@
           },
           "imported_by_dirs": {
             "src/shared/components/TasksPane/hooks/": 5,
-            "src/shared/components/TasksPane/utils/__tests__/": 2,
             "src/shared/components/TasksPane/": 2,
+            "src/shared/components/TasksPane/utils/__tests__/": 2,
             "src/shared/components/TasksPane/components/": 1
           }
         },
@@ -4465,11 +4465,11 @@
           "imports_from_dirs": {
             "src/shared/components/VariantSelector/": 5,
             "src/shared/hooks/": 5,
-            "src/shared/components/LoraSelectorModal/": 4,
             "src/shared/components/ui/": 4,
+            "src/shared/components/LoraSelectorModal/": 4,
             "src/shared/lib/": 4,
-            "src/shared/components/GenerationDetails/": 1,
-            "src/types/": 1
+            "src/types/": 1,
+            "src/shared/components/GenerationDetails/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/VariantSelector/components/__tests__/": 4,
@@ -4513,17 +4513,17 @@
             "src/shared/hooks/": 5,
             "src/shared/components/ui/": 3,
             "src/shared/components/VariantSelector/components/": 2,
-            "src/shared/lib/": 1,
             "src/shared/components/VariantSelector/hooks/": 1,
             "src/shared/components/": 1,
+            "src/shared/lib/": 1,
             "src/shared/constants/": 1
           },
           "imported_by_dirs": {
             "src/shared/components/VariantSelector/components/": 5,
             "src/shared/components/VariantSelector/__tests__/": 4,
             "src/shared/components/MediaLightbox/components/": 2,
-            "src/shared/components/MediaLightbox/contexts/": 1,
-            "src/shared/hooks/": 1
+            "src/shared/hooks/": 1,
+            "src/shared/components/MediaLightbox/contexts/": 1
           }
         },
         "src/shared/components/VideoPortionEditor/": {
@@ -4544,11 +4544,11 @@
             "src/shared/lib/": 4,
             "src/shared/components/MotionPresetSelector/": 2,
             "src/shared/components/JoinClipsSettingsForm/": 1,
-            "src/shared/lib/errorHandling/": 1,
-            "src/shared/types/": 1,
             "src/shared/hooks/": 1,
+            "src/shared/components/": 1,
+            "src/shared/lib/errorHandling/": 1,
             "src/shared/components/VideoPortionTimeline/": 1,
-            "src/shared/components/": 1
+            "src/shared/types/": 1
           },
           "imported_by_dirs": {
             "src/tools/edit-video/components/": 1,
@@ -4612,17 +4612,17 @@
           },
           "imports_from_dirs": {
             "src/shared/components/VideoPortionTimeline/hooks/": 2,
-            "src/shared/components/VideoPortionTimeline/components/": 1,
-            "src/shared/lib/": 1
+            "src/shared/lib/": 1,
+            "src/shared/components/VideoPortionTimeline/components/": 1
           },
           "imported_by_dirs": {
             "src/tools/edit-video/components/": 3,
             "src/shared/components/VideoPortionEditor/": 1,
             "src/shared/components/MediaLightbox/hooks/": 1,
-            "src/shared/components/MediaLightbox/components/": 1,
+            "src/shared/components/MediaLightbox/contexts/": 1,
             "src/tools/edit-video/hooks/": 1,
             "src/tools/edit-video/pages/": 1,
-            "src/shared/components/MediaLightbox/contexts/": 1,
+            "src/shared/components/MediaLightbox/components/": 1,
             "src/shared/components/VideoPortionTimeline/components/": 1,
             "src/shared/components/VideoPortionTimeline/hooks/": 1
           }
@@ -4696,14 +4696,14 @@
           "imports_from_dirs": {
             "src/shared/types/": 2,
             "src/integrations/supabase/": 1,
-            "src/shared/hooks/invalidation/": 1,
             "src/shared/lib/": 1,
             "src/shared/components/ui/": 1,
+            "src/shared/hooks/invalidation/": 1,
             "src/shared/lib/errorHandling/": 1
           },
           "imported_by_dirs": {
-            "src/shared/components/VideoTrimEditor/": 2,
-            "src/shared/components/VideoTrimEditor/hooks/__tests__/": 2
+            "src/shared/components/VideoTrimEditor/hooks/__tests__/": 2,
+            "src/shared/components/VideoTrimEditor/": 2
           }
         },
         "src/shared/components/VideoTrimEditor/": {
@@ -4725,8 +4725,8 @@
           },
           "imported_by_dirs": {
             "src/shared/components/VideoTrimEditor/components/": 2,
-            "src/tools/edit-video/components/": 1,
             "src/shared/components/MediaLightbox/components/": 1,
+            "src/tools/edit-video/components/": 1,
             "src/shared/components/MediaLightbox/hooks/": 1
           }
         },
@@ -4804,9 +4804,9 @@
             "src/shared/lib/": 5,
             "src/types/": 3,
             "src/shared/hooks/": 2,
+            "src/shared/components/": 1,
             "src/shared/components/ui/": 1,
             "src/shared/lib/errorHandling/": 1,
-            "src/shared/components/": 1,
             "src/shared/hooks/segments/": 1
           },
           "imported_by_dirs": {
@@ -4832,11 +4832,11 @@
           "imported_by_dirs": {
             "src/shared/components/transitions/__tests__/": 1,
             "src/pages/": 1,
-            "src/tools/image-generation/pages/": 1,
             "src/tools/travel-between-images/components/": 1,
-            "src/tools/join-clips/pages/": 1,
             "src/tools/training-data-helper/pages/": 1,
-            "src/tools/character-animate/pages/": 1
+            "src/tools/join-clips/pages/": 1,
+            "src/tools/character-animate/pages/": 1,
+            "src/tools/image-generation/pages/": 1
           }
         },
         "src/shared/components/ui/__tests__/": {
@@ -4993,13 +4993,13 @@
             "src/shared/hooks/": 6,
             "src/shared/hooks/shots/": 5,
             "src/shared/constants/__tests__/": 2,
-            "src/shared/hooks/gallery/__tests__/": 1,
-            "src/shared/components/ImageGenerationForm/hooks/promptManagement/": 1,
-            "src/shared/components/GenerationsPane/": 1,
-            "src/shared/hooks/gallery/": 1,
             "src/shared/components/": 1,
+            "src/shared/hooks/gallery/": 1,
+            "src/shared/hooks/gallery/__tests__/": 1,
+            "src/shared/components/GenerationsPane/": 1,
+            "src/shared/components/ImageGenerationForm/hooks/promptManagement/": 1,
             "src/shared/lib/errorHandling/": 1,
-            "src/shared/components/VariantSelector/": 1
+            "src/tools/edit-video/pages/": 1
           }
         },
         "src/shared/contexts/": {
@@ -5040,8 +5040,8 @@
             "src/shared/components/": 8,
             "src/shared/components/TasksPane/": 8,
             "src/app/": 6,
-            "src/shared/components/GenerationsPane/": 4,
             "src/tools/travel-between-images/pages/": 4,
+            "src/shared/components/GenerationsPane/": 4,
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 4,
             "src/tools/travel-between-images/components/": 4
           }
@@ -5229,11 +5229,11 @@
             "src/shared/hooks/shots/": 4,
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 2,
             "src/tools/travel-between-images/hooks/": 1,
-            "src/shared/components/MediaLightbox/hooks/": 1,
-            "src/tools/travel-between-images/pages/": 1,
+            "src/tools/travel-between-images/components/": 1,
             "src/shared/components/VideoTrimEditor/hooks/": 1,
             "src/shared/hooks/invalidation/__tests__/": 1,
-            "src/tools/travel-between-images/components/": 1,
+            "src/shared/components/MediaLightbox/hooks/": 1,
+            "src/tools/travel-between-images/pages/": 1,
             "src/shared/components/MediaLightbox/hooks/reposition/": 1
           }
         },
@@ -5255,8 +5255,8 @@
             "src/shared/config/": 4
           },
           "imported_by_dirs": {
-            "src/shared/hooks/panePositioning/strategies/__tests__/": 4,
-            "src/shared/hooks/panePositioning/": 4
+            "src/shared/hooks/panePositioning/": 4,
+            "src/shared/hooks/panePositioning/strategies/__tests__/": 4
           }
         },
         "src/shared/hooks/panePositioning/strategies/__tests__/": {
@@ -5343,15 +5343,15 @@
           },
           "imported_by_dirs": {
             "src/shared/hooks/segments/__tests__/": 5,
-            "src/tools/travel-between-images/components/Timeline/hooks/": 4,
             "src/shared/components/ShotImageManager/": 4,
+            "src/tools/travel-between-images/components/Timeline/hooks/": 4,
             "src/tools/travel-between-images/components/ShotImagesEditor/hooks/": 3,
             "src/tools/travel-between-images/components/": 2,
-            "src/shared/components/ShotImageManager/components/": 1,
-            "src/tools/travel-between-images/components/Timeline/TimelineContainer/": 1,
+            "src/shared/components/inline-segment-video/": 1,
+            "src/shared/hooks/": 1,
             "src/tools/travel-between-images/components/ShotImagesEditor/components/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/controllers/": 1,
-            "src/shared/components/inline-segment-video/": 1
+            "src/shared/components/ShotImageManager/hooks/": 1,
+            "src/shared/components/ShotImageManager/components/": 1
           }
         },
         "src/shared/hooks/shots/__tests__/": {
@@ -5476,8 +5476,8 @@
             "src/shared/lib/": 4,
             "src/shared/hooks/": 2,
             "src/integrations/supabase/": 1,
-            "src/shared/lib/errorHandling/": 1,
-            "src/shared/lib/queryKeys/": 1
+            "src/shared/lib/queryKeys/": 1,
+            "src/shared/lib/errorHandling/": 1
           },
           "imported_by_dirs": {
             "src/shared/hooks/timeline/__tests__/": 2,
@@ -5717,8 +5717,8 @@
             "src/tools/travel-between-images/components/": 22,
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 18,
             "src/shared/components/ShotImageManager/": 13,
-            "src/tools/travel-between-images/components/Timeline/hooks/": 12,
-            "src/shared/lib/tasks/": 12
+            "src/shared/lib/tasks/": 12,
+            "src/tools/travel-between-images/components/Timeline/hooks/": 12
           }
         },
         "src/shared/lib/__tests__/": {
@@ -5822,11 +5822,11 @@
             "src/shared/hooks/": 4,
             "src/shared/lib/__tests__/": 2,
             "src/shared/lib/": 1,
-            "src/shared/components/GenerationsPane/": 1,
-            "src/shared/contexts/": 1,
+            "src/shared/hooks/__tests__/": 1,
             "src/shared/components/ImageGenerationForm/hooks/": 1,
             "src/shared/components/TasksPane/": 1,
-            "src/shared/hooks/__tests__/": 1
+            "src/shared/contexts/": 1,
+            "src/shared/components/GenerationsPane/": 1
           }
         },
         "src/shared/lib/errorHandling/": {
@@ -5853,12 +5853,12 @@
             "src/shared/lib/": 24,
             "src/shared/components/": 14,
             "src/tools/travel-between-images/hooks/": 10,
-            "src/tools/travel-between-images/components/ShotEditor/hooks/": 9,
             "src/shared/lib/tasks/": 9,
+            "src/tools/travel-between-images/components/ShotEditor/hooks/": 9,
             "src/shared/lib/taskCreation/": 8,
             "src/shared/components/MediaLightbox/hooks/": 7,
-            "src/tools/travel-between-images/components/": 6,
-            "src/tools/travel-between-images/components/Timeline/hooks/": 6
+            "src/tools/travel-between-images/components/Timeline/hooks/": 6,
+            "src/tools/travel-between-images/components/": 6
           }
         },
         "src/shared/lib/preloading/__tests__/": {
@@ -5899,8 +5899,8 @@
           },
           "imports_from_dirs": {
             "src/shared/lib/": 1,
-            "src/shared/lib/errorHandling/": 1,
-            "src/shared/realtime/": 1
+            "src/shared/realtime/": 1,
+            "src/shared/lib/errorHandling/": 1
           },
           "imported_by_dirs": {
             "src/shared/lib/preloading/__tests__/": 6,
@@ -5954,8 +5954,8 @@
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 6,
             "src/tools/travel-between-images/hooks/": 5,
             "src/shared/components/MediaLightbox/hooks/": 4,
-            "src/shared/hooks/segments/": 4,
             "src/shared/hooks/invalidation/__tests__/": 4,
+            "src/shared/hooks/segments/": 4,
             "src/tools/travel-between-images/components/": 4,
             "src/shared/components/TasksPane/hooks/": 3,
             "src/tools/travel-between-images/components/ShotImagesEditor/hooks/": 3
@@ -6043,12 +6043,12 @@
             "src/shared/lib/tasks/__tests__/": 10,
             "src/shared/components/MediaLightbox/hooks/": 4,
             "src/shared/components/MediaLightbox/hooks/inpainting/": 2,
-            "src/shared/components/ImageGenerationForm/hooks/": 2,
             "src/shared/components/ImageGenerationForm/": 2,
-            "src/shared/components/ImageGenerationForm/hooks/formSubmission/": 1,
-            "src/shared/types/": 1,
+            "src/shared/components/ImageGenerationForm/hooks/": 2,
             "src/shared/components/": 1,
+            "src/shared/components/ImageGenerationForm/hooks/formSubmission/": 1,
             "src/tools/image-generation/hooks/": 1,
+            "src/shared/types/": 1,
             "src/shared/components/MediaLightbox/hooks/reposition/": 1
           }
         },
@@ -6094,14 +6094,14 @@
           "imported_by_dirs": {
             "src/shared/lib/tasks/travelBetweenImages/__tests__/": 4,
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 3,
-            "src/tools/travel-between-images/components/ShotEditor/services/applySettings/": 2,
-            "src/shared/components/MediaLightbox/components/": 2,
-            "src/tools/travel-between-images/components/Timeline/": 2,
             "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/": 2,
-            "src/shared/components/MediaLightbox/": 1,
-            "src/shared/components/": 1,
+            "src/tools/travel-between-images/components/ShotEditor/services/applySettings/": 2,
+            "src/tools/travel-between-images/components/Timeline/": 2,
+            "src/shared/components/MediaLightbox/components/": 2,
+            "src/shared/hooks/": 1,
             "src/tools/travel-between-images/components/": 1,
-            "src/tools/travel-between-images/components/Timeline/hooks/": 1
+            "src/tools/travel-between-images/components/ShotEditor/services/": 1,
+            "src/tools/travel-between-images/components/ShotImagesEditor/": 1
           }
         },
         "src/shared/realtime/": {
@@ -6166,14 +6166,14 @@
           },
           "imported_by_dirs": {
             "src/shared/hooks/": 3,
-            "src/shared/components/MediaGalleryItem/hooks/": 1,
             "src/shared/hooks/__tests__/": 1,
             "src/shared/components/": 1,
+            "src/shared/components/MediaGalleryItem/hooks/": 1,
             "src/tools/travel-between-images/components/Timeline/": 1,
-            "src/tools/": 1,
+            "src/tooling/": 1,
             "src/shared/contexts/": 1,
             "src/shared/settings/__tests__/": 1,
-            "src/tooling/": 1
+            "src/tools/": 1
           }
         },
         "src/shared/types/__tests__/": {
@@ -6225,8 +6225,8 @@
             "src/shared/components/TaskDetails/": 7,
             "src/shared/components/": 6,
             "src/tools/travel-between-images/components/": 5,
-            "src/shared/lib/tasks/travelBetweenImages/": 4,
             "src/shared/hooks/": 4,
+            "src/shared/lib/tasks/travelBetweenImages/": 4,
             "src/shared/components/ShotImageManager/": 3,
             "src/shared/components/MediaLightbox/hooks/": 3,
             "src/shared/components/MotionPresetSelector/": 3
@@ -6308,10 +6308,10 @@
           },
           "imports_from_dirs": {
             "src/shared/hooks/": 2,
-            "src/tools/character-animate/lib/": 1,
             "src/shared/lib/queryKeys/": 1,
-            "src/shared/lib/": 1,
-            "src/tools/character-animate/": 1
+            "src/tools/character-animate/lib/": 1,
+            "src/tools/character-animate/": 1,
+            "src/shared/lib/": 1
           },
           "imported_by_dirs": {
             "src/tools/character-animate/hooks/__tests__/": 2,
@@ -6332,8 +6332,8 @@
             "production": 3
           },
           "imports_from_dirs": {
-            "src/tools/character-animate/pages/components/": 4,
             "src/tools/character-animate/pages/hooks/": 4,
+            "src/tools/character-animate/pages/components/": 4,
             "src/shared/components/ui/": 3,
             "src/shared/lib/": 2,
             "src/shared/components/transitions/": 1,
@@ -6379,10 +6379,10 @@
           },
           "imports_from_dirs": {
             "src/shared/components/ui/": 7,
-            "src/shared/lib/": 3,
             "src/tools/character-animate/pages/": 3,
-            "src/shared/hooks/": 1,
+            "src/shared/lib/": 3,
             "src/shared/components/MediaGallery/": 1,
+            "src/shared/hooks/": 1,
             "src/shared/components/MediaGallery/utils/": 1
           },
           "imported_by_dirs": {
@@ -6443,16 +6443,16 @@
           },
           "imports_from_dirs": {
             "src/shared/hooks/": 4,
-            "src/shared/lib/": 2,
             "src/tools/character-animate/hooks/": 2,
             "src/tools/character-animate/pages/": 2,
+            "src/shared/lib/": 2,
             "src/shared/components/ui/": 1,
             "src/shared/contexts/": 1,
             "src/shared/lib/queryKeys/": 1
           },
           "imported_by_dirs": {
-            "src/tools/character-animate/pages/hooks/__tests__/": 4,
-            "src/tools/character-animate/pages/": 4
+            "src/tools/character-animate/pages/": 4,
+            "src/tools/character-animate/pages/hooks/__tests__/": 4
           }
         },
         "src/tools/edit-images/components/": {
@@ -6471,11 +6471,11 @@
           "imports_from_dirs": {
             "src/shared/components/ui/": 2,
             "src/types/": 1,
-            "src/shared/components/MediaLightbox/components/": 1,
+            "src/shared/components/MediaLightbox/contexts/": 1,
             "src/tools/edit-images/hooks/": 1,
+            "src/shared/components/MediaLightbox/components/": 1,
             "src/shared/lib/": 1,
-            "src/shared/components/MediaLightbox/hooks/inpainting/": 1,
-            "src/shared/components/MediaLightbox/contexts/": 1
+            "src/shared/components/MediaLightbox/hooks/inpainting/": 1
           },
           "imported_by_dirs": {
             "src/tools/edit-images/pages/": 1
@@ -6512,13 +6512,13 @@
           "imports_from_dirs": {
             "src/shared/components/MediaLightbox/hooks/": 4,
             "src/shared/hooks/": 4,
-            "src/shared/components/MediaLightbox/hooks/inpainting/": 2,
             "src/shared/components/MediaLightbox/contexts/": 2,
+            "src/shared/components/MediaLightbox/hooks/inpainting/": 2,
             "src/shared/lib/": 2,
             "src/shared/components/MediaLightbox/components/": 1,
             "src/types/": 1,
-            "src/shared/contexts/": 1,
-            "src/shared/components/MediaLightbox/utils/": 1
+            "src/shared/components/MediaLightbox/utils/": 1,
+            "src/shared/contexts/": 1
           },
           "imported_by_dirs": {
             "src/tools/edit-images/hooks/__tests__/": 2,
@@ -6543,10 +6543,10 @@
             "src/shared/lib/": 6,
             "src/shared/components/ui/": 3,
             "src/shared/components/": 2,
-            "src/shared/constants/": 1,
-            "src/tools/edit-images/components/": 1,
-            "src/shared/contexts/": 1,
+            "src/shared/components/MediaGallery/": 1,
             "src/shared/components/MediaGallery/utils/": 1,
+            "src/tools/edit-images/components/": 1,
+            "src/shared/constants/": 1,
             "src/shared/lib/errorHandling/": 1,
             "src/integrations/supabase/": 1
           }
@@ -6570,11 +6570,11 @@
             "src/shared/components/VideoPortionTimeline/": 3,
             "src/shared/components/MediaLightbox/components/": 2,
             "src/shared/components/MediaLightbox/hooks/": 2,
-            "src/shared/hooks/": 1,
             "src/types/": 1,
+            "src/shared/hooks/": 1,
             "src/shared/lib/queryKeys/": 1,
-            "src/shared/components/VideoTrimEditor/": 1,
-            "src/shared/contexts/": 1
+            "src/shared/contexts/": 1,
+            "src/shared/components/VideoTrimEditor/": 1
           },
           "imported_by_dirs": {
             "src/tools/edit-video/components/__tests__/": 3,
@@ -6613,11 +6613,11 @@
           "imports_from_dirs": {
             "src/shared/lib/": 5,
             "src/shared/hooks/": 4,
-            "src/shared/components/ui/": 1,
             "src/types/": 1,
+            "src/shared/components/ui/": 1,
+            "src/shared/lib/queryKeys/": 1,
             "src/shared/contexts/": 1,
-            "src/shared/components/VideoPortionTimeline/": 1,
-            "src/shared/lib/queryKeys/": 1
+            "src/shared/components/VideoPortionTimeline/": 1
           },
           "imported_by_dirs": {
             "src/tools/edit-video/hooks/__tests__/": 1,
@@ -6678,13 +6678,13 @@
           "imports_from_dirs": {
             "src/shared/hooks/": 8,
             "src/shared/components/ui/": 2,
-            "src/shared/lib/errorHandling/": 2,
             "src/shared/lib/queryKeys/": 2,
+            "src/shared/lib/errorHandling/": 2,
             "src/shared/contexts/": 1,
-            "src/shared/components/MediaGallery/hooks/": 1,
-            "src/shared/lib/": 1,
             "src/shared/components/MediaGallery/": 1,
             "src/shared/components/MediaGallery/utils/": 1,
+            "src/shared/lib/": 1,
+            "src/shared/components/MediaGallery/hooks/": 1,
             "src/shared/lib/tasks/": 1
           },
           "imported_by_dirs": {
@@ -6724,15 +6724,15 @@
             "production": 3
           },
           "imports_from_dirs": {
-            "src/shared/hooks/": 4,
             "src/tools/join-clips/": 4,
+            "src/shared/hooks/": 4,
             "src/shared/lib/": 4,
             "src/shared/components/ui/": 2,
             "src/tools/join-clips/lib/": 1,
             "src/shared/lib/errorHandling/": 1,
+            "src/shared/lib/queryKeys/": 1,
             "src/tools/join-clips/utils/": 1,
-            "src/shared/lib/tasks/": 1,
-            "src/shared/lib/queryKeys/": 1
+            "src/shared/lib/tasks/": 1
           },
           "imported_by_dirs": {
             "src/tools/join-clips/hooks/__tests__/": 3,
@@ -6825,11 +6825,11 @@
             "src/tools/join-clips/lib/clipManager/": 5,
             "src/tools/join-clips/hooks/": 4,
             "src/tools/join-clips/lib/": 2,
-            "src/tools/": 1,
             "src/tooling/": 1,
+            "src/tools/": 1,
+            "src/tools/join-clips/components/": 1,
             "src/tools/join-clips/hooks/__tests__/": 1,
-            "src/tools/join-clips/lib/__tests__/": 1,
-            "src/tools/join-clips/components/": 1
+            "src/tools/join-clips/lib/__tests__/": 1
           }
         },
         "src/tools/training-data-helper/components/": {
@@ -6876,12 +6876,12 @@
             "production": 2
           },
           "imports_from_dirs": {
-            "src/tools/training-data-helper/components/VideoSegmentEditor/components/": 3,
             "src/shared/components/ui/": 3,
+            "src/tools/training-data-helper/components/VideoSegmentEditor/components/": 3,
             "src/tools/training-data-helper/hooks/": 1,
-            "src/shared/lib/": 1,
             "src/tools/training-data-helper/components/VideoSegmentEditor/hooks/": 1,
-            "src/shared/lib/errorHandling/": 1
+            "src/shared/lib/errorHandling/": 1,
+            "src/shared/lib/": 1
           },
           "imported_by_dirs": {
             "src/tools/training-data-helper/components/VideoSegmentEditor/components/": 4,
@@ -7001,10 +7001,10 @@
             "src/tools/training-data-helper/components/": 3,
             "src/tools/training-data-helper/components/VideoSegmentEditor/": 1,
             "src/tools/training-data-helper/hooks/": 1,
-            "src/shared/lib/": 1,
-            "src/shared/components/transitions/": 1,
+            "src/shared/lib/errorHandling/": 1,
             "src/shared/components/ui/": 1,
-            "src/shared/lib/errorHandling/": 1
+            "src/shared/components/transitions/": 1,
+            "src/shared/lib/": 1
           }
         },
         "src/tools/travel-between-images/components/": {
@@ -7043,8 +7043,8 @@
             "src/shared/lib/": 22,
             "src/shared/components/": 13,
             "src/types/": 10,
-            "src/integrations/supabase/": 6,
             "src/shared/lib/errorHandling/": 6,
+            "src/integrations/supabase/": 6,
             "src/tools/travel-between-images/hooks/": 6,
             "src/shared/types/": 5,
             "src/tools/travel-between-images/": 4
@@ -7087,7 +7087,7 @@
             "src/shared/contexts/": 2,
             "src/tools/travel-between-images/components/ShotEditor/sections/": 1,
             "src/tools/travel-between-images/components/": 1,
-            "src/shared/lib/": 1
+            "src/shared/types/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/sections/": 4,
@@ -7114,8 +7114,8 @@
           "imports_from_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 5,
             "src/types/": 4,
-            "src/shared/hooks/": 1,
             "src/shared/lib/errorHandling/": 1,
+            "src/shared/hooks/": 1,
             "src/tools/travel-between-images/hooks/": 1,
             "src/shared/hooks/segments/": 1
           },
@@ -7237,8 +7237,8 @@
             "src/tools/travel-between-images/components/ShotEditor/sections/generation/": 1,
             "src/shared/components/SettingsModal/": 1,
             "src/shared/components/LoraSelectorModal/": 1,
-            "src/tools/travel-between-images/components/": 1,
-            "src/shared/contexts/": 1
+            "src/shared/contexts/": 1,
+            "src/tools/travel-between-images/components/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/": 1
@@ -7262,8 +7262,8 @@
             "src/tools/travel-between-images/components/": 3,
             "src/tools/travel-between-images/components/ShotEditor/": 2,
             "src/shared/components/JoinClipsSettingsForm/": 2,
-            "src/tools/travel-between-images/providers/": 1,
-            "src/shared/components/ImageGenerationForm/components/": 1
+            "src/shared/components/ImageGenerationForm/components/": 1,
+            "src/tools/travel-between-images/providers/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/sections/": 1
@@ -7292,8 +7292,8 @@
             "src/shared/lib/tasks/travelBetweenImages/": 2,
             "src/shared/hooks/shots/": 1,
             "src/types/": 1,
-            "src/shared/types/": 1,
-            "src/shared/components/LoraSelectorModal/": 1
+            "src/shared/components/LoraSelectorModal/": 1,
+            "src/shared/types/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/services/": 6
@@ -7315,18 +7315,18 @@
             "src/tools/travel-between-images/components/ShotEditor/services/applySettings/": 6,
             "src/shared/lib/": 4,
             "src/shared/lib/errorHandling/": 2,
-            "src/integrations/supabase/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/state/": 1,
-            "src/types/": 1,
             "src/tools/travel-between-images/components/ShotEditor/utils/": 1,
+            "src/types/": 1,
+            "src/tools/travel-between-images/": 1,
             "src/shared/lib/tasks/travelBetweenImages/": 1,
-            "src/tools/travel-between-images/": 1
+            "src/integrations/supabase/": 1,
+            "src/tools/travel-between-images/components/ShotEditor/state/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 2,
+            "src/tools/travel-between-images/hooks/": 1,
             "src/tools/travel-between-images/components/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/services/__tests__/": 1,
-            "src/tools/travel-between-images/hooks/": 1
+            "src/tools/travel-between-images/components/ShotEditor/services/__tests__/": 1
           }
         },
         "src/tools/travel-between-images/components/ShotEditor/state/": {
@@ -7345,8 +7345,8 @@
             "test": 1
           },
           "imports_from_dirs": {
-            "src/types/": 1,
-            "src/shared/types/": 1
+            "src/shared/types/": 1,
+            "src/types/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 7,
@@ -7373,9 +7373,9 @@
             "src/shared/lib/": 3,
             "src/shared/components/ui/": 3,
             "src/types/": 2,
+            "src/shared/lib/queryKeys/": 1,
             "src/integrations/supabase/": 1,
-            "src/shared/components/": 1,
-            "src/shared/lib/queryKeys/": 1
+            "src/shared/components/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotEditor/sections/": 2,
@@ -7397,14 +7397,14 @@
           "imports_from_dirs": {
             "src/shared/components/ui/": 5,
             "src/tools/travel-between-images/components/ShotImagesEditor/hooks/": 2,
-            "src/shared/components/": 1,
             "src/shared/components/ImageGenerationForm/components/": 1,
             "src/tools/travel-between-images/components/Timeline/": 1,
-            "src/tools/travel-between-images/components/ShotImagesEditor/components/": 1,
             "src/tools/travel-between-images/components/": 1,
+            "src/shared/components/": 1,
+            "src/tools/travel-between-images/components/ShotImagesEditor/components/": 1,
+            "src/shared/lib/": 1,
             "src/types/": 1,
-            "src/shared/lib/tasks/travelBetweenImages/": 1,
-            "src/shared/lib/": 1
+            "src/shared/lib/tasks/travelBetweenImages/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/": 2,
@@ -7430,10 +7430,10 @@
           "imports_from_dirs": {
             "src/shared/components/ui/": 4,
             "src/shared/lib/": 2,
-            "src/tools/travel-between-images/components/Timeline/TimelineContainer/": 1,
-            "src/types/": 1,
             "src/shared/components/ImageGenerationForm/components/": 1,
+            "src/tools/travel-between-images/components/Timeline/TimelineContainer/": 1,
             "src/shared/hooks/segments/": 1,
+            "src/types/": 1,
             "src/tools/travel-between-images/components/": 1,
             "src/shared/components/ShotImageManager/": 1,
             "src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/": 1
@@ -7502,8 +7502,8 @@
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/ShotImagesEditor/hooks/__tests__/": 10,
-            "src/tools/travel-between-images/components/": 2,
-            "src/tools/travel-between-images/components/ShotImagesEditor/": 2
+            "src/tools/travel-between-images/components/ShotImagesEditor/": 2,
+            "src/tools/travel-between-images/components/": 2
           }
         },
         "src/tools/travel-between-images/components/Timeline/": {
@@ -7568,15 +7568,15 @@
           },
           "imports_from_dirs": {
             "src/tools/travel-between-images/components/Timeline/": 11,
-            "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/": 3,
             "src/tools/travel-between-images/components/Timeline/hooks/": 3,
+            "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/": 3,
             "src/shared/types/": 2,
+            "src/tools/travel-between-images/components/Timeline/utils/": 1,
             "src/shared/lib/": 1,
             "src/shared/components/ShotImageManager/components/": 1,
             "src/shared/components/": 1,
-            "src/tools/travel-between-images/components/Timeline/utils/": 1,
-            "src/types/": 1,
-            "src/shared/hooks/segments/": 1
+            "src/shared/hooks/segments/": 1,
+            "src/types/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/Timeline/hooks/": 3,
@@ -7626,9 +7626,9 @@
             "src/tools/travel-between-images/components/Timeline/": 4,
             "src/shared/lib/": 3,
             "src/shared/lib/errorHandling/": 2,
+            "src/shared/hooks/": 2,
             "src/tools/travel-between-images/components/Timeline/utils/": 2,
             "src/shared/lib/tasks/travelBetweenImages/": 2,
-            "src/shared/hooks/": 2,
             "src/integrations/supabase/": 1
           },
           "imported_by_dirs": {
@@ -7799,8 +7799,8 @@
             "src/tools/travel-between-images/components/Timeline/hooks/": 11,
             "src/tools/travel-between-images/components/Timeline/": 4,
             "src/tools/travel-between-images/components/": 3,
-            "src/tools/travel-between-images/components/Timeline/utils/__tests__/": 2,
             "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/": 2,
+            "src/tools/travel-between-images/components/Timeline/utils/__tests__/": 2,
             "src/tools/travel-between-images/components/Timeline/TimelineContainer/": 1
           }
         },
@@ -7824,8 +7824,8 @@
             "src/types/": 3,
             "src/shared/components/": 3,
             "src/shared/hooks/": 2,
-            "src/shared/lib/": 1,
-            "src/tools/travel-between-images/components/VideoGallery/utils/": 1
+            "src/tools/travel-between-images/components/VideoGallery/utils/": 1,
+            "src/shared/lib/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/": 1
@@ -7866,15 +7866,15 @@
             "production": 5
           },
           "imports_from_dirs": {
-            "src/types/": 5,
             "src/shared/lib/": 5,
+            "src/types/": 5,
             "src/shared/lib/preloading/": 1,
-            "src/integrations/supabase/": 1,
             "src/shared/components/ui/": 1,
-            "src/shared/hooks/": 1,
-            "src/shared/lib/tasks/": 1,
+            "src/shared/lib/queryKeys/": 1,
             "src/shared/lib/errorHandling/": 1,
-            "src/shared/lib/queryKeys/": 1
+            "src/integrations/supabase/": 1,
+            "src/shared/hooks/": 1,
+            "src/shared/lib/tasks/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/components/VideoGallery/components/": 6,
@@ -8032,7 +8032,7 @@
             "src/shared/lib/": 2,
             "src/shared/hooks/invalidation/": 1,
             "src/tools/travel-between-images/providers/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/": 1
+            "src/shared/components/LoraSelectorModal/": 1
           },
           "imported_by_dirs": {
             "src/tools/travel-between-images/pages/__tests__/": 2,
@@ -8069,15 +8069,15 @@
           },
           "imports_from_dirs": {
             "src/tools/travel-between-images/hooks/": 2,
+            "src/types/": 1,
             "src/tools/travel-between-images/": 1,
-            "src/shared/components/LoraSelectorModal/": 1,
-            "src/types/": 1
+            "src/shared/components/LoraSelectorModal/": 1
           },
           "imported_by_dirs": {
-            "src/tools/travel-between-images/pages/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/hooks/": 1,
+            "src/tools/travel-between-images/components/ShotEditor/": 1,
             "src/tools/travel-between-images/components/ShotEditor/sections/generation/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/": 1
+            "src/tools/travel-between-images/pages/": 1,
+            "src/tools/travel-between-images/components/ShotEditor/hooks/": 1
           }
         },
         "src/tools/travel-between-images/": {
@@ -8098,14 +8098,14 @@
             "src/shared/lib/": 2
           },
           "imported_by_dirs": {
-            "src/tools/travel-between-images/components/": 4,
             "src/tools/travel-between-images/hooks/": 4,
-            "src/pages/share/": 1,
+            "src/tools/travel-between-images/components/": 4,
+            "src/tooling/": 1,
             "src/tools/travel-between-images/providers/": 1,
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 1,
-            "src/tooling/": 1,
-            "src/tools/": 1,
-            "src/tools/travel-between-images/components/ShotEditor/services/": 1
+            "src/pages/share/": 1,
+            "src/tools/travel-between-images/components/ShotEditor/services/": 1,
+            "src/tools/": 1
           }
         },
         "src/types/": {
@@ -8140,8 +8140,8 @@
             "src/shared/hooks/": 16,
             "src/tools/travel-between-images/components/ShotEditor/hooks/": 16,
             "src/shared/components/": 12,
-            "src/tools/travel-between-images/hooks/": 12,
             "src/tools/travel-between-images/components/Timeline/hooks/": 12,
+            "src/tools/travel-between-images/hooks/": 12,
             "src/tools/travel-between-images/components/": 10,
             "src/shared/components/TasksPane/hooks/": 10,
             "src/shared/components/ShotImageManager/hooks/": 9,
@@ -14388,6 +14388,7 @@
   },
   "next_command": "desloppify review --run-batches --runner codex --parallel",
   "config": {
+    "target_strict_score": 95,
     "review_max_age_days": 30,
     "holistic_max_age_days": 30,
     "generate_scorecard": true,
