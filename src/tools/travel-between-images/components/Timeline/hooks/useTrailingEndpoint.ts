@@ -36,7 +36,7 @@ interface UseTrailingEndpointReturn {
  * the orchestrator hook runs.
  *
  * callbackTrailingVideoUrl is also owned by the caller (before the orchestrator)
- * so it can influence fullMax via hasAnyTrailingVideo. This hook receives it as
+ * so it can influence fullMax via hasCallbackTrailingVideo. This hook receives it as
  * a prop and handles the clear-on-last-image-change effect.
  *
  * This hook handles post-orchestrator logic that needs currentPositions:

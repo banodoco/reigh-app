@@ -94,8 +94,18 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     onAudioChange,
   } = useTimelineMedia();
 
-  // --- Pre-orchestrator trailing endpoint state ---
-  // These derive from framePositions only and must be available before the orchestrator.
+  // ── Trailing segment detection ──────────────────────────────────────────
+  // Two-phase design:
+  //   PRE-ORCHESTRATOR  → "should the orchestrator reserve trailing space in fullMax?"
+  //                       Uses anyImageHasVideo (from segment slots) + readOnly paths.
+  //   POST-ORCHESTRATOR → "does the CURRENT live-last image have a video?"
+  //                       Uses hasLiveTrailingVideo (segment slots + live imagePositions).
+  //
+  // The split exists because the orchestrator computes fullMax before we have
+  // live drag positions. We tell it to reserve space proactively (small cost:
+  // 17 extra frames when any video exists), then do precise detection after.
+  // ──────────────────────────────────────────────────────────────────────────
+
   const trailingEndFrame = framePositions.get(TRAILING_ENDPOINT_KEY);
 
   const handleTrailingEndFrameChange = useCallback((endFrame: number | undefined) => {
@@ -112,7 +122,8 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     onRegisterTrailingUpdater?.(handleTrailingEndFrameChange);
   }, [onRegisterTrailingUpdater, handleTrailingEndFrameChange]);
 
-  // Compute trailing video info from videoOutputs SYNCHRONOUSLY to avoid layout shift
+  // ReadOnly path: detect trailing video synchronously from preloaded generations.
+  // In editing mode videoOutputs is undefined — this returns { false, null }.
   const { hasTrailing: hasExistingTrailingVideo, videoUrl: computedTrailingVideoUrl } = useMemo(() => {
     if (!videoOutputs || videoOutputs.length === 0 || images.length === 0) {
       return { hasTrailing: false, videoUrl: null };
@@ -124,14 +135,13 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     return findTrailingVideoInfo(videoOutputs, lastImageShotGenId);
   }, [videoOutputs, framePositions, images.length]);
 
-  // Async trailing video URL — set by SegmentOutputStrip callback when it detects a trailing video
+  // Async path: strip reports trailing video URL via callback once the slot is visible.
+  // Safety net when parentSegmentSlots (React Query) hasn't refreshed yet.
   const [callbackTrailingVideoUrl, setCallbackTrailingVideoUrl] = useState<string | null>(null);
-  const hasAnyTrailingVideo = hasExistingTrailingVideo || !!callbackTrailingVideoUrl;
+  const hasCallbackTrailingVideo = hasExistingTrailingVideo || !!callbackTrailingVideoUrl;
 
-  // Pre-orchestrator: does ANY image have a completed video segment?
-  // Tells orchestrator to reserve trailing space proactively so fullMax is wide enough
-  // if the user drags that image to last position. Small cost (17 frames of padding)
-  // even when the video isn't at last position, but eliminates the chicken-and-egg.
+  // PRE-ORCHESTRATOR: does ANY image have a completed video segment?
+  // Proactive reservation — small cost (17 frames padding) eliminates chicken-and-egg.
   const anyImageHasVideo = useMemo(() => {
     if (parentSegmentSlots?.length) {
       return parentSegmentSlots.some(slot =>
@@ -223,7 +233,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     onAddStructureVideo,
     onUpdateStructureVideo,
     onPrimaryStructureVideoInputChange,
-    hasExistingTrailingVideo: hasAnyTrailingVideo || anyImageHasVideo,
+    hasExistingTrailingVideo: hasCallbackTrailingVideo || anyImageHasVideo,
   });
 
   // --- Post-orchestrator trailing endpoint (needs currentPositions) ---
@@ -417,7 +427,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 onOpenPairSettings={onPairClick ? handleOpenPairSettings : undefined}
                 selectedParentId={selectedOutputId}
                 onSegmentFrameCountChange={onSegmentFrameCountChange}
-                trailingSegmentMode={lastEntry && (trailingEndFrame !== undefined || hasAnyTrailingVideo || hasLiveTrailingVideo) ? (() => {
+                trailingSegmentMode={lastEntry && (trailingEndFrame !== undefined || hasCallbackTrailingVideo || hasLiveTrailingVideo) ? (() => {
                   const [imageId, imageFrame] = lastEntry;
                   const resolvedEndFrame = trailingEndFrame ?? (imageFrame + (isMultiImage ? 17 : 49));
                   const trailingDuration = resolvedEndFrame - imageFrame;
@@ -649,7 +659,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
               const isMultiImage = images.length > 1;
               const hasTrailingSegment = trailingEndFrame !== undefined;
 
-              if (isMultiImage && !hasTrailingSegment && !hasAnyTrailingVideo && !hasLiveTrailingVideo) {
+              if (isMultiImage && !hasTrailingSegment && !hasCallbackTrailingVideo && !hasLiveTrailingVideo) {
                 return null;
               }
 
