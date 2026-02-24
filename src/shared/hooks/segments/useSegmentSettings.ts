@@ -304,10 +304,14 @@ export function useSegmentSettings({
     save: mutations.savePairMetadata,
     autoSaveMs: 500,
     contextKey: pairShotGenerationId || undefined,
-    validate: (updates) => {
-      // Enforce: basic mode = no phase config
+    validate: (updates, current) => {
+      // Enforce: basic mode without a preset = no phase config.
+      // When a preset IS selected, its phaseConfig must be preserved.
       if (updates.motionMode === 'basic') {
-        return { ...updates, phaseConfig: undefined };
+        const hasPreset = updates.selectedPhasePresetId ?? current.selectedPhasePresetId;
+        if (!hasPreset) {
+          return { ...updates, phaseConfig: undefined };
+        }
       }
       return updates;
     },

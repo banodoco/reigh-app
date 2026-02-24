@@ -77,7 +77,9 @@ export function useSegmentMutations({
             textAfterPrompts: settings.textAfterPrompts,
             motionMode: settings.motionMode,
             amountOfMotion: settings.amountOfMotion,
-            phaseConfig: settings.motionMode === 'basic' ? null : settings.phaseConfig,
+            phaseConfig: (settings.motionMode === 'basic' && !settings.selectedPhasePresetId)
+              ? null
+              : settings.phaseConfig,
             loras: settings.loras,
             randomSeed: settings.randomSeed,
             seed: settings.seed,
