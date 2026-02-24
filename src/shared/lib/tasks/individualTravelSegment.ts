@@ -731,12 +731,14 @@ export async function createIndividualTravelSegmentTask(params: IndividualTravel
       child_generation_id: effectiveChildGenerationId,
     };
 
-    // 4. Resolve project resolution (use original if available)
+    // 4. Resolve resolution: direct param (from form/shot) > originalParams > project settings
+    const directResolution = asString((params as unknown as Record<string, unknown>).parsed_resolution_wh);
     const originalParams = toRecordOrEmpty(params.originalParams);
     const originalOrchestratorDetails = toRecordOrEmpty(originalParams.orchestrator_details);
     const origResolutionValue =
       originalParams.parsed_resolution_wh ?? originalOrchestratorDetails.parsed_resolution_wh;
-    const origResolution = typeof origResolutionValue === 'string' ? origResolutionValue : undefined;
+    const origResolution = directResolution
+      ?? (typeof origResolutionValue === 'string' ? origResolutionValue : undefined);
     const { resolution: finalResolution } = await resolveProjectResolution(
       params.project_id,
       origResolution
