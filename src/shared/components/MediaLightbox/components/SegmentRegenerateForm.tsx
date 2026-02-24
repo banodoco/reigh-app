@@ -169,8 +169,9 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
       prompt: '',
       negativePrompt: '',
       numFrames: currentFrameCount ?? initialNumFrames ?? 25,
-      // When segment has no primary variant (orphaned), default to making new generation primary
-      makePrimaryVariant: !hasPrimaryVariant,
+      // Regeneration should replace the current video in the slot by default.
+      // The user can uncheck this in the form to create a non-primary variant instead.
+      makePrimaryVariant: true,
     },
     // Form display options
     segmentIndex,
