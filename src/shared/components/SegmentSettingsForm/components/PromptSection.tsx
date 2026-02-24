@@ -102,9 +102,8 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
         <div className="flex items-center gap-x-2 p-2 bg-muted/30 rounded-lg border flex-1">
           <Switch
             id="make-primary-segment"
-            checked={isRegeneration ? settings.makePrimaryVariant : true}
-            onCheckedChange={isRegeneration ? (value) => onChange({ makePrimaryVariant: value }) : undefined}
-            disabled={!isRegeneration}
+            checked={settings.makePrimaryVariant}
+            onCheckedChange={(value) => onChange({ makePrimaryVariant: value })}
           />
           <Label htmlFor="make-primary-segment" className="text-sm font-medium cursor-pointer flex-1">
             Make Primary
