@@ -223,7 +223,7 @@ export const useTimelineDrag = ({
       newPositions.set(dragState.activeId, finalPosition);
     }
 
-    return applyFluidTimeline(newPositions, dragState.activeId, finalPosition, undefined, fullMin, fullMax, isPreview);
+    return applyFluidTimeline(newPositions, dragState.activeId, finalPosition, dragState.activeId, fullMin, fullMax, isPreview);
   }, [
     dragState.isDragging,
     dragState.activeId,
