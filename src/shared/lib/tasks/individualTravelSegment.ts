@@ -590,7 +590,6 @@ function buildTaskParamsPayload(
     orchestrator_details: orchestratorDetails,
     parent_generation_id: params.parent_generation_id,
     child_generation_id: params.child_generation_id,
-    ...(params.child_generation_id ? { based_on: params.child_generation_id } : {}),
     input_image_paths_resolved: state.inputImages,
     ...(params.start_image_generation_id && { start_image_generation_id: params.start_image_generation_id }),
     ...(params.end_image_generation_id && { end_image_generation_id: params.end_image_generation_id }),

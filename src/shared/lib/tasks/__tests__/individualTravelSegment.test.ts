@@ -262,7 +262,7 @@ describe('createIndividualTravelSegmentTask', () => {
     expect(params.pair_shot_generation_id).toBe('pair-sg-1');
   });
 
-  it('sets based_on when child_generation_id is provided', async () => {
+  it('does not set based_on (routing uses generationRouting contract instead)', async () => {
     await createIndividualTravelSegmentTask({
       project_id: 'proj-1',
       parent_generation_id: 'parent-1',
@@ -273,21 +273,8 @@ describe('createIndividualTravelSegmentTask', () => {
     });
 
     const params = mockCreateTask.mock.calls[0][0].params;
-    expect(params.based_on).toBe('child-1');
-    expect(params.child_generation_id).toBe('child-1');
-  });
-
-  it('does not set based_on without child_generation_id', async () => {
-    await createIndividualTravelSegmentTask({
-      project_id: 'proj-1',
-      parent_generation_id: 'parent-1',
-      segment_index: 0,
-      start_image_url: 'https://example.com/start.jpg',
-      end_image_url: 'https://example.com/end.jpg',
-    });
-
-    const params = mockCreateTask.mock.calls[0][0].params;
     expect(params.based_on).toBeUndefined();
+    expect(params.child_generation_id).toBe('child-1');
   });
 
   it('always sets use_svi to false', async () => {
